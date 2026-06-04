@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zidd — test harness</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e8ec; --mut:#8b93a1;
+          --accent:#6ea8fe; --good:#5ad19a; --warn:#e0b15a; --line:#262b35; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex;
+           align-items:center; gap:12px; }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .tag { font-size:11px; color:var(--mut); border:1px solid var(--line);
+                padding:2px 8px; border-radius:99px; }
+  main { display:grid; grid-template-columns:1fr 320px; gap:0; height:calc(100vh - 51px); }
+  #left { padding:20px; overflow-y:auto; }
+  #right { border-left:1px solid var(--line); background:var(--panel); padding:18px; overflow-y:auto; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:0 0 12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:14px; margin-bottom:12px; cursor:pointer; transition:border-color .12s; }
+  .card:hover { border-color:var(--accent); }
+  .card h3 { margin:0 0 4px; font-size:15px; }
+  .card p { margin:0; color:var(--mut); font-size:13px; }
+  .card .meta { margin-top:8px; font-size:11px; color:var(--accent); }
+  textarea, input, select { width:100%; background:var(--bg); color:var(--ink);
+          border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; }
+  textarea { min-height:120px; resize:vertical; }
+  button { background:var(--accent); color:#0b1020; border:0; border-radius:8px;
+           padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; margin-top:10px; }
+  button.ghost { background:transparent; color:var(--mut); border:1px solid var(--line); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  label { display:block; font-size:12px; color:var(--mut); margin:12px 0 4px; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  .chat { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .msg { padding:10px 12px; border-radius:10px; max-width:85%; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:#23304a; }
+  .msg.assistant { align-self:flex-start; background:var(--panel); border:1px solid var(--line); }
+  .stat { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .stat b { color:var(--ink); font-weight:600; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:99px; background:#23304a; color:var(--accent); }
+  .bar { height:6px; background:var(--bg); border-radius:99px; overflow:hidden; margin-top:4px; }
+  .bar > div { height:100%; background:var(--good); width:0%; transition:width .3s; }
+  .hint { font-size:12px; color:var(--mut); }
+  .hidden { display:none; }
+  .placement { background:#1b2230; border:1px solid var(--accent); border-radius:10px; padding:14px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Zidd</h1><span class="tag">test harness</span>
+  <span class="tag" id="userTag">user: demo</span>
+</header>
+<main>
+  <div id="left">
+    <!-- STEP 1: module picker -->
+    <section id="step-modules">
+      <h2>1 · Pick a module</h2>
+      <div id="moduleList"></div>
+    </section>
+
+    <!-- STEP 2: placement -->
+    <section id="step-placement" class="hidden">
+      <h2>2 · Placement</h2>
+      <p class="hint">Write a few sentences on any topic (e.g. "Describe a challenge you overcame"). We estimate your level and pick your starting node. Or skip and self-report.</p>
+      <textarea id="sample" placeholder="Type a short writing sample here…"></textarea>
+      <label>…or self-report (used if no sample / AI offline)</label>
+      <select id="selfReport">
+        <option value="">— none —</option>
+        <option value="beginner">Beginner (A2)</option>
+        <option value="intermediate">Intermediate (B1)</option>
+        <option value="advanced">Advanced (B2)</option>
+        <option value="fluent">Fluent (C1)</option>
+      </select>
+      <div class="row">
+        <button id="placeBtn">Place me</button>
+        <button class="ghost" id="backToModules">Back</button>
+      </div>
+      <div id="placementResult"></div>
+    </section>
+
+    <!-- STEP 3: session -->
+    <section id="step-session" class="hidden">
+      <h2>3 · Session</h2>
+      <div class="chat" id="chat"></div>
+      <textarea id="answer" placeholder="Your answer…"></textarea>
+      <div class="row">
+        <button id="sendBtn">Send</button>
+        <button class="ghost" id="endBtn">End session</button>
+      </div>
+      <div id="summaryBox"></div>
+    </section>
+  </div>
+
+  <div id="right">
+    <h2>State</h2>
+    <div id="statePanel"><p class="hint">No active session.</p></div>
+  </div>
+</main>
+
+<script>
+const USER_ID = "demo";
+let SESSION_ID = null;
+let PLACED = null;
+
+const $ = (id) => document.getElementById(id);
+const show = (id) => $(id).classList.remove("hidden");
+const hide = (id) => $(id).classList.add("hidden");
+
+// ---------- step 1: modules ----------
+async function loadModules() {
+  const res = await fetch("/modules");
+  const mods = await res.json();
+  const list = $("moduleList");
+  list.innerHTML = "";
+  for (const m of mods) {
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = `<h3>${m.title}</h3><p>${m.description}</p>
+      <div class="meta">${m.level_count} levels · CEFR ${m.cefr_range}</div>`;
+    el.onclick = () => pickModule(m);
+    list.appendChild(el);
+  }
+}
+
+function pickModule(m) {
+  PLACED = { module_id: m.id, module_title: m.title };
+  $("placementResult").innerHTML = "";
+  hide("step-modules");
+  show("step-placement");
+}
+
+$("backToModules").onclick = () => { hide("step-placement"); show("step-modules"); };
+
+// ---------- step 2: placement ----------
+$("placeBtn").onclick = async () => {
+  $("placeBtn").disabled = true;
+  $("placeBtn").textContent = "Placing…";
+  const body = {
+    module_id: PLACED.module_id,
+    writing_sample: $("sample").value.trim() || null,
+    self_report: $("selfReport").value || null,
+  };
+  const res = await fetch("/onboarding/placement", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body),
+  });
+  const p = await res.json();
+  PLACED = { ...PLACED, ...p };
+  $("placementResult").innerHTML = `
+    <div class="placement">
+      <div class="stat"><span>Estimated level</span><b>${p.estimated_cefr}</b></div>
+      <div class="stat"><span>Starting node</span><b>${p.node_title} (${p.node_cefr})</b></div>
+      <p class="hint" style="margin:8px 0 0">${p.rationale}</p>
+      <button id="startBtn">Start at this level →</button>
+    </div>`;
+  $("startBtn").onclick = startSession;
+  $("placeBtn").disabled = false;
+  $("placeBtn").textContent = "Place me";
+};
+
+// ---------- step 3: session ----------
+async function startSession() {
+  const res = await fetch("/session/start", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ user_id: USER_ID, competency_node: PLACED.starting_node }),
+  });
+  const data = await res.json();
+  SESSION_ID = data.session_id;
+  $("chat").innerHTML = "";
+  $("summaryBox").innerHTML = "";
+  hide("step-placement");
+  show("step-session");
+  await streamInto(`/session/${SESSION_ID}/opening`, null, "GET");
+}
+
+function addMsg(role, text) {
+  const el = document.createElement("div");
+  el.className = `msg ${role}`;
+  el.textContent = text;
+  $("chat").appendChild(el);
+  el.scrollIntoView({ behavior: "smooth" });
+  return el;
+}
+
+// SSE over fetch: data: frames are JSON tokens; event: done carries state.
+async function streamInto(url, body, method) {
+  const bubble = addMsg("assistant", "");
+  const res = await fetch(url, {
+    method,
+    headers: body ? {"Content-Type":"application/json"} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const frames = buf.split("\n\n");
+    buf = frames.pop();
+    for (const f of frames) {
+      const isDone = f.startsWith("event: done");
+      const line = f.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      const payload = JSON.parse(line.slice(5).trim());
+      if (isDone) renderState(payload);
+      else bubble.textContent += payload;
+    }
+    bubble.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+$("sendBtn").onclick = async () => {
+  const text = $("answer").value.trim();
+  if (!text || !SESSION_ID) return;
+  addMsg("user", text);
+  $("answer").value = "";
+  $("sendBtn").disabled = true;
+  await streamInto("/session/turn", { session_id: SESSION_ID, user_input: text }, "POST");
+  $("sendBtn").disabled = false;
+};
+
+$("endBtn").onclick = async () => {
+  if (!SESSION_ID) return;
+  const res = await fetch(`/session/${SESSION_ID}/end`, { method: "POST" });
+  const data = await res.json();
+  $("summaryBox").innerHTML = `<div class="placement"><h2>Session summary</h2>
+    <p class="hint">${data.summary || "(no summary)"}</p></div>`;
+  SESSION_ID = null;
+};
+
+function renderState(s) {
+  const pct = Math.round((s.current_mastery || 0) * 100);
+  $("statePanel").innerHTML = `
+    <div class="stat"><span>Node</span><b>${s.node_title}</b></div>
+    <div class="stat"><span>Mastery</span><b>${s.current_mastery}</b></div>
+    <div class="bar"><div style="width:${pct}%"></div></div>
+    <div class="stat"><span>Last route</span><span class="pill">${s.last_route || "—"}</span></div>
+    <div class="stat"><span>Last score</span><b>${s.last_eval_score}</b></div>
+    <div class="stat"><span>Attempts</span><b>${s.attempts}</b></div>
+    <div class="stat"><span>Bridge attempts</span><b>${s.bridge_attempts}</b></div>
+    <div class="stat"><span>Turns</span><b>${s.turn_count}</b></div>
+    <div class="stat"><span>Remediation</span><b>${s.remediation}</b></div>
+    <div class="stat"><span>Module done</span><b>${s.module_done}</b></div>`;
+}
+
+loadModules();
+</script>
+</body>
+</html>

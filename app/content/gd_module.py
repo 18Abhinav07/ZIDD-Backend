@@ -1,0 +1,141 @@
+"""Group-discussion module — 10 competency nodes (B2 -> C1).
+
+Medium-to-advanced track for the group-discussion (GD) round used in campus
+placements and consulting/management hiring. Skills escalate from stating a
+clean stance to facilitating a derailed group toward consensus. Content is
+derived/paraphrased from standard CEFR interaction descriptors and common GD
+evaluation rubrics — never verbatim, IP-safe in a paid product.
+
+Same CommNode shape as the other modules; the engine loops over this list
+unchanged.
+"""
+from app.content.comm_module import CommNode
+
+GD_NODES: list[CommNode] = [
+    CommNode(
+        id="gd_01_stake_position",
+        title="Stake a Clear Position",
+        level=1,
+        level_type="text",
+        skill="Open on a debate topic with an unambiguous stance in one or two sentences.",
+        teach_focus="Commit to a side; avoid fence-sitting; state the position before the reasons.",
+        success_criteria="A clear, committed position on the topic, stated up front without hedging.",
+        bridge_focus="Finish: 'On this topic, I believe ___.'",
+        cefr="B2",
+    ),
+    CommNode(
+        id="gd_02_support_with_evidence",
+        title="Support With Evidence",
+        level=2,
+        level_type="text",
+        skill="Back a position with a relevant fact, example, or analogy — not just assertion.",
+        teach_focus="Position -> because -> concrete support; prefer specifics over generalities.",
+        success_criteria="A stance followed by at least one relevant, concrete piece of support.",
+        bridge_focus="Add one example: 'For instance, ___.'",
+        cefr="B2",
+        prerequisites=["gd_01_stake_position"],
+    ),
+    CommNode(
+        id="gd_03_take_the_floor",
+        title="Enter the Discussion",
+        level=3,
+        level_type="text",
+        skill="Break into an ongoing discussion politely and claim speaking space.",
+        teach_focus="Signal phrases to interject; assertive but not rude; link to what was just said.",
+        success_criteria="A polite, well-timed entry that connects to the prior speaker and adds something new.",
+        bridge_focus="Use one entry phrase: 'If I could add to that, ___.'",
+        cefr="B2",
+        prerequisites=["gd_02_support_with_evidence"],
+    ),
+    CommNode(
+        id="gd_04_build_on_others",
+        title="Build on Another's Point",
+        level=4,
+        level_type="text",
+        skill="Extend a point someone else made, crediting them and adding new value.",
+        teach_focus="Acknowledge -> extend -> add; collaborative tone that raises group quality.",
+        success_criteria="A contribution that credits the prior speaker and meaningfully extends their idea.",
+        bridge_focus="Finish: 'Building on what ___ said, we could also ___.'",
+        cefr="B2",
+        prerequisites=["gd_03_take_the_floor"],
+    ),
+    CommNode(
+        id="gd_05_disagree_respectfully",
+        title="Disagree Respectfully",
+        level=5,
+        level_type="text",
+        skill="Challenge another participant's point without attacking the person.",
+        teach_focus="Concede something valid -> state the counter -> keep it about ideas.",
+        success_criteria="A disagreement that concedes a fair point, states a clear counter, and stays civil.",
+        bridge_focus="Use: 'That's fair, but I'd push back because ___.'",
+        cefr="B2",
+        prerequisites=["gd_04_build_on_others"],
+    ),
+    CommNode(
+        id="gd_06_balanced_view",
+        title="Present a Balanced View",
+        level=6,
+        level_type="text",
+        skill="Weigh both sides of the topic, then land on a reasoned position.",
+        teach_focus="Acknowledge the strongest opposing point honestly before concluding; show nuance.",
+        success_criteria="A nuanced contribution that fairly states a counter-argument and still reaches a clear conclusion.",
+        bridge_focus="Name one point for each side, then say which is stronger.",
+        cefr="C1",
+        prerequisites=["gd_05_disagree_respectfully"],
+    ),
+    CommNode(
+        id="gd_07_steer_back",
+        title="Steer a Derailed Discussion",
+        level=7,
+        level_type="text",
+        skill="Redirect a discussion that has drifted off-topic back to the core question.",
+        teach_focus="Name the drift neutrally; restate the actual question; offer a refocusing point.",
+        success_criteria="A move that gently flags the drift and pulls the group back to the original topic.",
+        bridge_focus="Use: 'We've drifted a bit — the real question is ___.'",
+        cefr="C1",
+        prerequisites=["gd_06_balanced_view"],
+    ),
+    CommNode(
+        id="gd_08_include_quiet",
+        title="Bring In Quieter Voices",
+        level=8,
+        level_type="text",
+        skill="Invite a silent participant into the discussion to show facilitation skill.",
+        teach_focus="Notice who hasn't spoken; invite without pressure; reference the topic for them.",
+        success_criteria="A natural, specific invitation that opens space for a quieter participant.",
+        bridge_focus="Use: 'I'd like to hear ___'s take on this.'",
+        cefr="C1",
+        prerequisites=["gd_07_steer_back"],
+    ),
+    CommNode(
+        id="gd_09_manage_dominator",
+        title="Manage a Dominant Speaker",
+        level=9,
+        level_type="text",
+        skill="Tactfully reclaim the floor from someone monopolizing the discussion.",
+        teach_focus="Validate briefly -> interrupt cleanly -> hand off; assertive without hostility.",
+        success_criteria="A polite but firm move that pauses the dominant speaker and redistributes the floor.",
+        bridge_focus="Use: 'That's a strong point — let's also hear other views.'",
+        cefr="C1",
+        prerequisites=["gd_08_include_quiet"],
+    ),
+    CommNode(
+        id="gd_10_drive_consensus",
+        title="Summarize and Drive Consensus",
+        level=10,
+        level_type="text",
+        skill="Synthesize the group's points into a summary that moves toward a shared conclusion.",
+        teach_focus="Capture the main threads fairly; name common ground; propose a conclusion.",
+        success_criteria="A concise synthesis of the discussion's key points plus a proposed consensus the group can rally around.",
+        bridge_focus="Name the two main points raised, then propose where the group agrees.",
+        cefr="C1",
+        prerequisites=["gd_09_manage_dominator"],
+    ),
+]
+
+MODULE_ID = "group_discussion"
+MODULE_TITLE = "Group Discussion"
+MODULE_DESCRIPTION = (
+    "Win the GD round: stake a position, build on and challenge others, "
+    "facilitate, and drive a group to consensus. B2 to C1."
+)
