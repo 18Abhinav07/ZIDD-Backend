@@ -1,0 +1,26 @@
+# ===== Core engine =====
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# ===== LangGraph state machine =====
+langgraph==0.2.62
+langchain-core==0.3.29
+
+# ===== AI providers =====
+google-genai==1.0.0          # Gemini Flash / Flash-Lite (new unified SDK)
+groq==0.13.1                 # Groq 70B/8B teach + challenge
+
+# ===== DB — Supabase Postgres via transaction pooler =====
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+
+# ===== Observability =====
+langfuse==2.57.0
+
+# ===== Dev / test =====
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1
