@@ -214,6 +214,36 @@ class LocalStore:
         self._conn.commit()
         return True
 
+    # ---------- billing: content unlocks ----------
+
+    async def has_unlock(self, user_id: str, scope: str, ref_id: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM content_unlocks "
+            "WHERE user_id = ? AND scope = ? AND ref_id = ?",
+            (user_id, scope, ref_id),
+        ).fetchone()
+        return row is not None
+
+    async def add_unlock(
+        self, user_id: str, scope: str, ref_id: str, credits_spent: int
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO content_unlocks "
+            "(user_id, scope, ref_id, credits_spent, created) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(user_id, scope, ref_id) DO NOTHING",
+            (user_id, scope, ref_id, credits_spent, time.time()),
+        )
+        self._conn.commit()
+
+    async def list_unlocks(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT scope, ref_id, credits_spent, created FROM content_unlocks "
+            "WHERE user_id = ? ORDER BY created DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     # ---------- sessions ----------
 
     async def create_session(
