@@ -153,6 +153,11 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
             user_id, req.competency_node, test_mode=req.test_mode
         )
     except ValueError as e:
+        # We already charged for a session that never started. Refund the credits
+        # so a brain-side rejection (400) doesn't silently burn the learner's
+        # wallet. Free decisions were never charged, so they get no refund.
+        if not decision.free:
+            await store.grant_credits(user_id, decision.cost, "refund")
         raise HTTPException(status_code=400, detail=str(e)) from e
     node = get_node(state["competency_node"])
     return SessionStartResponse(

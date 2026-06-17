@@ -127,5 +127,51 @@ def test_unknown_node_returns_404():
     assert r.status_code == 404
 
 
+def test_start_failure_refunds_charged_credits(monkeypatch):
+    # A paying (non-demo) user confirms a paid ACCESS node. We charge 40, then
+    # svc.start_session raises ValueError -> 400. The 40 credits charged for a
+    # session that never started MUST be refunded, not silently lost.
+    async def _boom(user_id, node_id, learner_name="", test_mode=False):
+        raise ValueError("brain refused to start")
+    monkeypatch.setattr(svc, "start_session", _boom)
+
+    store = get_storage()
+    _seed(store.ensure_profile("test_user"))
+    _seed(store.grant_credits("test_user", 50, "welcome"))
+
+    client = TestClient(app)
+    r = client.post(
+        "/session/start",
+        json={"user_id": "test_user", "competency_node": COMM_SECOND, "confirm": True},
+        headers=AUTH,
+    )
+    assert r.status_code == 400
+    # Balance restored to the pre-charge amount: charged 40 then refunded 40.
+    assert _run(store.get_credits("test_user")) == 50
+
+
+def test_start_failure_does_not_refund_demo_user(monkeypatch):
+    # Demo/judge users are never charged (decision.free), so a start failure must
+    # NOT hand them a phantom refund that inflates a balance they never spent.
+    async def _boom(user_id, node_id, learner_name="", test_mode=False):
+        raise ValueError("brain refused to start")
+    monkeypatch.setattr(svc, "start_session", _boom)
+
+    store = get_storage()
+    _seed(store.ensure_profile("test_user"))
+    _seed(store.grant_credits("test_user", 50, "welcome"))
+    _seed(store.set_demo_unlimited("test_user", True))
+
+    client = TestClient(app)
+    r = client.post(
+        "/session/start",
+        json={"user_id": "test_user", "competency_node": COMM_SECOND, "confirm": True},
+        headers=AUTH,
+    )
+    assert r.status_code == 400
+    # Demo user was never charged and gets no refund: balance unchanged.
+    assert _run(store.get_credits("test_user")) == 50
+
+
 def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)

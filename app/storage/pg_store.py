@@ -343,6 +343,7 @@ class PgStore:
         pack_id: str,
         credits: int,
         amount_paise: int,
+        status: str = "created",
     ) -> None:
         from app.db import repo
 
@@ -351,7 +352,7 @@ class PgStore:
                 return None
             try:
                 return await repo.record_purchase(
-                    s, order_id, user_id, pack_id, credits, amount_paise
+                    s, order_id, user_id, pack_id, credits, amount_paise, status=status
                 )
             except Exception:
                 return None

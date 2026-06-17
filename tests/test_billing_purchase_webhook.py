@@ -36,6 +36,25 @@ def _isolate_store(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def reset_state(_isolate_store):
+    # The DB file persists across tests; wipe billing tables so each test starts
+    # clean (fresh unpaid orders), keeping the new webhook tests faithful.
+    from app.storage import get_storage
+    get_storage()  # ensure the LocalStore schema exists before wiping
+    import sqlite3
+    conn = sqlite3.connect(_DB.name)
+    conn.executescript(
+        "DELETE FROM purchases; "
+        "DELETE FROM content_unlocks; "
+        "DELETE FROM credit_transactions; "
+        "DELETE FROM profiles;"
+    )
+    conn.commit()
+    conn.close()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def stub_razorpay(monkeypatch):
     monkeypatch.setattr(
         razorpay_client, "create_order",
@@ -59,7 +78,18 @@ def test_order_then_webhook_grants_credits_once():
     assert order.json()["order_id"] == "order_test_abc"
 
     webhook_body = json.dumps(
-        {"payload": {"payment": {"entity": {"order_id": "order_test_abc"}}}}
+        {
+            "event": "payment.captured",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "order_id": "order_test_abc",
+                        "status": "captured",
+                        "amount": 9900,
+                    }
+                }
+            },
+        }
     )
 
     # First webhook: grants 100 -> 150 total.
@@ -82,3 +112,75 @@ def test_order_then_webhook_grants_credits_once():
     assert w2.status_code == 200
     bal2 = client.get("/billing/balance", headers=AUTH).json()
     assert bal2["credits"] == 150
+
+
+def _register_and_order(client):
+    # The DB file persists across tests in this module, so test_user may already
+    # exist from a prior test — registration is idempotent for our purposes.
+    client.post("/auth/register", json={"user_id": "test_user", "password": "pw"})
+    order = client.post("/billing/purchase/order", json={"pack_id": "starter"}, headers=AUTH)
+    assert order.status_code == 200
+
+
+def test_webhook_ignores_non_captured_event():
+    # A correctly-SIGNED webhook for a known created order but with a
+    # non-captured event (payment.failed) must NOT grant credits and must NOT
+    # flip the purchase to paid. Acknowledge with 200 so Razorpay stops retrying.
+    client = TestClient(app)
+    _register_and_order(client)
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+
+    webhook_body = json.dumps(
+        {
+            "event": "payment.failed",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "order_id": "order_test_abc",
+                        "status": "failed",
+                        "amount": 9900,
+                    }
+                }
+            },
+        }
+    )
+    w = client.post(
+        "/billing/razorpay/webhook",
+        content=webhook_body,
+        headers={"X-Razorpay-Signature": "sig"},
+    )
+    assert w.status_code == 200
+    # Balance unchanged: no grant on a non-captured event.
+    after = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    assert after == before
+
+
+def test_webhook_rejects_amount_mismatch():
+    # A SIGNED payment.captured event whose amount != the stored amount_paise
+    # must NOT grant credits and must NOT mark the purchase paid.
+    client = TestClient(app)
+    _register_and_order(client)
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+
+    webhook_body = json.dumps(
+        {
+            "event": "payment.captured",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "order_id": "order_test_abc",
+                        "status": "captured",
+                        "amount": 1,  # mismatch: stored amount_paise is 9900
+                    }
+                }
+            },
+        }
+    )
+    w = client.post(
+        "/billing/razorpay/webhook",
+        content=webhook_body,
+        headers={"X-Razorpay-Signature": "sig"},
+    )
+    assert w.status_code == 200
+    after = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    assert after == before

@@ -52,15 +52,20 @@ async def deduct_credit(
         return False
     if profile["demo_unlimited"]:
         return True
-    if profile["credits"] < amount:
-        return False
-    await session.execute(
+    # Atomic spend: the balance check and the decrement are a single guarded
+    # UPDATE (`credits >= :amt`). A Python-side read-then-write (TOCTOU) lets two
+    # concurrent spends both pass the check and both subtract — double-spend. The
+    # WHERE guard makes the row engine arbitrate: at most one wins, and
+    # rowcount == 0 means insufficient funds at write time.
+    result = await session.execute(
         text(
             "UPDATE learner_profiles SET credits = credits - :amt "
-            "WHERE user_id = :uid"
+            "WHERE user_id = :uid AND credits >= :amt"
         ),
         {"amt": amount, "uid": user_id},
     )
+    if result.rowcount == 0:
+        return False
     await session.execute(
         text(
             "INSERT INTO credit_transactions (user_id, delta, reason) "

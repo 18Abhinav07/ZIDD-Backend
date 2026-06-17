@@ -27,3 +27,11 @@ async def test_billing_methods_degrade_gracefully(offline):
     await store.set_demo_unlimited("u1", True)
     await store.add_unlock("u1", "feature", "communication", 40)
     await store.record_purchase("order_x", "u1", "starter", 100, 9900)
+
+
+@pytest.mark.asyncio
+async def test_record_purchase_accepts_status_kwarg(offline):
+    # billing_routes calls record_purchase(..., status="created"); PgStore must
+    # accept the kwarg and no-op safely when the session is offline (no TypeError).
+    store = PgStore()
+    await store.record_purchase("ord_x", "u1", "starter", 100, 9900, status="created")

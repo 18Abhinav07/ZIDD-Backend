@@ -111,10 +111,20 @@ async def razorpay_webhook(request: Request) -> dict:
     order_id = entity.get("order_id", "")
     if not order_id:
         return {"status": "ignored"}
+    # Razorpay posts payment.failed / payment.authorized to the SAME endpoint;
+    # only a successful capture should grant credits. Acknowledge (200) anything
+    # else so Razorpay stops retrying, but never grant.
+    event = payload.get("event", "")
+    if event != "payment.captured" or entity.get("status", "") != "captured":
+        return {"status": "ignored"}
     store = get_storage()
     purchase = await store.get_purchase(order_id)
     if purchase is None:
         return {"status": "unknown_order"}
+    # Reconcile the captured amount against what we quoted; a mismatch means a
+    # tampered/wrong event, so refuse to grant.
+    if int(entity.get("amount", -1)) != int(purchase["amount_paise"]):
+        return {"status": "amount_mismatch"}
     # mark_purchase_paid is the idempotency latch: True only on the transition,
     # so credits grant exactly once even if Razorpay retries the webhook.
     if await store.mark_purchase_paid(order_id):
