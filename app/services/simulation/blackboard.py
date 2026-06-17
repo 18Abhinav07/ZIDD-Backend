@@ -7,6 +7,9 @@ from typing import TypedDict
 
 from app.ai.schemas import DirectorDecision
 
+_DEFAULT_TENSION = 0.3
+_DEFAULT_QUALITY = 0.5
+
 
 class Blackboard(TypedDict):
     topic: str
@@ -32,12 +35,12 @@ def new_blackboard(topic: str) -> Blackboard:
     return Blackboard(
         topic=topic,
         phase="opening",
-        tension=0.3,
+        tension=_DEFAULT_TENSION,
         turn=0,
         covered=[],
         open_threads=[],
         positions={},
-        last_quality=0.5,
+        last_quality=_DEFAULT_QUALITY,
     )
 
 
@@ -45,9 +48,8 @@ def apply_decision(bb: Blackboard, decision: DirectorDecision) -> Blackboard:
     """Return a new Blackboard reflecting the Director's decision.
 
     - phase mapped from decision.action
-    - tension clamped to [0.0, 1.0]
+    - tension clamped to [0.0, 1.0]; answer_quality (stored as last_quality) also clamped to [0.0, 1.0]
     - turn incremented by 1
-    - last_quality set from decision.answer_quality
     - intent appended to covered
     - all other keys carried over unchanged
     """
@@ -59,7 +61,7 @@ def apply_decision(bb: Blackboard, decision: DirectorDecision) -> Blackboard:
         covered=bb["covered"] + [decision.intent],
         open_threads=list(bb["open_threads"]),
         positions=dict(bb["positions"]),
-        last_quality=decision.answer_quality,
+        last_quality=max(0.0, min(1.0, decision.answer_quality)),
     )
 
 

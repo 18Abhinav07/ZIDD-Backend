@@ -233,16 +233,20 @@ def test_apply_decision_other_keys_carried_over():
 
 
 def test_apply_decision_does_not_mutate_original():
-    bb = new_blackboard("Immutable test")
+    bb = _make_bb(open_threads=["existing thread"], positions={"s1": "stance A"})
     original_turn = bb["turn"]
     original_covered = list(bb["covered"])
     original_tension = bb["tension"]
+    before_threads = list(bb["open_threads"])
+    before_positions = dict(bb["positions"])
     decision = _make_decision(tension=0.9, intent="Check immutability")
     apply_decision(bb, decision)
     # Original bb must be unchanged
     assert bb["turn"] == original_turn
     assert bb["covered"] == original_covered
     assert bb["tension"] == original_tension
+    assert bb["open_threads"] == before_threads
+    assert bb["positions"] == before_positions
 
 
 # ---------------------------------------------------------------------------
@@ -374,3 +378,58 @@ def test_snap_speaker_single_persona_roster():
     personas = [{"speaker_id": "solo", "name": "Solo"}]
     assert _snap_speaker("solo", personas) == "solo"
     assert _snap_speaker("nobody", personas) == "solo"
+
+
+# ---------------------------------------------------------------------------
+# apply_decision — exact-boundary clamp tests (tension and answer_quality)
+# ---------------------------------------------------------------------------
+
+def test_apply_decision_tension_boundary_zero():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(tension=0.0))
+    assert result["tension"] == pytest.approx(0.0)
+
+
+def test_apply_decision_tension_boundary_one():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(tension=1.0))
+    assert result["tension"] == pytest.approx(1.0)
+
+
+def test_apply_decision_answer_quality_boundary_zero():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(answer_quality=0.0))
+    assert result["last_quality"] == pytest.approx(0.0)
+
+
+def test_apply_decision_answer_quality_boundary_one():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(answer_quality=1.0))
+    assert result["last_quality"] == pytest.approx(1.0)
+
+
+def test_apply_decision_answer_quality_clamped_high():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(answer_quality=1.7))
+    assert result["last_quality"] == pytest.approx(1.0)
+
+
+def test_apply_decision_answer_quality_clamped_low():
+    bb = _make_bb()
+    result = apply_decision(bb, _make_decision(answer_quality=-0.5))
+    assert result["last_quality"] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Empty-roster guard tests for _snap_speaker and _fallback_decision
+# ---------------------------------------------------------------------------
+
+def test_snap_speaker_empty_roster_raises():
+    with pytest.raises(ValueError):
+        _snap_speaker("anything", [])
+
+
+def test_fallback_decision_empty_roster_raises():
+    bb = new_blackboard("Guard test")
+    with pytest.raises(ValueError):
+        _fallback_decision(bb, [])
