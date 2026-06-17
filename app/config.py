@@ -32,6 +32,19 @@ class Settings(BaseSettings):
     # Set SESSION_STORE_PATH in .env to enable (e.g. .zidd_sessions.json).
     session_store_path: str = ""
 
+    # Local-first SQLite storage backend path (profiles/turns/weaknesses/memory).
+    # Distinct from session_store_path (which is the JSON SessionStore snapshot).
+    # Used only when ai_backend == "local". Override LOCAL_STORE_PATH for tests.
+    local_store_path: str = ".zidd_local.db"
+
+    # ---------- payments (Razorpay) ----------
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
+    # Credits granted once on signup, recorded as a "welcome" ledger row.
+    welcome_credits: int = 50
+
     @property
     def async_database_url(self) -> str:
         """Convert raw pooler URL to asyncpg driver form with SSL.
