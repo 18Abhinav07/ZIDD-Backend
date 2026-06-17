@@ -244,6 +244,16 @@ class LocalStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    # ---------- billing: attempt counting ----------
+
+    async def count_attempts(self, user_id: str, module_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM sessions "
+            "WHERE user_id = ? AND module_id = ?",
+            (user_id, module_id),
+        ).fetchone()
+        return int(row["n"]) if row and row["n"] is not None else 0
+
     # ---------- sessions ----------
 
     async def create_session(
