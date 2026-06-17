@@ -40,7 +40,8 @@ async def register(req: AuthRequest):
     # Hash password using bcrypt
     hashed_password = hash_password(req.password)
     await store.ensure_profile(req.user_id, name="", password_hash=hashed_password)
-    
+    await store.grant_credits(req.user_id, get_settings().welcome_credits, "welcome")
+
     token = create_access_token({"sub": req.user_id})
     return {"access_token": token, "token_type": "bearer"}
 
