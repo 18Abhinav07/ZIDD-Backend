@@ -10,7 +10,12 @@ ALGORITHM = "HS256"
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Exclude auth and health paths
-        if request.url.path.startswith("/auth") or request.url.path.startswith("/health") or request.url.path == "/":
+        if (
+            request.url.path.startswith("/auth")
+            or request.url.path.startswith("/health")
+            or request.url.path == "/"
+            or request.url.path == "/billing/razorpay/webhook"
+        ):
             return await call_next(request)
             
         auth_header = request.headers.get("Authorization")
