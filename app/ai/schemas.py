@@ -101,3 +101,20 @@ class PlacementEval(BaseModel):
 
     cefr: str = Field(pattern="^(A1|A2|B1|B2|C1|C2)$")
     rationale: str              # one-line justification shown to the learner
+
+
+class DirectorDecision(BaseModel):
+    """Writers'-room Director output: who speaks next and with what intent.
+
+    Produced once per round; drives blackboard updates and persona selection.
+    `tension` and `answer_quality` are plain float (no Field bounds) so a
+    slightly out-of-range LLM value doesn't crash the turn — clamping happens
+    downstream in apply_decision.
+    """
+
+    action: Literal["probe_deeper", "pivot_topic", "escalate_pressure", "wind_down"]
+    next_speaker: str           # speaker_id from roster
+    intent: str                 # concrete instruction to the persona, cites the transcript
+    tension: float              # 0.0-1.0 target after this turn
+    answer_quality: float       # director's read of the learner's last answer (0-1)
+    should_close: bool          # signal the simulation should wrap
