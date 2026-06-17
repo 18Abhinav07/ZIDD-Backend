@@ -13,6 +13,9 @@ langchain-core==0.3.29
 google-genai==1.0.0          # Gemini Flash / Flash-Lite (new unified SDK)
 groq==0.13.1                 # Groq 70B/8B teach + challenge
 
+# ===== Language detection — non-LLM pre-gate (Phase 0.2) =====
+langdetect==1.0.9            # deterministic language gate before the eval LLM
+
 # ===== DB — Supabase Postgres via transaction pooler =====
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
@@ -24,3 +27,7 @@ langfuse==2.57.0
 pytest==8.3.4
 pytest-asyncio==0.25.0
 httpx==0.28.1
+passlib[bcrypt]
+
+# ===== Payments =====
+razorpay==1.4.2
