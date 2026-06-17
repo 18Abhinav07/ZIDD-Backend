@@ -12,10 +12,23 @@ os.environ.setdefault(
 )
 
 import asyncio
+
+import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
-from app.storage import get_storage
+from app.storage import get_storage, reset_storage
+
+
+@pytest.fixture(autouse=True)
+def _isolate_store(monkeypatch):
+    monkeypatch.setenv("LOCAL_STORE_PATH", _DB.name)
+    get_settings.cache_clear()
+    reset_storage()
+    yield
+    reset_storage()
+    get_settings.cache_clear()
 
 
 def test_register_grants_welcome_credits():

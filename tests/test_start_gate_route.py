@@ -15,10 +15,11 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.content.registry import COMM_ID, get_module
 from app.main import app
 from app.services import session_service as svc
-from app.storage import get_storage
+from app.storage import get_storage, reset_storage
 
 COMM_SECOND = get_module(COMM_ID).order[1]
 AUTH = {"Authorization": "Bearer test_token"}  # -> user_id "test_user"
@@ -36,7 +37,17 @@ def fake_start(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def _isolate_store(monkeypatch):
+    monkeypatch.setenv("LOCAL_STORE_PATH", _DB.name)
+    get_settings.cache_clear()
+    reset_storage()
+    yield
+    reset_storage()
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_state(_isolate_store):
     get_storage()  # ensure the LocalStore schema exists before wiping
     import sqlite3
     conn = sqlite3.connect(_DB.name)
