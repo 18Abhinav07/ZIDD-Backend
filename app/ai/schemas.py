@@ -118,3 +118,18 @@ class DirectorDecision(BaseModel):
     tension: float              # 0.0-1.0 target after this turn
     answer_quality: float       # director's read of the learner's last answer (0-1)
     should_close: bool          # signal the simulation should wrap
+
+
+class SelectionDecision(BaseModel):
+    """Spec B selector output: which content node the learner moves to next.
+
+    Produced (or synthesized) at the advance boundary. The selector is a
+    two-stage hybrid: deterministic rules narrow the valid candidates, then a
+    single LLM call (only when >1 candidate) picks one. All instruction lives in
+    the prompt text (council rule); the schema fields carry none.
+    """
+
+    action: Literal["ADVANCE", "REMEDIATE", "REPEAT", "SKIP"]
+    next_ref: str
+    band: Literal["foundational", "standard", "stretch"] = "standard"
+    rationale: str

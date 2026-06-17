@@ -10,7 +10,7 @@ state (name, clean-pass progress, scaffold depth, frustration flag). It is
 injected as a private directive block the model acts on but never reads aloud.
 See `coach_view` (builds the dict from state) and `_coach_block` (renders it).
 """
-from app.ai.behaviors import BehaviorPack
+from app.ai.behaviors import BehaviorPack, behavior_for
 from app.content.schema import Concept
 
 TUTOR_PERSONA = (
@@ -26,11 +26,25 @@ TUTOR_PERSONA = (
 )
 
 
-def _history_block(messages: list[dict], limit: int = 8) -> str:
+# Byte budget for the two whole-transcript builders (score + summary). Sized for a
+# local model's context: ~6k chars of transcript leaves room for the instructions.
+_HISTORY_CHAR_BUDGET = 6000
+
+
+def _history_block(
+    messages: list[dict], limit: int = 8, max_chars: int | None = None
+) -> str:
     if not messages:
         return "(no prior turns)"
     recent = messages[-limit:]
     lines = [f"{m['role']}: {m['content']}" for m in recent]
+    # Optional size budget for the large-context builders (whole-session score,
+    # memory summary) that pass limit=40: a turn count alone does not bound bytes,
+    # and 40 long turns can overflow a local model. Drop the OLDEST lines until the
+    # block fits, keeping the most recent context the grader/summarizer needs most.
+    if max_chars is not None:
+        while len(lines) > 1 and len("\n".join(lines)) > max_chars:
+            lines.pop(0)
     return "\n".join(lines)
 
 
@@ -144,20 +158,41 @@ def _coach_block(coach: dict | None) -> str:
     never read them aloud. Empty string when there is nothing to personalize."""
     if not coach:
         return ""
-    parts: list[str] = []
+    # Lead with the anti-template rule: the old block forced a name + a progress
+    # count on EVERY turn, so qwen opened nearly every reply the same way.
+    parts: list[str] = [
+        "Vary how you open: do NOT start every reply the same way (praise + their "
+        "name + the progress count). Lead differently each turn — sometimes react "
+        "to what they just said, sometimes go straight into the task."
+    ]
     name = coach.get("name")
     if name:
-        # Directive phrasing: "MUST" forces qwen to comply, not treat it as optional.
+        # Use the name for warmth, but NOT as a forced every-turn opener — the old
+        # "MUST address them once" directive made qwen start nearly every reply with
+        # the name, which reads as a template. Let it land naturally instead.
         parts.append(
-            f"The learner's name is {name}. You MUST address them as {name} at least "
-            "once in this response — not 'you', not 'the learner', their actual name."
+            f"The learner's name is {name}. Use their name naturally where it fits "
+            "to keep things personal — not in every line, and not as a forced "
+            "opener; plain 'you' is fine most of the time."
         )
     streak = coach.get("clean_streak", 0)
     need = coach.get("advance_streak", 2)
-    parts.append(
-        f"Progress: {streak} of {need} clean passes at this level. When they do "
-        "well, name how close they are to the next level — make the win visible."
-    )
+    # Only surface progress once a streak has actually started. Telling a fresh or
+    # struggling learner "0 of 2" every single turn was the other half of the
+    # formulaic opener. Near the threshold, make the win visible; mid-streak,
+    # mention it only on a genuinely good turn.
+    if streak > 0:
+        if streak >= need - 1:
+            parts.append(
+                f"Progress: {streak} of {need} clean passes — they are one clean "
+                "pass from the next level. When they nail this turn, make that win "
+                "visible."
+            )
+        else:
+            parts.append(
+                f"Progress: {streak} of {need} clean passes at this level. When they "
+                "do well, name how close they are — only when it's genuinely earned."
+            )
     if coach.get("support"):
         parts.append(
             "They sound discouraged or frustrated. Lead with genuine reassurance, "
@@ -200,6 +235,39 @@ def _coach_block(coach: dict | None) -> str:
         + "\n- ".join(parts)
         + "\n\n"
     )
+
+
+def _diagnosis_block(diagnosis: dict | None) -> str:
+    """Render the latest diagnosis as a few clean, labelled lines for a coaching
+    move.
+
+    The coaching builders used to f-string the raw dict (`{diagnosis}`), emitting
+    a Python repr — braces, quotes, booleans, and fields a teach/bridge move does
+    not need (score, goodbye, on_task, english). A local model parses labelled
+    plain lines far better than dict syntax, so surface only what shapes the next
+    move: what they grasped, their errors, what they did well, the next focus, and
+    a non-neutral emotional tone."""
+    if not diagnosis:
+        return "Your read of their last answer: (no prior read yet)\n\n"
+    understanding = (diagnosis.get("understanding") or "").strip()
+    errors = [str(e).strip() for e in (diagnosis.get("errors") or []) if str(e).strip()]
+    strengths = [str(s).strip() for s in (diagnosis.get("strengths") or []) if str(s).strip()]
+    next_focus = (diagnosis.get("next_focus") or "").strip()
+    affect = (diagnosis.get("affect") or "").strip()
+    lines = ["Your read of their last answer:"]
+    if understanding:
+        lines.append(f"- what they grasped: {understanding}")
+    if errors:
+        lines.append(f"- main error(s): {'; '.join(errors[:3])}")
+    if strengths:
+        lines.append(f"- did well: {'; '.join(strengths[:3])}")
+    if next_focus:
+        lines.append(f"- most useful next focus: {next_focus}")
+    if affect and affect != "neutral":
+        lines.append(f"- emotional tone: {affect}")
+    if len(lines) == 1:
+        lines.append("- (no detail captured this turn)")
+    return "\n".join(lines) + "\n\n"
 
 
 # ---------- behavior pack (per-TaskType voice + stance) ----------
@@ -359,7 +427,7 @@ def build_simulation_score_prompt(
         f"Topic of the session: {topic}\n\n"
         f"Full transcript (assistant lines are the simulated participants / "
         f"interviewer; user lines are the learner being assessed):\n"
-        f"{_history_block(messages, limit=40)}\n\n"
+        f"{_history_block(messages, limit=40, max_chars=_HISTORY_CHAR_BUDGET)}\n\n"
         "Score ONLY the learner's contribution across the whole session, not the "
         "simulated voices. Judge what this task weights most. Use this anchored "
         "scale:\n"
@@ -372,13 +440,20 @@ def build_simulation_score_prompt(
         "This is an ENGLISH assessment: contributions not in competent English "
         "cannot pass. Do not award credit for effort alone.\n"
         "For GD sessions also rate three sub-dimensions (0.0-1.0 each); set all "
-        "three to 0.0 for interview sessions:\n"
-        "- participation_score: did the learner claim the floor, interject, hold "
-        "their space? 0.7+ means they spoke up and did not let others dominate.\n"
-        "- relevance_score: did contributions stay on topic, build a coherent "
-        "argument, and reference others' points? 0.7+ means consistently on-task.\n"
-        "- language_score: fluency, grammar, and vocabulary under the pressure of "
-        "a live discussion. 0.7+ means fluent with minor slips only.\n"
+        "three to 0.0 for interview sessions. Judge these as DEBATE MOVES, not "
+        "mere talk-time:\n"
+        "- participation_score: initiative and floor moves — did the learner "
+        "stake a clear position, claim the floor, and interject at the right "
+        "moments rather than waiting to be invited? 0.7+ means they DROVE the "
+        "discussion, not just reacted to it.\n"
+        "- relevance_score: argumentative moves — did they REBUT specific points "
+        "with reasoning, bring concrete evidence, and BUILD ON or synthesise "
+        "others' contributions (not just restate their own view)? 0.7+ means "
+        "moves that genuinely advanced the argument.\n"
+        "- language_score: fluency, grammar, and CONCISION under live pressure — "
+        "tight, well-formed contributions score high; rambling, padded, or "
+        "hard-to-follow turns score lower even when the underlying idea is sound. "
+        "0.7+ means fluent and economical with only minor slips.\n"
         "For interview sessions also rate two sub-dimensions (0.0-1.0 each); set "
         "both to 0.0 for GD sessions:\n"
         "- clarity_score: how clearly and concisely the learner answered — "
@@ -396,6 +471,233 @@ def build_simulation_score_prompt(
         "- language_score: 0.0-1.0\n"
         "- clarity_score: 0.0-1.0\n"
         "- confidence_score: 0.0-1.0"
+    )
+
+
+# ---------- writers'-room simulation (director decides, persona speaks) ----------
+
+def _probe_block(probe_items: list | None) -> str:
+    """Render the weakness-probe bank for the director (P0-5).
+
+    These are the prep-weakness-targeted items generated up front. The director
+    was never shown them, so the candidate's stated weaknesses were never pressed
+    (live: weaknesses:[] every turn). Surfacing them here lets the director set an
+    intent that drives the panel onto exactly those weak spots."""
+    items = probe_items or []
+    if not items:
+        return ""
+    lines = [
+        "\nProbe bank — the learner's known weak spots from prep. Work through "
+        "the ones NOT yet pressed: set the next speaker's intent to press one "
+        "directly (do not read this list aloud):"
+    ]
+    for it in items[:6]:
+        prompt = (it.get("prompt") or "").strip()
+        aim = (it.get("aim") or "").strip()
+        if prompt:
+            tail = f" — a strong answer {aim}" if aim else ""
+            lines.append(f"- {prompt}{tail}")
+    return "\n".join(lines) + "\n"
+
+
+def build_director_prompt(
+    bb: dict,
+    personas: list[dict],
+    task_type,
+    transcript: str,
+    probe_items: list | None = None,
+) -> str:
+    """The Director's brief for one writers'-room round.
+
+    The director reads the live blackboard + transcript and decides the next
+    move: which roster persona speaks, with what intent, at what tension, how
+    well the learner's last contribution landed, and whether to close. This is a
+    live ASSESSMENT (not coaching) — the behavior pack supplies the strict
+    assessor voice. All instruction lives in the prompt text (council rule);
+    the schema field descriptions carry none.
+    """
+    behavior = behavior_for(task_type)
+    covered = ", ".join(bb.get("covered") or []) or "(nothing yet)"
+    open_threads = ", ".join(bb.get("open_threads") or []) or "(none open)"
+    roster_lines = []
+    for p in personas:
+        stance = p.get("stance") or p.get("role") or "participant"
+        roster_lines.append(
+            f"- speaker_id={p['speaker_id']}: {p['name']} — {stance}"
+        )
+    roster = "\n".join(roster_lines)
+    last_id = bb.get("last_speaker", "")
+    last_name = next(
+        (p["name"] for p in personas if p["speaker_id"] == last_id), ""
+    )
+    last_speaker_line = (
+        f"Last voice to speak: {last_name} (speaker_id={last_id}). Do NOT hand "
+        "the floor back to the same speaker two turns running unless it is "
+        "genuinely essential — rotate so different voices press the learner.\n"
+        if last_id
+        else "No one has spoken yet — open with whichever voice best frames the topic.\n"
+    )
+    return (
+        f"{behavior.persona}\n"
+        f"You are the DIRECTOR of a live writers'-room assessment. You do not "
+        "speak to the learner yourself: you read the room, then choose which "
+        "voice speaks next and exactly what it should do. This is a live "
+        "assessment, not coaching — never soften, never teach.\n"
+        f"How this assessment runs: {behavior.pedagogy}\n\n"
+        f"Topic under discussion: {bb['topic']}\n"
+        f"Current phase: {bb['phase']} | current tension: {bb['tension']}\n"
+        f"Already covered: {covered}\n"
+        f"Open threads still unresolved: {open_threads}\n"
+        f"{_probe_block(probe_items)}\n"
+        f"The roster of voices you may call on (you MUST pick one of these, by "
+        f"its speaker_id):\n{roster}\n"
+        f"{last_speaker_line}\n"
+        f"Transcript so far:\n{transcript}\n\n"
+        "Think like a director: take a beat, read what just happened, then make "
+        "ONE deliberate decision for the next turn. Decide all of the following:\n"
+        "1. WHO speaks next — choose exactly one voice from the roster above and "
+        "name it by its speaker_id. It MUST be one of the listed speaker_ids; do "
+        "not invent a speaker.\n"
+        "2. That voice's INTENT for the upcoming turn — one concrete "
+        "conversational goal grounded in the transcript (e.g. press a specific "
+        "claim, surface a contradiction, open a new angle). Make it a single, "
+        "actionable instruction the persona can act on.\n"
+        "3. The TENSION the discussion should carry now, 0.0-1.0 — how much heat "
+        "to bring next. Raise it to press a coasting learner, ease it only to let "
+        "a genuinely strong point breathe.\n"
+        "4. The ANSWER_QUALITY of the learner's MOST RECENT contribution, "
+        "0.0-1.0 — your honest read of how well they just did. Hold a high bar; "
+        "do not reward effort alone.\n"
+        "5. Whether to CLOSE the session (should_close): true only when the topic "
+        "is genuinely exhausted or the learner has clearly finished.\n"
+        "Also pick the single action that best fits your move "
+        "(probe_deeper, pivot_topic, escalate_pressure, or wind_down).\n"
+        "Return your decision as the structured fields requested."
+    )
+
+
+# ---------- Spec B content selector (Stage 2: pick the next node) ----------
+
+def build_selector_prompt(snapshot: dict, candidates: list[dict]) -> str:
+    """The selector's brief: pick exactly ONE next-content candidate.
+
+    Called only when the deterministic stage produced more than one valid
+    candidate. The model reads a compact learner snapshot and the explicit
+    candidate list, then picks one candidate (by its next_ref) and a difficulty
+    band. All instruction lives here (council rule); the schema carries none.
+    """
+    weaknesses = ", ".join(str(w) for w in snapshot.get("weaknesses") or []) or "(none)"
+    cand_lines = []
+    for c in candidates:
+        cand_lines.append(
+            f"- action={c['action']} next_ref={c['next_ref']} "
+            f"band={c.get('band', 'standard')}"
+        )
+    candidate_block = "\n".join(cand_lines)
+    return (
+        "You are the content SELECTOR for an adaptive English-coaching engine. "
+        "The learner just cleared their current skill node. Your one job: choose "
+        "exactly which node they move to next, from a fixed list of valid "
+        "candidates.\n\n"
+        "Learner snapshot:\n"
+        f"- current node: {snapshot.get('current_node')}\n"
+        f"- mastery on current node (0.0-1.0): {snapshot.get('mastery')}\n"
+        f"- clean-pass streak: {snapshot.get('clean_streak')}\n"
+        f"- attempts on current node: {snapshot.get('attempts')}\n"
+        f"- recent weaknesses: {weaknesses}\n\n"
+        "Valid candidates (you MUST pick exactly one of these, by its "
+        f"next_ref):\n{candidate_block}\n\n"
+        "Decide all of the following:\n"
+        "1. next_ref — the next_ref of the ONE candidate you pick. It MUST be one "
+        "of the next_ref values listed above; never invent a ref outside the "
+        "list.\n"
+        "2. action — copy the action of the candidate you picked (ADVANCE, "
+        "REMEDIATE, REPEAT, or SKIP).\n"
+        "3. band — the difficulty band to deliver the next node at: "
+        "\"foundational\" for a shakier learner (low mastery, many attempts, "
+        "recent weaknesses), \"standard\" for a solid clean pass, or \"stretch\" "
+        "for a strong, fast, weakness-free pass.\n"
+        "4. rationale — one sentence explaining your pick, grounded in the "
+        "snapshot.\n"
+        "Return your decision as the structured fields requested."
+    )
+
+
+def _other_voices_block(persona: dict, roster: list[dict] | None) -> str:
+    """Render the OTHER participants so a persona can engage them by name.
+
+    Without this, each persona spoke into a vacuum — it knew only the topic and
+    the transcript, never who else was in the room or their stances, so the
+    panel read as parallel monologues at the learner instead of a group that
+    argues with itself (the GD cross-talk gap). We list everyone EXCEPT this
+    persona (matched by speaker_id, falling back to name) and the learner, and
+    tell the persona to pick up and push on a named participant's point. Empty
+    for a one-voice roster (the interview panel), so interview turns are
+    unchanged."""
+    if not roster:
+        return ""
+    sid = persona.get("speaker_id")
+    name = persona.get("name")
+    others = [
+        p for p in roster
+        if (p.get("speaker_id") or p.get("name")) != (sid or name)
+    ]
+    if not others:
+        return ""
+    lines = []
+    for p in others:
+        trait = p.get("stance") or p.get("role") or "participant"
+        lines.append(f"- {p['name']} ({trait})")
+    return (
+        "Also in the room are these other participants (this is NOT you, and "
+        "NONE of them is the learner):\n" + "\n".join(lines) + "\n"
+        "Engage them by name where it's natural: pick up something one of them "
+        "actually said in the transcript and push back on it or build on it, so "
+        "the discussion feels like a real group arguing, not separate speeches "
+        "aimed at the learner. Only react to what they have ALREADY said — never "
+        "put words in their mouth or speak on their behalf.\n\n"
+    )
+
+
+def build_persona_prompt(
+    persona: dict,
+    intent: str,
+    transcript: str,
+    bb: dict,
+    roster: list[dict] | None = None,
+) -> str:
+    """One persona's turn: speak in-character, pursuing the director's intent.
+
+    The model speaks ONLY as this persona, in its stance/role, pursuing the
+    given intent against the transcript. It is a live assessment — the persona
+    engages and presses the learner; it never coaches, grades, or breaks
+    character. `roster` (the full panel) lets the persona address the OTHER
+    voices by name so the group cross-talks instead of monologuing. All
+    instruction lives in the prompt text (council rule).
+    """
+    character = persona.get("stance") or persona.get("role") or "a participant"
+    # Optional per-session manner (interview tonal variants). Empty for personas
+    # without a style (the GD panel), so their prompt is byte-for-byte unchanged.
+    style = persona.get("style")
+    style_line = f"Your manner this session is {style}.\n" if style else ""
+    return (
+        f"You are {persona['name']}, {character}, taking part in a live "
+        f"discussion about: {bb['topic']}.\n"
+        f"The discussion is at phase '{bb['phase']}' with tension {bb['tension']} "
+        "(0.0 = calm, 1.0 = heated) — let that set how hard you push right now.\n"
+        f"{style_line}"
+        f"\nTranscript so far:\n{transcript}\n\n"
+        f"{_other_voices_block(persona, roster)}"
+        f"Your goal for THIS turn: {intent}\n\n"
+        "Stay fully in character. This is a live assessment, not a lesson: engage "
+        "the learner, push back, probe, and hold your stance. Do NOT coach, do "
+        "NOT grade, do NOT give feedback, and do NOT break character.\n"
+        "CRITICAL OUTPUT RULE: reply with ONLY your own spoken words, as plain "
+        "prose. Do NOT prefix your reply with your name, a "
+        f"\"{persona['name']}:\" tag, or any speaker label — your identity is "
+        "attached separately, so a self-tag would double up. Do NOT speak for the "
+        "learner or for any other participant; write only your single "
+        "contribution."
     )
 
 
@@ -451,14 +753,29 @@ def build_opening_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    sim_topic: str = "",
 ) -> str:
-    return (
+    base = (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
         f"{_stance_block(behavior)}"
         f"Today's skill: {node.title} — {node.skill}\n"
         f"Teaching focus: {node.teach_focus}\n\n"
+    )
+    # GD assessment opening (P0-4): brief the EXACT concrete motion the panel will
+    # debate, so the learner argues the same motion. Without this the opening
+    # invented its own motion from the vague teach_focus while the panel debated
+    # another — briefed topic A, panel topic B on every run.
+    if sim_topic:
+        return base + (
+            "This is a live group-discussion assessment, not a lesson. The motion "
+            f"under discussion is:\n\"{sim_topic}\"\n"
+            "Brief the learner on THIS exact motion in one or two sentences (use it "
+            "verbatim — never invent a different topic), then ask them to state "
+            "their opening position on it. End with that ask."
+        )
+    return base + (
         "If your remembered notes name a weak spot or a 'next focus' from last "
         "time, open with a 10-second warm-up that re-tests THAT first, then move "
         "into today's skill. Otherwise open directly.\n"
@@ -484,7 +801,7 @@ def build_teach_prompt(
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nTeaching focus: {node.teach_focus}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "Give a short, targeted teaching move (2-4 sentences) as a recast "
         "sandwich: first acknowledge what genuinely worked, then gently recast "
         "the single most important error by modelling the correct form (do not "
@@ -549,7 +866,7 @@ def build_bridge_prompt(
         f"Skill: {node.skill}\n"
         f"Easier sub-step to scaffold down to: {node.bridge_focus}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The learner is struggling. Do NOT repeat the full task harder. Break "
         "it into the smaller sub-step above. Reassure briefly, model one tiny "
         "example, then ask them to do just the smaller step. End with the task."
@@ -572,7 +889,7 @@ def build_strengthen_prompt(
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nSuccess looks like: {node.success_criteria}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The skill is shaky but present. Reinforce it as a recast sandwich: name "
         "what worked, gently model the one weak spot correctly, give a quick tip, "
         "then ask them to try a close variant of the same task. End with the task."
@@ -595,7 +912,7 @@ def build_challenge_prompt(
         f"{_stance_block(behavior)}"
         f"Skill (now near-mastered): {node.skill}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The learner is near mastery. Celebrate the win briefly, then push them: "
         "give a harder, more realistic variant of the task that stretches the "
         "same skill. Keep it to 2-3 sentences. End with the harder task."
@@ -619,7 +936,7 @@ def build_redirect_prompt(
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The learner wrote fluent English but answered a DIFFERENT question — "
         "they did not attempt this skill. Do NOT scold and do NOT scaffold down "
         "(they are clearly capable). Warmly acknowledge what they said in one "
@@ -645,7 +962,7 @@ def build_clarify_prompt(
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The learner's last message was not in clear English (it may be another "
         "language, empty, or unreadable). Do NOT scold, do NOT scaffold the skill "
         "down, and do NOT guess what they meant. Assume good faith. In one warm "
@@ -672,7 +989,7 @@ def build_ease_prompt(
         f"Skill: {node.skill}\n"
         f"Easiest sub-step: {node.bridge_focus}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
-        f"Your read of their last answer: {diagnosis}\n\n"
+        f"{_diagnosis_block(diagnosis)}"
         "The learner has struggled here many times and may be losing heart. Stop "
         "drilling. Lead with genuine, specific reassurance, take the pressure "
         "fully off, and offer an off-ramp: either a much tinier win (one word or "
@@ -695,5 +1012,5 @@ def build_summary_prompt(node: Concept, messages: list[dict]) -> str:
         "Next focus: <the single concept to revisit first next time, named "
         "precisely so it can be re-tested in a warm-up>\n\n"
         f"Skill worked on: {node.skill}\n\n"
-        f"Conversation:\n{_history_block(messages, limit=40)}"
+        f"Conversation:\n{_history_block(messages, limit=40, max_chars=_HISTORY_CHAR_BUDGET)}"
     )
