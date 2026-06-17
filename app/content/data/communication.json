@@ -1,25 +1,130 @@
 {
   "id": "communication",
   "title": "Communication Foundations",
-  "description": "Build core spoken/written English from the ground up: introduce yourself, narrate, give opinions, argue, and handle questions. A2 to B2.",
+  "description": "Build core spoken/written English from the ground up: greet, introduce yourself, narrate, give opinions, argue, and handle questions. A1 to B2.",
   "nodes": [
+    {
+      "id": "comm_00_greetings",
+      "title": "Greetings and Names",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Greet someone, give your name, and say where you are from.",
+      "teach_focus": "The fixed frames 'Hello, I am ___' and 'I am from ___'; the capital I.",
+      "success_criteria": "A greeting with your name, plus one sentence saying where you are from.",
+      "bridge_focus": "Just the name frame: 'Hello, I am ___.'",
+      "cefr": "A1",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "comm_00_greetings_bx1",
+          "type": "fill_blank",
+          "sentence": "Hello, ___ name is Priya.",
+          "hint": "the small word before 'name' that shows it belongs to you",
+          "context": "Locks the 'My name is ___' opener before any free greeting.",
+          "answer_key": "my",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_00_greetings_bx2",
+          "type": "fill_blank",
+          "sentence": "Hi, I ___ Arjun.",
+          "hint": "the verb 'to be' for 'I' in the present (one word)",
+          "context": "The 'I am ___' frame for giving your own name.",
+          "answer_key": "am",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_00_greetings_bx3",
+          "type": "fill_blank",
+          "sentence": "I am ___ India.",
+          "hint": "a small word that goes before a place to show where you come from",
+          "context": "Adds 'I am from ___' so the learner can say where they are from.",
+          "answer_key": "from",
+          "band": "standard"
+        },
+        {
+          "id": "comm_00_greetings_bx4",
+          "type": "multiple_choice",
+          "sentence": "Which is a complete, polite greeting with your name?",
+          "hint": "Pick the full sentence, not just one or two words.",
+          "context": "Checks the learner can recognise a complete greeting before producing one.",
+          "answer_key": "Hello, my name is Sara.",
+          "options": [
+            "Hello, my name is Sara.",
+            "Hello name Sara.",
+            "Sara hello me."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_00_greetings_bx5",
+          "type": "spoken",
+          "sentence": "Say hello, tell me your name, and say which city or country you are from.",
+          "hint": "Two short sentences: 'Hello, I am ___.' and 'I am from ___.'",
+          "context": "Free production of the greeting, name, and origin the node targets.",
+          "answer_key": "Hello, I am Sneha. I am from Jaipur, India.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Hello, my name is Ravi. I am from Chennai.",
+        "Hi, I am Aisha and I am from Lucknow."
+      ]
+    },
     {
       "id": "comm_01_self_intro",
       "title": "Introduce Yourself",
-      "level": 1,
+      "level": 2,
       "level_type": "text",
       "skill": "Frame a clear 2-sentence self-introduction (name, role, one detail).",
       "teach_focus": "Subject-verb basics in the present tense; one concrete detail.",
       "success_criteria": "Two grammatical sentences: who they are + one specific fact.",
       "bridge_focus": "Just one sentence: 'My name is ___ and I ___.'",
       "cefr": "A2",
-      "prerequisites": [],
-      "bridge_exercises": []
+      "prerequisites": ["comm_00_greetings"],
+      "bridge_exercises": [
+        {
+          "id": "comm_01_self_intro_bx1",
+          "type": "fill_blank",
+          "sentence": "My name ___ Ravi and I am a nurse.",
+          "hint": "verb 'to be', present simple, third person singular",
+          "context": "Locks the core 'My name is ___' frame before the learner attempts a free self-intro.",
+          "answer_key": "is",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_01_self_intro_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence adds one clear personal detail after your name and role?",
+          "hint": "Pick the option with a single concrete fact, not a vague phrase.",
+          "context": "Moves from the bare frame toward the 'one specific fact' success criterion.",
+          "answer_key": "I'm a teacher, and I love reading historical novels.",
+          "options": [
+            "I'm a teacher, and I love reading historical novels.",
+            "I'm a teacher and many things, you know.",
+            "I'm a teacher, nice, good, etc."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_01_self_intro_bx3",
+          "type": "spoken",
+          "sentence": "Introduce yourself in two sentences: say your name and role, then one specific detail about you.",
+          "hint": "Sentence one: name + role. Sentence two: one real fact (a hobby, a city, a goal).",
+          "context": "Free production of the full two-sentence intro the node targets.",
+          "answer_key": "Hi, I'm Sneha and I'm a software engineer. In my free time I'm learning to play the guitar.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Hi, I'm Anil. I'm a second-year commerce student, and I love cricket and cooking.",
+        "My name is Meera and I work as a graphic designer. I just moved to Pune last month."
+      ]
     },
     {
       "id": "comm_02_describe_routine",
       "title": "Describe Your Routine",
-      "level": 2,
+      "level": 3,
       "level_type": "text",
       "skill": "Use the present simple to describe habitual actions in sequence.",
       "teach_focus": "Present-simple conjugation; sequencing words (first, then, after).",
@@ -29,12 +134,45 @@
       "prerequisites": [
         "comm_01_self_intro"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_02_describe_routine_bx1",
+          "type": "fill_blank",
+          "sentence": "Every morning she ___ coffee before she starts work.",
+          "hint": "present simple, third person singular of 'drink'",
+          "context": "Anchors correct present-simple conjugation on a single habitual action.",
+          "answer_key": "drinks",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_02_describe_routine_bx2",
+          "type": "fill_blank",
+          "sentence": "I wake up at seven. ___ I brush my teeth, and then I have breakfast.",
+          "hint": "a sequencing word that means 'as the first step'",
+          "context": "Introduces sequencing words that string habitual actions into order.",
+          "answer_key": "First",
+          "accept": ["Firstly"],
+          "band": "standard"
+        },
+        {
+          "id": "comm_02_describe_routine_bx3",
+          "type": "spoken",
+          "sentence": "Describe your morning routine in at least three present-tense actions, using sequencing words like first, then, and after.",
+          "hint": "Use present simple throughout and connect the steps in order.",
+          "context": "Free production of the full sequenced routine the node targets.",
+          "answer_key": "First I wake up and check my phone. Then I make tea and read the news. After that, I go for a short walk.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Every day I get up at six, then I go for a run, and after that I take a shower and start work.",
+        "First I make breakfast for my family. Then I drop my son at school, and after that I open my shop."
+      ]
     },
     {
       "id": "comm_03_past_event",
       "title": "Narrate a Past Event",
-      "level": 3,
+      "level": 4,
       "level_type": "text",
       "skill": "Narrate a completed event using the past tense.",
       "teach_focus": "Regular vs irregular past forms; time markers (yesterday, last week).",
@@ -44,12 +182,49 @@
       "prerequisites": [
         "comm_02_describe_routine"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_03_past_event_bx1",
+          "type": "fill_blank",
+          "sentence": "Yesterday I ___ to the market and bought some vegetables.",
+          "hint": "irregular past tense of 'go'",
+          "context": "Drills an irregular past form on the node's core 'Yesterday I ___' frame.",
+          "answer_key": "went",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_03_past_event_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence correctly narrates a completed past event?",
+          "hint": "Find the one with a correct past form and a time marker.",
+          "context": "Tests recognition of correct regular/irregular past forms with time markers.",
+          "answer_key": "Last week we visited my grandparents and stayed two nights.",
+          "options": [
+            "Last week we visited my grandparents and stayed two nights.",
+            "Last week we visit my grandparents and stay two nights.",
+            "Last week we will visit my grandparents and stay two nights."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_03_past_event_bx3",
+          "type": "spoken",
+          "sentence": "Tell the story of something you did last weekend in three or four past-tense sentences.",
+          "hint": "Use a time marker like 'last Saturday' and keep all verbs in the past.",
+          "context": "Free past-tense narration matching the node's success criterion.",
+          "answer_key": "Last Saturday I met two old friends. We had lunch at a small cafe and then watched a film. After that, we walked along the river for an hour.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Yesterday I finished my project and sent it to my manager. Then I celebrated with my team over dinner.",
+        "Last month I travelled to Goa with my cousins. We swam in the sea every day and tried a lot of new food."
+      ]
     },
     {
       "id": "comm_04_opinion",
       "title": "State an Opinion",
-      "level": 4,
+      "level": 5,
       "level_type": "text",
       "skill": "State an opinion with a supporting reason.",
       "teach_focus": "'I think/believe ... because ...' framing; one clear reason.",
@@ -59,12 +234,49 @@
       "prerequisites": [
         "comm_03_past_event"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_04_opinion_bx1",
+          "type": "fill_blank",
+          "sentence": "I think reading is useful ___ it builds your vocabulary.",
+          "hint": "linking word that introduces a reason",
+          "context": "Locks the 'opinion + because + reason' frame the node is built on.",
+          "answer_key": "because",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_04_opinion_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which response states an opinion and backs it with a relevant reason?",
+          "hint": "Look for both an opinion and a reason that actually supports it.",
+          "context": "Distinguishes a supported opinion from a bare one or an off-topic reason.",
+          "answer_key": "I believe remote work is better because it saves hours of commuting time.",
+          "options": [
+            "I believe remote work is better because it saves hours of commuting time.",
+            "I believe remote work is better. The weather is nice today.",
+            "Remote work, yes, maybe, it is a thing people do."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_04_opinion_bx3",
+          "type": "spoken",
+          "sentence": "Give your opinion on whether students should learn to code at school, and support it with one clear reason.",
+          "hint": "Start with 'I think' or 'I believe', then give one reason after 'because'.",
+          "context": "Free production of a supported opinion on a fresh topic.",
+          "answer_key": "I think students should learn to code at school because it teaches logical thinking that helps in almost any career.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I think public libraries are important because they give everyone free access to knowledge.",
+        "I believe walking to work is better than driving because it keeps you healthy and saves money."
+      ]
     },
     {
       "id": "comm_05_compare",
       "title": "Compare Two Things",
-      "level": 5,
+      "level": 6,
       "level_type": "text",
       "skill": "Compare two options using comparative structures.",
       "teach_focus": "Comparatives (more/less, -er than); balanced contrast.",
@@ -74,12 +286,49 @@
       "prerequisites": [
         "comm_04_opinion"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_05_compare_bx1",
+          "type": "fill_blank",
+          "sentence": "Trains are usually ___ than buses for long journeys.",
+          "hint": "comparative form of 'fast' using -er",
+          "context": "Drills the core '-er than' comparative frame the node targets.",
+          "answer_key": "faster",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_05_compare_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence compares two options correctly with a longer adjective?",
+          "hint": "Long adjectives take 'more', not '-er'.",
+          "context": "Builds the 'more/less ... than' comparative for adjectives that cannot take -er.",
+          "answer_key": "A laptop is more expensive than a tablet.",
+          "options": [
+            "A laptop is more expensive than a tablet.",
+            "A laptop is expensiver than a tablet.",
+            "A laptop is more expensive that a tablet."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_05_compare_bx3",
+          "type": "spoken",
+          "sentence": "Compare living in a big city and a small town. Name one clear difference and say which you prefer.",
+          "hint": "Use a comparative like 'busier than' or 'more relaxed than', then state your preference.",
+          "context": "Free comparison naming a difference and a preference, as the criterion requires.",
+          "answer_key": "A big city is busier and more crowded than a small town, but I prefer the city because it offers more job opportunities.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Tea is cheaper than coffee, but I prefer coffee because it gives me more energy in the morning.",
+        "Online classes are more flexible than classroom lessons, though I prefer the classroom because I focus better there."
+      ]
     },
     {
       "id": "comm_06_persuade",
       "title": "Make a Short Argument",
-      "level": 6,
+      "level": 7,
       "level_type": "text",
       "skill": "Build a 3-part argument: claim, reason, example.",
       "teach_focus": "Claim -> reason -> concrete example structure; linking words.",
@@ -89,12 +338,50 @@
       "prerequisites": [
         "comm_05_compare"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_06_persuade_bx1",
+          "type": "fill_blank",
+          "sentence": "Cycling to work is good for the city. ___, it reduces traffic and pollution.",
+          "hint": "two-word linking phrase that introduces a concrete example",
+          "context": "Anchors the linking phrase that signals the 'example' part of the argument.",
+          "answer_key": "For example",
+          "accept": ["For instance"],
+          "band": "foundational"
+        },
+        {
+          "id": "comm_06_persuade_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which version is a complete claim-reason-example argument?",
+          "hint": "It must have all three parts: a claim, a reason, and a concrete example.",
+          "context": "Tests whether the learner can recognise a full three-part argument.",
+          "answer_key": "Schools should teach budgeting because students manage money badly; for example, many graduates fall into debt within a year.",
+          "options": [
+            "Schools should teach budgeting because students manage money badly; for example, many graduates fall into debt within a year.",
+            "Schools should teach budgeting. It is a good idea overall.",
+            "Budgeting, money, students, debt, very important topic."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_06_persuade_bx3",
+          "type": "spoken",
+          "sentence": "Argue that companies should allow a four-day work week. Give your claim, one reason, and one concrete example.",
+          "hint": "Structure it as: claim, then 'because' for the reason, then 'for example' for the example.",
+          "context": "Free production of the full claim-reason-example argument the node targets.",
+          "answer_key": "Companies should allow a four-day work week because rested employees are more productive. For example, when one firm in Iceland tried it, output stayed the same while staff felt far less burned out.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Cities should add more bike lanes because they cut pollution. For example, after Paris expanded its lanes, car use in the centre dropped sharply.",
+        "Students should learn first aid in school because it saves lives. For example, a classmate of mine once helped a choking passenger because she had been trained."
+      ]
     },
     {
       "id": "comm_07_handle_question",
       "title": "Handle a Follow-up Question",
-      "level": 7,
+      "level": 8,
       "level_type": "text",
       "skill": "Answer an unexpected follow-up directly and concisely.",
       "teach_focus": "Acknowledge -> answer -> stop; avoid rambling.",
@@ -104,42 +391,149 @@
       "prerequisites": [
         "comm_06_persuade"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_07_handle_question_bx1",
+          "type": "multiple_choice",
+          "sentence": "Interviewer: 'Why did you leave your last job?' Which reply is direct and concise?",
+          "hint": "Pick the answer that addresses the question and then stops.",
+          "context": "Trains the 'answer directly, then stop' behaviour against a padded alternative.",
+          "answer_key": "I left to take on a role with more responsibility.",
+          "options": [
+            "I left to take on a role with more responsibility.",
+            "Well, it's a long story, there were many things, the team, the office, the commute, honestly so much happened.",
+            "That's a good question and I really appreciate you asking it, thank you so much."
+          ],
+          "band": "foundational"
+        },
+        {
+          "id": "comm_07_handle_question_bx2",
+          "type": "fill_blank",
+          "sentence": "When you don't know the exact figure, you can say: 'I'm not sure of the exact number, ___ I can find out and send it today.'",
+          "hint": "linking word that pivots to what you CAN do",
+          "context": "Models acknowledging a gap and answering helpfully without rambling.",
+          "answer_key": "but",
+          "accept": ["however", "yet", "though"],
+          "band": "standard"
+        },
+        {
+          "id": "comm_07_handle_question_bx3",
+          "type": "spoken",
+          "sentence": "Someone asks: 'What's the biggest weakness in your plan?' Acknowledge it briefly, answer in one or two sentences, and then stop.",
+          "hint": "Acknowledge, give one honest weakness plus how you'd handle it, then stop talking.",
+          "context": "Free practice of the acknowledge-answer-stop pattern under an unexpected follow-up.",
+          "answer_key": "Good question. The biggest risk is the tight timeline, so I've built in a one-week buffer to absorb delays.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Honestly, the main challenge was the budget, so we cut two features to stay on track.",
+        "I'm not certain of the exact date, but I can confirm it by tomorrow morning."
+      ]
     },
     {
       "id": "comm_08_voice_intro",
       "title": "Speak Your Introduction",
-      "level": 8,
+      "level": 9,
       "level_type": "voice",
       "skill": "Deliver the self-introduction aloud with clear pacing.",
       "teach_focus": "Pace and pausing; apply the text framing under voice.",
-      "success_criteria": "Spoken intro, intelligible, steady pace, no long freezes.",
+      "success_criteria": "Two to three complete sentences giving name, role, and one specific personal fact, delivered as a paced spoken intro (full sentences, no fragments).",
       "bridge_focus": "Say only your name and role aloud.",
       "cefr": "A2",
       "prerequisites": [
         "comm_07_handle_question"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_08_voice_intro_bx1",
+          "type": "spoken",
+          "sentence": "Say only your name and role aloud, clearly and slowly: 'Hi, I'm ___ and I'm a ___.'",
+          "hint": "Speak slowly, pause after your name, and keep it to one breath.",
+          "context": "The bridge_focus task: warm up the voice with just name and role before a full intro.",
+          "answer_key": "Hi, I'm Karan and I'm a marketing analyst.",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_08_voice_intro_bx2",
+          "type": "spoken",
+          "sentence": "Now say your full two-sentence introduction aloud at a steady pace, pausing briefly between the two sentences.",
+          "hint": "Pause where a comma or full stop would go; don't rush the second sentence.",
+          "context": "Applies the text self-intro framing under voice with controlled pacing.",
+          "answer_key": "Hi, I'm Karan and I'm a marketing analyst. I've been learning data tools recently, and I really enjoy turning numbers into stories.",
+          "band": "standard"
+        },
+        {
+          "id": "comm_08_voice_intro_bx3",
+          "type": "spoken",
+          "sentence": "Give your full introduction aloud — name, role, and one interesting thing about you — at a calm, even pace with a clear pause between each sentence.",
+          "hint": "Three short sentences; pause where a full stop goes, and don't rush or freeze.",
+          "context": "Stretches the learner to deliver a complete, well-paced spoken intro — the node's success criterion under full voice control.",
+          "answer_key": "Hi, I'm Karan and I'm a marketing analyst. I've spent the last year learning data tools. Outside work, I run a small food blog that keeps my writing sharp.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Hi, I'm Priya and I'm a final-year engineering student. I love building small robots in my free time.",
+        "Hello, my name is Sahil and I work as a chef. I specialise in South Indian food and I'm learning Italian cooking now."
+      ]
     },
     {
       "id": "comm_09_voice_convo",
       "title": "Hold a Short Exchange",
-      "level": 9,
+      "level": 10,
       "level_type": "voice",
       "skill": "Sustain a short back-and-forth aloud without freezing.",
       "teach_focus": "Turn-taking; quick formulation under live pressure.",
-      "success_criteria": "3+ spoken turns staying on topic, recoverable hesitations.",
+      "success_criteria": "At least three on-topic turns that sustain a back-and-forth — each a complete response, with at least one question returned to the other speaker — and no turn left abandoned.",
       "bridge_focus": "Answer one spoken question, then ask one back.",
       "cefr": "B1",
       "prerequisites": [
         "comm_08_voice_intro"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_09_voice_convo_bx1",
+          "type": "spoken",
+          "sentence": "I ask: 'What do you do on weekends?' Answer aloud in one sentence, then ask me the same question back.",
+          "hint": "Answer, then turn the question around with 'And you?' or 'What about you?'",
+          "context": "The bridge_focus task: one answer plus one return question to start turn-taking.",
+          "answer_key": "On weekends I usually meet friends and watch a film. What about you?",
+          "band": "foundational"
+        },
+        {
+          "id": "comm_09_voice_convo_bx2",
+          "type": "multiple_choice",
+          "sentence": "You need a second to think mid-conversation. Which is the best way to keep your turn without freezing?",
+          "hint": "A natural filler buys time; a long silence loses your turn.",
+          "context": "Teaches recoverable hesitation, a key part of the success criterion.",
+          "answer_key": "That's a good question, let me think for a second.",
+          "options": [
+            "That's a good question, let me think for a second.",
+            "(stay completely silent for ten seconds)",
+            "Um, um, um, um, um, um, um, um."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "comm_09_voice_convo_bx3",
+          "type": "spoken",
+          "sentence": "Hold a three-turn exchange aloud about your favourite food: answer my question, ask one back, and respond to my reply, staying on topic.",
+          "hint": "Keep each turn short, stay on the food topic, and recover smoothly from any pauses.",
+          "context": "Full multi-turn exchange matching the 3+ on-topic spoken turns criterion.",
+          "answer_key": "My favourite food is biryani because of the spices. What's yours? Oh, pasta is great too, do you cook it yourself or order it?",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I love hiking on Sundays. How about you? Nice, I've never tried rock climbing, is it hard to start?",
+        "My favourite city is Jaipur because of the old forts. Which place do you like most? Oh, Kerala sounds beautiful, when did you go?"
+      ]
     },
     {
       "id": "comm_10_voice_pressure",
       "title": "Recover Under Interruption",
-      "level": 10,
+      "level": 11,
       "level_type": "voice",
       "skill": "Stay coherent when interrupted and regain the thread.",
       "teach_focus": "Reset phrases; finish the point after an interruption.",
@@ -149,7 +543,44 @@
       "prerequisites": [
         "comm_09_voice_convo"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "comm_10_voice_pressure_bx1",
+          "type": "multiple_choice",
+          "sentence": "You were mid-point when someone cut in. Which reset phrase best lets you regain the thread?",
+          "hint": "A good reset phrase acknowledges the cut and steers back to your point.",
+          "context": "Equips the learner with a reset phrase, the node's core teach_focus.",
+          "answer_key": "As I was saying, the main issue is the deadline.",
+          "options": [
+            "As I was saying, the main issue is the deadline.",
+            "Okay, never mind, forget my point.",
+            "Sorry, sorry, I'll just stop talking then."
+          ],
+          "band": "foundational"
+        },
+        {
+          "id": "comm_10_voice_pressure_bx2",
+          "type": "spoken",
+          "sentence": "Say this sentence aloud: 'The plan needs more testing time.' I will interrupt you. After my interruption, restate your last sentence and continue.",
+          "hint": "Use a short reset like 'As I was saying' and then repeat your point.",
+          "context": "The bridge_focus task: restate your last sentence after being interrupted.",
+          "answer_key": "As I was saying, the plan needs more testing time, otherwise we risk shipping bugs.",
+          "band": "standard"
+        },
+        {
+          "id": "comm_10_voice_pressure_bx3",
+          "type": "spoken",
+          "sentence": "Explain why your team missed a deadline. I will interrupt you partway through. Acknowledge the interruption, then finish your original point clearly.",
+          "hint": "Handle the cut-in briefly, reset with a phrase, and complete the point you started.",
+          "context": "Full pressure scenario: stay coherent through an interruption and complete the point.",
+          "answer_key": "We missed the deadline because a key supplier was late. Sure, I'll come to costs in a moment, but to finish my point first: once the parts arrived, we actually shipped within two days.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Good point, I'll address that next, but as I was saying, the root cause was the data migration.",
+        "Let me just finish this thought first: the budget held steady. Now, to your question about staffing..."
+      ]
     }
   ]
 }

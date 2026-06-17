@@ -14,7 +14,44 @@
       "bridge_focus": "One sentence: 'I'm a ___ who ___.' Just the role and one strength.",
       "cefr": "B2",
       "prerequisites": [],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_01_elevator_pitch_bx1",
+          "type": "fill_blank",
+          "sentence": "I'm a backend developer who ___ payment systems for high-traffic apps.",
+          "hint": "an action verb that shows your strength",
+          "context": "Drills the core pitch stem 'I'm a ___ who ___' by supplying the role and asking for the strength.",
+          "answer_key": "builds",
+          "band": "foundational"
+        },
+        {
+          "id": "int_01_elevator_pitch_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which opening line makes the strongest first sentence of a pitch?",
+          "hint": "lead with role plus one concrete strength, not a life story",
+          "context": "Moves from filling a stem to judging which opener leads with the most relevant fact.",
+          "answer_key": "I'm a data analyst who turns messy spreadsheets into dashboards leadership actually uses.",
+          "options": [
+            "Well, I was born in a small town and always liked computers growing up.",
+            "I'm a data analyst who turns messy spreadsheets into dashboards leadership actually uses.",
+            "There's a lot to say about me, so let me start from the beginning."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_01_elevator_pitch_bx3",
+          "type": "spoken",
+          "sentence": "Give me your 'Tell me about yourself' in three sentences: present role, one strength, the goal you're moving toward.",
+          "hint": "present -> proof -> direction; stop after the goal",
+          "context": "Stretches the learner to deliver the full present->proof->direction structure aloud.",
+          "answer_key": "I'm a project coordinator who keeps cross-team launches on schedule. Last year I shipped four product releases without a single missed deadline. Now I'm looking to move into a program lead role where I own delivery end to end.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I'm a frontend engineer who builds accessible web apps. At my last job I rebuilt our checkout flow and cut drop-off noticeably. Now I want to join a product team where design and engineering work closely.",
+        "I'm a customer success manager who turns at-risk accounts into renewals. I took my team's churn from a real problem to under control in a year. I'm aiming for a senior role leading a small CS team."
+      ]
     },
     {
       "id": "int_02_strength_with_evidence",
@@ -29,7 +66,44 @@
       "prerequisites": [
         "int_01_elevator_pitch"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_02_strength_with_evidence_bx1",
+          "type": "fill_blank",
+          "sentence": "I'm good at staying calm under pressure. For example, once I ___ when our server went down during a launch.",
+          "hint": "describe a specific thing you did",
+          "context": "Practices the claim->proof stem by attaching one concrete situation to a stated strength.",
+          "answer_key": "led the rollback and kept the team focused",
+          "band": "foundational"
+        },
+        {
+          "id": "int_02_strength_with_evidence_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which answer backs a strength with real evidence instead of just an adjective?",
+          "hint": "evidence is what you did, not how you'd describe yourself",
+          "context": "Trains the learner to spot empty adjectives versus a claim supported by a specific action.",
+          "answer_key": "I'm detail-oriented — last quarter I caught a billing error that would have overcharged 200 customers.",
+          "options": [
+            "I'm detail-oriented and very thorough in everything I do.",
+            "I'm detail-oriented — last quarter I caught a billing error that would have overcharged 200 customers.",
+            "People always tell me I'm hardworking and reliable."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_02_strength_with_evidence_bx3",
+          "type": "spoken",
+          "sentence": "Name one real strength of yours, then immediately prove it with one specific thing you actually did.",
+          "hint": "say the strength, then 'for example, once I...' with a real situation",
+          "context": "Stretches the learner to generate and deliver a claim->proof pair aloud, unscripted.",
+          "answer_key": "One of my strengths is mentoring. For example, when a junior teammate kept missing requirements, I started doing fifteen-minute kickoff calls with her, and within a month her work went back clean.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I'm strong at simplifying complex topics. For example, I rewrote our onboarding docs, and support tickets from new users dropped sharply.",
+        "I'd say my strength is follow-through. Once I inherited a stalled migration, mapped every blocker, and got it shipped in six weeks."
+      ]
     },
     {
       "id": "int_03_weakness_framing",
@@ -44,7 +118,44 @@
       "prerequisites": [
         "int_02_strength_with_evidence"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_03_weakness_framing_bx1",
+          "type": "fill_blank",
+          "sentence": "I used to struggle with delegating, so now I ___ at the start of every project.",
+          "hint": "a concrete corrective habit",
+          "context": "Drills the weakness->mitigation stem by pairing a real weakness with a specific fix.",
+          "answer_key": "assign clear owners to each task",
+          "band": "foundational"
+        },
+        {
+          "id": "int_03_weakness_framing_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which weakness answer is genuine and shows progress, rather than a cliche?",
+          "hint": "avoid the humble-brag; show a real fix and a result",
+          "context": "Teaches the learner to reject 'I'm a perfectionist' cliches in favor of an honest weakness plus evidence of improvement.",
+          "answer_key": "I used to over-explain in writing, so I started limiting updates to three bullet points — now my emails actually get read.",
+          "options": [
+            "My biggest weakness is that I just care too much and work too hard.",
+            "I used to over-explain in writing, so I started limiting updates to three bullet points — now my emails actually get read.",
+            "Honestly, I don't really have any weaknesses that affect my work."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_03_weakness_framing_bx3",
+          "type": "spoken",
+          "sentence": "Tell me about a real weakness, the specific habit you built to manage it, and one sign it's getting better.",
+          "hint": "weakness -> the fix you put in place -> evidence of progress",
+          "context": "Stretches the learner to deliver the full honesty-plus-mitigation arc aloud without sounding rehearsed.",
+          "answer_key": "I used to take on too much and miss deadlines. So now I block out my week every Monday and say no to work that doesn't fit. Last quarter I hit every deadline for the first time.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I used to avoid asking for help and waste hours stuck. Now I give myself a thirty-minute rule, then ask. My output's gone up and I'm a lot less stressed.",
+        "Public speaking made me freeze. So I joined a speaking group and now volunteer to present in team meetings — it's still not natural, but it's no longer a blocker."
+      ]
     },
     {
       "id": "int_04_star_behavioral",
@@ -59,7 +170,44 @@
       "prerequisites": [
         "int_03_weakness_framing"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_04_star_behavioral_bx1",
+          "type": "fill_blank",
+          "sentence": "In the end, we shipped the release two days early because I ___.",
+          "hint": "the specific Action of STAR — what you personally did",
+          "context": "Anchors the Result beat first, then forces the learner to name the Action that caused it.",
+          "answer_key": "reorganized the testing schedule and unblocked the team",
+          "band": "foundational"
+        },
+        {
+          "id": "int_04_star_behavioral_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence belongs to the ACTION beat of a STAR answer?",
+          "hint": "Action = the specific steps you personally took",
+          "context": "Trains the learner to sort sentences into the correct STAR beat, the most common structuring error.",
+          "answer_key": "I split the project into milestones and ran a daily ten-minute standup to catch blockers early.",
+          "options": [
+            "Our team was three weeks behind on a major client deliverable.",
+            "I split the project into milestones and ran a daily ten-minute standup to catch blockers early.",
+            "We delivered on time and the client renewed their contract."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_04_star_behavioral_bx3",
+          "type": "spoken",
+          "sentence": "Tell me about a time you handled a difficult deadline. Keep the situation and task short, spend most of it on your actions, and end on a clear result.",
+          "hint": "S/T brief -> expand A (what YOU did) -> measurable R",
+          "context": "Stretches the learner to deliver all four beats in order with correct weighting toward Action and Result.",
+          "answer_key": "Our biggest client moved a launch up by two weeks. I was the lead, so I had to compress the plan. I cut the scope to must-haves, reassigned two engineers to the critical path, and ran short daily check-ins. We launched on the new date and the client signed a second contract.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Our app was crashing for new users during signup. As on-call, I had to stabilize it fast. I traced it to a bad migration, rolled it back, and added a check to the deploy step. Crashes dropped to zero within an hour and we kept the fix permanent.",
+        "We were losing customers at renewal. My task was to find out why. I interviewed ten churned accounts, found onboarding was the gap, and built a guided first-week flow. Renewal rates climbed over the next two quarters."
+      ]
     },
     {
       "id": "int_05_why_this_role",
@@ -74,7 +222,44 @@
       "prerequisites": [
         "int_04_star_behavioral"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_05_why_this_role_bx1",
+          "type": "fill_blank",
+          "sentence": "You just open-sourced your design system. That matters to me because ___.",
+          "hint": "link the specific company fact to your own goal or value",
+          "context": "Practices the stem 'That matters to me because ___' so a concrete fact connects to personal motivation.",
+          "answer_key": "I care about building tools other developers actually rely on",
+          "band": "foundational"
+        },
+        {
+          "id": "int_05_why_this_role_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which 'why this company' answer is tailored and researched, not generic flattery?",
+          "hint": "reference a concrete fact and tie it to your goals — not 'you're a great company'",
+          "context": "Teaches the learner to reject platitudes in favor of a company-specific reason linked to personal motivation.",
+          "answer_key": "Your move to usage-based pricing last year is exactly the billing problem I want to work on — I've built metering systems and want to go deeper.",
+          "options": [
+            "You're a great company with a strong reputation and I'd love to be part of it.",
+            "Your move to usage-based pricing last year is exactly the billing problem I want to work on — I've built metering systems and want to go deeper.",
+            "I'm looking for a stable job with good pay and your company seems like a good fit."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_05_why_this_role_bx3",
+          "type": "spoken",
+          "sentence": "Name one specific thing about a company you'd want to join, then explain why it genuinely matters to you and your goals.",
+          "hint": "one concrete fact -> 'that matters to me because...' tied to your direction",
+          "context": "Stretches the learner to build a researched, non-generic motivation aloud from a real company fact.",
+          "answer_key": "Your team published how you cut cloud costs by rearchitecting your data pipeline. That matters to me because I've spent two years on infrastructure efficiency, and I want to solve those problems at your scale rather than a smaller one.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "You recently launched in three new markets in a year. That speaks to me because I want to work where shipping fast is the norm, and I've thrived in exactly that kind of pace.",
+        "I read that your support team feeds directly into the product roadmap. That matters to me because I left my last role frustrated that customer feedback never reached engineering."
+      ]
     },
     {
       "id": "int_06_own_a_failure",
@@ -89,7 +274,44 @@
       "prerequisites": [
         "int_05_why_this_role"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_06_own_a_failure_bx1",
+          "type": "fill_blank",
+          "sentence": "That was my call, and it didn't work because ___.",
+          "hint": "name your own mistake, not someone else's",
+          "context": "Drills first-person ownership by forcing the learner to complete the cause in their own voice.",
+          "answer_key": "I skipped testing to hit the deadline and shipped a bug to customers",
+          "band": "foundational"
+        },
+        {
+          "id": "int_06_own_a_failure_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which version owns the failure instead of deflecting blame?",
+          "hint": "ownership uses 'I', not 'they' or 'the circumstances'",
+          "context": "Trains the learner to detect blame-shifting and choose genuine first-person accountability.",
+          "answer_key": "I underestimated the timeline and didn't flag the risk early enough, so we missed the deadline. That's on me.",
+          "options": [
+            "The deadline was missed because the other team didn't deliver their part on time.",
+            "I underestimated the timeline and didn't flag the risk early enough, so we missed the deadline. That's on me.",
+            "Honestly, the requirements kept changing, so there was no way to hit it."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_06_own_a_failure_bx3",
+          "type": "spoken",
+          "sentence": "Tell me about a real failure of yours. Own it fully in the first person, then say the specific lesson you applied afterward.",
+          "hint": "your call -> what went wrong -> the concrete change you made next time",
+          "context": "Stretches the learner to deliver ownership plus an applied lesson aloud, with no blame and no deflection.",
+          "answer_key": "I pushed a feature live without enough testing because I wanted to hit a date. It broke checkout for two hours and we lost sales. That was my call. Since then I never ship anything customer-facing without a staging pass, and I've held that line even under pressure.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I hired too fast for a project and didn't set clear expectations, so two people struggled and one left. That was my mistake. Now I write a clear role scope before any hire and check in weekly for the first month.",
+        "I assumed I understood a client's brief and didn't confirm it, so we built the wrong thing for three weeks. That was on me. Ever since, I send a written summary back before any real work starts."
+      ]
     },
     {
       "id": "int_07_clarify_before_answering",
@@ -104,7 +326,44 @@
       "prerequisites": [
         "int_06_own_a_failure"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_07_clarify_before_answering_bx1",
+          "type": "fill_blank",
+          "sentence": "When you ask how I'd handle a difficult client — do you mean a client who's unhappy with the work, or ___?",
+          "hint": "offer a second clear interpretation to narrow the scope",
+          "context": "Practices the 'do you mean A or B' clarifier stem to narrow a vague prompt before answering.",
+          "answer_key": "one who keeps changing the requirements",
+          "band": "foundational"
+        },
+        {
+          "id": "int_07_clarify_before_answering_bx2",
+          "type": "multiple_choice",
+          "sentence": "The interviewer asks a vague 'How would you improve our product?' Which response is the sharpest first move?",
+          "hint": "a good clarifier narrows scope; it doesn't stall or guess blindly",
+          "context": "Teaches the learner to choose a scope-narrowing clarifier over a rambling guess or a non-answer.",
+          "answer_key": "Happy to — are you more interested in onboarding for new users, or retention for existing ones?",
+          "options": [
+            "Sure, there are honestly so many things I could improve about it.",
+            "Happy to — are you more interested in onboarding for new users, or retention for existing ones?",
+            "I'd need to see all your data before I could possibly answer that."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_07_clarify_before_answering_bx3",
+          "type": "spoken",
+          "sentence": "I'll ask a deliberately vague question: 'Tell me how you'd grow this business.' Ask one sharp clarifying question to narrow it, then give a focused answer to the version you chose.",
+          "hint": "clarify scope first ('do you mean ___ or ___?'), then answer that narrowed version",
+          "context": "Stretches the learner to clarify a loaded prompt and then deliver a focused answer in one smooth turn.",
+          "answer_key": "By grow, do you mean new revenue from new customers, or more revenue from the ones we already have? If it's existing customers, I'd start with the accounts using only one feature, because that's usually the fastest upsell.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Before I answer — when you say 'lead the team', do you mean managing people directly, or owning the technical direction? Those need different examples.",
+        "Quick check so I give you the right answer: are you asking about a conflict with a peer, or with a manager?"
+      ]
     },
     {
       "id": "int_08_quantify_impact",
@@ -119,7 +378,44 @@
       "prerequisites": [
         "int_07_clarify_before_answering"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_08_quantify_impact_bx1",
+          "type": "fill_blank",
+          "sentence": "I cut report time by ___% by automating the weekly export.",
+          "hint": "any number (e.g. 40)",
+          "context": "Forces a measurable result into a vague achievement.",
+          "answer_key": "<number>",
+          "band": "foundational"
+        },
+        {
+          "id": "int_08_quantify_impact_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which answer shows impact most convincingly?",
+          "hint": "numbers beat adjectives",
+          "context": "Moves from inserting a number to choosing the strongest framing.",
+          "answer_key": "I grew sign-ups 30% in two quarters, adding ~1,200 users.",
+          "options": [
+            "I worked really hard on growth.",
+            "I grew sign-ups 30% in two quarters, adding ~1,200 users.",
+            "Growth went up a lot under me."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_08_quantify_impact_bx3",
+          "type": "spoken",
+          "sentence": "Take a vague win of yours and say it again with a real number, percentage, scale, or before/after contrast attached.",
+          "hint": "swap 'I helped/improved' for a metric: 'I ___, which changed ___ by ___'",
+          "context": "Stretches the learner to quantify their own contribution aloud rather than recognizing a number in a prompt.",
+          "answer_key": "Instead of saying I improved support, I'd say I rewrote our help docs and first-response time dropped from about a day to under two hours, which cut repeat tickets by roughly a quarter.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "In my last role I automated invoice matching, cutting processing time about 35% and saving roughly 10 hours a week.",
+        "I redesigned the signup flow and conversion went from 12% to 19% over three months — about 800 extra paid users."
+      ]
     },
     {
       "id": "int_09_diplomatic_pushback",
@@ -134,7 +430,44 @@
       "prerequisites": [
         "int_08_quantify_impact"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_09_diplomatic_pushback_bx1",
+          "type": "fill_blank",
+          "sentence": "I see your point about moving fast, though I'd argue ___.",
+          "hint": "state your counter-position clearly, but stay warm",
+          "context": "Drills the acknowledge->assert stem so the learner concedes first, then holds a clear counter-position.",
+          "answer_key": "skipping reviews on payment code usually costs us more time later",
+          "band": "foundational"
+        },
+        {
+          "id": "int_09_diplomatic_pushback_bx2",
+          "type": "multiple_choice",
+          "sentence": "The interviewer says 'Documentation is mostly a waste of time.' Which reply disagrees diplomatically?",
+          "hint": "concede something real, then reframe — disagree with the idea, not the person",
+          "context": "Teaches the learner to choose acknowledge->reframe->assert over either caving or attacking.",
+          "answer_key": "I get why it feels that way when it goes stale — though I'd argue a short, living doc actually saves onboarding time. I've seen it cut ramp-up in half.",
+          "options": [
+            "You're wrong, documentation is one of the most important things a team can do.",
+            "I get why it feels that way when it goes stale — though I'd argue a short, living doc actually saves onboarding time. I've seen it cut ramp-up in half.",
+            "Yeah, you're probably right, documentation usually isn't worth the effort."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_09_diplomatic_pushback_bx3",
+          "type": "spoken",
+          "sentence": "I'll assert something you likely disagree with: 'The best engineers always work alone.' Push back diplomatically — acknowledge a point, reframe it, and hold your counter-position warmly.",
+          "hint": "acknowledge -> reframe -> assert; keep rapport, don't concede your view",
+          "context": "Stretches the learner to run the full acknowledge->reframe->assert arc aloud while protecting the relationship.",
+          "answer_key": "I see where that comes from — deep work does need solo focus, and the best engineers protect that. Though I'd argue the very best also multiply others: the ones I've learned most from reviewed my code and unblocked the team. So I'd say it's both, not either-or.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "That's a fair concern, and I've seen rushing backfire too. Though I'd argue that in this case shipping the smaller version first actually lowers the risk, because we learn before we commit.",
+        "I hear you that data can mislead. Still, I'd push back gently — without at least a baseline metric, we're just guessing, and I'd rather be wrong with evidence than right by luck."
+      ]
     },
     {
       "id": "int_10_close_strong",
@@ -149,7 +482,148 @@
       "prerequisites": [
         "int_09_diplomatic_pushback"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "int_10_close_strong_bx1",
+          "type": "fill_blank",
+          "sentence": "What does success in this role look like in the first ___?",
+          "hint": "a concrete timeframe makes the question sharper",
+          "context": "Practices turning a generic closing question into a specific, research-signaling one.",
+          "answer_key": "ninety days",
+          "band": "foundational"
+        },
+        {
+          "id": "int_10_close_strong_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which closing question signals research and ambition rather than going through the motions?",
+          "hint": "substantive questions probe the role or team, not logistics you could Google",
+          "context": "Trains the learner to choose an insightful closing question over a generic or self-serving one.",
+          "answer_key": "What's the biggest challenge the person in this role will need to solve in the first six months?",
+          "options": [
+            "What are the working hours and how much vacation do you offer?",
+            "What's the biggest challenge the person in this role will need to solve in the first six months?",
+            "So, do you think I did okay in this interview?"
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_10_close_strong_bx3",
+          "type": "spoken",
+          "sentence": "Close the interview: ask one substantive question about the role or team, then state your fit confidently and specifically in a sentence or two.",
+          "hint": "one real question -> a confident, specific close that reaffirms value without arrogance",
+          "context": "Stretches the learner to combine a sharp question and a confident, non-arrogant close in one smooth ending.",
+          "answer_key": "What's the one thing the last person in this role wished they'd done differently? And to be direct — the metering work you described is exactly what I've built before, so I'm confident I can be useful here from week one.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "How does the team measure whether this role is succeeding after a year? And honestly, the scaling problems you mentioned are the exact ones I love solving — I'd be glad to take them on.",
+        "What's changed most about this team in the last year? From everything we've discussed, this is the kind of fast, ownership-driven environment where I do my best work, and I'd be excited to join."
+      ]
+    },
+    {
+      "id": "int_11_salary_negotiation",
+      "title": "Negotiate Your Offer",
+      "level": 11,
+      "level_type": "text",
+      "skill": "State a salary expectation with a researched anchor and a justification, and hold it without apologizing.",
+      "teach_focus": "Anchor on a concrete number or range; justify with market rate plus your value; never hedge, apologize, or pre-discount yourself.",
+      "success_criteria": "An explicit number or range backed by one concrete justification (market rate or demonstrated value), delivered without apology or backpedaling.",
+      "bridge_focus": "Give one number, then one reason: 'I'm targeting ___, based on ___.'",
+      "cefr": "C1",
+      "prerequisites": [
+        "int_10_close_strong"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "int_11_salary_negotiation_bx1",
+          "type": "fill_blank",
+          "sentence": "Based on my research and the scope of this role, I'm targeting a base in the range of ___.",
+          "hint": "a concrete number or range, not a vague word like 'competitive'",
+          "context": "Drills the anchor: a specific researched figure replaces a soft, negotiable non-number.",
+          "answer_key": "18 to 22 lakhs",
+          "band": "foundational"
+        },
+        {
+          "id": "int_11_salary_negotiation_bx2",
+          "type": "multiple_choice",
+          "sentence": "The interviewer asks your salary expectation. Which reply anchors with confidence instead of caving?",
+          "hint": "a strong anchor names a number and a reason, and does not apologize for it",
+          "context": "Trains the learner to choose a justified anchor over an apologetic or open-ended answer.",
+          "answer_key": "I'm looking for 20 to 24 lakhs, based on the market rate for this scope and the metering systems I've shipped before.",
+          "options": [
+            "Whatever you think is fair is honestly fine with me, I don't want to be difficult about it.",
+            "I'm looking for 20 to 24 lakhs, based on the market rate for this scope and the metering systems I've shipped before.",
+            "I'm flexible, so we can just go with whatever the standard band is for the role."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_11_salary_negotiation_bx3",
+          "type": "spoken",
+          "sentence": "I'll ask your salary expectation. Give me a specific number or range, justify it in one line, and hold it without apologizing or immediately offering to go lower.",
+          "hint": "anchor with a number -> one line of justification (market + your value) -> stop, don't backpedal",
+          "context": "Stretches the learner to deliver a confident, justified anchor aloud and resist the urge to pre-discount it.",
+          "answer_key": "Based on my experience and the market for this role, I'm targeting 22 to 26 lakhs. I've led billing platforms end to end, which is exactly the work here, so I'm confident that's where I add value. I'm open to discussing the full package, but that's my range on base.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I've researched the band for this role and I'm looking for 18 to 22 lakhs. That reflects the market rate plus the data pipelines I've built, and it's a number I'm comfortable standing behind.",
+        "My target is around 15 lakhs base. I've delivered two production launches in similar roles, so I'd place myself at the upper half of the band rather than the entry point."
+      ]
+    },
+    {
+      "id": "int_12_explain_a_gap",
+      "title": "Explain a Gap or a Departure",
+      "level": 12,
+      "level_type": "text",
+      "skill": "Account for leaving a role or an employment gap honestly and briefly, framed forward and without disparaging anyone.",
+      "teach_focus": "Brief honest reason -> what you did or learned -> forward intent; never badmouth a past employer or manager.",
+      "success_criteria": "A short, honest reason for the gap or departure with no blame, pivoted to what was gained and what the learner wants next.",
+      "bridge_focus": "One forward-framed line: 'I left to ___, and now I'm looking for ___.'",
+      "cefr": "C1",
+      "prerequisites": [
+        "int_11_salary_negotiation"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "int_12_explain_a_gap_bx1",
+          "type": "fill_blank",
+          "sentence": "I took six months away from work to care for a family member, and during that time I ___.",
+          "hint": "one concrete thing that shows you stayed engaged or current",
+          "context": "Drills the forward pivot: a gap becomes a sentence about what you kept doing, not an apology.",
+          "answer_key": "completed two online courses to keep my skills current",
+          "band": "foundational"
+        },
+        {
+          "id": "int_12_explain_a_gap_bx2",
+          "type": "multiple_choice",
+          "sentence": "Why did you leave your last job? Which answer is honest and forward-looking rather than bitter?",
+          "hint": "own the reason and point forward; don't blame the manager or the company",
+          "context": "Teaches the learner to reject blame-shifting in favor of a brief, forward-framed reason.",
+          "answer_key": "I'd grown as far as the role allowed and wanted ownership of delivery end to end, which wasn't on the table there, so I decided to look for it elsewhere.",
+          "options": [
+            "My manager was impossible and the company was a mess, so I had to get out.",
+            "I'd grown as far as the role allowed and wanted ownership of delivery end to end, which wasn't on the table there, so I decided to look for it elsewhere.",
+            "Honestly I just got bored and didn't really feel like staying any longer."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "int_12_explain_a_gap_bx3",
+          "type": "spoken",
+          "sentence": "Tell me why you left your last role, or explain a gap in your history. Keep it short and honest, don't badmouth anyone, and end on what you're moving toward.",
+          "hint": "brief honest reason -> what you gained or did -> the forward intent; no blame",
+          "context": "Stretches the learner to deliver the full honest-but-forward arc aloud without slipping into resentment.",
+          "answer_key": "I left because I'd taken the role about as far as it could go and wanted to own delivery end to end, which the structure there didn't allow. I used the transition to go deep on system design through a course and a side project. Now I'm looking for a role where I can lead that kind of work from the start.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "There was a nine-month gap after my last role because I relocated for family. I used it to finish a data-engineering certification, so I came back sharper than I left, and now I'm ready to apply it.",
+        "I left because the work had become purely maintenance and I wanted to build again. I don't have anything bad to say about the team. It just wasn't the direction I wanted, and this role is exactly the building work I'm after."
+      ]
     }
   ]
 }

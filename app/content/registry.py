@@ -44,8 +44,12 @@ _NODE_INDEX: dict[str, tuple[str, Concept]] = {
 # CEFR ordering for placement. Higher rank == more advanced.
 CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
 # Self-report buckets the onboarding UI offers, mapped to a target CEFR band.
+# A self-described "beginner" lands on the A1 on-ramp (comm_00_greetings), the
+# true ground floor, not mid-A2 — the on-ramp is quick to clean-pass, so an
+# actual A2 who picked "beginner" advances out of it fast, while a real A1 gets
+# a gentle start instead of being dropped into self-intro.
 SELF_REPORT_CEFR: dict[str, str] = {
-    "beginner": "A2",
+    "beginner": "A1",
     "intermediate": "B1",
     "advanced": "B2",
     "fluent": "C1",
@@ -81,8 +85,13 @@ def grade_placement_node(grade: int) -> Concept:
 
 
 def get_node(node_id: str) -> Concept:
-    """Resolve any node id across all modules. Raises KeyError if unknown."""
-    return _NODE_INDEX[node_id][1]
+    """Resolve any node id across all modules. Raises KeyError if unknown.
+
+    Returns a DEEP COPY of the canonical Concept, never the shared instance: the
+    same Concept object lives in module-global _NODE_INDEX, so handing out the
+    reference let any caller that mutated a returned node (e.g. tweaking a field
+    in a graph step) silently corrupt the registry for every later caller."""
+    return _NODE_INDEX[node_id][1].model_copy(deep=True)
 
 
 def module_of(node_id: str) -> str:

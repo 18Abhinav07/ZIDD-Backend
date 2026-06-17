@@ -14,7 +14,44 @@
       "bridge_focus": "Finish: 'On this topic, I believe ___.'",
       "cefr": "B2",
       "prerequisites": [],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_01_stake_position_bx1",
+          "type": "fill_blank",
+          "sentence": "On this topic, I ___ that remote work helps companies more than it hurts them.",
+          "hint": "a verb that commits you to a side",
+          "context": "Drills the opening verb that signals a committed stance rather than a hedge.",
+          "answer_key": "believe",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_01_stake_position_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which opening stakes the clearest position?",
+          "hint": "pick the one that commits to a side with no hedging",
+          "context": "Trains the learner to spot a committed stance versus fence-sitting.",
+          "answer_key": "I'm firmly in favour of banning single-use plastics.",
+          "options": [
+            "I'm firmly in favour of banning single-use plastics.",
+            "Well, it's hard to say, there are points on both sides.",
+            "Maybe plastics are an issue, I suppose, sort of."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_01_stake_position_bx3",
+          "type": "spoken",
+          "sentence": "Topic: 'Social media does more harm than good.' Open the discussion by stating your position in one sentence before any reasons.",
+          "hint": "lead with your stance, not a question or a hedge",
+          "context": "Free production of a committed, position-first opening under a live topic.",
+          "answer_key": "I believe social media does more harm than good, mainly because of what it does to attention and mental health.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "On this topic, I believe a four-day work week would raise productivity, not lower it.",
+        "My position is clear: schools should teach financial literacy as a core subject."
+      ]
     },
     {
       "id": "gd_02_support_with_evidence",
@@ -29,7 +66,45 @@
       "prerequisites": [
         "gd_01_stake_position"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_02_support_with_evidence_bx1",
+          "type": "fill_blank",
+          "sentence": "Cities should expand bike lanes. ___, Amsterdam cut car traffic sharply after doing exactly that.",
+          "hint": "a two-word phrase that introduces a concrete example",
+          "context": "Practises the signal phrase that turns a bare claim into supported reasoning.",
+          "answer_key": "For instance",
+          "accept": ["For example"],
+          "band": "foundational"
+        },
+        {
+          "id": "gd_02_support_with_evidence_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which reply backs the stance with the most concrete support?",
+          "hint": "look for a specific fact or example, not a repeated opinion",
+          "context": "Teaches the learner to recognise concrete support over re-asserted opinion.",
+          "answer_key": "Online courses widen access — for instance, that free coding platform now reaches two million rural learners.",
+          "options": [
+            "Online courses widen access — for instance, that free coding platform now reaches two million rural learners.",
+            "Online courses widen access because they are genuinely very good at widening access.",
+            "Online courses widen access, and I really do feel strongly about that."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_02_support_with_evidence_bx3",
+          "type": "spoken",
+          "sentence": "State your position on 'Electric cars are better for the planet,' then support it with one concrete fact, example, or analogy.",
+          "hint": "say your stance, then 'because' or 'for instance' and one specific detail",
+          "context": "Free production of the position-then-concrete-support pattern.",
+          "answer_key": "Electric cars are better for the planet — for instance, even on today's mixed grid, studies show they emit far less over their lifetime than petrol cars.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Remote work boosts output — for instance, our team shipped 20% more after going hybrid.",
+        "I'd back stricter privacy laws; after the EU passed GDPR, companies finally started deleting data they didn't need."
+      ]
     },
     {
       "id": "gd_03_take_the_floor",
@@ -44,7 +119,44 @@
       "prerequisites": [
         "gd_02_support_with_evidence"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_03_take_the_floor_bx1",
+          "type": "fill_blank",
+          "sentence": "If I could ___ to that, I think the cost angle matters just as much as the time saved.",
+          "hint": "a verb meaning to contribute something extra",
+          "context": "Drills the polite entry stem used to claim the floor.",
+          "answer_key": "add",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_03_take_the_floor_bx2",
+          "type": "multiple_choice",
+          "sentence": "The group is mid-flow. Which entry is polite, well-timed, and links to the last speaker?",
+          "hint": "assertive but not rude, and it should connect to what was just said",
+          "context": "Contrasts a graceful interjection with abrupt or self-centred ones.",
+          "answer_key": "Building on what Riya just said, could I add a quick point about cost?",
+          "options": [
+            "Building on what Riya just said, could I add a quick point about cost?",
+            "Stop — let me talk now, I've been waiting.",
+            "Anyway, forget all that, here's a completely different topic."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_03_take_the_floor_bx3",
+          "type": "spoken",
+          "sentence": "Two people are debating whether exams should be scrapped. Interrupt politely, link to the last point, and add something new.",
+          "hint": "use an entry phrase, acknowledge them, then add your point",
+          "context": "Free production of a well-timed, linked entry into a live discussion.",
+          "answer_key": "If I could come in there — you're right that exams cause stress, and I'd add that they also reward memorising over real understanding.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "If I could add to that, the same logic applies to small businesses, not just large firms.",
+        "Just to jump in on Sam's point — there's a related risk we haven't mentioned yet."
+      ]
     },
     {
       "id": "gd_04_build_on_others",
@@ -59,7 +171,44 @@
       "prerequisites": [
         "gd_03_take_the_floor"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_04_build_on_others_bx1",
+          "type": "fill_blank",
+          "sentence": "Building ___ what Maya said about cost, we could also factor in long-term maintenance.",
+          "hint": "the preposition that goes after 'building'",
+          "context": "Fixes the acknowledge-then-extend frame at the connector level.",
+          "answer_key": "on",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_04_build_on_others_bx2",
+          "type": "multiple_choice",
+          "sentence": "Someone said 'free transport would cut emissions.' Which reply credits them AND adds new value?",
+          "hint": "it should name or echo their idea, then push it further",
+          "context": "Distinguishes genuine building-on from mere agreement or hijacking.",
+          "answer_key": "That's a strong point on emissions — and it would also help low-income commuters most.",
+          "options": [
+            "That's a strong point on emissions — and it would also help low-income commuters most.",
+            "Yeah, I agree, totally agree, good point.",
+            "Forget emissions, my real concern is parking."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_04_build_on_others_bx3",
+          "type": "spoken",
+          "sentence": "A peer just said 'remote work saves commute time.' Credit them, then extend the idea with something new.",
+          "hint": "acknowledge, then add a fresh angle they didn't mention",
+          "context": "Free production of the credit-then-extend collaborative move.",
+          "answer_key": "Building on what Arjun said about saved commute time, we could also point out that those reclaimed hours often go into family time, which boosts retention.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Building on what Priya said, we could also extend that incentive to first-time renters, not just buyers.",
+        "That ties nicely into Dev's point — and it suggests the policy would pay for itself within a year."
+      ]
     },
     {
       "id": "gd_05_disagree_respectfully",
@@ -74,7 +223,44 @@
       "prerequisites": [
         "gd_04_build_on_others"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_05_disagree_respectfully_bx1",
+          "type": "fill_blank",
+          "sentence": "That's a fair point, ___ I'd push back, because the cost falls hardest on small firms.",
+          "hint": "a soft contrast connector",
+          "context": "Gives a ready frame for conceding then disagreeing without attacking.",
+          "answer_key": "but",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_05_disagree_respectfully_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which reply disagrees most respectfully?",
+          "hint": "concede something valid first, then keep it about the idea",
+          "context": "Moves from a frame to choosing tone under realistic phrasing.",
+          "answer_key": "You make a fair point on speed — though I'd argue the rushed rollout is exactly what caused the bugs.",
+          "options": [
+            "You make a fair point on speed — though I'd argue the rushed rollout is exactly what caused the bugs.",
+            "That's just wrong and you clearly haven't thought it through.",
+            "No. That makes no sense at all."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_05_disagree_respectfully_bx3",
+          "type": "spoken",
+          "sentence": "A peer argues 'AI will replace most teachers within a decade.' Disagree respectfully: concede a fair point, then state your counter.",
+          "hint": "validate something true, then push back on the idea, not the person",
+          "context": "Free production of the concede-then-counter civil disagreement.",
+          "answer_key": "You're right that AI will change teaching, but I'd push back on 'replace' — it can grade and tutor, yet the mentoring part still needs a human.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I hear you on cost, but if we delay we lose the whole quarter — so I'd still ship now.",
+        "That's a fair concern, though I'd argue the data points the other way on safety."
+      ]
     },
     {
       "id": "gd_06_balanced_view",
@@ -89,7 +275,44 @@
       "prerequisites": [
         "gd_05_disagree_respectfully"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_06_balanced_view_bx1",
+          "type": "fill_blank",
+          "sentence": "There are real costs to remote work, but ___ I think the flexibility outweighs them.",
+          "hint": "a two-word phrase meaning 'considering everything'",
+          "context": "Practises the connector that pivots from weighing sides to a verdict.",
+          "answer_key": "on balance",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_06_balanced_view_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which contribution is genuinely balanced — fair to the other side yet still conclusive?",
+          "hint": "it must honestly grant the opposing point, then still decide",
+          "context": "Separates true nuance from one-sided takes and pure fence-sitting.",
+          "answer_key": "Stricter rules do slow innovation, I'll grant that — but on balance, the safety gains are worth the trade-off.",
+          "options": [
+            "Stricter rules do slow innovation, I'll grant that — but on balance, the safety gains are worth the trade-off.",
+            "Stricter rules are simply good and there's no real argument against them.",
+            "Honestly both sides are equally right, so I can't really choose."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_06_balanced_view_bx3",
+          "type": "spoken",
+          "sentence": "Topic: 'Should homework be abolished?' Name one fair point for each side, then say which is stronger and why.",
+          "hint": "grant the opposing side honestly before you land your conclusion",
+          "context": "Free production of weigh-both-sides-then-conclude reasoning.",
+          "answer_key": "Homework can deepen practice, and I'll grant it builds discipline — but it also widens the gap for kids without support at home, so on balance I'd reform it, not abolish it.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "Critics are right that the policy is costly; still, weighing both sides, the long-term savings make it worth it.",
+        "There's a real case for speed, but on balance I think doing it carefully matters more here."
+      ]
     },
     {
       "id": "gd_07_steer_back",
@@ -104,7 +327,44 @@
       "prerequisites": [
         "gd_06_balanced_view"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_07_steer_back_bx1",
+          "type": "fill_blank",
+          "sentence": "I think we've ___ a bit — the real question is whether the budget should grow at all.",
+          "hint": "a verb meaning to wander off the topic",
+          "context": "Drills the neutral phrase that names the drift before refocusing.",
+          "answer_key": "drifted",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_07_steer_back_bx2",
+          "type": "multiple_choice",
+          "sentence": "The group has wandered onto office snacks instead of the hiring policy. Which move steers back best?",
+          "hint": "flag the drift neutrally, then restate the actual question",
+          "context": "Contrasts a graceful redirect with blame or simply ignoring the drift.",
+          "answer_key": "These tangents are fun, but let's loop back — the question on the table is how we should change hiring.",
+          "options": [
+            "These tangents are fun, but let's loop back — the question on the table is how we should change hiring.",
+            "Why does everyone keep going off-topic? Focus, people.",
+            "Sure, let's keep talking about snacks, that's fine."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_07_steer_back_bx3",
+          "type": "spoken",
+          "sentence": "The topic is 'Should city centres ban cars?' but the group is now arguing about football. Steer them back without blaming anyone.",
+          "hint": "name the drift gently, restate the real question, offer a refocusing point",
+          "context": "Free production of a neutral, well-judged redirect.",
+          "answer_key": "We've wandered off a little — the real question is whether banning cars from city centres works, so maybe we start with how it went in places that tried it.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "We've drifted a bit — the real question is whether the policy actually reduces emissions.",
+        "Good tangent, but let's refocus: are we for or against the proposal on the table?"
+      ]
     },
     {
       "id": "gd_08_include_quiet",
@@ -119,7 +379,44 @@
       "prerequisites": [
         "gd_07_steer_back"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_08_include_quiet_bx1",
+          "type": "fill_blank",
+          "sentence": "I'd like to ___ Neha's take on this — she's been quiet but I'm sure she has a view.",
+          "hint": "a verb meaning to listen to someone's opinion",
+          "context": "Practises the warm invitation stem for drawing in a quiet member.",
+          "answer_key": "hear",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_08_include_quiet_bx2",
+          "type": "multiple_choice",
+          "sentence": "Sara hasn't spoken yet. Which invitation is natural, specific, and pressure-free?",
+          "hint": "warm and specific to the topic, not a demand or a spotlight grab",
+          "context": "Separates a gracious invitation from pressure or a generic prompt.",
+          "answer_key": "Sara, you've worked in retail — I'd love your take on how this affects shop staff.",
+          "options": [
+            "Sara, you've worked in retail — I'd love your take on how this affects shop staff.",
+            "Sara, you haven't said anything, so go ahead, say something now.",
+            "Does anyone else want to talk, anyone at all?"
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_08_include_quiet_bx3",
+          "type": "spoken",
+          "sentence": "In a discussion on minimum wage, one person hasn't spoken at all. Invite them in naturally, referencing the topic for them.",
+          "hint": "name them, tie it to the topic, leave room to decline",
+          "context": "Free production of a specific, low-pressure invitation.",
+          "answer_key": "Rohit, you've been listening carefully — I'd really like to hear your view on whether raising the minimum wage helps or hurts small shops.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "I'd like to hear Aman's take on this — he mentioned earlier he'd seen it firsthand.",
+        "Leena, you've stayed quiet on the cost side — what's your read on that?"
+      ]
     },
     {
       "id": "gd_09_manage_dominator",
@@ -134,7 +431,44 @@
       "prerequisites": [
         "gd_08_include_quiet"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_09_manage_dominator_bx1",
+          "type": "fill_blank",
+          "sentence": "That's a strong point, Karan — let's also ___ what others think before we move on.",
+          "hint": "a verb meaning to listen to / find out",
+          "context": "Drills the validate-then-redistribute phrase for pausing a dominator.",
+          "answer_key": "hear",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_09_manage_dominator_bx2",
+          "type": "multiple_choice",
+          "sentence": "One person has talked for three minutes straight. Which move reclaims the floor firmly but without hostility?",
+          "hint": "validate briefly, interrupt cleanly, then hand off to the group",
+          "context": "Contrasts a tactful reclaim with rude cut-offs and passive silence.",
+          "answer_key": "Those are great points, Vik — let me pause you there so we can bring others in.",
+          "options": [
+            "Those are great points, Vik — let me pause you there so we can bring others in.",
+            "Vik, you talk way too much, give it a rest.",
+            "(say nothing and let him keep going)"
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_09_manage_dominator_bx3",
+          "type": "spoken",
+          "sentence": "A participant keeps cutting others off and dominating the GD on climate policy. Reclaim the floor and hand it to the group.",
+          "hint": "acknowledge their point, interrupt cleanly, then pass it on",
+          "context": "Free production of an assertive, non-hostile floor-reclaiming move.",
+          "answer_key": "You've made some strong points there, and I want to make sure we hear others too — let me pause you and bring in someone who hasn't spoken yet.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "That's a strong point — let me pause you there so we can also hear from the others.",
+        "I appreciate the detail, Sid; in the interest of time, let's open it up to the rest of the group."
+      ]
     },
     {
       "id": "gd_10_drive_consensus",
@@ -149,7 +483,44 @@
       "prerequisites": [
         "gd_09_manage_dominator"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "gd_10_drive_consensus_bx1",
+          "type": "fill_blank",
+          "sentence": "So to ___: most of us agree on the goal, and we mainly differ on the timing.",
+          "hint": "a two-word verb meaning to give a brief summary",
+          "context": "Practises the closing stem that signals a synthesis is coming.",
+          "answer_key": "sum up",
+          "band": "foundational"
+        },
+        {
+          "id": "gd_10_drive_consensus_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which closing best synthesizes the discussion and proposes a consensus the group can rally around?",
+          "hint": "capture the main threads fairly, then name the common ground",
+          "context": "Distinguishes a true synthesis from a one-sided or vague ending.",
+          "answer_key": "We've heard strong cases for both speed and safety — and we all seem to agree on a phased rollout, so let's propose that.",
+          "options": [
+            "We've heard strong cases for both speed and safety — and we all seem to agree on a phased rollout, so let's propose that.",
+            "Anyway, I was right all along, so let's just go with my idea.",
+            "We talked about a lot of stuff, so let's stop here."
+          ],
+          "band": "standard"
+        },
+        {
+          "id": "gd_10_drive_consensus_bx3",
+          "type": "spoken",
+          "sentence": "The GD on 'four-day work week' is ending. Summarize the two main points raised and propose where the group can agree.",
+          "hint": "fairly capture both threads, name common ground, propose a conclusion",
+          "context": "Free production of a fair synthesis that drives toward consensus.",
+          "answer_key": "To sum up, we agreed the four-day week could boost focus but worried about client coverage — so maybe the consensus is to trial it with rotating cover and review the results.",
+          "band": "stretch"
+        }
+      ],
+      "exemplars": [
+        "So to sum up: we agree the goal is worth it, and the main open question is timing — let's propose a phased start.",
+        "We've heard two big threads — cost and fairness — and the common ground seems to be a pilot first, then a full rollout."
+      ]
     }
   ]
 }

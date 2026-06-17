@@ -19,7 +19,12 @@ class BridgeExercise(BaseModel):
     hint: str
     context: str
     answer_key: str
+    # Equally-correct alternative fills, graded the same as answer_key. Lets a
+    # blank with interchangeable answers ("For example" / "For instance", "but" /
+    # "however") accept any valid form instead of marking synonyms wrong (M3).
+    accept: Optional[List[str]] = None
     options: Optional[List[str]] = None
+    band: Optional[Literal["foundational", "standard", "stretch"]] = None
 
 
 class Concept(BaseModel):
@@ -36,6 +41,8 @@ class Concept(BaseModel):
     prerequisites: List[str] = Field(default_factory=list)
     # Pre-authored scaffolding exercises mapped to this concept
     bridge_exercises: List[BridgeExercise] = Field(default_factory=list)
+    role: str = "core"            # "core" | "remediation"
+    exemplars: List[str] = []     # 1–2 model answers, optional
 
 
 class Module(BaseModel):
@@ -50,9 +57,12 @@ class Module(BaseModel):
         return [n.id for n in self.nodes]
 
 
-class Track(BaseModel):
-    """A higher-level grouping of modules (e.g. Communication Track)."""
+class ContentGroup(BaseModel):
     id: str
     title: str
-    description: str
-    modules: List[Module]
+    description: str = ""
+    children: list["ContentGroup"] = Field(default_factory=list)  # recursive
+    modules: list[str] = Field(default_factory=list)              # leaf-container refs
+    locked: bool = False                                          # unlock-gate (D reuses for paywall)
+    unlock_rule: Optional[str] = None                             # condition expression, None = open
+    tests: list[str] = Field(default_factory=list)               # attached test/sim node ids
