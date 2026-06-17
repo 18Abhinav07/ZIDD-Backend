@@ -303,6 +303,17 @@ class PgStore:
             except Exception:
                 return None
 
+    async def remove_unlock(self, user_id: str, scope: str, ref_id: str) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.remove_unlock(s, user_id, scope, ref_id)
+            except Exception:
+                return None
+
     async def list_unlocks(self, user_id: str) -> list[dict]:
         from app.db import repo
 

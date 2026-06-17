@@ -259,6 +259,19 @@ async def add_unlock(
     await session.commit()
 
 
+async def remove_unlock(
+    session: AsyncSession, user_id: str, scope: str, ref_id: str
+) -> None:
+    await session.execute(
+        text(
+            "DELETE FROM content_unlocks "
+            "WHERE user_id = :u AND scope = :s AND ref_id = :r"
+        ),
+        {"u": user_id, "s": scope, "r": ref_id},
+    )
+    await session.commit()
+
+
 async def list_unlocks(session: AsyncSession, user_id: str) -> list[dict]:
     result = await session.execute(
         text(

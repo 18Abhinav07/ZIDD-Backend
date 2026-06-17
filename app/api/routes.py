@@ -158,6 +158,11 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
         # wallet. Free decisions were never charged, so they get no refund.
         if not decision.free:
             await store.grant_credits(user_id, decision.cost, "refund")
+            # ACCESS decisions also persisted a content_unlocks row in charge();
+            # without removing it the learner would keep permanent free (owned)
+            # access AND get the credits back. Undo the unlock too.
+            if decision.record_unlock:
+                await store.remove_unlock(user_id, decision.scope, decision.ref_id)
         raise HTTPException(status_code=400, detail=str(e)) from e
     node = get_node(state["competency_node"])
     return SessionStartResponse(

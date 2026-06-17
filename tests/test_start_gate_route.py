@@ -150,6 +150,34 @@ def test_start_failure_refunds_charged_credits(monkeypatch):
     assert _run(store.get_credits("test_user")) == 50
 
 
+def test_start_failure_removes_access_unlock(monkeypatch):
+    # Revenue-leak guard. A first-time PAID Communication node is an ACCESS
+    # unlock: charge() deducts 40 AND writes a content_unlocks row (owned
+    # forever). If svc.start_session then raises ValueError -> 400, the refund
+    # must undo BOTH sides: hand the 40 credits back AND delete the unlock row.
+    # Otherwise the learner gets their credits back and keeps permanent free
+    # (owned) access to the whole module — paying nothing.
+    async def _boom(user_id, node_id, learner_name="", test_mode=False):
+        raise ValueError("brain refused to start")
+    monkeypatch.setattr(svc, "start_session", _boom)
+
+    store = get_storage()
+    _seed(store.ensure_profile("test_user"))
+    _seed(store.grant_credits("test_user", 50, "welcome"))
+
+    client = TestClient(app)
+    r = client.post(
+        "/session/start",
+        json={"user_id": "test_user", "competency_node": COMM_SECOND, "confirm": True},
+        headers=AUTH,
+    )
+    assert r.status_code == 400
+    # (a) credits refunded back to the pre-charge balance.
+    assert _run(store.get_credits("test_user")) == 50
+    # (b) the ACCESS unlock charge() wrote must be gone — no permanent free access.
+    assert _run(store.has_unlock("test_user", "feature", COMM_ID)) is False
+
+
 def test_start_failure_does_not_refund_demo_user(monkeypatch):
     # Demo/judge users are never charged (decision.free), so a start failure must
     # NOT hand them a phantom refund that inflates a balance they never spent.

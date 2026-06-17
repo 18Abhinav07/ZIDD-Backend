@@ -236,6 +236,14 @@ class LocalStore:
         )
         self._conn.commit()
 
+    async def remove_unlock(self, user_id: str, scope: str, ref_id: str) -> None:
+        self._conn.execute(
+            "DELETE FROM content_unlocks "
+            "WHERE user_id = ? AND scope = ? AND ref_id = ?",
+            (user_id, scope, ref_id),
+        )
+        self._conn.commit()
+
     async def list_unlocks(self, user_id: str) -> list[dict]:
         rows = self._conn.execute(
             "SELECT scope, ref_id, credits_spent, created FROM content_unlocks "
