@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.content.registry import get_node, list_modules
+from app.graph.route import level_kind, session_phase
 from app.models import (
     PlacementRequest,
     SessionStartRequest,
@@ -19,6 +20,8 @@ from app.models import (
     SessionTurnRequest,
 )
 from app.services import session_service as svc
+from app.services.session_service import GamePrompt
+from app.services.simulation_service import Speaker
 
 router = APIRouter(prefix="/session", tags=["session"])
 onboarding = APIRouter(tags=["onboarding"])
@@ -34,9 +37,20 @@ async def modules() -> list[dict]:
 async def placement(req: PlacementRequest) -> dict:
     """Estimate the learner's level and return their STARTING node."""
     try:
-        return await svc.place_user(req.module_id, req.writing_sample, req.self_report)
+        return await svc.place_user(
+            req.module_id, req.writing_sample, req.self_report, req.grade
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=f"unknown module: {req.module_id}") from e
+    except Exception:
+        # Fallback if AI placement fails (e.g., Ollama down)
+        try:
+            from app.content.registry import get_module
+            mod = get_module(req.module_id)
+            return {"node_id": mod.nodes[0].id, "cefr_estimate": "A1"}
+        except Exception:
+            return {"node_id": "comm_01_self_intro", "cefr_estimate": "A1"}
+
 
 
 def _sse(data: str, event: str | None = None) -> str:
@@ -44,8 +58,26 @@ def _sse(data: str, event: str | None = None) -> str:
     return f"{prefix}data: {data}\n\n"
 
 
+def _avatar_emotion(affect: str, score: float | None) -> str:
+    """Map learner affect + last eval score to an avatar emotion state."""
+    s = score or 0.0
+    if affect == "confident":
+        return "impressed" if s >= 0.7 else "skeptical"
+    if affect == "frustrated":
+        return "empathetic"
+    if affect == "confused":
+        return "patient"
+    # neutral
+    if s >= 0.7:
+        return "engaged"
+    if s < 0.5:
+        return "concerned"
+    return "neutral"
+
+
 def _state_snapshot(state: dict) -> dict:
     diag = state.get("last_diagnosis") or {}
+    affect = diag.get("affect", "neutral")
     return {
         "session_id": state["session_id"],
         "competency_node": state["competency_node"],
@@ -61,16 +93,25 @@ def _state_snapshot(state: dict) -> dict:
         "scaffold": state.get("scaffold", 0),
         "remediation": state.get("remediation", False),
         "module_done": state.get("module_done", False),
+        # Phase 5 progression surfacing: macro lifecycle, named section, and the
+        # logged weakness list so the UI can draw a "where am I" bar.
+        "phase": session_phase(state),
+        "level_kind": level_kind(state),
+        "tester_level": state.get("tester_level", False),
+        "weaknesses": state.get("weakness_context", []),
         "on_task": diag.get("on_task", True),
         "english": diag.get("english", True),
-        "affect": diag.get("affect", "neutral"),
+        "affect": affect,
+        "avatar_emotion": _avatar_emotion(affect, state.get("last_eval_score")),
     }
 
 
 @router.post("/start", response_model=SessionStartResponse)
 async def start(req: SessionStartRequest) -> SessionStartResponse:
     try:
-        session_id, state = await svc.start_session(req.user_id, req.competency_node)
+        session_id, state = await svc.start_session(
+            req.user_id, req.competency_node, test_mode=req.test_mode
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     node = get_node(state["competency_node"])
@@ -103,7 +144,58 @@ async def turn(req: SessionTurnRequest) -> StreamingResponse:
 
     async def gen() -> AsyncIterator[str]:
         async for tok in svc.run_turn(req.session_id, req.user_input):
-            yield _sse(json.dumps(tok))
+            if isinstance(tok, GamePrompt):
+                # Scaffold teach turn: client renders a gamified widget.
+                # answer_key stays server-side — not forwarded.
+                yield _sse(
+                    json.dumps({
+                        "type": tok.type,
+                        "sentence": tok.sentence,
+                        "hint": tok.hint,
+                        "context": tok.context,
+                        "options": tok.options,
+                    }),
+                    event="game_prompt",
+                )
+            elif isinstance(tok, svc.NodeAdvance):
+                # Discrete frame between old-node feedback and new-node opening
+                # so the UI renders them as separate bubbles (no level-bleed).
+                yield _sse(
+                    json.dumps(
+                        {"from_node": tok.from_node, "to_node": tok.to_node}
+                    ),
+                    event="node_advance",
+                )
+            elif isinstance(tok, svc.ProgressUpdate):
+                yield _sse(
+                    json.dumps({
+                        "node_id": tok.node_id,
+                        "mastery": tok.mastery,
+                        "clean_streak": tok.clean_streak,
+                        "attempts": tok.attempts,
+                    }),
+                    event="progress_update",
+                )
+            elif isinstance(tok, svc.SessionRecap):
+                yield _sse(
+                    json.dumps({
+                        "nodes_completed": tok.nodes_completed,
+                        "weaknesses": tok.weaknesses,
+                        "avg_score": tok.avg_score,
+                    }),
+                    event="session_recap",
+                )
+            elif isinstance(tok, Speaker):
+                # TEST-mode simulation: a new persona block begins. Open a fresh
+                # speaker bubble before its text streams (mirrors node_advance).
+                yield _sse(
+                    json.dumps(
+                        {"speaker_id": tok.speaker_id, "name": tok.name}
+                    ),
+                    event="speaker",
+                )
+            else:
+                yield _sse(json.dumps(tok))
         state = svc.get_state(req.session_id)
         yield _sse(json.dumps(_state_snapshot(state)), event="done")
 
@@ -116,6 +208,11 @@ async def state(session_id: str) -> dict:
     if st is None:
         raise HTTPException(status_code=404, detail="no active session")
     return _state_snapshot(st)
+
+
+@router.get("/progress/{user_id}")
+async def get_progress(user_id: str, module_id: str = "communication") -> list[dict]:
+    return await svc.get_progression_map(user_id, module_id)
 
 
 @router.post("/{session_id}/end")

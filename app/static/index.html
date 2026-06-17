@@ -118,8 +118,9 @@ async function loadModules() {
   for (const m of mods) {
     const el = document.createElement("div");
     el.className = "card";
+    const band = m.grade_range ? `Grades ${m.grade_range}` : `CEFR ${m.cefr_range}`;
     el.innerHTML = `<h3>${m.title}</h3><p>${m.description}</p>
-      <div class="meta">${m.level_count} levels · CEFR ${m.cefr_range}</div>`;
+      <div class="meta">${m.level_count} levels · ${band}</div>`;
     el.onclick = () => pickModule(m);
     list.appendChild(el);
   }

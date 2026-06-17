@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS learner_profiles (
     user_id         TEXT PRIMARY KEY,
     display_name    TEXT,
+    password_hash   TEXT,
     credits         INTEGER NOT NULL DEFAULT 0,
     -- Judge/demo bypass (architecture-v3 §621): when true, credit-deduction
     -- middleware skips ALL paywalls. NON-NEGOTIABLE for XPRIZE judging.

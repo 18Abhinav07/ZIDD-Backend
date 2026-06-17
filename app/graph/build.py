@@ -21,6 +21,7 @@ from langgraph.graph import END, StateGraph
 
 from app.graph.nodes.bridge import bridge_node
 from app.graph.nodes.challenge import challenge_node
+from app.graph.nodes.clarify import clarify_node
 from app.graph.nodes.ease import ease_node
 from app.graph.nodes.evaluate import evaluate_node
 from app.graph.nodes.redirect import redirect_node
@@ -44,6 +45,7 @@ def _build() -> StateGraph:
     g.add_node("strengthen", strengthen_node)
     g.add_node("challenge", challenge_node)
     g.add_node("redirect", redirect_node)
+    g.add_node("clarify", clarify_node)
     g.add_node("ease", ease_node)
 
     g.set_conditional_entry_point(
@@ -58,11 +60,12 @@ def _build() -> StateGraph:
             "teach": "teach",
             "challenge": "challenge",
             "redirect": "redirect",
+            "clarify": "clarify",
             "ease": "ease",
         },
     )
     for node in ("evaluate", "teach", "bridge", "strengthen", "challenge",
-                 "redirect", "ease"):
+                 "redirect", "clarify", "ease"):
         if node != "evaluate":
             g.add_edge(node, END)
     return g

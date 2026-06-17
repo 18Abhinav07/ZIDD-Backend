@@ -79,4 +79,4 @@ async def load_context(
         rows = result.scalars().all()
     except Exception:
         return ""
-    return "\n".join(rows)
+    return "§".join(rows)

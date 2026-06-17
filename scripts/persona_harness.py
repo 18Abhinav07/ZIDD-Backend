@@ -105,11 +105,20 @@ async def learner_reply(sim_prompt: str, tutor_msg: str) -> str:
         return (r.json()["message"]["content"] or "").strip()
 
 
-async def _drain(agen) -> str:
-    out = []
+async def _drain(agen) -> tuple[str, list]:
+    """Collect a run_turn/opening stream.
+
+    Returns (text, advances). String tokens join into the tutor text; any
+    NodeAdvance markers are pulled aside so we can see node transitions instead
+    of crashing the join (the marker is not a str). Other non-string frames
+    (ProgressUpdate, GamePrompt, etc.) are ignored by the harness."""
+    out, advances = [], []
     async for t in agen:
-        out.append(t)
-    return "".join(out)
+        if isinstance(t, svc.NodeAdvance):
+            advances.append((t.from_node, t.to_node))
+        elif isinstance(t, str):
+            out.append(t)
+    return "".join(out), advances
 
 
 async def run_session(persona: dict, module_id: str, max_turns: int = 6) -> dict:
@@ -122,14 +131,15 @@ async def run_session(persona: dict, module_id: str, max_turns: int = 6) -> dict
     log["placement"] = placement
 
     sid, state = await svc.start_session("sim_" + persona["name"][:4], placement["starting_node"])
-    opening = await _drain(svc.stream_opening(sid))
+    opening, _ = await _drain(svc.stream_opening(sid))
     log["opening"] = opening
     last_tutor = opening
 
     for i in range(max_turns):
         reply = await learner_reply(persona["sim_prompt"], last_tutor)
-        tutor = await _drain(svc.run_turn(sid, reply))
+        tutor, advances = await _drain(svc.run_turn(sid, reply))
         st = svc.get_state(sid)
+        diag = st.get("last_diagnosis", {}) or {}
         turn = {
             "n": i + 1,
             "node": st["competency_node"],
@@ -141,8 +151,18 @@ async def run_session(persona: dict, module_id: str, max_turns: int = 6) -> dict
             "bridge_attempts": st["bridge_attempts"],
             "module_done": st["module_done"],
             "remediation": st["remediation"],
+            # diagnosis fields: distinguish a GENUINE 0.5 from the neutral
+            # fallback (understanding == "(could not assess this turn)") and
+            # expose on_task/english for the off-task / non-English routes.
+            "understanding": diag.get("understanding", ""),
+            "on_task": diag.get("on_task", None),
+            "english": diag.get("english", None),
+            "advances": advances,
+            "clean_streak": st.get("clean_streak"),
             "tutor": tutor,
         }
+        if advances:
+            log["events"].append(f"advance {advances} at turn {i+1}")
         log["turns"].append(turn)
         last_tutor = tutor
         if st["module_done"]:
@@ -167,6 +187,10 @@ def _print(log: dict) -> None:
         print(f"\n  --- turn {t['n']} | node={t['node']} | route={t['route']} "
               f"| score={t['score']} mastery={t['mastery']} att={t['attempts']} "
               f"bridge={t['bridge_attempts']} done={t['module_done']}")
+        fallback = t.get("understanding") == "(could not assess this turn)"
+        print(f"  DIAG   : on_task={t.get('on_task')} english={t.get('english')} "
+              f"clean_streak={t.get('clean_streak')} "
+              f"{'NEUTRAL-FALLBACK!' if fallback else ''} adv={t.get('advances')}")
         print(f"  LEARNER: {t['user'][:200]}")
         print(f"  TUTOR  : {t['tutor'][:300]}")
     if p["events"]:

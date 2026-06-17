@@ -202,7 +202,10 @@ async def test_clean_pass_no_remediation(monkeypatch):
 async def test_low_passrate_flags_remediation(monkeypatch):
     # A broken streak pushes attempts past the clean cap (>2) before advance,
     # so the node is logged not-clean and the module flags remediation.
-    _set_eval(monkeypatch, [1.0, 0.5, 1.0, 1.0])
+    # Second score is 0.3 (not 0.5): smoothing gate blends scores when swing > 0.4,
+    # so 0.5 after a 1.0 becomes exactly 0.7 (PASS_SCORE) — a false clean pass.
+    # 0.3 smooths to 0.58, which is still below PASS_SCORE and breaks the streak.
+    _set_eval(monkeypatch, [1.0, 0.3, 1.0, 1.0])
     _sid, state = await svc.start_session("u5", "comm_01_self_intro")
     state["turn_count"] = 1
 
@@ -231,15 +234,16 @@ async def test_fluent_offtask_routes_redirect(monkeypatch):
     assert state["last_route"] == "redirect"
 
 
-async def test_nonenglish_nonanswer_still_bridges(monkeypatch):
-    # Off-task AND not real English (gibberish / other language) is a genuine
-    # non-answer — keep the existing scaffold-down to bridge.
+async def test_nonenglish_nonanswer_routes_clarify(monkeypatch):
+    # B11/B12 (Test-fix-01): not real English (gibberish / other language) is not
+    # a skill failure — bridge would scaffold a competency skill never attempted
+    # in English. Route to clarify ("say that in English"), not bridge.
     _set_eval(monkeypatch, [0.0], on_task=[False], english=[False])
     _sid, state = await svc.start_session("o2", "comm_01_self_intro")
     state["turn_count"] = 1
 
     await _drain(svc.run_turn(_sid, "asdkjfh qwiueh"))
-    assert state["last_route"] == "bridge"
+    assert state["last_route"] == "clarify"
 
 
 async def test_offtask_does_not_scaffold_or_break_streak(monkeypatch):
@@ -261,6 +265,29 @@ async def test_offtask_does_not_scaffold_or_break_streak(monkeypatch):
     assert state["level_fails"] == 0
     assert state["clean_streak"] == 0
     assert state["last_route"] == "redirect"
+
+
+async def test_nonenglish_does_not_scaffold_or_break_streak(monkeypatch):
+    # B11/B12 (Test-fix-01): repeated non-English messages are not skill failures.
+    # They must not trip level_fails, arm the scaffold, or break the streak — same
+    # category error the redirect guard fixed, but for the clarify (english=False)
+    # path. Otherwise a learner typing in their L1 gets dragged toward give-up/ease.
+    _set_eval(
+        monkeypatch,
+        [0.0, 0.0, 0.0],
+        on_task=[False, False, False],
+        english=[False, False, False],
+    )
+    _sid, state = await svc.start_session("o4", "comm_01_self_intro")
+    state["turn_count"] = 1
+
+    for _ in range(3):
+        await _drain(svc.run_turn(_sid, "yeh ek non-English jawaab hai"))
+
+    assert state["scaffold"] == 0
+    assert state["level_fails"] == 0
+    assert state["clean_streak"] == 0
+    assert state["last_route"] == "clarify"
 
 
 # ---------- fix #2: ceiling escape ----------

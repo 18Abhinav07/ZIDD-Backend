@@ -10,11 +10,72 @@ offline (dev / CI / Layer-A tests). Memory and credits degrade to no-ops when
 the DB or Ollama is unavailable. The graph and AI boundary are the only hard
 dependencies, and tests monkeypatch the AI boundary.
 """
+import asyncio
 import json
 import os
+import re
 import uuid
+import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from dataclasses import dataclass
+
+logger = logging.getLogger("zidd.session")
+
+
+@dataclass(frozen=True)
+class GamePrompt:
+    """Gamified fill-blank item yielded instead of a text stream on scaffold turns.
+
+    The API layer maps this to an `event: game_prompt` SSE frame. `answer_key`
+    is stripped from the client payload; the learner submits their fill as normal
+    text on the next turn, which the graph scores via evaluate_node as usual."""
+
+    type: str
+    sentence: str
+    hint: str
+    context: str
+    answer_key: str     # server-side only — not forwarded to the client
+    options: list[str] | None = None
+
+
+@dataclass(frozen=True)
+class NodeAdvance:
+    """Marker yielded by run_turn between old-node feedback and new-node opening.
+
+    run_turn yields plain string tokens for the pedagogy/opening stream; on an
+    advancing turn it yields exactly one NodeAdvance between the OLD-node feedback
+    tokens and the NEW-node opening tokens. The API layer maps it to a discrete
+    `event: node_advance` SSE frame on the same connection so the UI renders the
+    two as separate bubbles (kills level-bleed)."""
+
+    from_node: str
+    to_node: str
+
+
+@dataclass(frozen=True)
+class ProgressUpdate:
+    """Per-turn mastery signal for the UI progress bar.
+
+    Emitted after every scored turn so the client can update mastery display
+    without waiting for the `done` event. The `done` snapshot also carries this
+    data — ProgressUpdate lets the UI animate the bar mid-stream."""
+
+    node_id: str
+    mastery: float          # current EMA (0-1)
+    clean_streak: int       # consecutive clean passes on this node
+    attempts: int           # total attempts on this node
+
+
+@dataclass(frozen=True)
+class SessionRecap:
+    """Summary frame emitted when module_done=True (all nodes completed).
+
+    Carries the structured recap so the UI can render a 'session complete'
+    screen without a second API call. The `done` event fires immediately after."""
+
+    nodes_completed: list   # list of node_id strings from node_history
+    weaknesses: list        # weakness_context rows (skill_id, hit_count, last_raw)
+    avg_score: float        # current_mastery at close
 
 from app.config import get_settings
 from app.ai.calls import (
@@ -24,17 +85,40 @@ from app.ai.calls import (
     stream_generation,
     summarize_session,
 )
+from app.ai.behaviors import behavior_for_value
 from app.ai.prompts import build_opening_prompt, coach_view
+from app.ai.test_gen import generate_test_items
 from app.content.registry import (
     SELF_REPORT_CEFR,
     all_node_ids,
     get_module,
     get_node,
+    grade_placement_node,
+    module_of,
     next_node,
     placement_node,
+    uses_grade_placement,
+)
+from app.content.skills import coerce_skill_id
+from app.content.task_types import (
+    TaskType,
+    prep_counterpart,
+    task_type_of,
+    test_counterpart,
 )
 from app.graph.build import get_graph
-from app.memory import store as memory_store
+from app.services.simulation_service import score_session, stream_simulation_round
+from app.storage import get_storage
+
+# Assessment ("test") task types run the multi-persona SIMULATION instead of the
+# coaching graph; the contribution is scored at session end, not coached mid-turn.
+_TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value})
+
+# Precomputed probe banks (Phase 4 Layer B) go stale as the learner's prep
+# weaknesses shift; a bank older than this is treated as a cache miss and the
+# TEST start regenerates. One week is long enough that a normal prep->test gap
+# reuses the precache, short enough that drifted weaknesses don't fossilize.
+TEST_ITEM_TTL = 7 * 24 * 3600  # seconds
 
 MASTERY_COMPLETE = 0.8       # node "mastered" (EMA) — kept for DB clean-flag only
 CLEAN_PASS_MAX_ATTEMPTS = 2  # mastered in <=2 scored answers == "clean"
@@ -55,7 +139,14 @@ MAX_INPUT_CHARS = 2000   # cap learner input; protects ctx window + cost
 _END_PHRASES = {
     "done", "stop", "bye", "goodbye", "quit", "exit", "that's all",
     "thats all", "im done", "i'm done", "end", "finish", "no more",
+    # temporal goodbye variants ("im done for today" etc.)
+    "done for now", "done for today", "im done now", "i'm done now",
+    "im done for today", "i'm done for today", "done here",
 }
+
+# Strong farewell tokens — if any appear as a word in the message it's a goodbye.
+# Distinct from "done"/"stop" which appear in real answers; "bye"/"quit" do not.
+_BYE_TOKENS = {"bye", "goodbye", "quit", "exit", "ciao", "tata"}
 # Phrases that signal discouragement -> pivot to support on the next turn.
 _FRUSTRATION_PHRASES = (
     "i can't", "i cant", "give up", "too hard", "i'm confused", "im confused",
@@ -66,10 +157,24 @@ _FRUSTRATION_PHRASES = (
 # session_id -> TutorState dict
 SessionStore: dict[str, dict] = {}
 
+# E24 fix: per-session lock so concurrent turns on ONE session serialize their
+# read-modify-write of canonical state (race corrupts messages/counters).
+# Per-session, NOT global — different sessions still run concurrently.
+_SESSION_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _lock_for(session_id: str) -> asyncio.Lock:
+    lock = _SESSION_LOCKS.get(session_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _SESSION_LOCKS[session_id] = lock
+    return lock
+
 # Keys that are transient within a single turn and must NOT be persisted:
 # `pending` holds a GenSpec (a frozen dataclass, not JSON-serializable, and only
-# meaningful for the in-flight stream).
-_TRANSIENT_KEYS = ("pending",)
+# meaningful for the in-flight stream). `pending_game` holds a FillBlankGame dict
+# for scaffold turns — consumed this turn, never written to disk.
+_TRANSIENT_KEYS = ("pending", "pending_game")
 
 
 def _store_path() -> str:
@@ -104,7 +209,7 @@ def load_sessions() -> None:
         data = json.load(f)
     for state in data.values():
         for k in _TRANSIENT_KEYS:
-            state.setdefault(k, None)
+            state.setdefault(k, None)   # restore transient keys stripped at save
     SessionStore.update(data)
 
 
@@ -112,14 +217,26 @@ def _new_state(
     user_id: str,
     session_id: str,
     node_id: str,
-    memory_context: str,
+    memory_context: list,
     learner_name: str = "",
+    weakness_context: list | None = None,
+    task_type: str = "",
+    sim_topic: str = "",
 ) -> dict:
     return {
         "user_id": user_id,
         "session_id": session_id,
         "competency_node": node_id,
+        "task_type": task_type,
         "user_input": "",
+        # TEST-mode simulation state (empty/None for coaching sessions): the topic
+        # the panel debates, and the persona roster cached after the first round.
+        "sim_topic": sim_topic,
+        "personas": None,
+        # Precomputed/loaded assessment probe bank (list[dict]); empty for
+        # coaching sessions. Hydrated at TEST start from the precache or a
+        # synchronous regeneration. Persisted (not a transient key).
+        "probe_items": [],
         "current_mastery": 0.0,
         "turn_count": 0,
         "messages": [],
@@ -128,8 +245,12 @@ def _new_state(
         "bridge_attempts": 0,
         "attempts": 0,
         "memory_context": memory_context,
+        # aggregated prior weaknesses (list of dicts: skill_id/hit_count/last_raw)
+        # hydrated at start_session; Phase 1.3 threads it into _memory_block.
+        "weakness_context": weakness_context or [],
         "session_summary": None,
         "pending": None,
+        "pending_game": None,
         "last_route": None,
         # personalization / progression bookkeeping (service-owned; coach_view
         # projects a subset of these into the private coaching directive block)
@@ -140,65 +261,134 @@ def _new_state(
         "strengthen_attempts": 0, # consecutive strengthens in the 0.4-0.6 plateau
         "scaffold": 0,            # >=1 -> scaffold HARD (down-ladder)
         "needs_support": False,   # set per-turn from frustration detection
+        "frustration_turns": 0,   # consecutive turns flagged as frustrated/confused
         "session_over": False,
         # service-only bookkeeping (not consumed by the graph)
         "node_history": {},     # node_id -> {"attempts": int, "clean": bool}
         "remediation": False,
         "module_done": False,
+        # Phase 5 gamification level flags (set at the advance boundary):
+        "tester_level": False,  # last advance was fast/clean -> harder challenge
+        "review_level": False,  # module finished clean -> weakness-summary section
     }
 
 
-@asynccontextmanager
-async def _db():
-    """Yield an AsyncSession, or None if the DB is unreachable (offline)."""
-    try:
-        from app.db.engine import get_sessionmaker
+def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
+    """Build the assessment simulation topic for a TEST session.
 
-        maker = get_sessionmaker()
-    except Exception:
-        yield None
-        return
-    session = maker()
-    try:
-        yield session
-    except Exception:
-        yield None
-    finally:
-        try:
-            await session.close()
-        except Exception:
-            pass
+    Anchored on the node's teach_focus; if the learner has logged prep
+    weaknesses, the highest-ranked one (get_weaknesses orders by hit_count) is
+    folded in as a probe target so the persona panel presses exactly there.
+    Falls back to the bare focus when no prep history exists.
+    """
+    focus = get_node(node_id).teach_focus
+    if weaknesses:
+        top = weaknesses[0]
+        cue = (top.get("last_raw") or top.get("skill_id") or "").strip()
+        if cue:
+            return f"{focus} Probe the learner's known weakness: {cue}."
+    return focus
 
 
 # ---------- public API ----------
 
 async def start_session(
-    user_id: str, node_id: str, learner_name: str = ""
+    user_id: str, node_id: str, learner_name: str = "", test_mode: bool = False
 ) -> tuple[str, dict]:
     """Create a session, return (session_id, state). Opening msg streamed via
     stream_opening(). Loads prior memory for this node (best-effort).
 
     `learner_name` (optional) personalizes the coaching directives so the tutor
-    addresses the learner by name."""
+    addresses the learner by name.
+
+    `test_mode` selects the assessment ("test") TaskType variant for modules
+    that have a prep/test split (interview, group_discussion); it is a no-op for
+    modules without one. The strict assessment variant then keys behavior pack,
+    memory, and weaknesses for this session."""
     if node_id not in all_node_ids():
         raise ValueError(f"unknown competency node: {node_id}")
     session_id = uuid.uuid4().hex
+    # task_type is the pedagogy axis (TaskType value) storage keys memory and
+    # weaknesses on; module_id is the registry module that owns the node. They
+    # diverge for interview/group_discussion (prep vs. test); test_mode picks the
+    # assessment variant where one exists, else the coaching variant.
+    task_type = task_type_of(node_id, test_mode=test_mode).value
+    module_id = module_of(node_id)
+    is_test = task_type in _TEST_TASK_TYPES
+    # A TEST session logs no per-skill weaknesses of its own — it reads the prep
+    # sibling's (gd_test -> gd_prep). For prep/single-mode, prep_counterpart is a
+    # no-op, so this keeps the coaching path's behavior unchanged.
+    weakness_key = prep_counterpart(task_type)
 
-    memory_context = ""
-    async with _db() as session:
-        if session is not None:
-            try:
-                from app.db import repo
+    memory_context: list = []
+    weakness_context: list = []
+    current_mastery = 0.0
+    attempts = 0
+    clean_pass = False
 
-                await repo.ensure_profile(session, user_id)
-                await repo.create_session(session, session_id, user_id, node_id)
-                memory_context = await memory_store.load_context(
-                    session, user_id, node_id
-                )
-            except Exception:
-                memory_context = ""
+    # Storage dispatcher: LOCAL SQLite when ai_backend=="local" (works OFFLINE,
+    # the qwen-dev default), Postgres otherwise. Best-effort: storage hiccups
+    # must never block a session from starting.
+    try:
+        store = get_storage()
+        await store.ensure_profile(user_id, learner_name)
+        await store.create_session(
+            session_id, user_id, task_type, module_id, node_id
+        )
+        memory_context = await store.load_context(user_id, task_type)
+        weakness_context = await store.get_weaknesses(user_id, weakness_key)
+        
+        # Load progress to continue session
+        progression = await store.get_progression(user_id)
+        for p in progression:
+            if p["node_id"] == node_id:
+                current_mastery = p["ema"]
+                attempts = p["attempts"]
+                clean_pass = p["clean_pass"]
+                break
+    except Exception:
+        memory_context = []
+        weakness_context = []
 
-    state = _new_state(user_id, session_id, node_id, memory_context, learner_name)
+    last_summary = ""
+    if attempts > 0:
+        for mem in memory_context:
+            if mem.get("node_id") == node_id and mem.get("raw"):
+                last_summary = mem.get("raw")
+                break
+
+    # Seed the assessment topic from the node, sharpened by the learner's top
+    # prep weakness so the persona panel probes exactly where they struggled.
+    sim_topic = _seed_sim_topic(node_id, weakness_context) if is_test else ""
+
+    state = _new_state(
+        user_id,
+        session_id,
+        node_id,
+        memory_context,
+        learner_name,
+        weakness_context,
+        task_type,
+        sim_topic,
+    )
+    
+    # Apply loaded progress
+    state["current_mastery"] = current_mastery
+    state["attempts"] = attempts
+    if clean_pass:
+        state["clean_streak"] = 1
+        
+    if last_summary:
+        state["messages"].append({
+            "role": "assistant",
+            "content": f"Welcome back! Here is a summary of your previous session on this level:\n\n{last_summary}"
+        })
+        
+    # A TEST session needs its probe bank ready before the first round. Read the
+    # precache (computed at the PREP sibling's end_session); on a miss or stale
+    # entry, regenerate synchronously so the session still opens with a real bank.
+    if is_test:
+        state["probe_items"] = await _load_or_generate_probe_items(user_id, task_type)
     SessionStore[session_id] = state
     save_sessions()
     return session_id, state
@@ -209,7 +399,11 @@ async def stream_opening(session_id: str) -> AsyncIterator[str]:
     state = _require(session_id)
     node = get_node(state["competency_node"])
     prompt = build_opening_prompt(
-        node, state.get("memory_context", ""), coach_view(state)
+        node,
+        state.get("memory_context", []),
+        coach_view(state),
+        behavior=behavior_for_value(state.get("task_type", "")),
+        weaknesses=state.get("weakness_context", []),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -230,7 +424,11 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
     yields nothing so an advance never ends on silence."""
     node = get_node(state["competency_node"])
     prompt = build_opening_prompt(
-        node, state.get("memory_context", ""), coach_view(state)
+        node,
+        state.get("memory_context", []),
+        coach_view(state),
+        behavior=behavior_for_value(state.get("task_type", "")),
+        weaknesses=state.get("weakness_context", []),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -250,6 +448,19 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
 
 async def run_turn(session_id: str, user_input: str) -> AsyncIterator[str]:
     """Process one learner answer: evaluate -> route -> stream the response.
+
+    Serializes per session (E24): the whole turn — including the streamed
+    generation — runs under a per-session lock so a second turn on the same
+    session can't interleave its state read-modify-write with this one. The lock
+    is held across yields, so concurrent turns on ONE session queue; different
+    sessions are unaffected."""
+    async with _lock_for(session_id):
+        async for tok in _run_turn_locked(session_id, user_input):
+            yield tok
+
+
+async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[str]:
+    """run_turn body — always invoked under the session lock (see run_turn).
 
     Hardened: caps oversized input, ends the session gracefully on a goodbye,
     pivots to support when the learner sounds discouraged, and falls back to a
@@ -271,6 +482,28 @@ async def run_turn(session_id: str, user_input: str) -> AsyncIterator[str]:
         return
 
     state["messages"].append({"role": "user", "content": user_input})
+
+    # TEST-mode (assessment) turns run a multi-persona SIMULATION, not the
+    # coaching graph: record the learner's contribution, stream the panel's next
+    # round (Speaker markers + text), capture the spoken text as one assistant
+    # turn, and DEFER scoring to end_session (score_session) — no eval, no
+    # progression, no advance here.
+    if state.get("task_type") in _TEST_TASK_TYPES:
+        from app.services.simulation_service import Speaker
+        spoken: list[str] = []
+        async for item in stream_simulation_round(state):
+            if isinstance(item, Speaker):
+                spoken.append(f"\n[{item.name}]: ")
+            elif isinstance(item, str):
+                spoken.append(item)
+            yield item
+        text = "".join(spoken).strip()
+        if text:
+            state["messages"].append({"role": "assistant", "content": text})
+        state["turn_count"] += 1
+        save_sessions()
+        return
+
     # Sentiment pivot: flag support BEFORE the graph builds its prompt so the
     # coaching directives (via coach_view) reflect it this turn.
     state["needs_support"] = _detect_frustration(user_input)
@@ -285,42 +518,106 @@ async def run_turn(session_id: str, user_input: str) -> AsyncIterator[str]:
     updates = await graph.ainvoke(state)
     state.update(updates)
 
-    spec: GenSpec | None = state.get("pending")
-    full = []
-    if spec is not None:
-        try:
-            async for tok in stream_generation(spec):
-                full.append(tok)
-                yield tok
-        except Exception:
-            full = []  # discard partial; emit the fallback below
-    text = "".join(full).strip()
-    if not text:
-        text = (
-            "Sorry — I lost my train of thought for a second there. "
-            "Could you try that once more for me?"
+    # Post-graph affect: LLM diagnosis is more reliable than regex. Upgrade
+    # needs_support if the eval flagged frustration/confusion this turn.
+    diag_affect = state.get("last_diagnosis", {}).get("affect", "neutral")
+    if diag_affect in ("frustrated", "confused"):
+        state["needs_support"] = True
+        state["frustration_turns"] = state.get("frustration_turns", 0) + 1
+    else:
+        state["frustration_turns"] = 0
+
+    # Post-graph goodbye: natural farewells ("I need to head out") evade the
+    # pre-graph exact-match gate. Check LLM diagnosis and close gracefully.
+    if state.get("last_diagnosis", {}).get("goodbye", False):
+        state["session_over"] = True
+        farewell = _farewell(state)
+        state["messages"].append({"role": "assistant", "content": farewell})
+        save_sessions()
+        yield farewell
+        return
+
+    # Gamified path: teach_node produced a FillBlankGame instead of a GenSpec.
+    # Yield the game frame directly and skip text streaming for this turn.
+    # The learner's next input (filling the blank) is scored by evaluate_node
+    # as a normal answer, so no special handling is needed downstream.
+    game: dict | None = state.get("pending_game")
+    if game is not None:
+        yield GamePrompt(
+            type=game.get("type", "fill_blank"),
+            sentence=game.get("sentence", ""),
+            hint=game.get("hint", ""),
+            context=game.get("context", ""),
+            answer_key=game.get("answer_key", ""),
+            options=game.get("options"),
         )
-        yield text
-    state["messages"].append({"role": "assistant", "content": text})
-    state["turn_count"] += 1
-    state["pending"] = None
+        # Record a minimal assistant turn so conversation history stays valid.
+        state["messages"].append({
+            "role": "assistant",
+            "content": f"[Fill in the blank] {game.get('sentence', '')}",
+        })
+        state["turn_count"] += 1
+        state["pending_game"] = None
+    else:
+        spec: GenSpec | None = state.get("pending")
+        full = []
+        if spec is not None:
+            try:
+                async for tok in stream_generation(spec):
+                    full.append(tok)
+                    yield tok
+            except Exception:
+                full = []  # discard partial; emit the fallback below
+        text = "".join(full).strip()
+        if not text:
+            text = (
+                "Sorry — I lost my train of thought for a second there. "
+                "Could you try that once more for me?"
+            )
+            yield text
+        state["messages"].append({"role": "assistant", "content": text})
+        state["turn_count"] += 1
+        state["pending"] = None
 
     if did_eval:
         prev_node = state["competency_node"]
+        # Fine-grained activity log + weakness aggregation through the dispatcher
+        # (LOCAL SQLite offline). Best-effort: never let a tracking write break a
+        # turn. Logs the answer at the node it was SCORED on (before advance).
+        await _track_turn(state, prev_node)
         _update_progress(state)
+        # BACK-07: after exactly DOWN_LADDER_FAILS consecutive hard fails, re-query
+        # weaknesses live so the NEXT turn's coach prompt surfaces fresh weak spots.
+        # Only fires at the threshold (not every fail after it) to avoid repeated DB
+        # round-trips. best-effort — storage failure must not break the turn.
+        if state.get("level_fails", 0) == DOWN_LADDER_FAILS:
+            await _maybe_refresh_weaknesses(state)
         # Persist CURRENT node mastery before any advance mutates the pointer.
         await _persist_mastery(state)
         await _maybe_advance(state)
-        # Desync fix: if the answer advanced us to a new node, the pedagogy text
-        # just streamed was for the OLD node while the snapshot now points at the
-        # new one. Stream a short opening for the NEW node in the SAME turn so the
-        # tutor's words match the node the learner is now on.
-        if (
-            not state["module_done"]
-            and state["competency_node"] != prev_node
-        ):
-            async for tok in _stream_node_opening(state):
-                yield tok
+
+        # Emit per-turn mastery update so the UI progress bar animates mid-stream.
+        yield ProgressUpdate(
+            node_id=prev_node,
+            mastery=round(state["current_mastery"], 4),
+            clean_streak=state.get("clean_streak", 0),
+            attempts=state.get("attempts", 0),
+        )
+
+        if state["module_done"]:
+            yield SessionRecap(
+                nodes_completed=list(state.get("node_history", {}).keys()),
+                weaknesses=state.get("weakness_context", []),
+                avg_score=round(state["current_mastery"], 4),
+            )
+        elif state["competency_node"] != prev_node:
+            # Desync fix: the answer advanced us to a new node.
+            # We yield NodeAdvance to signal the frontend, but we NO LONGER
+            # auto-stream the new opening. The frontend will present a "Next Skill"
+            # break and call /opening manually.
+            yield NodeAdvance(
+                from_node=prev_node, to_node=state["competency_node"]
+            )
 
     save_sessions()
 
@@ -331,35 +628,67 @@ async def end_session(session_id: str) -> str:
     if state is None:
         return ""
     node = get_node(state["competency_node"])
+    # TEST-mode sessions are scored once over the whole transcript (deferred from
+    # the streamed rounds); the report's summary is the closing summary and its
+    # score is the persisted result. PREP sessions summarise the coaching dialog.
+    is_test = state.get("task_type") in _TEST_TASK_TYPES
+    avg_score = state.get("current_mastery", 0.0)
+    if is_test:
+        try:
+            report = await score_session(state)
+            summary = report.summary
+            avg_score = report.score
+        except Exception:
+            summary = ""
+    else:
+        try:
+            summary = await summarize_session(node, state["messages"])
+        except Exception:
+            summary = ""
+
+    # Close + persist long-term memory through the dispatcher (LOCAL SQLite
+    # offline). Best-effort so a storage hiccup never blocks session teardown.
     try:
-        summary = await summarize_session(node, state["messages"])
+        store = get_storage()
+        await store.end_session(
+            session_id,
+            final_summary=summary,
+            avg_score=avg_score,
+        )
+        if summary:
+            await store.write_memory(
+                state["user_id"],
+                session_id,
+                state["competency_node"],
+                summary,
+                state.get("task_type", ""),
+                score=avg_score,
+            )
     except Exception:
-        summary = ""
+        pass
 
-    async with _db() as session:
-        if session is not None and summary:
-            try:
-                from app.db import repo
+    # Precache the TEST sibling's probe bank now that this PREP module is done,
+    # so a later TEST start opens instantly instead of blocking on generation.
+    # No-op for TEST sessions and single-mode modules (no distinct test sibling).
+    if not is_test:
+        await _precache_test_items(state)
 
-                await repo.end_session(
-                    session,
-                    session_id,
-                    state["turn_count"],
-                    state["current_mastery"],
-                    summary,
-                )
-                await memory_store.write_memory(
-                    session,
-                    state["user_id"],
-                    session_id,
-                    state["competency_node"],
-                    summary,
-                )
-            except Exception:
-                pass
+    logger.info(
+        "session_end_analytics",
+        extra={
+            "session_id": session_id,
+            "user_id": state.get("user_id"),
+            "task_type": state.get("task_type"),
+            "node_id": state.get("competency_node"),
+            "turn_count": state.get("turn_count", 0),
+            "avg_score": avg_score,
+            "module_done": state.get("module_done", False)
+        }
+    )
 
     state["session_summary"] = summary
     SessionStore.pop(session_id, None)
+    _SESSION_LOCKS.pop(session_id, None)  # E24: don't leak a lock per closed session
     save_sessions()
     return summary
 
@@ -368,19 +697,84 @@ def get_state(session_id: str) -> dict | None:
     return SessionStore.get(session_id)
 
 
+async def get_progression_map(user_id: str, module_id: str = "communication") -> list[dict]:
+    """Progression map for the user for a specific module.
+    Returns the full ordered list of nodes with locked/active/mastered status.
+    """
+    try:
+        from app.content.registry import get_module
+        module = get_module(module_id)
+        
+        store = get_storage()
+        # db progress
+        prog = await store.get_progression(user_id)
+        prog_by_node = {p["node_id"]: p for p in prog}
+        
+        # Check active session
+        active = [s for s in SessionStore.values() if s.get("user_id") == user_id]
+        curr_node = active[0].get("competency_node") if active else None
+        curr_streak = active[0].get("clean_streak", 0) if active else 0
+
+        out = []
+        found_active = False
+
+        for node in module.nodes:
+            p = prog_by_node.get(node.id)
+            mastery = p["ema"] if p else 0.0
+            is_complete = bool(p["clean_pass"]) if p else False
+            streak = curr_streak if node.id == curr_node else 0
+
+            status = "locked"
+            if is_complete:
+                status = "mastered"
+            elif not found_active:
+                status = "active"
+                found_active = True
+                
+            out.append({
+                "node_id": node.id,
+                "title": node.title,
+                "mastery": mastery,
+                "clean_streak": streak,
+                "status": status,
+            })
+        
+        return out
+    except Exception as e:
+        import logging
+        logging.getLogger("zidd.session").error(f"Error in progression map: {e}")
+        return []
+
+
 async def place_user(
     module_id: str,
     writing_sample: str | None = None,
     self_report: str | None = None,
+    grade: int | None = None,
 ) -> dict:
-    """Onboarding placement: estimate CEFR, pick the STARTING node in a module.
+    """Onboarding placement: pick the STARTING node in a module.
 
-    A writing sample drives a Flash-Lite CEFR estimate; otherwise the learner's
+    school_english places by school grade (2-5), not CEFR — a primary ladder,
+    not a proficiency continuum (Phase 0.3). For comm/interview/gd, a writing
+    sample drives a Flash-Lite CEFR estimate; otherwise the learner's
     self-report bucket (beginner/intermediate/advanced/fluent) maps to a band.
     Falls back to B1 if neither is usable. Returns the starting node so the UI
     can show what was placed and why before starting the session.
     """
     module = get_module(module_id)  # raises KeyError on unknown module
+
+    if uses_grade_placement(module_id):
+        g = grade if grade is not None else 2
+        node = grade_placement_node(g)
+        return {
+            "module_id": module_id,
+            "module_title": module.title,
+            "starting_node": node.id,
+            "node_title": node.title,
+            "node_cefr": node.cefr,
+            "grade": max(2, min(5, g)),
+            "rationale": f"Placed by school grade {g}.",
+        }
 
     estimated_cefr = "B1"
     rationale = "Default placement — no sample or self-report provided."
@@ -427,12 +821,15 @@ def _update_progress(state: dict) -> None:
     streak and clears the struggle counters; a non-pass breaks the streak, and a
     run of hard fails turns on the scaffold so the next pedagogy turn drops to an
     almost-automatic task."""
-    # Fluent-but-off-task guard (council fix #1/#6): a competent English answer
-    # to the wrong question scores 0.0, but it is NOT a struggle signal — it must
-    # not break the clean streak or trip level_fails/scaffold. The graph routes
-    # it to redirect; progress bookkeeping simply ignores the turn.
+    # Non-struggle guards — turns that score 0.0 but are NOT skill failures must
+    # not break the clean streak or trip level_fails/scaffold:
+    #   * fluent-but-off-task (council fix #1/#6): graph routes to redirect.
+    #   * non-English / gibberish (B11/B12, Test-fix-01): graph routes to clarify;
+    #     not producing English is a comprehension gap, not a failed attempt.
     diag = state.get("last_diagnosis", {})
-    if diag.get("english", True) and not diag.get("on_task", True):
+    if not diag.get("english", True):
+        return
+    if not diag.get("on_task", True):
         return
     score = state.get("last_eval_score", 0.0)
     if score >= PASS_SCORE:
@@ -464,7 +861,12 @@ async def _maybe_advance(state: dict) -> None:
     nxt = next_node(node_id)
     if nxt is None:
         state["module_done"] = True
+        # Module finished above the clean-rate floor -> surface a review section.
+        state["review_level"] = not state["remediation"]
         return
+    # Fast clean advance (cleared the node within the clean-pass cap) earns a
+    # harder tester stretch on the next node; a grind-it-out advance does not.
+    state["tester_level"] = clean
     # advance: fresh mastery/attempt/streak counters for the next node
     state["competency_node"] = nxt
     state["current_mastery"] = 0.0
@@ -487,39 +889,156 @@ def _passrate_below_floor(state: dict) -> bool:
     return (clean / len(history)) < PASSRATE_FLOOR
 
 
-async def _persist_mastery(state: dict) -> None:
-    async with _db() as session:
-        if session is None:
-            return
-        try:
-            from app.db import repo
+async def _track_turn(state: dict, node_id: str) -> None:
+    """Log the scored answer + aggregate a weakness, through the dispatcher.
 
-            clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS and (
-                state["current_mastery"] >= MASTERY_COMPLETE
+    Best-effort: a storage hiccup must never abort a learner's turn. Works
+    OFFLINE — get_storage() returns the LOCAL SQLite backend on qwen-dev, so
+    turns/weaknesses accumulate even with Postgres down. This is the
+    felt-personalization fix: the old _db() path was a silent no-op offline."""
+    diag = state.get("last_diagnosis", {})
+    score = state.get("last_eval_score", 0.0)
+    on_task = diag.get("on_task", True)
+    english = diag.get("english", True)
+    affect = diag.get("affect", "neutral")
+    try:
+        store = get_storage()
+        await store.record_turn(
+            state["session_id"],
+            state["user_id"],
+            node_id,
+            score,
+            on_task=on_task,
+            english=english,
+            affect=affect,
+        )
+        # A genuinely weak answer aggregates a weakness row keyed by SkillID.
+        # Skip the fluent-but-off-task case (competent English to the wrong
+        # question is not a skill weakness — mirrors _update_progress's guard).
+        if score < FAIL_SCORE and not (english and not on_task):
+            # Non-English answers are a language weakness regardless of next_focus;
+            # otherwise coerce the model's focus hint onto the closed taxonomy.
+            skill_id = (
+                "LANGUAGE_NOT_ENGLISH"
+                if not english
+                else coerce_skill_id(diag.get("next_focus", ""))
             )
-            await repo.upsert_mastery(
-                session,
+            await store.bump_weakness(
                 state["user_id"],
-                state["competency_node"],
-                state["current_mastery"],
-                state["attempts"],
-                clean,
+                state.get("task_type", ""),
+                skill_id,
+                score,
+                raw=diag.get("next_focus", ""),
             )
+    except Exception:
+        pass
+
+
+async def _load_or_generate_probe_items(user_id: str, task_type: str) -> list[dict]:
+    """Probe bank for a TEST session: precache first, else regenerate (sync).
+
+    Reads the bank precomputed at the PREP sibling's end_session, honouring the
+    TTL so a drifted entry counts as a miss. On miss/stale, generates inline and
+    writes it back so a later start in the same window is fast. Best-effort: any
+    storage/generation hiccup degrades to the deterministic fallback bank rather
+    than blocking the session from opening. Returns list[dict] (JSON-persistable
+    on TutorState); ProbeItem objects are projected via model_dump()."""
+    try:
+        store = get_storage()
+        cached = await store.get_cached_test_items(
+            user_id, task_type, max_age=TEST_ITEM_TTL
+        )
+        if cached:
+            return cached
+    except Exception:
+        store = None
+    items = await generate_test_items(user_id, task_type)
+    dicts = [it.model_dump() for it in items]
+    if store is not None:
+        try:
+            await store.cache_test_items(user_id, task_type, dicts)
         except Exception:
             pass
+    return dicts
+
+
+async def _precache_test_items(state: dict) -> None:
+    """At PREP end, precompute + cache the TEST sibling's probe bank.
+
+    Resolves the distinct test sibling via test_counterpart; value-equality means
+    the module has no assessment variant (single-mode / already a test value), so
+    there is nothing to precache and we skip. Best-effort: never let a precache
+    miss break session teardown."""
+    prep_tt = state.get("task_type", "")
+    test_tt = test_counterpart(prep_tt)
+    if test_tt == prep_tt:
+        return  # no distinct TEST sibling -> nothing to precache
+    try:
+        items = await generate_test_items(state["user_id"], test_tt)
+        await get_storage().cache_test_items(
+            state["user_id"], test_tt, [it.model_dump() for it in items]
+        )
+    except Exception:
+        pass
+
+
+async def _maybe_refresh_weaknesses(state: dict) -> None:
+    """Re-query the weakness table and update state at the hard-fail threshold.
+
+    Called once per node when level_fails first reaches DOWN_LADDER_FAILS.
+    Refreshing here means the NEXT turn's coach prompt gets a live weakness
+    snapshot (new bumps from THIS session included), not just the session-start
+    load. prep_counterpart normalises test sessions to their prep sibling's key."""
+    try:
+        store = get_storage()
+        task_type = state.get("task_type", "")
+        weakness_key = prep_counterpart(task_type)
+        fresh = await store.get_weaknesses(state["user_id"], weakness_key)
+        if fresh:
+            state["weakness_context"] = fresh
+    except Exception:
+        pass
+
+
+async def _persist_mastery(state: dict) -> None:
+    """Persist current-node mastery via the dispatcher (best-effort, offline-ok)."""
+    try:
+        clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS and (
+            state["current_mastery"] >= MASTERY_COMPLETE
+        )
+        await get_storage().upsert_mastery(
+            state["user_id"],
+            state["competency_node"],
+            state["current_mastery"],
+            state["attempts"],
+            clean,
+        )
+    except Exception:
+        pass
 
 
 # ---------- conversational helpers (teacher-feel) ----------
 
 def _is_session_end(user_input: str) -> bool:
-    """True for a short message that reads as a goodbye, not an answer.
+    """True when the learner's message is a farewell, not an answer.
 
-    Length-gated (<=5 words) so a sentence that merely contains 'done' (e.g. an
-    actual answer about being done with homework) is not misread as an exit."""
-    text = (user_input or "").strip().lower().rstrip(".!")
-    if not text or len(text.split()) > 5:
+    Two-tier detection:
+    1. Exact-match against _END_PHRASES (≤5-word gate kept for weak tokens
+       like "done"/"stop" that appear in real answers).
+    2. Token-scan for strong bye-tokens ("bye", "goodbye", "quit", "exit") —
+       these don't appear in answers, so no length gate is needed.
+    """
+    text = (user_input or "").strip().lower().rstrip(".!,")
+    if not text:
         return False
-    return text in _END_PHRASES
+
+    # Exact-match path (original behaviour, guards against "done with homework")
+    if len(text.split()) <= 5 and text in _END_PHRASES:
+        return True
+
+    # Token-scan: split on whitespace + strip punctuation from each word
+    words = {re.sub(r"[^a-z']", "", w) for w in text.split()}
+    return bool(words & _BYE_TOKENS)
 
 
 def _detect_frustration(user_input: str) -> bool:

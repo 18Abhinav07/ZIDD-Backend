@@ -38,3 +38,11 @@ data/local/
 # ===== Logs =====
 *.log
 logs/
+
+# ===== Local SQLite dev store =====
+*.db
+
+# ===== Stray npm artifacts (this is a Python backend; these were installed by accident) =====
+node_modules/
+package.json
+package-lock.json

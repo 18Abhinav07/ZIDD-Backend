@@ -5,6 +5,14 @@ bridge_attempts. After 3 failed bridges, escalate to teach instead of
 looping on bridge forever.
 """
 
+from app.content.task_types import TaskType
+
+# TEST-mode task types: scored as a whole simulation, not coached per skill, so
+# their level_kind is always "test" regardless of any per-node flags.
+_TEST_TASK_TYPES = frozenset(
+    {TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value}
+)
+
 BRIDGE_ATTEMPT_CAP = 3
 STRENGTHEN_ATTEMPT_CAP = 2  # consecutive strengthens before escaping the 0.4-0.6 plateau
 GIVE_UP_FAILS = 5  # consecutive hard fails before easing off instead of drilling
@@ -20,10 +28,16 @@ def route_node(state: dict) -> str:
     on_task = diag.get("on_task", True)
     english = diag.get("english", True)
 
+    # Non-English / gibberish / empty (B11/B12, Test-fix-01): english False means
+    # the learner did NOT produce competent English at all — bridge would scaffold
+    # a competency SKILL they never attempted in English (category error). Send a
+    # warm "say that in English" nudge (clarify) before any skill routing.
+    if not english:
+        return "clarify"
+
     # Fluent-but-off-task (council fix #1/#6): competent English aimed at the
     # wrong question scores 0.0, but the learner is capable — point them back at
-    # the task (redirect), don't scaffold them down. A non-English / non-answer
-    # (english False) falls through to the normal bridge path below.
+    # the task (redirect), don't scaffold them down.
     if english and not on_task:
         return "redirect"
 
@@ -57,12 +71,54 @@ def route_node(state: dict) -> str:
     return "teach"
 
 
+def level_kind(state: dict) -> str:
+    """Name the finer-grained section the learner is currently in (Phase 5).
+
+    Precedence: test > bridge > review > tester > prep. A TEST session is one
+    graded simulation, so it always reads "test". Otherwise a module that fell
+    below the clean-rate floor is in a "bridge" (remediation) section; a passed
+    module surfaces a "review"; a fast clean advance flags a "tester" stretch;
+    everything else is ordinary "prep" coaching.
+    """
+    if state.get("task_type", "") in _TEST_TASK_TYPES:
+        return "test"
+    if state.get("remediation"):
+        return "bridge"
+    if state.get("review_level"):
+        return "review"
+    if state.get("tester_level"):
+        return "tester"
+    return "prep"
+
+
+def session_phase(state: dict) -> str:
+    """Macro lifecycle of the session, orthogonal to level_kind.
+
+    intro before the first turn, complete once the module is done, active in
+    between.
+    """
+    if state.get("module_done"):
+        return "complete"
+    if state.get("turn_count", 0) == 0:
+        return "intro"
+    return "active"
+
+
+_SCORE_SWING_GATE = 0.4   # single-turn swing larger than this is dampened
+
+
 def update_mastery(old: float, score: float) -> float:
     """EMA toward the score, but only when the answer is good enough to count.
 
     Sub-floor answers (score < MASTERY_RAISE_FLOOR) leave mastery flat: a run of
     mediocre 0.5s must not inch the EMA upward and fake progress. At/above the
-    floor, standard EMA (new = old + alpha * (score - old))."""
+    floor, standard EMA (new = old + alpha * (score - old)).
+
+    Swing gate: if the raw score jumps >0.4 in one turn (qwen calibration spike),
+    dampen to the midpoint before applying EMA. Prevents a lucky 0.9 from vaulting
+    mastery past all guard rails in a single turn."""
+    if old > 0 and abs(score - old) > _SCORE_SWING_GATE:
+        score = (score + old) / 2
     if score < MASTERY_RAISE_FLOOR:
         return old
     return old + (score - old) * MASTERY_ALPHA

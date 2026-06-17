@@ -1,0 +1,368 @@
+"""SQLite local-first storage backend.
+
+Mirrors the cloud surface (pg_store) on a plain SQLite file so every turn and
+weakness is logged and retrievable with Postgres OFFLINE — the felt-memory fix
+for qwen-dev. No pgvector: retrieval is by user_id + task_type + recency +
+weakness tags, which is plenty offline (cosine adds nothing at dev scale).
+
+sqlite3 is synchronous; methods are `async def` to match the interface but call
+straight into the driver. At single-user dev scale the blocking is negligible
+and keeps the backend dependency-free (no aiosqlite).
+
+Weaknesses aggregate on the fixed SkillID taxonomy: bump_weakness coerces the
+raw tag to a known SkillID and UPSERTs on (user_id, task_type, skill_id), so the
+same skill always lands on one row and hit_count actually sums.
+"""
+import json
+import sqlite3
+import time
+
+from app.content.skills import coerce_skill_id
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS profiles (
+    user_id TEXT PRIMARY KEY,
+    name    TEXT DEFAULT '',
+    password_hash TEXT,
+    created REAL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id    TEXT PRIMARY KEY,
+    user_id       TEXT,
+    task_type     TEXT,
+    module_id     TEXT,
+    node_id       TEXT,
+    started       REAL,
+    ended         REAL,
+    final_summary TEXT DEFAULT '',
+    avg_score     REAL
+);
+CREATE TABLE IF NOT EXISTS turns (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    user_id    TEXT,
+    node_id    TEXT,
+    score      REAL,
+    on_task    INTEGER,
+    english    INTEGER,
+    affect     TEXT,
+    ts         REAL
+);
+CREATE TABLE IF NOT EXISTS weaknesses (
+    user_id   TEXT,
+    task_type TEXT,
+    skill_id  TEXT,
+    hit_count INTEGER DEFAULT 0,
+    last_score REAL,
+    last_seen  REAL,
+    last_raw   TEXT DEFAULT '',
+    PRIMARY KEY (user_id, task_type, skill_id)
+);
+CREATE TABLE IF NOT EXISTS mastery (
+    user_id    TEXT,
+    node_id    TEXT,
+    ema        REAL,
+    attempts   INTEGER,
+    clean_pass INTEGER DEFAULT 0,
+    updated_at REAL,
+    PRIMARY KEY (user_id, node_id)
+);
+CREATE TABLE IF NOT EXISTS memory (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    TEXT,
+    session_id TEXT,
+    task_type  TEXT,
+    node_id    TEXT,
+    content    TEXT,
+    ts         REAL
+);
+CREATE TABLE IF NOT EXISTS test_items (
+    user_id   TEXT,
+    task_type TEXT,
+    items     TEXT,
+    cached_at REAL,
+    PRIMARY KEY (user_id, task_type)
+);
+"""
+
+
+class LocalStore:
+    def __init__(self, db_path: str = ".zidd_local.db") -> None:
+        self.db_path = db_path
+        # check_same_thread=False: FastAPI may touch this from worker threads.
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.executescript(_SCHEMA)
+        self._conn.commit()
+
+    # ---------- profiles ----------
+
+    async def ensure_profile(self, user_id: str, name: str = "", password_hash: str | None = None) -> None:
+        self._conn.execute(
+            "INSERT INTO profiles (user_id, name, password_hash, created) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET "
+            "name = CASE WHEN excluded.name != '' THEN excluded.name ELSE profiles.name END, "
+            "password_hash = CASE WHEN excluded.password_hash IS NOT NULL THEN excluded.password_hash ELSE profiles.password_hash END",
+            (user_id, name, password_hash, time.time()),
+        )
+        self._conn.commit()
+
+    async def get_profile(self, user_id: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT user_id, name, password_hash, created FROM profiles WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    # ---------- sessions ----------
+
+    async def create_session(
+        self,
+        session_id: str,
+        user_id: str,
+        task_type: str,
+        module_id: str,
+        node_id: str,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO sessions "
+            "(session_id, user_id, task_type, module_id, node_id, started) "
+            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(session_id) DO NOTHING",
+            (session_id, user_id, task_type, module_id, node_id, time.time()),
+        )
+        self._conn.commit()
+
+    async def end_session(
+        self, session_id: str, final_summary: str = "", avg_score: float = 0.0
+    ) -> None:
+        self._conn.execute(
+            "UPDATE sessions SET ended = ?, final_summary = ?, avg_score = ? "
+            "WHERE session_id = ?",
+            (time.time(), final_summary, avg_score, session_id),
+        )
+        self._conn.commit()
+
+    # ---------- turns ----------
+
+    async def record_turn(
+        self,
+        session_id: str,
+        user_id: str,
+        node_id: str,
+        score: float,
+        on_task: bool = True,
+        english: bool = True,
+        affect: str = "neutral",
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO turns "
+            "(session_id, user_id, node_id, score, on_task, english, affect, ts) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                session_id,
+                user_id,
+                node_id,
+                score,
+                int(on_task),
+                int(english),
+                affect,
+                time.time(),
+            ),
+        )
+        self._conn.commit()
+
+    async def get_turns(self, session_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT session_id, user_id, node_id, score, on_task, english, affect, ts "
+            "FROM turns WHERE session_id = ? ORDER BY id",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # ---------- mastery ----------
+
+    async def upsert_mastery(
+        self,
+        user_id: str,
+        node_id: str,
+        ema: float,
+        attempts: int,
+        clean_pass: bool = False,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO mastery (user_id, node_id, ema, attempts, clean_pass, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(user_id, node_id) DO UPDATE SET "
+            "ema = excluded.ema, attempts = excluded.attempts, "
+            "clean_pass = mastery.clean_pass OR excluded.clean_pass, "
+            "updated_at = excluded.updated_at",
+            (user_id, node_id, ema, attempts, int(clean_pass), time.time()),
+        )
+        self._conn.commit()
+
+    async def get_progression(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT node_id, ema, attempts, clean_pass "
+            "FROM mastery WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_module_passrate(
+        self, user_id: str, node_ids: list[str]
+    ) -> tuple[int, int]:
+        if not node_ids:
+            return (0, 0)
+        placeholders = ",".join("?" * len(node_ids))
+        row = self._conn.execute(
+            f"SELECT SUM(clean_pass) AS clean, COUNT(*) AS total FROM mastery "
+            f"WHERE user_id = ? AND node_id IN ({placeholders})",
+            (user_id, *node_ids),
+        ).fetchone()
+        if not row or row["total"] is None:
+            return (0, 0)
+        return (int(row["clean"] or 0), int(row["total"] or 0))
+
+    # ---------- weaknesses (fixed-taxonomy aggregation) ----------
+
+    async def bump_weakness(
+        self,
+        user_id: str,
+        task_type: str,
+        skill_id: str,
+        score: float,
+        raw: str = "",
+    ) -> None:
+        sid = coerce_skill_id(skill_id)
+        self._conn.execute(
+            "INSERT INTO weaknesses "
+            "(user_id, task_type, skill_id, hit_count, last_score, last_seen, last_raw) "
+            "VALUES (?, ?, ?, 1, ?, ?, ?) "
+            "ON CONFLICT(user_id, task_type, skill_id) DO UPDATE SET "
+            "hit_count = weaknesses.hit_count + 1, "
+            "last_score = excluded.last_score, "
+            "last_seen = excluded.last_seen, "
+            "last_raw = excluded.last_raw",
+            (user_id, task_type, sid, score, time.time(), raw),
+        )
+        self._conn.commit()
+
+    async def get_weaknesses(
+        self, user_id: str, task_type: str | None = None
+    ) -> list[dict]:
+        if task_type is None:
+            rows = self._conn.execute(
+                "SELECT user_id, task_type, skill_id, hit_count, last_score, "
+                "last_seen, last_raw FROM weaknesses WHERE user_id = ? "
+                "ORDER BY hit_count DESC, last_seen DESC",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT user_id, task_type, skill_id, hit_count, last_score, "
+                "last_seen, last_raw FROM weaknesses WHERE user_id = ? AND task_type = ? "
+                "ORDER BY hit_count DESC, last_seen DESC",
+                (user_id, task_type),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    # ---------- memory (recency, no pgvector) ----------
+
+    async def write_memory(
+        self,
+        user_id: str,
+        session_id: str,
+        node_id: str,
+        content: str,
+        task_type: str = "",
+        score: float = 0.0,
+    ) -> bool:
+        if not content.strip():
+            return False
+        # Parse the 3-line summary format into structured fields so qwen can
+        # reference exact facts ("You scored 0.6 on comm_04 last time") rather
+        # than parsing prose.
+        parsed: dict[str, str] = {}
+        for line in content.splitlines():
+            if line.startswith("Strengths:"):
+                parsed["strengths"] = line[len("Strengths:"):].strip()
+            elif line.startswith("Watch:"):
+                parsed["watch"] = line[len("Watch:"):].strip()
+            elif line.startswith("Next focus:"):
+                parsed["next_focus"] = line[len("Next focus:"):].strip()
+        row = {
+            "node_id": node_id,
+            "score": round(score, 4),
+            "strengths": parsed.get("strengths", ""),
+            "watch": parsed.get("watch", ""),
+            "next_focus": parsed.get("next_focus", ""),
+            "date": time.strftime("%Y-%m-%d"),
+            "raw": content,
+        }
+        self._conn.execute(
+            "INSERT INTO memory (user_id, session_id, task_type, node_id, content, ts) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, session_id, task_type, node_id, json.dumps(row), time.time()),
+        )
+        self._conn.commit()
+        return True
+
+    async def load_context(self, user_id: str, task_type: str, k: int = 3) -> list[dict]:
+        """Most recent k session memory rows for this user+task_type, newest-first.
+
+        Returns structured dicts with keys: node_id, score, strengths, watch,
+        next_focus, date, raw. Legacy plain-text rows are wrapped in a raw-only
+        dict so callers always get a list[dict]."""
+        rows = self._conn.execute(
+            "SELECT content, node_id FROM memory WHERE user_id = ? AND task_type = ? "
+            "ORDER BY ts DESC LIMIT ?",
+            (user_id, task_type, k),
+        ).fetchall()
+        result = []
+        for r in rows:
+            try:
+                parsed = json.loads(r["content"])
+                if isinstance(parsed, dict):
+                    result.append(parsed)
+                    continue
+            except (json.JSONDecodeError, TypeError):
+                pass
+            # Legacy plain-text row
+            result.append({"node_id": r["node_id"] or "", "score": 0.0,
+                            "strengths": "", "watch": "", "next_focus": "",
+                            "date": "", "raw": r["content"]})
+        return result
+
+    # ---------- test-item cache (Phase 4 Layer B precache) ----------
+
+    async def cache_test_items(
+        self,
+        user_id: str,
+        task_type: str,
+        items: list[dict],
+        ts: float | None = None,
+    ) -> None:
+        """Store the precomputed probe bank for a TEST task type (overwrites)."""
+        self._conn.execute(
+            "INSERT INTO test_items (user_id, task_type, items, cached_at) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(user_id, task_type) DO UPDATE SET "
+            "items = excluded.items, cached_at = excluded.cached_at",
+            (user_id, task_type, json.dumps(items), ts if ts is not None else time.time()),
+        )
+        self._conn.commit()
+
+    async def get_cached_test_items(
+        self, user_id: str, task_type: str, max_age: float | None = None
+    ) -> list[dict] | None:
+        """Return the cached probe bank, or None on miss / stale (older than max_age)."""
+        row = self._conn.execute(
+            "SELECT items, cached_at FROM test_items "
+            "WHERE user_id = ? AND task_type = ?",
+            (user_id, task_type),
+        ).fetchone()
+        if not row:
+            return None
+        if max_age is not None and (time.time() - row["cached_at"]) > max_age:
+            return None
+        return json.loads(row["items"])

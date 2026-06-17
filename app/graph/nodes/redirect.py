@@ -7,6 +7,7 @@ scaffolding down (bridge) is wrong. Steer them back to the actual task instead.
 Does NOT touch bridge_attempts / level_fails — being off-task is not struggling.
 """
 from app.ai.calls import GEMINI_FLASH, GenSpec
+from app.ai.behaviors import behavior_for_value
 from app.ai.prompts import build_redirect_prompt, coach_view
 from app.content.registry import get_node
 
@@ -19,6 +20,8 @@ async def redirect_node(state: dict) -> dict:
         state.get("last_diagnosis", {}),
         state.get("memory_context", ""),
         coach_view(state),
+        behavior=behavior_for_value(state.get("task_type", "")),
+        weaknesses=state.get("weakness_context", []),
     )
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="redirect"

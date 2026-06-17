@@ -1,68 +1,43 @@
 """Content registry — aggregates every module into one lookup surface.
 
 The engine was originally hardcoded to the communication module. This registry
-replaces those direct imports: graph nodes, the service, and the API all resolve
-nodes through here, so adding a module is a one-line `MODULES` entry with no
-engine changes.
+now loads structured JSON curricula from app/content/data/ at startup.
 
 Responsibilities:
-  - resolve any node id -> CommNode, across all modules
+  - resolve any node id -> Concept, across all modules
   - next-node advance within a module (module ends -> None)
   - list modules for the onboarding picker
-  - placement: map an estimated CEFR level -> the right STARTING node so an
-    advanced learner skips trivial early levels instead of always starting at 1.
+  - placement: map an estimated CEFR level -> the right STARTING node.
 """
-from dataclasses import dataclass
+import json
+from pathlib import Path
 
-from app.content.comm_module import (
-    COMM_NODES,
-    CommNode,
-    MODULE_DESCRIPTION as COMM_DESC,
-    MODULE_ID as COMM_ID,
-    MODULE_TITLE as COMM_TITLE,
-)
-from app.content.gd_module import (
-    GD_NODES,
-    MODULE_DESCRIPTION as GD_DESC,
-    MODULE_ID as GD_ID,
-    MODULE_TITLE as GD_TITLE,
-)
-from app.content.interview_module import (
-    INTERVIEW_NODES,
-    MODULE_DESCRIPTION as INT_DESC,
-    MODULE_ID as INT_ID,
-    MODULE_TITLE as INT_TITLE,
-)
-from app.content.school_english_module import (
-    SCHOOL_NODES,
-    MODULE_DESCRIPTION as SCHOOL_DESC,
-    MODULE_ID as SCHOOL_ID,
-    MODULE_TITLE as SCHOOL_TITLE,
-)
+from app.content.schema import Module, Concept
 
+# Define known module IDs
+COMM_ID = "communication"
+INT_ID = "interview"
+GD_ID = "group_discussion"
+SCHOOL_ID = "school_english"
 
-@dataclass(frozen=True)
-class Module:
-    id: str
-    title: str
-    description: str
-    nodes: list[CommNode]
+def _load_modules() -> list[Module]:
+    modules = []
+    data_dir = Path(__file__).parent / "data"
+    for json_file in data_dir.glob("*.json"):
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            modules.append(Module.model_validate(data))
+    
+    # Sort modules to match previous hardcoded order, though not strictly required
+    order_pref = {COMM_ID: 1, INT_ID: 2, GD_ID: 3, SCHOOL_ID: 4}
+    modules.sort(key=lambda m: order_pref.get(m.id, 99))
+    return modules
 
-    @property
-    def order(self) -> list[str]:
-        return [n.id for n in self.nodes]
-
-
-MODULES: list[Module] = [
-    Module(COMM_ID, COMM_TITLE, COMM_DESC, COMM_NODES),
-    Module(INT_ID, INT_TITLE, INT_DESC, INTERVIEW_NODES),
-    Module(GD_ID, GD_TITLE, GD_DESC, GD_NODES),
-    Module(SCHOOL_ID, SCHOOL_TITLE, SCHOOL_DESC, SCHOOL_NODES),
-]
+MODULES: list[Module] = _load_modules()
 
 _BY_MODULE: dict[str, Module] = {m.id: m for m in MODULES}
-# node_id -> (module_id, CommNode)
-_NODE_INDEX: dict[str, tuple[str, CommNode]] = {
+# node_id -> (module_id, Concept)
+_NODE_INDEX: dict[str, tuple[str, Concept]] = {
     n.id: (m.id, n) for m in MODULES for n in m.nodes
 }
 
@@ -77,7 +52,35 @@ SELF_REPORT_CEFR: dict[str, str] = {
 }
 
 
-def get_node(node_id: str) -> CommNode:
+# school_english is a primary-grade ladder, not a CEFR continuum: it places by
+# grade (2-5), not by a self-report CEFR band. Each grade's band starts at this
+# node id (the school module groups four nodes per grade, id-prefixed c2_/c3_/…).
+GRADE_PLACED_MODULES = frozenset({SCHOOL_ID})
+SCHOOL_GRADE_START: dict[int, str] = {
+    2: "c2_alphabet_sounds",
+    3: "c3_action_words",
+    4: "c4_past_tense",
+    5: "c5_tenses_mix",
+}
+_MIN_GRADE, _MAX_GRADE = 2, 5
+
+
+def uses_grade_placement(module_id: str) -> bool:
+    """True for modules placed by school grade instead of a CEFR band."""
+    return module_id in GRADE_PLACED_MODULES
+
+
+def grade_placement_node(grade: int) -> Concept:
+    """STARTING node for a school_english learner in `grade` (2-5).
+
+    Grade N starts at the first node of that grade's band. Out-of-range grades
+    clamp into [2, 5] so onboarding never fails on a stray value.
+    """
+    g = max(_MIN_GRADE, min(_MAX_GRADE, grade))
+    return get_node(SCHOOL_GRADE_START[g])
+
+
+def get_node(node_id: str) -> Concept:
     """Resolve any node id across all modules. Raises KeyError if unknown."""
     return _NODE_INDEX[node_id][1]
 
@@ -111,7 +114,10 @@ def list_modules() -> list[dict]:
             "title": m.title,
             "description": m.description,
             "level_count": len(m.nodes),
-            "cefr_range": _cefr_range(m),
+            # A module is placed EITHER by grade (school) OR by CEFR band; the
+            # picker surfaces only the relevant range and leaves the other empty.
+            "cefr_range": "" if uses_grade_placement(m.id) else _cefr_range(m),
+            "grade_range": _grade_range(m) if uses_grade_placement(m.id) else "",
         }
         for m in MODULES
     ]
@@ -126,7 +132,14 @@ def _cefr_range(m: Module) -> str:
     return lo if lo == hi else f"{lo}-{hi}"
 
 
-def placement_node(module_id: str, target_cefr: str) -> CommNode:
+def _grade_range(m: Module) -> str:
+    """Min-max grade span of a grade-placed module, e.g. "2-5" (or "3" if one)."""
+    grades = [int(n.id[1]) for n in m.nodes]
+    lo, hi = min(grades), max(grades)
+    return str(lo) if lo == hi else f"{lo}-{hi}"
+
+
+def placement_node(module_id: str, target_cefr: str) -> Concept:
     """Pick the STARTING node in a module for a learner at `target_cefr`.
 
     Places the learner at the first node whose CEFR band is at least their
@@ -140,3 +153,4 @@ def placement_node(module_id: str, target_cefr: str) -> CommNode:
         if CEFR_RANK.get(node.cefr, 0) >= target:
             return node
     return module.nodes[-1]
+

@@ -11,16 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # ---------- profiles ----------
 
-async def ensure_profile(session: AsyncSession, user_id: str) -> None:
+async def ensure_profile(session: AsyncSession, user_id: str, name: str = "", password_hash: str | None = None) -> None:
     await session.execute(
         text(
             """
-            INSERT INTO learner_profiles (user_id)
-            VALUES (:uid)
-            ON CONFLICT (user_id) DO NOTHING
+            INSERT INTO learner_profiles (user_id, display_name, password_hash)
+            VALUES (:uid, :name, :phash)
+            ON CONFLICT (user_id) DO UPDATE SET
+            display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE learner_profiles.display_name END,
+            password_hash = CASE WHEN excluded.password_hash IS NOT NULL THEN excluded.password_hash ELSE learner_profiles.password_hash END
             """
         ),
-        {"uid": user_id},
+        {"uid": user_id, "name": name, "phash": password_hash},
     )
     await session.commit()
 
@@ -28,7 +30,7 @@ async def ensure_profile(session: AsyncSession, user_id: str) -> None:
 async def get_profile(session: AsyncSession, user_id: str) -> dict | None:
     result = await session.execute(
         text(
-            "SELECT user_id, credits, demo_unlimited "
+            "SELECT user_id, credits, demo_unlimited, password_hash, display_name as name "
             "FROM learner_profiles WHERE user_id = :uid"
         ),
         {"uid": user_id},
@@ -135,6 +137,20 @@ async def upsert_mastery(
         {"uid": user_id, "node": node_id, "m": mastery, "a": attempts, "cp": clean_pass},
     )
     await session.commit()
+
+
+async def get_progression(session: AsyncSession, user_id: str) -> list[dict]:
+    result = await session.execute(
+        text(
+            """
+            SELECT competency_node as node_id, mastery as ema, attempts, clean_pass
+            FROM competency_nodes
+            WHERE user_id = :uid
+            """
+        ),
+        {"uid": user_id},
+    )
+    return [dict(row) for row in result.mappings().all()]
 
 
 async def get_module_passrate(
