@@ -161,6 +161,37 @@ class LocalStore:
         profile["demo_unlimited"] = bool(profile.get("demo_unlimited"))
         return profile
 
+    # ---------- billing: credits ----------
+
+    async def get_credits(self, user_id: str) -> int:
+        row = self._conn.execute("SELECT credits FROM profiles WHERE user_id = ?", (user_id,)).fetchone()
+        return int(row["credits"]) if row and row["credits"] is not None else 0
+
+    async def is_demo(self, user_id: str) -> bool:
+        row = self._conn.execute("SELECT demo_unlimited FROM profiles WHERE user_id = ?", (user_id,)).fetchone()
+        return bool(row["demo_unlimited"]) if row else False
+
+    async def set_demo_unlimited(self, user_id: str, enabled: bool = True) -> None:
+        self._conn.execute("UPDATE profiles SET demo_unlimited = ? WHERE user_id = ?", (int(enabled), user_id))
+        self._conn.commit()
+
+    async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
+        self._conn.execute("UPDATE profiles SET credits = credits + ? WHERE user_id = ?", (amount, user_id))
+        self._conn.execute("INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)", (user_id, amount, reason, time.time()))
+        self._conn.commit()
+        return await self.get_credits(user_id)
+
+    async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
+        if await self.is_demo(user_id):       # Judge/demo bypass: never charged, always allowed.
+            return True
+        balance = await self.get_credits(user_id)
+        if balance < amount:
+            return False
+        self._conn.execute("UPDATE profiles SET credits = credits - ? WHERE user_id = ?", (amount, user_id))
+        self._conn.execute("INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)", (user_id, -amount, reason, time.time()))
+        self._conn.commit()
+        return True
+
     # ---------- sessions ----------
 
     async def create_session(
