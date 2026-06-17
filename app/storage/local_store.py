@@ -254,6 +254,45 @@ class LocalStore:
         ).fetchone()
         return int(row["n"]) if row and row["n"] is not None else 0
 
+    # ---------- billing: purchases ----------
+
+    async def record_purchase(
+        self,
+        order_id: str,
+        user_id: str,
+        pack_id: str,
+        credits: int,
+        amount_paise: int,
+        status: str = "created",
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO purchases "
+            "(order_id, user_id, pack_id, credits, amount_paise, status, created) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(order_id) DO NOTHING",
+            (order_id, user_id, pack_id, credits, amount_paise, status, time.time()),
+        )
+        self._conn.commit()
+
+    async def get_purchase(self, order_id: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT order_id, user_id, pack_id, credits, amount_paise, status, created "
+            "FROM purchases WHERE order_id = ?",
+            (order_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    async def mark_purchase_paid(self, order_id: str) -> bool:
+        """Latch a purchase to 'paid'. Returns True only on the transition so
+        the webhook grants credits exactly once even under Razorpay retries."""
+        cur = self._conn.execute(
+            "UPDATE purchases SET status = 'paid' "
+            "WHERE order_id = ? AND status != 'paid'",
+            (order_id,),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     # ---------- sessions ----------
 
     async def create_session(
