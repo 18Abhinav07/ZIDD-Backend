@@ -177,3 +177,148 @@ async def get_module_passrate(
     if not row:
         return (0, 0)
     return (int(row["clean"] or 0), int(row["total"] or 0))
+
+
+# ---------- billing: credits ----------
+
+async def get_credits(session: AsyncSession, user_id: str) -> int:
+    result = await session.execute(
+        text("SELECT credits FROM learner_profiles WHERE user_id = :u"),
+        {"u": user_id},
+    )
+    row = result.mappings().first()
+    return int(row["credits"]) if row else 0
+
+
+async def set_demo_unlimited(
+    session: AsyncSession, user_id: str, enabled: bool
+) -> None:
+    await session.execute(
+        text("UPDATE learner_profiles SET demo_unlimited = :e WHERE user_id = :u"),
+        {"e": enabled, "u": user_id},
+    )
+    await session.commit()
+
+
+async def grant_credits(
+    session: AsyncSession, user_id: str, amount: int, reason: str
+) -> int:
+    await session.execute(
+        text(
+            "UPDATE learner_profiles SET credits = credits + :amount "
+            "WHERE user_id = :u"
+        ),
+        {"amount": amount, "u": user_id},
+    )
+    await session.execute(
+        text(
+            "INSERT INTO credit_transactions (user_id, delta, reason) "
+            "VALUES (:u, :delta, :reason)"
+        ),
+        {"u": user_id, "delta": amount, "reason": reason},
+    )
+    await session.commit()
+    return await get_credits(session, user_id)
+
+
+# ---------- billing: content unlocks ----------
+
+async def has_unlock(
+    session: AsyncSession, user_id: str, scope: str, ref_id: str
+) -> bool:
+    result = await session.execute(
+        text(
+            "SELECT 1 FROM content_unlocks "
+            "WHERE user_id = :u AND scope = :s AND ref_id = :r"
+        ),
+        {"u": user_id, "s": scope, "r": ref_id},
+    )
+    return result.first() is not None
+
+
+async def add_unlock(
+    session: AsyncSession,
+    user_id: str,
+    scope: str,
+    ref_id: str,
+    credits_spent: int,
+) -> None:
+    await session.execute(
+        text(
+            "INSERT INTO content_unlocks (user_id, scope, ref_id, credits_spent) "
+            "VALUES (:u, :s, :r, :c) "
+            "ON CONFLICT (user_id, scope, ref_id) DO NOTHING"
+        ),
+        {"u": user_id, "s": scope, "r": ref_id, "c": credits_spent},
+    )
+    await session.commit()
+
+
+async def list_unlocks(session: AsyncSession, user_id: str) -> list[dict]:
+    result = await session.execute(
+        text(
+            "SELECT scope, ref_id, credits_spent FROM content_unlocks "
+            "WHERE user_id = :u"
+        ),
+        {"u": user_id},
+    )
+    return [dict(row) for row in result.mappings().all()]
+
+
+async def list_session_nodes(session: AsyncSession, user_id: str) -> list[str]:
+    result = await session.execute(
+        text("SELECT competency_node FROM sessions WHERE user_id = :u"),
+        {"u": user_id},
+    )
+    return [row[0] for row in result.all()]
+
+
+# ---------- billing: purchases ----------
+
+async def record_purchase(
+    session: AsyncSession,
+    order_id: str,
+    user_id: str,
+    pack_id: str,
+    credits: int,
+    amount_paise: int,
+    status: str = "created",
+) -> None:
+    await session.execute(
+        text(
+            "INSERT INTO purchases "
+            "(order_id, user_id, pack_id, credits, amount_paise, status) "
+            "VALUES (:o, :u, :p, :c, :a, :st) "
+            "ON CONFLICT (order_id) DO NOTHING"
+        ),
+        {
+            "o": order_id,
+            "u": user_id,
+            "p": pack_id,
+            "c": credits,
+            "a": amount_paise,
+            "st": status,
+        },
+    )
+    await session.commit()
+
+
+async def get_purchase(session: AsyncSession, order_id: str) -> dict | None:
+    result = await session.execute(
+        text("SELECT * FROM purchases WHERE order_id = :o"),
+        {"o": order_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def mark_purchase_paid(session: AsyncSession, order_id: str) -> bool:
+    result = await session.execute(
+        text(
+            "UPDATE purchases SET status = 'paid' "
+            "WHERE order_id = :o AND status != 'paid'"
+        ),
+        {"o": order_id},
+    )
+    await session.commit()
+    return result.rowcount > 0

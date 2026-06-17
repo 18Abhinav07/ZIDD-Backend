@@ -214,3 +214,166 @@ class PgStore:
         self, user_id: str, task_type: str, max_age: float | None = None
     ) -> list[dict] | None:
         return None
+
+    # ---------- billing: credits ----------
+
+    async def get_credits(self, user_id: str) -> int:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return 0
+            try:
+                return await repo.get_credits(s, user_id)
+            except Exception:
+                return 0
+
+    async def is_demo(self, user_id: str) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                profile = await repo.get_profile(s, user_id)
+                if profile is None:
+                    return False
+                return bool(profile["demo_unlimited"])
+            except Exception:
+                return False
+
+    async def set_demo_unlimited(self, user_id: str, enabled: bool = True) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.set_demo_unlimited(s, user_id, enabled)
+            except Exception:
+                return None
+
+    async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return 0
+            try:
+                return await repo.grant_credits(s, user_id, amount, reason)
+            except Exception:
+                return 0
+
+    async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                return await repo.deduct_credit(s, user_id, amount, reason)
+            except Exception:
+                return False
+
+    # ---------- billing: content unlocks ----------
+
+    async def has_unlock(self, user_id: str, scope: str, ref_id: str) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                return await repo.has_unlock(s, user_id, scope, ref_id)
+            except Exception:
+                return False
+
+    async def add_unlock(
+        self, user_id: str, scope: str, ref_id: str, credits_spent: int
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.add_unlock(
+                    s, user_id, scope, ref_id, credits_spent
+                )
+            except Exception:
+                return None
+
+    async def list_unlocks(self, user_id: str) -> list[dict]:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return []
+            try:
+                return await repo.list_unlocks(s, user_id)
+            except Exception:
+                return []
+
+    async def count_attempts(self, user_id: str, module_id: str) -> int:
+        from app.content import registry
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return 0
+            try:
+                nodes = await repo.list_session_nodes(s, user_id)
+                count = 0
+                for node_id in nodes:
+                    try:
+                        if registry.module_of(node_id) == module_id:
+                            count += 1
+                    except KeyError:
+                        continue
+                return count
+            except Exception:
+                return 0
+
+    # ---------- billing: purchases ----------
+
+    async def record_purchase(
+        self,
+        order_id: str,
+        user_id: str,
+        pack_id: str,
+        credits: int,
+        amount_paise: int,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.record_purchase(
+                    s, order_id, user_id, pack_id, credits, amount_paise
+                )
+            except Exception:
+                return None
+
+    async def get_purchase(self, order_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.get_purchase(s, order_id)
+            except Exception:
+                return None
+
+    async def mark_purchase_paid(self, order_id: str) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                return await repo.mark_purchase_paid(s, order_id)
+            except Exception:
+                return False
