@@ -176,19 +176,41 @@ class LocalStore:
         self._conn.commit()
 
     async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
-        self._conn.execute("UPDATE profiles SET credits = credits + ? WHERE user_id = ?", (amount, user_id))
-        self._conn.execute("INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)", (user_id, amount, reason, time.time()))
+        if amount < 0:
+            raise ValueError("grant amount must be non-negative")
+        cur = self._conn.execute(
+            "UPDATE profiles SET credits = credits + ? WHERE user_id = ?",
+            (amount, user_id),
+        )
+        if cur.rowcount == 0:                  # no such profile: fail loud, never log a phantom grant
+            self._conn.rollback()
+            raise KeyError(user_id)
+        self._conn.execute(
+            "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
+            (user_id, amount, reason, time.time()),
+        )
         self._conn.commit()
         return await self.get_credits(user_id)
 
     async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
         if await self.is_demo(user_id):       # Judge/demo bypass: never charged, always allowed.
             return True
-        balance = await self.get_credits(user_id)
-        if balance < amount:
+        if amount < 0:
+            raise ValueError("deduct amount must be non-negative")
+        # Atomic guard: folding the balance check into the WHERE clause makes the
+        # check and the debit a single statement, so two concurrent deducts can't
+        # both pass the check and overspend. rowcount == 0 => insufficient funds.
+        cur = self._conn.execute(
+            "UPDATE profiles SET credits = credits - ? WHERE user_id = ? AND credits >= ?",
+            (amount, user_id, amount),
+        )
+        if cur.rowcount == 0:
+            self._conn.rollback()
             return False
-        self._conn.execute("UPDATE profiles SET credits = credits - ? WHERE user_id = ?", (amount, user_id))
-        self._conn.execute("INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)", (user_id, -amount, reason, time.time()))
+        self._conn.execute(
+            "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
+            (user_id, -amount, reason, time.time()),
+        )
         self._conn.commit()
         return True
 

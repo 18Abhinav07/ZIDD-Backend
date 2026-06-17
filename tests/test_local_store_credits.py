@@ -53,3 +53,37 @@ async def test_credit_transactions_are_logged(store):
         ("u1",),
     ).fetchall()
     assert [tuple(r) for r in rows] == [(50, "welcome"), (-40, "access_unlock")]
+
+
+@pytest.mark.asyncio
+async def test_grant_on_existing_balance_returns_cumulative(store):
+    await store.ensure_profile("u1")
+    assert await store.grant_credits("u1", 50, "welcome") == 50
+    assert await store.grant_credits("u1", 30, "topup") == 80
+    assert await store.get_credits("u1") == 80
+
+
+@pytest.mark.asyncio
+async def test_deduct_on_zero_balance_returns_false_no_ledger(store):
+    await store.ensure_profile("u1")
+    assert await store.deduct_credits("u1", 10, "x") is False
+    count = store._conn.execute(
+        "SELECT COUNT(*) FROM credit_transactions WHERE user_id = ?",
+        ("u1",),
+    ).fetchone()[0]
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_grant_on_unknown_user_raises_keyerror(store):
+    with pytest.raises(KeyError):
+        await store.grant_credits("ghost", 50, "welcome")
+
+
+@pytest.mark.asyncio
+async def test_negative_amount_rejected(store):
+    await store.ensure_profile("u1")
+    with pytest.raises(ValueError):
+        await store.grant_credits("u1", -5, "x")
+    with pytest.raises(ValueError):
+        await store.deduct_credits("u1", -5, "x")
