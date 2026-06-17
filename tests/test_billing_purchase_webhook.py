@@ -18,9 +18,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.billing import razorpay_client
+from app.config import get_settings
 from app.main import app
+from app.storage import reset_storage
 
 AUTH = {"Authorization": "Bearer test_token"}  # -> user_id "test_user"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_store(monkeypatch):
+    monkeypatch.setenv("LOCAL_STORE_PATH", _DB.name)
+    get_settings.cache_clear()
+    reset_storage()
+    yield
+    reset_storage()
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)

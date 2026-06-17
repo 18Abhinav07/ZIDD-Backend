@@ -14,15 +14,27 @@ os.environ.setdefault(
 
 import asyncio
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.content.registry import COMM_ID, get_module
 from app.main import app
-from app.storage import get_storage
+from app.storage import get_storage, reset_storage
 
 COMM_FIRST = get_module(COMM_ID).order[0]
 COMM_SECOND = get_module(COMM_ID).order[1]
 AUTH = {"Authorization": "Bearer test_token"}  # -> user_id "test_user"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_store(monkeypatch):
+    monkeypatch.setenv("LOCAL_STORE_PATH", _DB.name)
+    get_settings.cache_clear()
+    reset_storage()
+    yield
+    reset_storage()
+    get_settings.cache_clear()
 
 
 def _run(coro):
