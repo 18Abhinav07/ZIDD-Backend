@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     user_id TEXT PRIMARY KEY,
     name    TEXT DEFAULT '',
     password_hash TEXT,
+    credits INTEGER NOT NULL DEFAULT 0,
+    demo_unlimited INTEGER NOT NULL DEFAULT 0,
     created REAL
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -83,6 +85,30 @@ CREATE TABLE IF NOT EXISTS test_items (
     cached_at REAL,
     PRIMARY KEY (user_id, task_type)
 );
+CREATE TABLE IF NOT EXISTS content_unlocks (
+    user_id       TEXT,
+    scope         TEXT,
+    ref_id        TEXT,
+    credits_spent INTEGER DEFAULT 0,
+    created       REAL,
+    PRIMARY KEY (user_id, scope, ref_id)
+);
+CREATE TABLE IF NOT EXISTS credit_transactions (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    delta   INTEGER,
+    reason  TEXT,
+    created REAL
+);
+CREATE TABLE IF NOT EXISTS purchases (
+    order_id     TEXT PRIMARY KEY,
+    user_id      TEXT,
+    pack_id      TEXT,
+    credits      INTEGER,
+    amount_paise INTEGER,
+    status       TEXT DEFAULT 'created',
+    created      REAL
+);
 """
 
 
@@ -93,6 +119,21 @@ class LocalStore:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        # Pre-monetization databases have a profiles table without the credit
+        # columns. SQLite lacks "ADD COLUMN IF NOT EXISTS", so guard each ALTER
+        # and swallow the "duplicate column name" OperationalError.
+        for ddl in (
+            "ALTER TABLE profiles ADD COLUMN credits INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE profiles ADD COLUMN demo_unlimited INTEGER NOT NULL DEFAULT 0",
+        ):
+            try:
+                self._conn.execute(ddl)
+            except sqlite3.OperationalError as e:
+                # Only swallow the "column already exists" case (fresh DBs get
+                # these columns from _SCHEMA; this loop only matters for
+                # pre-existing dev DBs missing them). Re-raise anything real.
+                if "duplicate column name" not in str(e):
+                    raise
         self._conn.commit()
 
     # ---------- profiles ----------
@@ -109,10 +150,16 @@ class LocalStore:
 
     async def get_profile(self, user_id: str) -> dict | None:
         row = self._conn.execute(
-            "SELECT user_id, name, password_hash, created FROM profiles WHERE user_id = ?",
+            "SELECT user_id, name, password_hash, credits, demo_unlimited, created "
+            "FROM profiles WHERE user_id = ?",
             (user_id,),
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        profile = dict(row)
+        profile["credits"] = int(profile.get("credits") or 0)
+        profile["demo_unlimited"] = bool(profile.get("demo_unlimited"))
+        return profile
 
     # ---------- sessions ----------
 
