@@ -8,7 +8,7 @@ without a second request.
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.content.registry import get_node, list_modules
@@ -20,6 +20,9 @@ from app.models import (
     SessionTurnRequest,
 )
 from app.services import session_service as svc
+from app.storage import get_storage
+from app.billing.gate import resolve_gate, charge
+from app.billing.pricing import pack_list
 from app.services.session_service import GamePrompt
 from app.services.simulation_service import Speaker
 
@@ -107,10 +110,47 @@ def _state_snapshot(state: dict) -> dict:
 
 
 @router.post("/start", response_model=SessionStartResponse)
-async def start(req: SessionStartRequest) -> SessionStartResponse:
+async def start(req: SessionStartRequest, request: Request) -> SessionStartResponse:
+    # Bind to the AUTHENTICATED identity (JWT sub via middleware), never the
+    # spoofable body field. Body user_id is only a fallback when middleware
+    # did not set request.state (e.g. legacy no-header pytest path).
+    user_id = getattr(request.state, "user_id", None) or req.user_id
+    store = get_storage()
+
+    # Gate BEFORE the brain runs. The brain stays credit-blind.
+    try:
+        decision = await resolve_gate(store, user_id, req.competency_node)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail="Unknown competency node") from e
+
+    if not decision.free:
+        balance = await store.get_credits(user_id)
+        if not req.confirm:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "confirm_required",
+                    "cost": decision.cost,
+                    "balance": balance,
+                    "scope": decision.scope,
+                    "ref_id": decision.ref_id,
+                },
+            )
+        charged = await charge(store, user_id, decision)
+        if not charged:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "insufficient_credits",
+                    "cost": decision.cost,
+                    "balance": balance,
+                    "packs": [p.model_dump() for p in pack_list()],
+                },
+            )
+
     try:
         session_id, state = await svc.start_session(
-            req.user_id, req.competency_node, test_mode=req.test_mode
+            user_id, req.competency_node, test_mode=req.test_mode
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
