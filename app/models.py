@@ -52,6 +52,7 @@ class SessionStartRequest(BaseModel):
     user_id: str
     competency_node: str
     test_mode: bool = False   # True -> open on the assessment TaskType variant
+    confirm: bool = False     # True -> learner accepted the credit charge (two-tap gate)
 
 
 class SessionStartResponse(BaseModel):
