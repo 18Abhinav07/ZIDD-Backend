@@ -1,47 +1,33 @@
-"""TEST-mode multi-persona simulation (Phase 3.2).
+"""TEST-mode multi-persona simulation (writers'-room loop).
 
 The coaching ("prep") modes run the tutor ladder. The assessment ("test") modes
 — interview_test, gd_test — run a *simulation* instead: distinct personas (GD
 participants with stances, or an interview panel) speak, the learner responds,
 and the contribution is scored, not coached mid-stream.
 
-Cost shape (Challenge guard against N serialized 14B calls): qwen emits ALL
-persona turns in ONE streaming pass, each turn line-tagged `[Name]: ...`. This
-module's `split_persona_stream` parses those tags *incrementally* — a tag may be
-split across stream chunks — and re-emits a discrete `Speaker` marker as each
-tagged block begins, then forwards that block's text tokens unchanged. The API
-layer maps a `Speaker` to an `event: speaker` SSE frame, mirroring how run_turn
-maps `NodeAdvance` to `event: node_advance`.
+Each round is a writers'-room beat: the Director (a structured LLM decision over
+the shared Blackboard) picks WHO speaks and with WHAT intent, then a single
+Persona executor STREAMS that one speaker's turn. The round yields a `Speaker`
+marker, a `SimulationState` marker (turn/tension snapshot), then the persona's
+text tokens. The API layer maps `Speaker` -> `event: speaker`, `SimulationState`
+-> `event: simulation_state`, and plain string tokens -> `event: message`,
+mirroring how run_turn maps `NodeAdvance` to `event: node_advance`.
 """
-import re
+import zlib
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-from app.ai.behaviors import behavior_for
-from app.ai.calls import (
-    GEMINI_FLASH,
-    GenSpec,
-    evaluate_simulation,
-    stream_generation,
-)
+from app.ai.calls import evaluate_simulation
 from app.ai.schemas import SimulationReport
 from app.content.task_types import TaskType
-
-# The generic tag regex is kept for documentation / flush usage.
-# The per-call parser now builds a known-names regex instead, so it can find
-# [Name]: tags *anywhere* in the stream — not only at line-starts. This fixes
-# the core bug where the LLM emits multiple personas on one line without \n.
-_TAG_RE = re.compile(r"[ \t]*(?:\*\*)*\[([^\]\n]+)\](?:\*\*)*:[ \t]?")
-
-# Maximum length of a speaker tag (e.g. `[Moderator]: ` = ~15 chars).
-# We hold back this many chars from the buffer end so a tag split across two
-# stream chunks is never mistakenly emitted as raw text.
-_TAG_LOOKBEHIND = 50
+from app.services.simulation.blackboard import new_blackboard, note_turn
+from app.services.simulation.director import _next_in_rotation, decide_round
+from app.services.simulation.persona import stream_persona_turn
 
 
 @dataclass(frozen=True)
 class Speaker:
-    """Marker yielded by split_persona_stream when a new persona block begins.
+    """Marker yielded when a new persona begins speaking.
 
     Mirrors NodeAdvance: the simulation stream is a single sequence of plain
     string tokens interleaved with these markers; the API maps each to an
@@ -51,92 +37,83 @@ class Speaker:
     name: str
 
 
-async def split_persona_stream(
-    token_iter: AsyncIterator[str], personas: list[dict]
-) -> AsyncIterator[object]:
-    """Parse a persona-tagged token stream into Speaker markers + text tokens.
+@dataclass(frozen=True)
+class SimulationState:
+    """Marker yielded once per round with the Director's post-decision snapshot.
 
-    Works for both well-formed output (one `[Name]:` per line) AND the
-    degenerate case where the LLM runs all personas on a single line with no
-    intervening newlines (the root cause of the 'mashed bubble' bug).
+    The API maps it to an `event: simulation_state` SSE frame so the UI can show
+    round count and tension. Carried alongside the stream like Speaker; the
+    session runner forwards it untouched (it is neither a Speaker nor a str).
 
-    Strategy:
-      1. Build a session-scoped regex that matches `[KnownName]:` ANYWHERE.
-      2. As tokens accumulate in the buffer, search for the earliest match.
-      3. Yield all text before the match, emit a Speaker marker, then continue.
-      4. Hold back the last _TAG_LOOKBEHIND chars so a tag split across two
-         stream chunks is never prematurely emitted as plain text.
-    """
-    # Case-insensitive lookup so the LLM capitalisation can't break routing.
-    name_to_id_ci: dict[str, str] = {
-        p["name"].lower(): p.get("speaker_id", p["name"]) for p in personas
-    }
-    name_display: dict[str, str] = {
-        p["name"].lower(): p["name"] for p in personas
-    }
+    `should_close` surfaces the Director's wind-down signal (or the hard round
+    cap) to the client so the UI can prompt the learner to finish — previously
+    the Director decided this every round and nothing ever read it."""
 
-    # Build a regex that matches [Name]: for any known persona, anywhere in text.
-    names_alt = "|".join(re.escape(n) for n in name_to_id_ci)
-    _known_tag = re.compile(
-        rf"[ \t]*(?:\*\*)*\[({names_alt})\](?:\*\*)*:[ \t]?",
-        re.IGNORECASE,
+    turn: int
+    speaker_id: str
+    tension: float
+    should_close: bool = False
+
+
+# A live simulation must self-terminate even if the Director never calls close.
+# After this many rounds the round runner forces should_close and flags the
+# session over so a learner cannot loop a TEST sim indefinitely.
+MAX_SIM_ROUNDS = 10
+
+# Cross-talk schedule (GD only): how many EXTRA panelists react after the
+# Director's chosen speaker, keyed on the phase the discussion is currently in
+# (read BEFORE the Director's decision). A GD opens with a single voice so the
+# learner isn't dogpiled on their first contribution, then the panel argues with
+# itself as it heats up. Interview is always single-voice (one interviewer).
+_GD_EXCHANGE_BY_PHASE: dict[str, int] = {
+    "opening": 0,
+    "probing": 1,
+    "pressure": 2,
+    "winddown": 0,
+}
+
+_EMPTY_TURN_FALLBACK = "Let's stay with that — can you say more?"
+
+
+def _extra_speakers(prev_phase: str, should_close: bool, task_type: TaskType) -> int:
+    """How many reactor turns follow the primary speaker this round.
+
+    Only GD assessments cross-talk; everything else stays single-voice. We never
+    pile reactors onto a closing round (the panel should be winding down, not
+    escalating)."""
+    if task_type != TaskType.GD_TEST or should_close:
+        return 0
+    return _GD_EXCHANGE_BY_PHASE.get(prev_phase, 1)
+
+
+def _reactor_intent(prev_name: str) -> str:
+    """Templated intent for a reactor jumping in on the previous speaker.
+
+    No extra Director LLM call per reactor — the intent is fixed: react to the
+    voice that just spoke, by name, so the turn is genuine panel cross-talk
+    rather than another speech aimed at the learner."""
+    return (
+        f"Jump straight in and react to what {prev_name} just said — address "
+        f"{prev_name} by name and either push back hard from your own stance or "
+        "sharpen their point, then add one new angle. This is panel cross-talk "
+        "between you two, not a reply to the learner."
     )
 
-    buf = ""
 
-    async for tok in token_iter:
-        buf += tok
+def _reactor_pool(personas: list[dict]) -> list[dict]:
+    """The roster a cross-talk reactor may be drawn from: debaters only.
 
-        # Process all complete speaker segments in the buffer.
-        # We keep _TAG_LOOKBEHIND chars at the end as a safety holdback so a
-        # tag straddling a chunk boundary doesn't get emitted prematurely.
-        while True:
-            search_end = max(0, len(buf) - _TAG_LOOKBEHIND)
-            m = _known_tag.search(buf, 0, len(buf))  # search whole buf
-            if m is None:
-                # No tag found — flush everything except the safety window.
-                if len(buf) > _TAG_LOOKBEHIND:
-                    safe = buf[: len(buf) - _TAG_LOOKBEHIND]
-                    if safe:
-                        yield safe
-                    buf = buf[len(buf) - _TAG_LOOKBEHIND :]
-                break
-
-            if m.start() >= len(buf) - _TAG_LOOKBEHIND:
-                # Tag found but entirely inside the safety window — wait.
-                if m.start() > 0:
-                    safe = buf[: m.start()]
-                    if safe:
-                        yield safe
-                    buf = buf[m.start():]
-                break
-
-            # Tag found in the safe zone — emit preceding text, then Speaker.
-            before = buf[: m.start()]
-            if before:
-                yield before
-            raw_name = m.group(1).strip()
-            lower_name = raw_name.lower()
-            resolved_id = name_to_id_ci.get(lower_name, raw_name)
-            display_name = name_display.get(lower_name, raw_name)
-            yield Speaker(speaker_id=resolved_id, name=display_name)
-            buf = buf[m.end():]
-
-    # Flush: one last search on whatever remains (no holdback needed).
-    if buf:
-        m = _known_tag.search(buf)
-        if m:
-            before = buf[: m.start()]
-            if before:
-                yield before
-            raw_name = m.group(1).strip()
-            lower_name = raw_name.lower()
-            resolved_id = name_to_id_ci.get(lower_name, raw_name)
-            display_name = name_display.get(lower_name, raw_name)
-            yield Speaker(speaker_id=resolved_id, name=display_name)
-            buf = buf[m.end():]
-        if buf:
-            yield buf
+    Cross-talk is debater-to-debater. The Moderator still reaches the floor as
+    the Director's PRIMARY speaker (to facilitate / transition phases), but must
+    never be picked as a REACTOR — _reactor_intent ("push back from your stance,
+    add one new angle") is a debater move, out of character for a neutral
+    facilitator. Without this filter, rotating off the last debater (gd_c) wraps
+    to personas[0] == the Moderator, so the facilitator would "jump in" to argue.
+    Falls back to the full roster if filtering would leave nothing to rotate
+    through (a degenerate roster), since _next_in_rotation rejects an empty list.
+    """
+    debaters = [p for p in personas if p.get("speaker_id") != "moderator"]
+    return debaters or personas
 
 
 # ===== persona roster ========================================================
@@ -147,7 +124,7 @@ async def split_persona_stream(
 # the single pass; the interview panel is one neutral interviewer.
 
 _GD_PANEL = [
-    {"speaker_id": "moderator", "name": "Moderator", "role": "system moderator who directs the conversation and transitions speakers"},
+    {"speaker_id": "moderator", "name": "Moderator", "stance": "neutral facilitator who directs the conversation and transitions speakers"},
     {"speaker_id": "gd_a", "name": "Aarav", "stance": "strongly in favour"},
     {"speaker_id": "gd_b", "name": "Meera", "stance": "strongly against"},
     {"speaker_id": "gd_c", "name": "Kabir", "stance": "pragmatic middle ground"},
@@ -157,100 +134,44 @@ _INTERVIEWER = [
     {"speaker_id": "interviewer", "name": "Interviewer", "role": "panel interviewer"},
 ]
 
+# Per-session interviewer manner so repeat interview sessions don't feel
+# identical. One interviewer, varied delivery: the manner is picked
+# deterministically from the topic (stable within a session, varies across
+# topics) and injected into the persona's speaking prompt by build_persona_prompt.
+_INTERVIEWER_STYLES = [
+    "warm and encouraging — put the candidate at ease, but still probe for substance",
+    "neutral and businesslike — brisk and professional, neither warm nor cold",
+    "probing and skeptical — politely press every claim for specifics and evidence",
+    "rapid-fire and high-tempo — short, quick follow-ups that test composure under pace",
+]
+
+
+def _interviewer_style(topic: str) -> str:
+    """Deterministic per-session interviewer manner from the topic string.
+
+    crc32 (not the salted built-in hash()) so the same topic maps to the same
+    manner across processes — a session's interviewer tone stays stable on
+    reload, while a different topic can draw a different tone."""
+    idx = zlib.crc32((topic or "").encode("utf-8")) % len(_INTERVIEWER_STYLES)
+    return _INTERVIEWER_STYLES[idx]
+
 
 def build_personas(task_type: TaskType, topic: str) -> list[dict]:
     """Deterministic persona roster for a test-mode simulation.
 
-    `topic` is accepted so a future variant can specialise voices to the topic;
-    today the roster is fixed per task_type and the topic rides in the prompt.
+    GD returns the fixed debater panel. INTERVIEW returns the single interviewer
+    with a per-session `style` (tonal manner) drawn deterministically from the
+    `topic`, so repeat interviews vary in delivery without adding new personas or
+    avatars; build_persona_prompt renders that style into the speaking prompt.
     """
     if task_type == TaskType.GD_TEST:
         return [dict(p) for p in _GD_PANEL]
     if task_type == TaskType.INTERVIEW_TEST:
-        return [dict(p) for p in _INTERVIEWER]
+        persona = dict(_INTERVIEWER[0])
+        persona["style"] = _interviewer_style(topic)
+        return [persona]
     # non-simulation task types still get one neutral voice so the runner is total
     return [{"speaker_id": "examiner", "name": "Examiner", "role": "examiner"}]
-
-
-def _persona_block(personas: list[dict]) -> str:
-    lines = []
-    for p in personas:
-        trait = p.get("stance") or p.get("role") or ""
-        tail = f" — {trait}" if trait else ""
-        lines.append(f"- {p['name']}{tail}")
-    return "\n".join(lines)
-
-
-def _tension_block(tension_level: int) -> str:
-    """Escalating cross-persona conflict instructions.
-
-    Level 0: personas each react independently to the learner.
-    Level 1: at least one persona directly challenges another's point —
-             they disagree and say so, forcing the learner to pick a side.
-    Level 2+: cross-fire — personas openly argue with each other, talk over
-              ideas, demand the learner mediate or take a firm stand. Heat is
-              high but stays civil (no personal attacks).
-    """
-    if tension_level <= 0:
-        return (
-            "React to the learner's last point — agree, rebut, or probe. "
-            "Each participant responds independently."
-        )
-    if tension_level == 1:
-        return (
-            "React to the learner's last point and to each other. At least one "
-            "participant must directly challenge another's point by name "
-            "(e.g. 'Meera, that's not right because...'). Force the learner to "
-            "engage with the disagreement."
-        )
-    return (
-        "The discussion is heated now. Participants openly argue — challenge "
-        "each other by name, push back hard on weak points, and demand the "
-        "learner take a firm, reasoned position. Keep it civil but intense. "
-        "The learner must navigate competing claims, not just answer questions."
-    )
-
-
-def build_simulation_prompt(
-    task_type: TaskType,
-    personas: list[dict],
-    topic: str,
-    messages: list[dict],
-    user_input: str,
-    tension_level: int = 0,
-) -> str:
-    """Render the single-pass multi-persona prompt.
-
-    All persona turns come back in ONE streaming generation, each line tagged
-    `[Name]: ...` so split_persona_stream can attribute text without N calls.
-    The behavior pack supplies the assessment voice (strict, no coaching).
-    `tension_level` (0-2+) escalates cross-persona conflict across rounds.
-    """
-    pack = behavior_for(task_type)
-    history = _sim_history(messages)
-    persona_names = ", ".join(p["name"] for p in personas)
-    return (
-        f"{pack.persona}\n\n"
-        f"This is a live assessment, not coaching. {pack.pedagogy}\n\n"
-        f"Topic under discussion: {topic}\n\n"
-        f"IDENTITY RULE — you play ONLY these named participants: {persona_names}.\n"
-        f"The human learner (marked [Learner] in the transcript) is a SEPARATE person. "
-        f"You MUST NOT speak for them, rename them, or merge their words with a persona's words.\n\n"
-        f"Participants and their positions:\n{_persona_block(personas)}\n\n"
-        f"Conversation so far (DO NOT re-emit this history — only produce the NEXT round):\n{history}\n\n"
-        f"The learner just said: {user_input}\n\n"
-        f"{_tension_block(tension_level)}\n\n"
-        f"CRITICAL OUTPUT FORMAT — follow this exactly:\n"
-        f"- Every participant response MUST start on its OWN LINE\n"
-        f"- Each line MUST begin with [PersonaName]: (square brackets, colon, space)\n"
-        f"- One participant per line — NEVER run two personas into the same paragraph\n"
-        f"- DO NOT produce a [Learner]: line — the learner speaks separately\n\n"
-        f"Example of correct output:\n"
-        f"[Moderator]: Good point. Aarav, what is your take?\n"
-        f"[Aarav]: I strongly believe remote work reduces cohesion because...\n"
-        f"[Meera]: I disagree — in fact remote work has been shown to...\n\n"
-        f"Produce ONLY the next round. Do not re-state the learner's words. Do not give coaching or feedback."
-    )
 
 
 def _sim_history(messages: list[dict], limit: int = 8) -> str:
@@ -278,54 +199,131 @@ def _sim_history(messages: list[dict], limit: int = 8) -> str:
     return "\n".join(lines)
 
 
-def _gd_tension_level(state: dict) -> int:
-    """Derive tension level from completed GD rounds (capped at 2).
+async def _stream_speaker_turn(persona, intent, transcript, bb, roster):
+    """Stream one persona's spoken turn, guaranteeing non-empty output.
 
-    0-1 rounds: level 0 — independent reactions.
-    2-3 rounds: level 1 — direct cross-persona challenge.
-    4+ rounds:  level 2 — heated cross-fire, learner must mediate.
-    """
-    return min(state.get("gd_turn_count", 0) // 2, 2)
+    Yields the persona's text tokens; if the model returns nothing (a backend
+    hiccup) it yields a single re-prompt line so a turn never dead-ends. The
+    caller accumulates the yielded tokens to recover the full text."""
+    produced = False
+    async for tok in stream_persona_turn(persona, intent, transcript, bb, roster):
+        produced = produced or bool(tok.strip())
+        yield tok
+    if not produced:
+        yield _EMPTY_TURN_FALLBACK
 
 
 async def stream_simulation_round(state: dict) -> AsyncIterator[object]:
-    """Run one simulation round: one model pass, parsed into Speaker + text.
+    """Run one writers'-room round: Director decides, one Persona streams.
 
-    The roster is built once and cached in `state["personas"]`; the prompt is
-    rendered from the topic + learner's latest input; the single streamed
-    generation is split into per-persona Speaker markers and text tokens.
-    `gd_turn_count` increments each round so tension escalates over time.
+    The roster is built once and cached in `state["personas"]`; the Blackboard
+    (shared group memory) is created lazily and persisted in `state["blackboard"]`.
+    The Director picks WHO speaks and WHAT intent; this round yields a `Speaker`
+    marker, a `SimulationState` snapshot, then that speaker's streamed text. A
+    director failure falls back to a safe decision inside `decide_round`, and an
+    empty persona turn falls back to a single re-prompt line so a round never
+    dead-ends.
     """
+    messages = state.get("messages", [])
     task_type = TaskType(state["task_type"])
     personas = state.get("personas") or build_personas(
         task_type, state.get("sim_topic", "")
     )
     state["personas"] = personas
+    topic = state.get("sim_topic", "")
+    transcript = _sim_history(messages, limit=8)
+    bb = state.get("blackboard") or new_blackboard(topic)
 
-    tension = _gd_tension_level(state)
-    prompt = build_simulation_prompt(
-        task_type,
-        personas,
-        state.get("sim_topic", ""),
-        state.get("messages", []),
-        state.get("user_input", ""),
-        tension_level=tension,
+    # Phase the discussion is in BEFORE the Director moves — drives how many
+    # panelists cross-talk this round (a fresh round opens single-voice).
+    prev_phase = bb.get("phase", "opening")
+
+    new_bb, persona, decision = await decide_round(
+        bb, personas, task_type, transcript, state.get("probe_items")
     )
-    spec = GenSpec(
-        provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="simulation"
+    speaker_id = persona["speaker_id"]
+    # Consume the Director's close signal (or the hard round cap) — previously
+    # decided every round and never read, so the sim never self-terminated. On
+    # the cap, flag the session over so the runner can wind down.
+    should_close = bool(decision.should_close) or new_bb["turn"] >= MAX_SIM_ROUNDS
+    if new_bb["turn"] >= MAX_SIM_ROUNDS:
+        state["session_over"] = True
+
+    # ----- primary speaker: the Director's chosen voice + intent -----
+    # One SimulationState per round (the round snapshot) is emitted here with the
+    # primary speaker; reactors below add only Speaker markers + text.
+    yield Speaker(speaker_id=speaker_id, name=persona["name"])
+    yield SimulationState(
+        turn=new_bb["turn"],
+        speaker_id=speaker_id,
+        tension=new_bb["tension"],
+        should_close=should_close,
     )
-    async for item in split_persona_stream(stream_generation(spec), personas):
-        yield item
-    # increment after yielding so the current round's level is already in the prompt
-    state["gd_turn_count"] = state.get("gd_turn_count", 0) + 1
+    running_transcript = transcript
+    chunks: list[str] = []
+    async for tok in _stream_speaker_turn(
+        persona, decision.intent, running_transcript, new_bb, personas
+    ):
+        chunks.append(tok)
+        yield tok
+    last_name = persona["name"]
+    full_text = "".join(chunks).strip()
+    new_bb = note_turn(new_bb, speaker_id, full_text)
+    running_transcript = f"{running_transcript}\n[{last_name}]: {full_text}"
+
+    # ----- reactor exchange (GD cross-talk): bounded + deterministic -----
+    # Each reactor is a DIFFERENT voice (rotation off whoever just spoke), told
+    # to engage the previous speaker by name. Reactors use note_turn only (no
+    # apply_decision), so they don't inflate the round count that drives the cap.
+    # Rotation is over the debater pool only — the Moderator facilitates as a
+    # primary speaker but never jumps in as a cross-talk reactor.
+    reactor_pool = _reactor_pool(personas)
+    for _ in range(_extra_speakers(prev_phase, should_close, task_type)):
+        reactor_id = _next_in_rotation(reactor_pool, new_bb["last_speaker"])
+        reactor = next(p for p in personas if p["speaker_id"] == reactor_id)
+        yield Speaker(speaker_id=reactor_id, name=reactor["name"])
+        r_chunks: list[str] = []
+        async for tok in _stream_speaker_turn(
+            reactor, _reactor_intent(last_name), running_transcript, new_bb, personas
+        ):
+            r_chunks.append(tok)
+            yield tok
+        r_text = "".join(r_chunks).strip()
+        new_bb = note_turn(new_bb, reactor_id, r_text)
+        running_transcript = f"{running_transcript}\n[{reactor['name']}]: {r_text}"
+        last_name = reactor["name"]
+
+    state["blackboard"] = new_bb
+
+
+_ROUND_QUALITY_WEIGHT = 0.4   # weight on the per-round director reads in the score blend
 
 
 async def score_session(state: dict) -> SimulationReport:
     """Score a finished TEST simulation over its whole transcript.
 
     Called at session end (never mid-stream): delegates to the AI boundary's
-    evaluate_simulation with the task's strict behavior pack."""
+    evaluate_simulation with the task's strict behavior pack, then GROUNDS that
+    single end-of-session pass in the Director's per-round reads of the learner.
+
+    The holistic pass sees only a truncated TAIL of the transcript and is a single
+    high-variance sample; the blackboard's `qualities` series carries one
+    answer_quality per round across the WHOLE session. We blend LLM-primary
+    (weight 1 - _ROUND_QUALITY_WEIGHT) so the rubric-aware score still leads and the
+    round mean only corrects truncation/variance — and only when rounds actually
+    ran. A fallback-only session (no director rounds) keeps the LLM score alone.
+    Only the top-line `score` is blended; the rubric sub-scores stay as scored."""
     task_type = TaskType(state["task_type"])
-    return await evaluate_simulation(
+    report = await evaluate_simulation(
         task_type, state.get("sim_topic", ""), state.get("messages", [])
     )
+    qualities = (state.get("blackboard") or {}).get("qualities", [])
+    if qualities:
+        round_mean = sum(qualities) / len(qualities)
+        blended = round(
+            (1 - _ROUND_QUALITY_WEIGHT) * report.score
+            + _ROUND_QUALITY_WEIGHT * round_mean,
+            4,
+        )
+        report = report.model_copy(update={"score": blended})
+    return report
