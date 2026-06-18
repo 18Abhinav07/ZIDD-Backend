@@ -77,13 +77,35 @@ class SessionRecap:
     weaknesses: list        # weakness_context rows (skill_id, hit_count, last_raw)
     avg_score: float        # current_mastery at close
 
+
+@dataclass(frozen=True)
+class AdaptationCue:
+    """Selector rationale surfaced to the UI when the path adapts.
+
+    Emitted on advancing turns (ADVANCE / REMEDIATE) right after ProgressUpdate
+    and before NodeAdvance, carrying the selector's decision so the UI can show a
+    short 'adapting your path' cue. Read verbatim from state['last_selection'];
+    suppressed on REPEAT and on module-done turns (last_selection is None there)."""
+
+    action: str
+    band: str
+    rationale: str
+
 from app.config import get_settings
 from app.ai.calls import (
     GEMINI_FLASH,
     GenSpec,
     evaluate_placement,
+    select_next_content,
     stream_generation,
     summarize_session,
+)
+from app.ai.schemas import SelectionDecision
+from app.services.selector import (
+    build_selection_snapshot,
+    compute_valid_candidates,
+    fallback_decision,
+    validate_decision,
 )
 from app.ai.behaviors import behavior_for_value
 from app.ai.prompts import build_opening_prompt, coach_view
@@ -99,6 +121,7 @@ from app.content.registry import (
     placement_node,
     uses_grade_placement,
 )
+from app.content.motions import motion_for_node
 from app.content.skills import coerce_skill_id
 from app.content.task_types import (
     TaskType,
@@ -132,6 +155,7 @@ PASSRATE_FLOOR = 0.5         # module clean-rate below this -> remediation
 PASS_SCORE = 0.7         # a single answer at/above this is a clean pass
 ADVANCE_STREAK = 2       # this many consecutive clean passes -> advance node
 FAIL_SCORE = 0.4         # below this counts as a hard fail at this level
+INCOMPLETE_SCORE = 0.5   # neutral "couldn't assess" marker — never persist a silent 0.0
 DOWN_LADDER_FAILS = 2    # this many hard fails -> scaffold HARD (down-ladder)
 MAX_INPUT_CHARS = 2000   # cap learner input; protects ctx window + cost
 
@@ -144,14 +168,30 @@ _END_PHRASES = {
     "im done for today", "i'm done for today", "done here",
 }
 
-# Strong farewell tokens — if any appear as a word in the message it's a goodbye.
-# Distinct from "done"/"stop" which appear in real answers; "bye"/"quit" do not.
-_BYE_TOKENS = {"bye", "goodbye", "quit", "exit", "ciao", "tata"}
+# Pure farewell tokens — they appear ONLY as goodbyes, never inside a real answer,
+# so a single occurrence anywhere in the message ends the session (no length gate).
+_FAREWELL_TOKENS = {"bye", "goodbye", "ciao", "tata"}
+# Ambiguous end words — also ordinary CONTENT words ("I had to quit my last job",
+# "we should exit that market segment"), so they only signal a farewell in a SHORT
+# message. A bare "quit"/"exit" is still caught by the exact-match _END_PHRASES tier.
+_AMBIGUOUS_END_TOKENS = {"quit", "exit"}
 # Phrases that signal discouragement -> pivot to support on the next turn.
 _FRUSTRATION_PHRASES = (
     "i can't", "i cant", "give up", "too hard", "i'm confused", "im confused",
     "i don't get", "i dont get", "this is hard", "i'm lost", "im lost",
     "i give up", "frustrated", "i can not",
+)
+# Positive / negated idioms that CONTAIN a frustration phrase but are NOT
+# discouragement ("I can't wait", "I'm not frustrated", "hard work pays off").
+# These veto a match so the support pivot never patronises a confident learner.
+_FRUSTRATION_OVERRIDES = (
+    "can't wait", "cant wait", "can not wait", "cannot wait",
+    "not frustrated", "n't frustrated", "not confused", "n't confused",
+    "not lost", "n't lost", "not hard", "n't hard", "not that hard",
+    "not so hard", "not too hard", "n't too hard", "n't so hard",
+    "n't that hard", "never give up", "not giving up",
+    "won't give up", "wont give up", "don't give up", "dont give up",
+    "do not give up", "hard work",
 )
 
 # session_id -> TutorState dict
@@ -173,8 +213,10 @@ def _lock_for(session_id: str) -> asyncio.Lock:
 # Keys that are transient within a single turn and must NOT be persisted:
 # `pending` holds a GenSpec (a frozen dataclass, not JSON-serializable, and only
 # meaningful for the in-flight stream). `pending_game` holds a FillBlankGame dict
-# for scaffold turns — consumed this turn, never written to disk.
-_TRANSIENT_KEYS = ("pending", "pending_game")
+# for scaffold turns — consumed this turn, never written to disk. `last_selection`
+# is the Spec B selector's read of the most recent advance (action/band/rationale),
+# meaningful only for the current turn's adaptation cues — not persisted.
+_TRANSIENT_KEYS = ("pending", "pending_game", "last_selection")
 
 
 def _store_path() -> str:
@@ -233,6 +275,7 @@ def _new_state(
         # the panel debates, and the persona roster cached after the first round.
         "sim_topic": sim_topic,
         "personas": None,
+        "blackboard": None,
         # Precomputed/loaded assessment probe bank (list[dict]); empty for
         # coaching sessions. Hydrated at TEST start from the precache or a
         # synchronous regeneration. Persisted (not a transient key).
@@ -240,10 +283,25 @@ def _new_state(
         "current_mastery": 0.0,
         "turn_count": 0,
         "messages": [],
+        # True once the fresh-session opening has been streamed (stream_opening).
+        # The transcript endpoint surfaces it so a browser reload restores the
+        # existing transcript instead of replaying a second opening.
+        "opening_streamed": False,
         "last_diagnosis": {},
         "last_eval_score": 0.0,
         "bridge_attempts": 0,
+        "clarify_attempts": 0,
+        "redirect_attempts": 0,
         "attempts": 0,
+        # session-scoped attempt counter (NOT restored from storage) so the
+        # ceiling-escape (first strong answer -> challenge) is reachable for a
+        # returning learner whose lifetime `attempts` was loaded from disk.
+        "session_attempts": 0,
+        # pre-authored bridge bookkeeping (deterministic grading + no-repeat)
+        "pending_answer_key": None,
+        "served_bridge_ids": [],
+        # set per eval turn; True only when a bridge fill was graded (H1 gate)
+        "last_graded_bridge": False,
         "memory_context": memory_context,
         # aggregated prior weaknesses (list of dicts: skill_id/hit_count/last_raw)
         # hydrated at start_session; Phase 1.3 threads it into _memory_block.
@@ -251,6 +309,8 @@ def _new_state(
         "session_summary": None,
         "pending": None,
         "pending_game": None,
+        # Spec B: the selector's read of the most recent advance (transient).
+        "last_selection": None,
         "last_route": None,
         # personalization / progression bookkeeping (service-owned; coach_view
         # projects a subset of these into the private coaching directive block)
@@ -276,11 +336,20 @@ def _new_state(
 def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
     """Build the assessment simulation topic for a TEST session.
 
-    Anchored on the node's teach_focus; if the learner has logged prep
-    weaknesses, the highest-ranked one (get_weaknesses orders by hit_count) is
-    folded in as a probe target so the persona panel presses exactly there.
-    Falls back to the bare focus when no prep history exists.
+    GROUP DISCUSSION (P0-4): return a CONCRETE debate motion from the motion bank
+    — never the node's teach_focus, which is a teaching instruction, not a
+    debatable proposition. The motion is stored once and shared verbatim by the
+    opening brief, the director, and every persona, so the learner argues exactly
+    the motion the panel debates. Weakness pressing for GD now rides probe_items
+    (threaded into the director), so it is intentionally NOT folded in here — that
+    would leak "probe their weakness: X" into the learner-facing opening.
+
+    INTERVIEW: anchored on the node's teach_focus; the top logged prep weakness is
+    folded in as a probe target so the interviewer presses exactly there. Falls
+    back to the bare focus when no prep history exists.
     """
+    if module_of(node_id) == "group_discussion":
+        return motion_for_node(node_id)
     focus = get_node(node_id).teach_focus
     if weaknesses:
         top = weaknesses[0]
@@ -324,7 +393,6 @@ async def start_session(
     weakness_context: list = []
     current_mastery = 0.0
     attempts = 0
-    clean_pass = False
 
     # Storage dispatcher: LOCAL SQLite when ai_backend=="local" (works OFFLINE,
     # the qwen-dev default), Postgres otherwise. Best-effort: storage hiccups
@@ -344,11 +412,37 @@ async def start_session(
             if p["node_id"] == node_id:
                 current_mastery = p["ema"]
                 attempts = p["attempts"]
-                clean_pass = p["clean_pass"]
                 break
     except Exception:
+        # Best-effort: a storage hiccup must never block a session from starting.
+        # But do NOT swallow it silently — that hides store/load failures and
+        # runs the assessment with no prior-session memory or weakness targeting.
+        # Log with the stack so the degradation is observable, then continue with
+        # empty context.
+        logger.warning(
+            "start_session: storage load failed for user=%s node=%s; "
+            "continuing with empty memory/weakness context",
+            user_id,
+            node_id,
+            exc_info=True,
+        )
         memory_context = []
         weakness_context = []
+
+    # Source the learner's display name from their stored profile (set at
+    # registration) so the coach can address them by name. Isolated + best-effort:
+    # a missing or failed profile read must NEVER abort the session or the
+    # memory/weakness load above — the coach simply stays nameless. ensure_profile
+    # is non-clobbering on an empty name, so a returning learner keeps their name.
+    if not learner_name:
+        try:
+            prof = await get_storage().get_profile(user_id)
+            if prof and prof.get("name"):
+                learner_name = prof["name"]
+        except Exception:
+            logger.debug(
+                "start_session: profile name lookup failed for user=%s", user_id, exc_info=True
+            )
 
     last_summary = ""
     if attempts > 0:
@@ -375,9 +469,16 @@ async def start_session(
     # Apply loaded progress
     state["current_mastery"] = current_mastery
     state["attempts"] = attempts
-    if clean_pass:
-        state["clean_streak"] = 1
-        
+    # clean_streak deliberately starts at 0 even for a returning learner who
+    # clean-passed this node before. Pre-crediting half of ADVANCE_STREAK let ONE
+    # clean answer this session re-advance them (or a single borderline 0.7 trip
+    # the clean_streak>=1 challenge gate) without re-proving anything. Retained
+    # mastery is still honored: current_mastery loads the prior EMA, and a genuinely
+    # strong return (score >= CEILING_SCORE on the first session attempt) still
+    # routes straight to challenge via route_node's session_attempts escape,
+    # independent of the streak. The learner just re-proves the streak in-session.
+
+
     if last_summary:
         state["messages"].append({
             "role": "assistant",
@@ -394,6 +495,15 @@ async def start_session(
     return session_id, state
 
 
+def _gd_sim_topic(state: dict) -> str:
+    """The concrete GD motion to brief in the opening — only for GD assessment
+    sessions. For interview/coaching, sim_topic is an instruction/focus, not a
+    debatable motion, so the opening stays generic."""
+    if state.get("task_type") == TaskType.GD_TEST.value:
+        return state.get("sim_topic", "")
+    return ""
+
+
 async def stream_opening(session_id: str) -> AsyncIterator[str]:
     """Stream the lesson opening for a fresh session (turn 0)."""
     state = _require(session_id)
@@ -404,6 +514,7 @@ async def stream_opening(session_id: str) -> AsyncIterator[str]:
         coach_view(state),
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        sim_topic=_gd_sim_topic(state),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -413,6 +524,8 @@ async def stream_opening(session_id: str) -> AsyncIterator[str]:
     text = "".join(full)
     state["messages"].append({"role": "assistant", "content": text})
     state["turn_count"] += 1
+    # Mark the opening as streamed so a reload rehydrates instead of replaying it.
+    state["opening_streamed"] = True
     save_sessions()
 
 
@@ -429,6 +542,7 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
         coach_view(state),
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        sim_topic=_gd_sim_topic(state),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -490,6 +604,18 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
     # progression, no advance here.
     if state.get("task_type") in _TEST_TASK_TYPES:
         from app.services.simulation_service import Speaker
+        # The sim self-terminated on a prior round (Director close or the hard
+        # round cap set session_over). Don't run another round — wind down and
+        # point the learner at their scored recap (via /end).
+        if state.get("session_over"):
+            closing = (
+                "That's where we'll close the session. Tap finish to see your "
+                "scored feedback and where to focus next."
+            )
+            state["messages"].append({"role": "assistant", "content": closing})
+            save_sessions()
+            yield closing
+            return
         spoken: list[str] = []
         async for item in stream_simulation_round(state):
             if isinstance(item, Speaker):
@@ -604,6 +730,18 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
             attempts=state.get("attempts", 0),
         )
 
+        # Selector rationale cue: surface WHY the path adapted, on advancing
+        # turns only. last_selection is None on REPEAT and module-done turns,
+        # so this naturally suppresses there. Fires after progress_update and
+        # before node_advance so the UI can show the cue then open the new node.
+        sel = state.get("last_selection")
+        if sel and sel.get("action") in ("ADVANCE", "REMEDIATE"):
+            yield AdaptationCue(
+                action=sel["action"],
+                band=sel.get("band", "standard"),
+                rationale=sel.get("rationale", ""),
+            )
+
         if state["module_done"]:
             yield SessionRecap(
                 nodes_completed=list(state.get("node_history", {}).keys()),
@@ -623,23 +761,56 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
 
 
 async def end_session(session_id: str) -> str:
-    """Summarize the session for long-term memory and close it out."""
+    """Back-compat wrapper: close the session and return its closing summary.
+
+    Many callers (scripts, the older tests) depend on the bare-string return.
+    `close_session` is the full-payload entry point the /end route uses to also
+    surface the scored simulation report."""
+    return (await close_session(session_id))["summary"]
+
+
+async def close_session(session_id: str) -> dict:
+    """Summarize/score the session, persist memory, close it out, and return the
+    full closing payload: ``{summary, report, score}``.
+
+    For TEST-mode (assessment) sessions the whole transcript is scored once via
+    `score_session`, and `report` is the full `SimulationReport` dict — the five
+    sub-scores plus strengths and improvements, i.e. the deferred feedback the
+    learner earned across the simulation. For coaching ("prep") sessions `report`
+    is None and only the summary applies. Returning the report here is the fix for
+    the recap that previously discarded every score but the one-line summary."""
     state = SessionStore.get(session_id)
     if state is None:
-        return ""
+        return {"summary": "", "report": None, "score": 0.0}
     node = get_node(state["competency_node"])
     # TEST-mode sessions are scored once over the whole transcript (deferred from
     # the streamed rounds); the report's summary is the closing summary and its
     # score is the persisted result. PREP sessions summarise the coaching dialog.
     is_test = state.get("task_type") in _TEST_TASK_TYPES
     avg_score = state.get("current_mastery", 0.0)
+    report_dict: dict | None = None
     if is_test:
         try:
             report = await score_session(state)
             summary = report.summary
             avg_score = report.score
+            # The full report (sub-scores + strengths + improvements) is the
+            # learner-facing payload — persisted to memory below and returned to
+            # the /end route so it actually reaches the learner.
+            report_dict = report.model_dump()
         except Exception:
+            # score_session failed (model/JSON fault) or the learner quit before a
+            # scorable transcript existed. Do NOT fall through with avg_score still
+            # equal to current_mastery: a TEST session never runs the per-skill EMA,
+            # so current_mastery is ~0.0 and persisting it would silently brand the
+            # learner with a zero they never earned. Fall back to the director's
+            # grounded read (blackboard last_quality) if any round actually ran,
+            # else a neutral incomplete marker (mirrors _neutral_diagnosis's 0.5).
             summary = ""
+            bb = state.get("blackboard") or {}
+            avg_score = (
+                bb["last_quality"] if bb.get("turn", 0) > 0 else INCOMPLETE_SCORE
+            )
     else:
         try:
             summary = await summarize_session(node, state["messages"])
@@ -671,7 +842,19 @@ async def end_session(session_id: str) -> str:
     # so a later TEST start opens instantly instead of blocking on generation.
     # No-op for TEST sessions and single-mode modules (no distinct test sibling).
     if not is_test:
-        await _precache_test_items(state)
+        # Best-effort optimization that warms the TEST sibling's probe bank by
+        # calling the LLM. Under shared-model load that call can raise — but the
+        # session is already scored and persisted above, so a precache failure must
+        # NEVER 500 the /end response and lose the learner's report. Swallow + log.
+        try:
+            await _precache_test_items(state)
+        except Exception:
+            logger.warning(
+                "close_session: probe precache failed for session=%s; "
+                "report still returned",
+                session_id,
+                exc_info=True,
+            )
 
     logger.info(
         "session_end_analytics",
@@ -690,7 +873,7 @@ async def end_session(session_id: str) -> str:
     SessionStore.pop(session_id, None)
     _SESSION_LOCKS.pop(session_id, None)  # E24: don't leak a lock per closed session
     save_sessions()
-    return summary
+    return {"summary": summary, "report": report_dict, "score": avg_score}
 
 
 def get_state(session_id: str) -> dict | None:
@@ -829,13 +1012,44 @@ def _update_progress(state: dict) -> None:
     diag = state.get("last_diagnosis", {})
     if not diag.get("english", True):
         return
+    # Competent English again: the consecutive non-English run that drives the
+    # clarify cap is broken, so refund clarify_attempts (P1, mirrors the redirect
+    # refund below). This sits ABOVE the on_task guard on purpose — producing
+    # English ends the clarify streak whether or not the answer is on-task — and it
+    # cannot defeat the cap, because an english=True turn never routes through
+    # clarify (clarify only fires, and increments, when english is False, on which
+    # turns this function early-returns above without touching the counter).
+    state["clarify_attempts"] = 0
     if not diag.get("on_task", True):
         return
+    # Back on-task: the fluent-off-task streak is over, so refund the redirect cap
+    # (P0-6) — a learner who strayed then returned is not penalized on their next
+    # stray.
+    state["redirect_attempts"] = 0
     score = state.get("last_eval_score", 0.0)
     if score >= PASS_SCORE:
-        state["clean_streak"] = state.get("clean_streak", 0) + 1
+        # A correct BRIDGE fill (graded deterministically against its answer key,
+        # BRIDGE_CORRECT_SCORE == PASS_SCORE) is a scaffolded sub-step, NOT a clean
+        # pass at this node: it still breaks the fail streak and refunds the bridge
+        # cap (below), but must NOT accrue toward the advance streak — else two
+        # scaffolded-down fills would promote a struggling learner to harder
+        # content (H1). `last_route` is the wrong signal here (route_node has
+        # already moved it past "bridge" for a >= PASS score), so gate on the
+        # bridge-grade flag evaluate_node set THIS turn.
+        if not state.get("last_graded_bridge"):
+            state["clean_streak"] = state.get("clean_streak", 0) + 1
         state["level_fails"] = 0
         state["strengthen_attempts"] = 0
+        # Clean pass: the learner climbed out of bridge (sub-0.4) territory, so the
+        # consecutive-bridge run is over — refund the bridge cap (P1). Gated on a
+        # full PASS, NOT merely score >= FAIL_SCORE: route_node runs BEFORE this
+        # fold (graph.ainvoke precedes _update_progress in the turn) and increments
+        # bridge_attempts on the same turn it picks bridge, and a >= PASS answer
+        # provably never routes to bridge — so resetting here can never wipe a fresh
+        # increment and re-open the infinite-bridge soft-lock. Mirrors level_fails /
+        # strengthen_attempts, the sibling down-ladder counters that also clear only
+        # on a clean pass.
+        state["bridge_attempts"] = 0
         state["scaffold"] = 0
         return
     state["clean_streak"] = 0
@@ -849,7 +1063,19 @@ async def _maybe_advance(state: dict) -> None:
     """Advance the node on a consecutive clean-pass streak (NOT EMA mastery).
 
     Records the just-finished node's clean flag, recomputes module pass-rate for
-    remediation, then resets every per-node counter for the next node."""
+    remediation, then runs the Spec B two-stage selector to pick the next node
+    and resets every per-node counter for it.
+
+    Spec B selector (advancement primitive): the deterministic stage
+    (`compute_valid_candidates`) narrows the valid next-content set; only when it
+    leaves more than one candidate does the single LLM call (`select_next_content`)
+    decide. In the linear MVP module there is exactly ONE candidate (the linear
+    next node), so the fast path below synthesizes the same ADVANCE decision the
+    old `next_node` block produced — no model call — and the reset is byte-for-byte
+    the previous behavior. That is why the existing advance tests stay green."""
+    # Clear any stale read from a prior turn before the gate so a non-advancing
+    # turn reports no selection (transient; never persisted).
+    state["last_selection"] = None
     if state.get("clean_streak", 0) < state.get("advance_streak", ADVANCE_STREAK):
         return
 
@@ -858,20 +1084,66 @@ async def _maybe_advance(state: dict) -> None:
     state["node_history"][node_id] = {"attempts": state["attempts"], "clean": clean}
     state["remediation"] = _passrate_below_floor(state)
 
-    nxt = next_node(node_id)
-    if nxt is None:
+    # Stage 1: deterministic valid candidates. Empty -> module finished.
+    candidates = compute_valid_candidates(state)
+    if not candidates:
         state["module_done"] = True
         # Module finished above the clean-rate floor -> surface a review section.
         state["review_level"] = not state["remediation"]
         return
+
+    if len(candidates) == 1:
+        # Fast path: single valid candidate. Reproduces the old linear advance
+        # exactly — no LLM call (Spec B: never call the model with one candidate).
+        cand = candidates[0]
+        decision = SelectionDecision(
+            action=cand["action"],
+            next_ref=cand["next_ref"],
+            band=cand.get("band", "standard"),
+            rationale="single valid candidate",
+        )
+    else:
+        # Stage 2: more than one candidate -> one structured LLM call, then
+        # validate/backstop. A model/transport failure never blocks the advance.
+        snapshot = build_selection_snapshot(state)
+        try:
+            decision = await select_next_content(snapshot, candidates)
+        except Exception:
+            decision = fallback_decision(state, candidates)
+        decision = validate_decision(decision, candidates, state)
+
+    # Surface the selector's read for this turn's adaptation cues (transient).
+    state["last_selection"] = {
+        "action": decision.action,
+        "band": decision.band,
+        "rationale": decision.rationale,
+    }
+
+    # REPEAT keeps the learner on the current node: hold position, reset the
+    # streak so they must earn the next advance again.
+    if decision.action == "REPEAT":
+        state["clean_streak"] = 0
+        return
+
     # Fast clean advance (cleared the node within the clean-pass cap) earns a
     # harder tester stretch on the next node; a grind-it-out advance does not.
     state["tester_level"] = clean
+    # `review_level` is a per-node SECTION flag set only when a module finishes
+    # (above). It is NOT auto-cleared, and level_kind reads it BEFORE tester_level,
+    # so a value leaking in from a prior finished module would mask every node in
+    # the next module as "review". Reset it here with the rest of the per-node
+    # slate so a normal advance always starts the new node section-clean.
+    state["review_level"] = False
     # advance: fresh mastery/attempt/streak counters for the next node
-    state["competency_node"] = nxt
+    state["competency_node"] = decision.next_ref
     state["current_mastery"] = 0.0
     state["attempts"] = 0
+    state["session_attempts"] = 0   # re-arm ceiling-escape at the new node
     state["bridge_attempts"] = 0
+    state["clarify_attempts"] = 0
+    state["redirect_attempts"] = 0
+    state["served_bridge_ids"] = []
+    state["pending_answer_key"] = None
     state["clean_streak"] = 0
     state["level_fails"] = 0
     state["strengthen_attempts"] = 0
@@ -901,6 +1173,17 @@ async def _track_turn(state: dict, node_id: str) -> None:
     on_task = diag.get("on_task", True)
     english = diag.get("english", True)
     affect = diag.get("affect", "neutral")
+    # Stash the affect/score of THIS scored answer (FIX #4). On an advancing turn,
+    # _maybe_advance (called after _track_turn) clears last_diagnosis/last_eval_score
+    # BEFORE the SSE "done" frame is built, so the done frame would otherwise show
+    # neutral/0.0 instead of the real affect of the answer that advanced. This field
+    # is NOT cleared on advance, so _state_snapshot can source the display values here.
+    state["last_turn_affect"] = {
+        "affect": affect,
+        "on_task": on_task,
+        "english": english,
+        "last_eval_score": score,
+    }
     try:
         store = get_storage()
         await store.record_turn(
@@ -1022,11 +1305,15 @@ async def _persist_mastery(state: dict) -> None:
 def _is_session_end(user_input: str) -> bool:
     """True when the learner's message is a farewell, not an answer.
 
-    Two-tier detection:
+    Three-tier detection:
     1. Exact-match against _END_PHRASES (≤5-word gate kept for weak tokens
        like "done"/"stop" that appear in real answers).
-    2. Token-scan for strong bye-tokens ("bye", "goodbye", "quit", "exit") —
-       these don't appear in answers, so no length gate is needed.
+    2. Token-scan for PURE farewell tokens ("bye", "goodbye", "ciao", "tata") —
+       these never appear inside a real answer, so no length gate is needed.
+    3. Length-gated scan for AMBIGUOUS end words ("quit", "exit"): they are also
+       ordinary content words, so they only end a SHORT message. A substantive
+       answer like "I had to quit my previous job because of a relocation" must
+       still reach scoring, not be silently discarded as a farewell.
     """
     text = (user_input or "").strip().lower().rstrip(".!,")
     if not text:
@@ -1038,13 +1325,33 @@ def _is_session_end(user_input: str) -> bool:
 
     # Token-scan: split on whitespace + strip punctuation from each word
     words = {re.sub(r"[^a-z']", "", w) for w in text.split()}
-    return bool(words & _BYE_TOKENS)
+    if words & _FAREWELL_TOKENS:
+        return True
+    # "quit"/"exit" only signal a farewell when the whole message is short.
+    if len(text.split()) <= 3 and words & _AMBIGUOUS_END_TOKENS:
+        return True
+    return False
 
 
 def _detect_frustration(user_input: str) -> bool:
-    """True when the learner's message carries a discouragement signal."""
+    """True when the learner's message carries a discouragement signal.
+
+    A HIGH-PRECISION pre-gate, not the only signal: the LLM affect read upgrades
+    needs_support after the graph runs, so a borderline case this misses is still
+    caught next turn. We therefore favour precision. A naive substring scan fired
+    support on upbeat messages like "I can't wait to start, this is fun!" and
+    "I'm not frustrated at all" — patronising a confident learner. We veto known
+    positive/negated idioms (_FRUSTRATION_OVERRIDES) and match phrases on word
+    boundaries. Deeply ambiguous literal content (e.g. "I gave up smoking") is
+    intentionally left to the LLM affect backstop rather than chased with brittle
+    rules.
+    """
     text = (user_input or "").lower()
-    return any(p in text for p in _FRUSTRATION_PHRASES)
+    if any(ov in text for ov in _FRUSTRATION_OVERRIDES):
+        return False
+    return any(
+        re.search(r"\b" + re.escape(p) + r"\b", text) for p in _FRUSTRATION_PHRASES
+    )
 
 
 def _farewell(state: dict) -> str:
