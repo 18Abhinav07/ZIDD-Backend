@@ -5,6 +5,9 @@ skill scores 0.0 by the ruthless rubric, but the learner is clearly capable, so
 scaffolding down (bridge) is wrong. Steer them back to the actual task instead.
 
 Does NOT touch bridge_attempts / level_fails — being off-task is not struggling.
+Increments redirect_attempts so route_node can cap the steer-backs (a learner who
+stays fluently off-task otherwise soft-locks here forever); _update_progress
+refunds the counter to 0 the moment they answer on-task again.
 """
 from app.ai.calls import GEMINI_FLASH, GenSpec
 from app.ai.behaviors import behavior_for_value
@@ -26,4 +29,8 @@ async def redirect_node(state: dict) -> dict:
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="redirect"
     )
-    return {"pending": spec, "last_route": "redirect"}
+    return {
+        "pending": spec,
+        "last_route": "redirect",
+        "redirect_attempts": state.get("redirect_attempts", 0) + 1,
+    }

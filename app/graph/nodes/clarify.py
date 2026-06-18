@@ -28,4 +28,8 @@ async def clarify_node(state: dict) -> dict:
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="clarify"
     )
-    return {"pending": spec, "last_route": "clarify"}
+    return {
+        "pending": spec,
+        "last_route": "clarify",
+        "clarify_attempts": state.get("clarify_attempts", 0) + 1,
+    }
