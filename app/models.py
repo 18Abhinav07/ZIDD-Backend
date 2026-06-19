@@ -21,7 +21,26 @@ class TutorState(TypedDict):
     last_diagnosis: dict
     last_eval_score: float
     bridge_attempts: int
+    # NOTE: every key a graph NODE returns must be declared here. LangGraph's
+    # StateGraph(TutorState) treats the TypedDict keys as the only channels, and
+    # SILENTLY DROPS any returned key not listed — an undeclared counter would be
+    # computed by the node and then lost on the way back to the service. These
+    # remediation counters are all written by graph nodes, so they live here.
+    clarify_attempts: int         # consecutive "say it in English" nudges (clarify cap)
+    redirect_attempts: int        # consecutive fluent-off-task steer-backs (redirect cap)
     attempts: int                 # scored answers this node (clean-pass tracking)
+    session_attempts: int         # scored answers THIS session (ceiling-escape gate)
+    # Pre-authored bridge bookkeeping: the served exercise's answer key (so the
+    # NEXT turn can grade a fill_blank/MCQ deterministically instead of by fuzzy
+    # rubric) and the ids already served this node (so bridge never repeats one).
+    pending_answer_key: Optional[dict]
+    served_bridge_ids: list
+    # True only on a turn that graded a served BRIDGE fill against its answer key
+    # (set by evaluate_node, read by _update_progress). A correct bridge fill is a
+    # scaffolded sub-step, NOT a clean pass at this node, so the advance-streak
+    # increment is gated on this being False (H1) — otherwise two scaffolded-down
+    # fills would promote a struggling learner to harder content.
+    last_graded_bridge: Optional[bool]
     memory_context: list   # list[dict] from load_context; str accepted for legacy compat
     weakness_context: list        # aggregated prior weaknesses (get_weaknesses rows)
     session_summary: Optional[str]
@@ -43,6 +62,8 @@ class TutorState(TypedDict):
     # TEST-mode (assessment) simulation state; empty/None for coaching sessions.
     sim_topic: str                # the topic the persona panel debates/probes
     personas: Optional[list]      # roster cached after the first simulation round
+    blackboard: Optional[dict]    # writers'-room group memory; lazy-init on the first simulation round
+    probe_items: Optional[list]   # prep-weakness probe bank threaded into the Director prompt (test mode)
 
 
 # ===== API contract v0 (skeleton — wired when graph lands) =====
@@ -143,6 +164,14 @@ class SimulationStateFrame(BaseModel):
     turn: int
     speaker_id: str
     tension: float
+    should_close: bool = False   # Director wind-down / hard round-cap signal
+
+
+class AdaptationCueFrame(BaseModel):
+    """event: adaptation_cue — selector rationale when the learning path adapts."""
+    action: str        # "ADVANCE" | "REMEDIATE"
+    band: str          # "foundational" | "standard" | "stretch"
+    rationale: str     # short human-readable reason from the selector
 
 
 class DoneFrame(BaseModel):
@@ -169,3 +198,8 @@ class DoneFrame(BaseModel):
     english: bool = True
     affect: str = "neutral"   # Literal["neutral","frustrated","confident","confused"]
     avatar_emotion: str = "neutral"  # derived from affect + last_eval_score
+    # TEST-mode persona roster (interview panel / GD debaters): list of
+    # {speaker_id, name, stance|role}. None for coaching sessions and the first
+    # simulation frame. Lets the simulator UI label bubbles/avatars with the real
+    # roster instead of a hardcoded fallback.
+    personas: Optional[list] = None

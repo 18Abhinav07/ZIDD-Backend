@@ -15,7 +15,7 @@ from app.api.health import router as health_router
 from app.api.routes import onboarding as onboarding_router
 from app.api.routes import router as session_router
 from app.api.billing_routes import router as billing_router
-from app.config import get_settings
+from app.config import get_jwt_secret, get_settings
 from app.db.engine import get_engine
 from app.services.session_service import load_sessions, save_sessions
 from app.middleware.auth import JWTAuthMiddleware
@@ -28,6 +28,8 @@ _UI_FILE = Path(__file__).parent / "static" / "index.html"
 async def lifespan(app: FastAPI):
     # Warm settings on boot; fail fast if .env malformed.
     get_settings()
+    # Fail at BOOT (not first request) if the JWT signing secret is unset.
+    get_jwt_secret()
     # Durability #1: restore any disk-persisted live sessions (no-op if disabled).
     load_sessions()
     yield
