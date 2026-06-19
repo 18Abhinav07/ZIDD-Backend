@@ -16,18 +16,27 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def _session():
+    """Yield an AsyncSession, or None when Postgres is unreachable.
+
+    Single yield per path: either we hand back a live session (closed in the
+    finally), or — if the engine/sessionmaker can't be built — we yield None so
+    the caller no-ops. A body exception propagates UNCHANGED: every PgStore
+    method wraps its own body and degrades, so this context manager never needs
+    to swallow. The old `except Exception: yield None` around the body yielded a
+    SECOND time, which makes asynccontextmanager raise
+    RuntimeError("generator didn't stop after athrow()") and masks the real
+    error; it was harmless only because no method ever let its body raise here.
+    """
     try:
         from app.db.engine import get_sessionmaker
 
         maker = get_sessionmaker()
+        sess = maker()
     except Exception:
         yield None
         return
-    sess = maker()
     try:
         yield sess
-    except Exception:
-        yield None
     finally:
         try:
             await sess.close()
@@ -35,7 +44,57 @@ async def _session():
             pass
 
 
+def _parse_context_rows(rows: list[dict]) -> list[dict]:
+    """Turn pgvector (node_id, content) rows into LocalStore's list[dict] shape.
+
+    Each row's `content` is a raw session summary (the 3-line Strengths/Watch/
+    Next focus format write_memory persists). Parse the named lines the same way
+    LocalStore and _memory_block do, and stamp the REAL competency node_id the row
+    carries so a caller matching a summary to a node (the welcome-back recap) works
+    identically on both backends. score/date are unknown on pg -> 0.0/"" (the
+    fields LocalStore fills), so both backends return structurally identical dicts.
+    """
+    result: list[dict] = []
+    for row in rows or []:
+        node_id = row.get("node_id", "") if isinstance(row, dict) else ""
+        chunk = ((row.get("content", "") if isinstance(row, dict) else "") or "").strip()
+        if not chunk:
+            continue
+        parsed: dict[str, str] = {}
+        for line in chunk.splitlines():
+            if line.startswith("Strengths:"):
+                parsed["strengths"] = line[len("Strengths:"):].strip()
+            elif line.startswith("Watch:"):
+                parsed["watch"] = line[len("Watch:"):].strip()
+            elif line.startswith("Next focus:"):
+                parsed["next_focus"] = line[len("Next focus:"):].strip()
+        result.append({
+            "node_id": node_id, "score": 0.0,
+            "strengths": parsed.get("strengths", ""),
+            "watch": parsed.get("watch", ""),
+            "next_focus": parsed.get("next_focus", ""),
+            "date": "", "raw": chunk,
+        })
+    return result
+
+
 class PgStore:
+    async def ping_writable(self) -> bool:
+        """Cloud equivalent of the writability probe: confirm the pooled
+        Postgres connection answers. SELECT 1 is sufficient — repo writes already
+        degrade to no-ops when the pooler is down, so connectivity is the health
+        signal that matters. Returns False on any connection/query failure."""
+        from sqlalchemy import text
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                result = await s.execute(text("SELECT 1"))
+                return result.scalar() == 1
+            except Exception:
+                return False
+
     async def ensure_profile(self, user_id: str, name: str = "", password_hash: str | None = None) -> None:
         from app.db import repo
 
@@ -172,7 +231,13 @@ class PgStore:
         node_id: str,
         content: str,
         task_type: str = "",
+        score: float = 0.0,
     ) -> bool:
+        # `score` mirrors LocalStore.write_memory's signature so session_service's
+        # end_session call `write_memory(..., score=avg_score)` does not raise a
+        # TypeError under the cloud backend (which a bare `except Exception: pass`
+        # at the call site would have silently swallowed, dropping the memory).
+        # The pgvector store keys on content, so score is not forwarded.
         from app.memory import store as memory_store
 
         async with _session() as s:
@@ -185,17 +250,27 @@ class PgStore:
             except Exception:
                 return False
 
-    async def load_context(self, user_id: str, task_type: str, k: int = 3) -> str:
+    async def load_context(self, user_id: str, task_type: str, k: int = 3) -> list[dict]:
+        """Most recent k session summaries as structured dicts, newest-first.
+
+        Identical return shape to LocalStore.load_context (list[dict] with keys
+        node_id, score, strengths, watch, next_focus, date, raw) so callers see
+        ONE contract regardless of backend. The pgvector store hands back
+        (node_id, content) rows; each carries the REAL competency node that
+        produced the summary, so the node-level match in start_session (the
+        welcome-back recap) holds the same as on LocalStore. Empty/offline -> []."""
         from app.memory import store as memory_store
 
         async with _session() as s:
             if s is None:
-                return ""
+                return []
             try:
-                # pg memory keys on node_id; task_type is the local analogue.
-                return await memory_store.load_context(s, user_id, task_type, k)
+                # task_type biases the semantic query; each row carries its true
+                # competency node_id (see memory_store.load_context).
+                rows = await memory_store.load_context(s, user_id, task_type, k)
             except Exception:
-                return ""
+                return []
+        return _parse_context_rows(rows)
 
     # ---------- test-item cache (Phase 4 Layer B) ----------
     # Not migrated to the cloud schema yet; degrade gracefully. Local backend is
@@ -272,6 +347,27 @@ class PgStore:
                 return False
             try:
                 return await repo.deduct_credit(s, user_id, amount, reason)
+            except Exception:
+                return False
+
+    async def charge_and_unlock(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str,
+        scope: str,
+        ref_id: str,
+    ) -> bool:
+        """Deduct credits AND record an ACCESS unlock atomically (one txn)."""
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            try:
+                return await repo.charge_and_unlock(
+                    s, user_id, amount, reason, scope, ref_id
+                )
             except Exception:
                 return False
 
@@ -389,3 +485,32 @@ class PgStore:
                 return await repo.mark_purchase_paid(s, order_id)
             except Exception:
                 return False
+
+    async def mark_paid_and_grant(
+        self, order_id: str, user_id: str, credits: int, reason: str
+    ) -> bool:
+        """Latch a purchase to 'paid' AND grant its credits in ONE transaction.
+
+        Delegates to repo.mark_paid_and_grant, which folds the latch + grant +
+        ledger row under a SINGLE commit() with rollback-on-failure, mirroring
+        LocalStore. The old body committed the latch and the grant in TWO
+        separate transactions (mark_purchase_paid then grant_credits): an error
+        between them left the order permanently 'paid' with credits never
+        granted, and Razorpay's retry then skipped the grant forever.
+
+        Exceptions are intentionally NOT swallowed here. The repo helper rolls
+        the whole unit back before raising, so the order stays UNPAID on failure
+        and the grant is never lost: a missing-profile KeyError is handled by the
+        webhook route (deferred for reconciliation), and a transient DB error
+        propagates to a 5xx so Razorpay retries. Returns True on the first
+        captured webhook (granted once); False on a retry (already paid) or when
+        the DB is offline.
+        """
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return False
+            return await repo.mark_paid_and_grant(
+                s, order_id, user_id, credits, reason
+            )

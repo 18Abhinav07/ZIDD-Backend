@@ -15,9 +15,18 @@ same skill always lands on one row and hit_count actually sums.
 """
 import json
 import sqlite3
+import threading
 import time
 
 from app.content.skills import coerce_skill_id
+
+# Felt-memory recency: a weakness not re-encountered within this window is treated
+# as resolved/stale and dropped from the surfaced set, so a single early failure
+# can't stay the top assessment probe target forever. A persistent weakness keeps
+# getting bumped, so its last_seen stays inside the window and it still surfaces.
+_WEAKNESS_RECENCY_SECONDS = 30 * 24 * 60 * 60   # 30 days
+# Cap the surfaced set so a long weakness tail can't bloat the prompt / probe seed.
+_WEAKNESS_SURFACE_CAP = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS profiles (
@@ -115,6 +124,17 @@ CREATE TABLE IF NOT EXISTS purchases (
 class LocalStore:
     def __init__(self, db_path: str = ".zidd_local.db") -> None:
         self.db_path = db_path
+        # Serializes the money-path write transactions (grant / deduct /
+        # charge_and_unlock / mark_paid_and_grant) over the single shared
+        # connection so one writer's rollback() can never discard another's
+        # uncommitted write. A threading.Lock (NOT asyncio.Lock): the connection
+        # is check_same_thread=False, so FastAPI's threadpool can touch it from
+        # several OS threads, and asyncio primitives are not thread-safe AND bind
+        # to one event loop. The guarded critical sections are pure synchronous
+        # sqlite (no awaits), so a plain threading.Lock is both correct and
+        # loop-independent. Acquired only AFTER any is_demo() read inside those
+        # methods, so it is never re-entered (no deadlock).
+        self._lock = threading.Lock()
         # check_same_thread=False: FastAPI may touch this from worker threads.
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -135,6 +155,26 @@ class LocalStore:
                 if "duplicate column name" not in str(e):
                     raise
         self._conn.commit()
+
+    async def ping_writable(self) -> bool:
+        """True iff the active SQLite file accepts a write right now.
+
+        A REAL write probe (the /health field is named *writable*, not merely
+        *reachable*): round-trip PRAGMA user_version — read the current value and
+        write it straight back. That dirties and commits the DB header page
+        without touching any schema or row; a read-only file raises on commit ->
+        False. Held under the money-write lock so it never interleaves with a
+        grant/charge transaction on the shared connection.
+        """
+        with self._lock:
+            try:
+                cur = self._conn.execute("PRAGMA user_version")
+                version = int(cur.fetchone()[0])
+                self._conn.execute(f"PRAGMA user_version = {version}")
+                self._conn.commit()
+                return True
+            except Exception:
+                return False
 
     # ---------- profiles ----------
 
@@ -178,18 +218,19 @@ class LocalStore:
     async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
         if amount < 0:
             raise ValueError("grant amount must be non-negative")
-        cur = self._conn.execute(
-            "UPDATE profiles SET credits = credits + ? WHERE user_id = ?",
-            (amount, user_id),
-        )
-        if cur.rowcount == 0:                  # no such profile: fail loud, never log a phantom grant
-            self._conn.rollback()
-            raise KeyError(user_id)
-        self._conn.execute(
-            "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
-            (user_id, amount, reason, time.time()),
-        )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE profiles SET credits = credits + ? WHERE user_id = ?",
+                (amount, user_id),
+            )
+            if cur.rowcount == 0:              # no such profile: fail loud, never log a phantom grant
+                self._conn.rollback()
+                raise KeyError(user_id)
+            self._conn.execute(
+                "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
+                (user_id, amount, reason, time.time()),
+            )
+            self._conn.commit()
         return await self.get_credits(user_id)
 
     async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
@@ -200,19 +241,85 @@ class LocalStore:
         # Atomic guard: folding the balance check into the WHERE clause makes the
         # check and the debit a single statement, so two concurrent deducts can't
         # both pass the check and overspend. rowcount == 0 => insufficient funds.
-        cur = self._conn.execute(
-            "UPDATE profiles SET credits = credits - ? WHERE user_id = ? AND credits >= ?",
-            (amount, user_id, amount),
-        )
-        if cur.rowcount == 0:
-            self._conn.rollback()
-            return False
-        self._conn.execute(
-            "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
-            (user_id, -amount, reason, time.time()),
-        )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE profiles SET credits = credits - ? WHERE user_id = ? AND credits >= ?",
+                (amount, user_id, amount),
+            )
+            if cur.rowcount == 0:
+                self._conn.rollback()
+                return False
+            self._conn.execute(
+                "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
+                (user_id, -amount, reason, time.time()),
+            )
+            self._conn.commit()
         return True
+
+    async def charge_and_unlock(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str,
+        scope: str,
+        ref_id: str,
+    ) -> bool:
+        """Deduct credits AND record an ACCESS unlock in ONE transaction.
+
+        Atomic combination of deduct_credits + add_unlock so a learner can never
+        pay (credits gone) without the unlock being recorded, nor get an unlock
+        without paying. If the unlock insert raises, the whole transaction rolls
+        back and credits are NOT deducted. Mirrors deduct_credits semantics: the
+        is_demo bypass returns True without charging, and the atomic balance
+        guard (credits >= amount) returns False on insufficient funds without
+        touching the row.
+        """
+        if await self.is_demo(user_id):       # Judge/demo bypass: never charged, always allowed.
+            return True
+        if amount < 0:
+            raise ValueError("deduct amount must be non-negative")
+        with self._lock:
+            try:
+                # Insert the unlock FIRST and let ON CONFLICT arbitrate idempotency:
+                # an already-owned (user, scope, ref) inserts 0 rows. Only a FRESH
+                # unlock (rowcount == 1) is charged. A repeat (rowcount == 0) — e.g. a
+                # concurrent double-start where both requests passed the gate's
+                # not-owned check before either committed — returns True WITHOUT a
+                # second debit, so the learner pays exactly once per unlock. This
+                # closes the check-then-charge TOCTOU race at the store level rather
+                # than trusting the gate's has_unlock read to be race-free.
+                unlock_cur = self._conn.execute(
+                    "INSERT INTO content_unlocks "
+                    "(user_id, scope, ref_id, credits_spent, created) "
+                    "VALUES (?, ?, ?, ?, ?) "
+                    "ON CONFLICT(user_id, scope, ref_id) DO NOTHING",
+                    (user_id, scope, ref_id, amount, time.time()),
+                )
+                if unlock_cur.rowcount == 0:
+                    # Already owned: discard the no-op insert and do not charge again.
+                    self._conn.rollback()
+                    return True
+                # Fresh unlock — now debit atomically. The balance check folds into
+                # the WHERE clause so check and debit are a single statement.
+                # rowcount == 0 => insufficient funds: roll back the unlock too.
+                cur = self._conn.execute(
+                    "UPDATE profiles SET credits = credits - ? WHERE user_id = ? AND credits >= ?",
+                    (amount, user_id, amount),
+                )
+                if cur.rowcount == 0:
+                    self._conn.rollback()
+                    return False
+                self._conn.execute(
+                    "INSERT INTO credit_transactions (user_id, delta, reason, created) VALUES (?, ?, ?, ?)",
+                    (user_id, -amount, reason, time.time()),
+                )
+                self._conn.commit()
+                return True
+            except Exception:
+                # Any failure mid-transaction (e.g. the unlock insert) rolls back the
+                # whole unit: credits are NOT deducted and no ledger/unlock row lands.
+                self._conn.rollback()
+                raise
 
     # ---------- billing: content unlocks ----------
 
@@ -255,6 +362,14 @@ class LocalStore:
     # ---------- billing: attempt counting ----------
 
     async def count_attempts(self, user_id: str, module_id: str) -> int:
+        # Count STARTED sessions (FIX #4). An attempt is consumed the moment a
+        # session is started — the production frontend never calls /session/end
+        # (and TEST-mode sims record no per-turn rows), so `ended` is NULL for
+        # essentially every real attempt. Filtering on `ended IS NOT NULL` made
+        # this count permanently 0, silently bypassing the interview/GD ATTEMPT
+        # meter forever. The gate counts BEFORE start_session inserts the current
+        # session's row, so counting started rows yields exactly FREE_ATTEMPTS
+        # free (1st sees 0, 2nd sees 1) then meters — no over-count.
         row = self._conn.execute(
             "SELECT COUNT(*) AS n FROM sessions "
             "WHERE user_id = ? AND module_id = ?",
@@ -293,13 +408,65 @@ class LocalStore:
     async def mark_purchase_paid(self, order_id: str) -> bool:
         """Latch a purchase to 'paid'. Returns True only on the transition so
         the webhook grants credits exactly once even under Razorpay retries."""
-        cur = self._conn.execute(
-            "UPDATE purchases SET status = 'paid' "
-            "WHERE order_id = ? AND status != 'paid'",
-            (order_id,),
-        )
-        self._conn.commit()
-        return cur.rowcount > 0
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE purchases SET status = 'paid' "
+                "WHERE order_id = ? AND status != 'paid'",
+                (order_id,),
+            )
+            self._conn.commit()
+            return cur.rowcount > 0
+
+    async def mark_paid_and_grant(
+        self, order_id: str, user_id: str, credits: int, reason: str
+    ) -> bool:
+        """Latch a purchase to 'paid' AND grant its credits in ONE transaction.
+
+        Folds the idempotency latch and the credit grant into a single committed
+        unit. The old two-step (mark_purchase_paid in one transaction, then
+        grant_credits in another) had a fatal hole: a crash/error BETWEEN them
+        left the order permanently 'paid' while credits were never granted — and
+        Razorpay's retry then hit `WHERE status != 'paid'` → 0 rows → grant
+        skipped forever (customer paid, no credits). Here either both land or
+        neither does.
+
+        Returns True only on the FIRST captured webhook for this order (credits
+        granted exactly once); False on a retry where it is already paid (no
+        double grant). Rolls the whole unit back and raises KeyError if the
+        buyer's profile is missing, leaving the order UNPAID so a later retry or
+        reconciliation can still grant.
+        """
+        if credits < 0:
+            raise ValueError("grant amount must be non-negative")
+        with self._lock:
+            try:
+                latch = self._conn.execute(
+                    "UPDATE purchases SET status = 'paid' "
+                    "WHERE order_id = ? AND status != 'paid'",
+                    (order_id,),
+                )
+                if latch.rowcount == 0:
+                    # Already paid (idempotent retry) — nothing to grant.
+                    self._conn.rollback()
+                    return False
+                grant = self._conn.execute(
+                    "UPDATE profiles SET credits = credits + ? WHERE user_id = ?",
+                    (credits, user_id),
+                )
+                if grant.rowcount == 0:
+                    # No such profile: undo the latch too so the grant is not lost.
+                    self._conn.rollback()
+                    raise KeyError(user_id)
+                self._conn.execute(
+                    "INSERT INTO credit_transactions (user_id, delta, reason, created) "
+                    "VALUES (?, ?, ?, ?)",
+                    (user_id, credits, reason, time.time()),
+                )
+                self._conn.commit()
+                return True
+            except Exception:
+                self._conn.rollback()
+                raise
 
     # ---------- sessions ----------
 
@@ -437,19 +604,26 @@ class LocalStore:
     async def get_weaknesses(
         self, user_id: str, task_type: str | None = None
     ) -> list[dict]:
+        # Felt-memory recency + cap: only surface weaknesses re-encountered within
+        # the window, capped to the strongest few. A single early failure that the
+        # learner has since mastered (its last_seen falls behind the window) ages
+        # out, so it can no longer dominate the prompt or be the top assessment
+        # probe target forever. A genuinely persistent weakness keeps getting
+        # bumped, so its last_seen stays recent and it still surfaces.
+        cutoff = time.time() - _WEAKNESS_RECENCY_SECONDS
         if task_type is None:
             rows = self._conn.execute(
                 "SELECT user_id, task_type, skill_id, hit_count, last_score, "
-                "last_seen, last_raw FROM weaknesses WHERE user_id = ? "
-                "ORDER BY hit_count DESC, last_seen DESC",
-                (user_id,),
+                "last_seen, last_raw FROM weaknesses WHERE user_id = ? AND last_seen >= ? "
+                "ORDER BY hit_count DESC, last_seen DESC LIMIT ?",
+                (user_id, cutoff, _WEAKNESS_SURFACE_CAP),
             ).fetchall()
         else:
             rows = self._conn.execute(
                 "SELECT user_id, task_type, skill_id, hit_count, last_score, "
                 "last_seen, last_raw FROM weaknesses WHERE user_id = ? AND task_type = ? "
-                "ORDER BY hit_count DESC, last_seen DESC",
-                (user_id, task_type),
+                "AND last_seen >= ? ORDER BY hit_count DESC, last_seen DESC LIMIT ?",
+                (user_id, task_type, cutoff, _WEAKNESS_SURFACE_CAP),
             ).fetchall()
         return [dict(r) for r in rows]
 

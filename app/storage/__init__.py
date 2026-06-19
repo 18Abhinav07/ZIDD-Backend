@@ -27,7 +27,7 @@ from app.storage.pg_store import PgStore
 #   bump_weakness(user_id, task_type, skill_id, score, raw="")
 #   get_weaknesses(user_id, task_type=None) -> list[dict]
 #   write_memory(user_id, session_id, node_id, content, task_type="") -> bool
-#   load_context(user_id, task_type, k=3) -> str
+#   load_context(user_id, task_type, k=3) -> list[dict]
 
 _cached: LocalStore | PgStore | None = None
 

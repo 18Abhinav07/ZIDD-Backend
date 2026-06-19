@@ -77,6 +77,79 @@ async def deduct_credit(
     return True
 
 
+async def charge_and_unlock(
+    session: AsyncSession,
+    user_id: str,
+    amount: int,
+    reason: str,
+    scope: str,
+    ref_id: str,
+) -> bool:
+    """Deduct credits AND insert a content_unlocks row in ONE transaction.
+
+    Atomic combination of deduct_credit + add_unlock: the credit debit, the
+    ledger row, and the unlock insert all land under a single commit(), so a
+    learner can never pay without the unlock being recorded. If the unlock
+    insert raises, the whole transaction rolls back and credits are NOT
+    deducted. Mirrors deduct_credit semantics: the demo bypass returns True
+    without charging, and the atomic balance guard (credits >= :amt) returns
+    False on insufficient funds without a partial write.
+    """
+    profile = await get_profile(session, user_id)
+    if profile is None:
+        return False
+    if profile["demo_unlimited"]:
+        return True
+    try:
+        # Insert the unlock FIRST and let ON CONFLICT arbitrate idempotency: an
+        # already-owned (user, scope, ref) inserts 0 rows, so only a FRESH unlock
+        # (rowcount == 1) is charged. Under Postgres a concurrent ON CONFLICT
+        # insert of the same key blocks on the uncommitted row, so two
+        # simultaneous starts for the same module serialize — the loser sees
+        # rowcount == 0 and returns True WITHOUT a second debit. This closes the
+        # check-then-charge TOCTOU race at the store level rather than trusting
+        # the gate's has_unlock read to be race-free.
+        unlock_result = await session.execute(
+            text(
+                "INSERT INTO content_unlocks (user_id, scope, ref_id, credits_spent) "
+                "VALUES (:u, :s, :r, :c) "
+                "ON CONFLICT (user_id, scope, ref_id) DO NOTHING"
+            ),
+            {"u": user_id, "s": scope, "r": ref_id, "c": amount},
+        )
+        if unlock_result.rowcount == 0:
+            # Already owned: discard the no-op insert and do not charge again.
+            await session.rollback()
+            return True
+        # Fresh unlock — now debit. The balance check and decrement are one
+        # statement so concurrent spends cannot both pass. rowcount == 0 =>
+        # insufficient funds: roll back the unlock too.
+        result = await session.execute(
+            text(
+                "UPDATE learner_profiles SET credits = credits - :amt "
+                "WHERE user_id = :uid AND credits >= :amt"
+            ),
+            {"amt": amount, "uid": user_id},
+        )
+        if result.rowcount == 0:
+            await session.rollback()
+            return False
+        await session.execute(
+            text(
+                "INSERT INTO credit_transactions (user_id, delta, reason) "
+                "VALUES (:uid, :delta, :reason)"
+            ),
+            {"uid": user_id, "delta": -amount, "reason": reason},
+        )
+        await session.commit()
+        return True
+    except Exception:
+        # Any failure mid-transaction rolls back the whole unit: no debit, no
+        # ledger row, no unlock.
+        await session.rollback()
+        raise
+
+
 # ---------- sessions ----------
 
 async def create_session(
@@ -284,6 +357,12 @@ async def list_unlocks(session: AsyncSession, user_id: str) -> list[dict]:
 
 
 async def list_session_nodes(session: AsyncSession, user_id: str) -> list[str]:
+    # Count STARTED sessions (FIX #4) — an attempt is consumed at start. The
+    # production frontend never calls /session/end, so filtering on
+    # `ended_at IS NOT NULL` made the attempt count permanently 0 and silently
+    # bypassed the interview/GD ATTEMPT meter forever. The gate counts BEFORE the
+    # current session's row is inserted, so counting started rows keeps exactly
+    # FREE_ATTEMPTS free then meters. Mirrors LocalStore.count_attempts.
     result = await session.execute(
         text("SELECT competency_node FROM sessions WHERE user_id = :u"),
         {"u": user_id},
@@ -340,3 +419,65 @@ async def mark_purchase_paid(session: AsyncSession, order_id: str) -> bool:
     )
     await session.commit()
     return result.rowcount > 0
+
+
+async def mark_paid_and_grant(
+    session: AsyncSession,
+    order_id: str,
+    user_id: str,
+    credits: int,
+    reason: str,
+) -> bool:
+    """Latch a purchase to 'paid' AND grant its credits in ONE transaction.
+
+    Folds the idempotency latch and the credit grant into a single committed
+    unit, mirroring LocalStore.mark_paid_and_grant. The old PgStore two-step
+    (mark_purchase_paid committed in one txn, then grant_credits committed in a
+    SECOND txn) had a fatal hole: an error BETWEEN them left the order
+    permanently 'paid' while credits were never granted, and Razorpay's retry
+    then hit `WHERE status != 'paid'` -> 0 rows -> grant skipped forever
+    (customer paid, no credits). Here either both land under one commit() or
+    neither does.
+
+    Returns True only on the FIRST captured webhook for this order (granted
+    once); False on a retry where it is already paid (no double grant). Rolls the
+    whole unit back and raises KeyError if the buyer's profile is missing,
+    leaving the order UNPAID so a later retry or reconciliation can still grant.
+    """
+    if credits < 0:
+        raise ValueError("grant amount must be non-negative")
+    try:
+        latch = await session.execute(
+            text(
+                "UPDATE purchases SET status = 'paid' "
+                "WHERE order_id = :o AND status != 'paid'"
+            ),
+            {"o": order_id},
+        )
+        if latch.rowcount == 0:
+            # Already paid (idempotent retry) — nothing to grant.
+            await session.rollback()
+            return False
+        grant = await session.execute(
+            text(
+                "UPDATE learner_profiles SET credits = credits + :amt "
+                "WHERE user_id = :u"
+            ),
+            {"amt": credits, "u": user_id},
+        )
+        if grant.rowcount == 0:
+            # No such profile: undo the latch too so the grant is not lost.
+            await session.rollback()
+            raise KeyError(user_id)
+        await session.execute(
+            text(
+                "INSERT INTO credit_transactions (user_id, delta, reason) "
+                "VALUES (:u, :delta, :reason)"
+            ),
+            {"u": user_id, "delta": credits, "reason": reason},
+        )
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise

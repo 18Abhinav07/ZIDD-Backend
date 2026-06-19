@@ -11,11 +11,18 @@ from app.memory.embed import embed
 
 # Cosine distance (<=>) over pgvector; lower = closer. No IVFFlat index until
 # >10K rows (architecture-v3 §408) — exact scan is fine at launch scale.
+# Return competency_node alongside content so the caller can match a summary to a
+# specific node (the 'welcome back' recap). We deliberately do NOT filter on an
+# exact competency_node here: writes store the FINE node (e.g. int_05_why_this_role)
+# while PgStore.load_context queries with the COARSE task_type (interview_prep), so
+# an equality filter matched zero rows and silently returned nothing. We rank the
+# user's summaries by embedding distance to a task-biased query instead, and let
+# the caller pick the row whose node matches.
 _SEARCH_SQL = text(
     """
-    SELECT content
+    SELECT competency_node, content
     FROM memory_entries
-    WHERE user_id = :user_id AND competency_node = :node
+    WHERE user_id = :user_id
     ORDER BY embedding <=> CAST(:qvec AS vector)
     LIMIT :k
     """
@@ -62,21 +69,26 @@ async def write_memory(
 
 async def load_context(
     session: AsyncSession, user_id: str, node_id: str, k: int = 3
-) -> str:
-    """Retrieve the k most relevant past summaries as a single text block.
+) -> list[dict]:
+    """Retrieve the k most relevant past summaries, each tagged with its node.
 
-    Returns "" on any failure (no embeddings, no table, cold start) — the
-    tutor simply runs without memory rather than erroring.
+    Returns a list of {"node_id", "content"} dicts (newest/most-relevant first),
+    or [] on any failure (no embeddings, no table, cold start) — the tutor simply
+    runs without memory rather than erroring.
+
+    `node_id` is the COARSE retrieval key (PgStore passes the task_type) used only
+    to BIAS the semantic query; each returned row carries its TRUE competency_node
+    so the caller can match a summary to a specific node (the welcome-back recap).
     """
     qvec = await embed(f"{node_id} progress and recurring issues")
     if qvec is None:
-        return ""
+        return []
     try:
         result = await session.execute(
             _SEARCH_SQL,
-            {"user_id": user_id, "node": node_id, "qvec": str(qvec), "k": k},
+            {"user_id": user_id, "qvec": str(qvec), "k": k},
         )
-        rows = result.scalars().all()
+        rows = result.all()
     except Exception:
-        return ""
-    return "§".join(rows)
+        return []
+    return [{"node_id": r[0], "content": r[1]} for r in rows]
