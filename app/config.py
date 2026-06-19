@@ -1,4 +1,5 @@
 """Centralized settings loaded from .env. Single source of config truth."""
+import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     # App
     app_env: str = "dev"
     log_level: str = "info"
+    zidd_jwt_secret: str = ""
 
     # Durability: path to disk-persist the in-memory SessionStore so live
     # sessions survive a process restart. Empty = disabled (pure in-memory).
@@ -64,3 +66,27 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+@lru_cache(maxsize=1)
+def get_jwt_secret() -> str:
+    """Single source of truth for the JWT signing secret.
+
+    Read from the environment; fail at boot if unset/empty so the app never
+    runs with a forgeable, committed secret. Sign and verify both call this,
+    so the secret VALUE is guaranteed identical across the process.
+    """
+    secret = os.environ.get("ZIDD_JWT_SECRET") or get_settings().zidd_jwt_secret
+    if not secret:
+        raise RuntimeError(
+            "ZIDD_JWT_SECRET is not set; refusing to start without a JWT signing secret."
+        )
+    # In production, refuse a weak secret. A short HMAC key is brute-forceable, so
+    # enforce a 32-byte floor when APP_ENV=prod. Non-prod (dev/test/ci) is left
+    # permissive so the suite can run with a short fixture secret.
+    if os.environ.get("APP_ENV", "dev").lower() == "prod" and len(secret) < 32:
+        raise RuntimeError(
+            "ZIDD_JWT_SECRET must be at least 32 characters in production "
+            f"(APP_ENV=prod); got {len(secret)}."
+        )
+    return secret

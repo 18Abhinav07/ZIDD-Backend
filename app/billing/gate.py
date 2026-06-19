@@ -73,12 +73,17 @@ async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
 async def charge(store, user_id: str, decision: GateDecision) -> bool:
     """Deduct credits for a non-free decision and persist an ACCESS unlock.
 
-    Returns True on success. deduct_credits honors demo_unlimited and returns
-    False when the balance is insufficient.
+    Returns True on success. Both store methods honor demo_unlimited (return True
+    without charging) and return False when the balance is insufficient.
+
+    ACCESS unlocks (record_unlock=True) route through the atomic
+    charge_and_unlock: the credit debit and the content_unlocks insert land in
+    ONE transaction, so a crash between them can never leave the learner having
+    paid without the unlock recorded. ATTEMPT meters (record_unlock=False) are a
+    pure debit — already atomic — so they stay on deduct_credits.
     """
-    ok = await store.deduct_credits(user_id, decision.cost, decision.reason)
-    if not ok:
-        return False
     if decision.record_unlock:
-        await store.add_unlock(user_id, decision.scope, decision.ref_id, decision.cost)
-    return True
+        return await store.charge_and_unlock(
+            user_id, decision.cost, decision.reason, decision.scope, decision.ref_id
+        )
+    return await store.deduct_credits(user_id, decision.cost, decision.reason)
