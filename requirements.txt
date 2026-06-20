@@ -31,3 +31,7 @@ passlib[bcrypt]
 
 # ===== Payments =====
 razorpay==1.4.2
+# razorpay 1.4.2 still does `import pkg_resources` at import time. Python 3.13 venvs
+# don't bundle setuptools, and setuptools>=81 dropped pkg_resources — so pin a
+# version that still ships it, else `import razorpay` fails ModuleNotFoundError.
+setuptools<80

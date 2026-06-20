@@ -59,9 +59,12 @@ event: node_advance
 data: {"from_node": "comm_01_self_intro", "to_node": "comm_02_describe_routine"}
 ```
 
-Emitted when an answer advances the learner to a new node.
-Immediately followed by **new-node opening tokens** on the same connection.
-Use this to open a new message bubble before the new node's text arrives.
+Emitted when an answer advances the learner to a new node. This is the **last
+content frame** on the turn — the new node's opening is **not** streamed on this
+connection. The client should present a "Next Skill" break and fetch the opening
+via a separate `GET /session/{id}/opening` call, which streams the new node's
+opening as its own message. This keeps the old node's feedback and the new
+node's opening in distinct bubbles and prevents level-bleed.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -124,7 +127,40 @@ Open a new speaker bubble; tokens immediately following belong to this speaker.
 | `speaker_id` | string | Internal persona identifier |
 | `name` | string | Display name for the bubble header |
 
-### 7. `event: done`
+### 7. `event: simulation_state` (TEST mode only)
+
+```
+event: simulation_state
+data: {"turn": 3, "speaker_id": "gd_a", "tension": 0.45}
+```
+
+Emitted once per simulation round (TEST mode only — GD/interview), immediately after the `speaker` frame and before that speaker's token stream. Carries the Director's post-decision snapshot so the UI can show round count and tension.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `turn` | int | Round number after the Director's decision |
+| `speaker_id` | string | Persona about to speak |
+| `tension` | float (0–1) | Director's current tension level |
+
+### 8. `event: adaptation_cue`
+
+```
+event: adaptation_cue
+data: {"action": "ADVANCE", "band": "stretch", "rationale": "learner is strong, push ahead"}
+```
+
+Emitted on advancing coaching turns only — after `progress_update`, before
+`node_advance`. Carries the selector's decision so the UI can show a short
+"adapting your path" cue before opening the new node. **Never** fires on REPEAT
+turns or on module-completion turns (the selector records no selection there).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | `"ADVANCE"` or `"REMEDIATE"` — how the path adapted |
+| `band` | string | `"foundational"` \| `"standard"` \| `"stretch"` — difficulty band for the next node |
+| `rationale` | string | Short human-readable reason from the selector |
+
+### 9. `event: done`
 
 ```
 event: done
@@ -177,13 +213,28 @@ Full `done` payload shape (all fields always present):
   │
   ├── event: progress_update  (always, once per scored turn)
   │
+  ├── [IF path adapted (ADVANCE/REMEDIATE)]
+  │     event: adaptation_cue
+  │
   ├── [IF module complete]
   │     event: session_recap
   │
   │   [ELSE IF node advanced]
-  │     event: node_advance
-  │     token frames (new-node opening, streaming)
+  │     event: node_advance   (last content frame; opening NOT streamed here —
+  │                            client calls GET /opening for the new node)
   │
+  └── event: done  (always last)
+```
+
+On a **TEST-mode turn** (GD/interview simulation) the coaching frames above
+(`progress_update` / `node_advance` / `session_recap` / `game_prompt`) do NOT
+fire; instead the per-round sequence repeats once per round:
+
+```
+  ├── event: speaker            (one frame, opens the bubble)
+  ├── event: simulation_state   (turn count + tension snapshot)
+  └── token frames              (this speaker's text)
+        ... (repeats per round) ...
   └── event: done  (always last)
 ```
 
@@ -200,11 +251,15 @@ Full `done` payload shape (all fields always present):
 1. `done` is always the last frame — never skip waiting for it.
 2. `progress_update` always precedes `node_advance` / `session_recap` on the
    same turn.
-3. Tokens before `node_advance` belong to the OLD node's feedback.
-   Tokens after `node_advance` belong to the NEW node's opening.
+3. Tokens before `node_advance` belong to the OLD node's feedback. No opening
+   tokens follow `node_advance` on the same connection — the new node's opening
+   is fetched separately via `GET /session/{id}/opening`.
 4. `game_prompt` and token frames are mutually exclusive per turn — never both.
 5. `session_recap` and `node_advance` are mutually exclusive — never both.
-6. `speaker` frames (TEST mode) precede their speaker's token stream.
+6. In TEST mode, per round `speaker` precedes `simulation_state`, which
+   precedes that speaker's token stream.
+7. `adaptation_cue`, when present, comes after `progress_update` and before
+   `node_advance`. It is absent on REPEAT turns and on module-completion turns.
 
 ---
 
@@ -231,6 +286,8 @@ All frame shapes are typed in `app/models.py`:
 | `progress_update` | `ProgressUpdateFrame` |
 | `session_recap` | `SessionRecapFrame` |
 | `speaker` | `SpeakerFrame` |
+| `simulation_state` | `SimulationStateFrame` |
+| `adaptation_cue` | `AdaptationCueFrame` |
 | `done` | `DoneFrame` |
 
 Use these as the source of truth if this document and the code ever diverge.
