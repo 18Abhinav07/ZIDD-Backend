@@ -1,10 +1,12 @@
 """Phase 0.1 — kill level-bleed.
 
-When an answer advances the learner to a new node, run_turn used to stream the
-OLD-node feedback and the NEW-node opening as one undifferentiated run of
-string tokens, so the UI rendered both in a single bubble. Fix: emit a discrete
-`NodeAdvance` marker between them (carried as an `event: node_advance` SSE frame
-on the same connection) so the two messages render as separate bubbles.
+When an answer advances the learner to a new node, run_turn streams the OLD
+node's feedback and then emits a discrete `NodeAdvance` marker (carried as an
+`event: node_advance` SSE frame) so the two messages render as separate bubbles.
+Under the two-step opening contract the advance turn STOPS there — it does not
+stream the new node's opening. The frontend shows a "Next Skill" break and
+fetches the opening via a separate `GET /session/{id}/opening` (stream_opening)
+call, so the new-node opening can never bleed into the old node's feedback.
 """
 import os
 
@@ -27,7 +29,7 @@ class _Scores:
     def __init__(self, scores):
         self._it = iter(scores)
 
-    async def __call__(self, node, messages, user_input):
+    async def __call__(self, node, messages, user_input, behavior=None):
         score = next(self._it)
         return DiagnosisEval(
             score=score,
@@ -86,11 +88,16 @@ async def test_advance_turn_emits_node_advance_marker(monkeypatch):
     idx = yielded.index(marker)
     before = [t for t in yielded[:idx] if isinstance(t, str)]
     after = [t for t in yielded[idx + 1:] if isinstance(t, str)]
-    # old-node feedback precedes the marker; new-node opening follows it.
+    # old-node feedback precedes the marker...
     assert any("FEEDBACK" in t for t in before)
-    assert any("OPEN" in t for t in after)
-    # and the opening must NOT bleed in before the marker.
+    # ...and under the two-step opening contract the new-node opening does NOT
+    # bleed into the advance turn at all (not before, not after the marker).
     assert not any("OPEN" in t for t in before)
+    assert not any("OPEN" in t for t in after)
+
+    # the opening arrives only from a separate /opening (stream_opening) call.
+    opening = [t async for t in svc.stream_opening(sid) if isinstance(t, str)]
+    assert any("OPEN" in t for t in opening)
 
 
 async def test_non_advance_turn_emits_no_marker(monkeypatch):

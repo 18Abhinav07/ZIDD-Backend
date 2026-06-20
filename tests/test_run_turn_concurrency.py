@@ -10,6 +10,10 @@ two streams overlap (max in-flight == 2) and this test fails.
 
 Different sessions must still run concurrently (the lock is per-session, not a
 global mutex) — otherwise we'd serialize the whole server.
+
+The in-flight tracker hangs off the persona token stream (the awaited body of a
+TEST-mode round); the Director seam is patched to a fast deterministic decision
+so the only meaningful await inside the lock is the tracked persona stream.
 """
 import asyncio
 import os
@@ -23,9 +27,11 @@ os.environ.setdefault(
     "postgresql://postgres.ref:pwd@host.pooler.supabase.com:6543/postgres",
 )
 
+from app.ai.schemas import DirectorDecision  # noqa: E402
 from app.content.task_types import TaskType  # noqa: E402
 from app.services import session_service as svc  # noqa: E402
 from app.services import simulation_service as sim  # noqa: E402
+from app.services.simulation import director as director_mod  # noqa: E402
 
 pytestmark = pytest.mark.asyncio
 
@@ -44,6 +50,7 @@ def _seed_state(sid: str) -> str:
         "current_mastery": 0.0,
         "sim_topic": "Is remote work good for teams?",
         "personas": None,
+        "blackboard": None,
         "session_over": False,
         "module_done": False,
         "last_diagnosis": {},
@@ -63,9 +70,23 @@ class _Tracker:
 @pytest.fixture
 def tracker(monkeypatch):
     t = _Tracker()
-    raw = "[Aarav]: Remote work boosts output.\n[Meera]: It isolates teams.\n"
+    raw = "Remote work boosts output."
 
-    async def _gen(spec):
+    # Director seam: fast deterministic decision so the lock-held await that
+    # matters is the persona stream below (which carries the in-flight tracker).
+    async def _direct(bb, personas, task_type, transcript, probe_items=None):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker=personas[0]["speaker_id"],
+            intent="React.",
+            tension=0.5,
+            answer_quality=0.6,
+            should_close=False,
+        )
+
+    monkeypatch.setattr(director_mod, "direct_simulation", _direct)
+
+    async def _persona(persona, intent, transcript, bb, roster=None):
         t.now += 1
         t.max = max(t.max, t.now)
         # Hold the body open so a racing turn would overlap if unserialized.
@@ -74,7 +95,7 @@ def tracker(monkeypatch):
         for i in range(0, len(raw), 5):
             yield raw[i : i + 5]
 
-    monkeypatch.setattr(sim, "stream_generation", _gen)
+    monkeypatch.setattr(sim, "stream_persona_turn", _persona)
     yield t
     svc.SessionStore.clear()
 

@@ -38,6 +38,7 @@ from app.ai.behaviors import behavior_for  # noqa: E402
 from app.content import registry  # noqa: E402
 from app.content.registry import CEFR_RANK, uses_grade_placement  # noqa: E402
 from app.content.task_types import TaskType, task_type_of  # noqa: E402
+from app.graph.answer_check import _norm  # noqa: E402
 
 MODULES = registry.MODULES
 MODULE_IDS = [m.id for m in MODULES]
@@ -121,3 +122,44 @@ def test_cefr_coupling_matches_placement_mode(module):
 def test_node_ids_unique_across_all_modules():
     all_ids = [n.id for m in MODULES for n in m.nodes]
     assert len(all_ids) == len(set(all_ids)), "duplicate node id across modules"
+
+
+# ---------- bridge-exercise data integrity (engine + grader contract) ----------
+# Every served bridge exercise is graded deterministically against its answer_key
+# and selected by its band; a missing key/band or an MCQ whose key collides with a
+# distractor's text would mis-grade silently. These lock the data so a future
+# content edit can't drift it out of the grader's contract unnoticed.
+
+def test_every_bridge_exercise_has_a_key_and_band(module):
+    for node in module.nodes:
+        for bx in node.bridge_exercises:
+            assert bx.answer_key and bx.answer_key.strip(), (
+                f"{node.id}: a {bx.type} bridge exercise has an empty answer_key"
+            )
+            assert bx.band in {"foundational", "standard", "stretch"}, (
+                f"{node.id}: bridge exercise band {bx.band!r} is not a known band"
+            )
+
+
+def test_mcq_key_is_an_option_and_not_a_substring_of_a_distractor(module):
+    # Mirrors answer_check's MCQ grading: the key must be a real option, and must
+    # NOT be a substring of any WRONG option (else typing that distractor would
+    # false-match the key — the grader footgun the substring fallback exposed).
+    for node in module.nodes:
+        for bx in node.bridge_exercises:
+            if bx.type != "multiple_choice":
+                continue
+            opts = bx.options or []
+            assert opts, f"{node.id}: an MCQ bridge exercise has no options"
+            nkey = _norm(bx.answer_key)
+            norm_opts = [_norm(o) for o in opts]
+            assert nkey in norm_opts, (
+                f"{node.id}: MCQ answer_key {bx.answer_key!r} is not among its options"
+            )
+            for raw_opt, norm_opt in zip(opts, norm_opts):
+                if norm_opt == nkey:
+                    continue   # the correct option itself
+                assert nkey not in norm_opt, (
+                    f"{node.id}: MCQ answer_key {bx.answer_key!r} is a substring of "
+                    f"distractor {raw_opt!r} — typing it would false-match the key"
+                )

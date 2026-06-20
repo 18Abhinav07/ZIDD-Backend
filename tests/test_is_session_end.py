@@ -95,3 +95,41 @@ class TestAnswerGuard:
 
     def test_none_input(self):
         assert _is_session_end(None) is False  # type: ignore[arg-type]
+
+
+class TestQuitExitAreContentWords:
+    """Regression: substantive answers that MENTION quitting/exiting must be
+    scored, not silently discarded as farewells. "quit"/"exit" are ordinary
+    English content words; only a SHORT message signals a real farewell."""
+
+    # --- substantive answers that must NOT end the session ---
+    def test_explain_a_gap_answer_with_quit(self):
+        # int_12_explain_a_gap's whole purpose is accounting for leaving a role.
+        assert _is_session_end(
+            "I had to quit my previous job because of a relocation, but I grew a lot."
+        ) is False
+
+    def test_gd_persuade_with_exit(self):
+        assert _is_session_end("We should exit that market segment and refocus") is False
+
+    def test_strength_answer_with_quit(self):
+        assert _is_session_end("I never quit when a project gets hard") is False
+
+    def test_determination_with_quit(self):
+        assert _is_session_end("I will not quit no matter what happens") is False
+
+    def test_exit_strategy_answer(self):
+        assert _is_session_end("our exit strategy should be a phased rollout") is False
+
+    # --- genuine short quit/exit intent must STILL end the session ---
+    def test_bare_quit_still_ends(self):
+        assert _is_session_end("quit") is True       # exact-match tier
+
+    def test_bare_exit_still_ends(self):
+        assert _is_session_end("exit") is True        # exact-match tier
+
+    def test_short_i_quit_still_ends(self):
+        assert _is_session_end("i quit") is True      # ≤3 words, ambiguous token
+
+    def test_short_lets_exit_still_ends(self):
+        assert _is_session_end("let's exit") is True

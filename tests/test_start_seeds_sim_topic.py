@@ -35,12 +35,16 @@ def _clear():
 
 
 async def test_test_mode_seeds_sim_topic_and_personas_slot():
+    from app.content.motions import GD_MOTIONS, motion_for_node
+
     _, state = await svc.start_session("u1", GD_NODE, test_mode=True)
     assert state["task_type"] == TaskType.GD_TEST.value
-    # a non-empty topic derived from the node so the panel has something to debate
+    # P0-4: a GD test seeds a CONCRETE debate motion (shared verbatim by opening,
+    # director, and personas) — never the teach_focus instruction.
     assert isinstance(state["sim_topic"], str) and state["sim_topic"].strip()
-    assert get_node(GD_NODE).teach_focus in state["sim_topic"] or \
-        get_node(GD_NODE).title in state["sim_topic"]
+    assert state["sim_topic"] in GD_MOTIONS
+    assert state["sim_topic"] == motion_for_node(GD_NODE)   # stable per node
+    assert get_node(GD_NODE).teach_focus not in state["sim_topic"]
     # personas slot exists, unfilled until the first round builds the roster
     assert state["personas"] is None
 

@@ -29,6 +29,7 @@ from app.services.simulation_service import Speaker  # noqa: E402
 def client(monkeypatch):
     fake_state = {
         "session_id": "s1",
+        "user_id": "test_user",  # ownership gate: caller (Bearer test_token) owns it
         "competency_node": "comm_02_describe_routine",
         "current_mastery": 0.7,
         "turn_count": 4,
@@ -50,7 +51,9 @@ def client(monkeypatch):
 
 def test_turn_emits_speaker_frames(client):
     resp = client.post(
-        "/session/turn", json={"session_id": "s1", "user_input": "I think it depends."}
+        "/session/turn",
+        json={"session_id": "s1", "user_input": "I think it depends."},
+        headers={"Authorization": "Bearer test_token"},
     )
     assert resp.status_code == 200
     body = resp.text

@@ -43,7 +43,7 @@ class _Scores:
         self._english = iter(english) if english is not None else None
         self._affect = iter(affect) if affect is not None else None
 
-    async def __call__(self, node, messages, user_input):
+    async def __call__(self, node, messages, user_input, behavior=None):
         score = next(self._it)
         return DiagnosisEval(
             score=score,

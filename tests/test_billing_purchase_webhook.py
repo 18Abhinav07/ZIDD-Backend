@@ -155,6 +155,45 @@ def test_webhook_ignores_non_captured_event():
     assert after == before
 
 
+def test_webhook_unknown_order_acks_and_warns(caplog):
+    # A signature-valid captured payment for an order we never recorded must:
+    #  - return 200 (so Razorpay stops retrying),
+    #  - report status "unknown_order",
+    #  - grant NO credits,
+    #  - and emit a warning log so the anomaly is observable (not silently dropped).
+    client = TestClient(app)
+    client.post("/auth/register", json={"user_id": "test_user", "password": "pw"})
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+
+    webhook_body = json.dumps(
+        {
+            "event": "payment.captured",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "order_id": "order_never_seen",  # no matching purchase row
+                        "status": "captured",
+                        "amount": 9900,
+                    }
+                }
+            },
+        }
+    )
+    with caplog.at_level("WARNING", logger="app.api.billing_routes"):
+        w = client.post(
+            "/billing/razorpay/webhook",
+            content=webhook_body,
+            headers={"X-Razorpay-Signature": "sig"},
+        )
+    assert w.status_code == 200
+    assert w.json()["status"] == "unknown_order"
+    after = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    assert after == before  # no grant
+    assert any(
+        "unknown order_id=order_never_seen" in r.getMessage() for r in caplog.records
+    )
+
+
 def test_webhook_rejects_amount_mismatch():
     # A SIGNED payment.captured event whose amount != the stored amount_paise
     # must NOT grant credits and must NOT mark the purchase paid.
@@ -184,3 +223,67 @@ def test_webhook_rejects_amount_mismatch():
     assert w.status_code == 200
     after = client.get("/billing/balance", headers=AUTH).json()["credits"]
     assert after == before
+
+
+# ---------- signature-valid but structurally malformed: 200-ack, never 500 ----------
+# A 500 here is retried by Razorpay forever and never reaches a reconcilable
+# terminal status. These must degrade like the sibling anomaly branches: ack, log,
+# never grant.
+
+def test_webhook_string_amount_is_200_not_500():
+    # amount is a non-numeric string -> int() would ValueError into a 500.
+    client = TestClient(app, raise_server_exceptions=False)
+    _register_and_order(client)
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    body = json.dumps({
+        "event": "payment.captured",
+        "payload": {"payment": {"entity": {
+            "order_id": "order_test_abc", "status": "captured", "amount": "not-a-number",
+        }}},
+    })
+    w = client.post(
+        "/billing/razorpay/webhook", content=body,
+        headers={"X-Razorpay-Signature": "sig"},
+    )
+    assert w.status_code == 200
+    assert w.json()["status"] == "amount_mismatch"   # not granted
+    assert client.get("/billing/balance", headers=AUTH).json()["credits"] == before
+
+
+def test_webhook_null_amount_is_200_not_500():
+    # amount is null -> int(None) would TypeError into a 500.
+    client = TestClient(app, raise_server_exceptions=False)
+    _register_and_order(client)
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    body = json.dumps({
+        "event": "payment.captured",
+        "payload": {"payment": {"entity": {
+            "order_id": "order_test_abc", "status": "captured", "amount": None,
+        }}},
+    })
+    w = client.post(
+        "/billing/razorpay/webhook", content=body,
+        headers={"X-Razorpay-Signature": "sig"},
+    )
+    assert w.status_code == 200
+    assert w.json()["status"] == "amount_mismatch"
+    assert client.get("/billing/balance", headers=AUTH).json()["credits"] == before
+
+
+def test_webhook_non_dict_nested_payload_is_200_not_500():
+    # payload.payment is not an object -> the nested .get() chain would
+    # AttributeError into a 500.
+    client = TestClient(app, raise_server_exceptions=False)
+    client.post("/auth/register", json={"user_id": "test_user", "password": "pw"})
+    before = client.get("/billing/balance", headers=AUTH).json()["credits"]
+    body = json.dumps({
+        "event": "payment.captured",
+        "payload": {"payment": "totally-not-a-dict"},
+    })
+    w = client.post(
+        "/billing/razorpay/webhook", content=body,
+        headers={"X-Razorpay-Signature": "sig"},
+    )
+    assert w.status_code == 200
+    assert w.json()["status"] == "ignored"
+    assert client.get("/billing/balance", headers=AUTH).json()["credits"] == before

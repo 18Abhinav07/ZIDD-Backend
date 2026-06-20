@@ -40,8 +40,17 @@ def test_coerce_passes_through_valid_member():
 
 
 def test_coerce_unmatched_falls_to_other():
-    assert coerce_skill_id("struggles with past tense") == "OTHER"
+    # Genuinely signal-free prose still buckets to OTHER (no fuzzy rule fires).
+    assert coerce_skill_id("they did fine overall") == "OTHER"
     assert coerce_skill_id("") == "OTHER"
     assert coerce_skill_id(None) == "OTHER"
-    # Case / whitespace tolerance, but only onto real members.
+    # Case / whitespace tolerance onto an exact member.
     assert coerce_skill_id("  grammar_past_tense  ") == "GRAMMAR_PAST_TENSE"
+
+
+def test_coerce_fuzzy_maps_prose_onto_taxonomy():
+    # Free-prose next_focus now lands on the named skill instead of OTHER (see
+    # the dedicated fuzzy test for the full matrix). The two phrasings the module
+    # docstring calls out must converge on ONE row.
+    assert coerce_skill_id("struggles with past tense") == "GRAMMAR_PAST_TENSE"
+    assert coerce_skill_id("failed past tense again") == "GRAMMAR_PAST_TENSE"

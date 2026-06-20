@@ -24,6 +24,7 @@ from app.services import session_service as svc  # noqa: E402
 def client(monkeypatch):
     fake_state = {
         "session_id": "s1",
+        "user_id": "test_user",  # ownership gate: caller (Bearer test_token) owns it
         "competency_node": "comm_02_describe_routine",
         "current_mastery": 0.7,
         "turn_count": 4,
@@ -46,7 +47,9 @@ def client(monkeypatch):
 
 def test_turn_emits_node_advance_frame(client):
     resp = client.post(
-        "/session/turn", json={"session_id": "s1", "user_input": "hi"}
+        "/session/turn",
+        json={"session_id": "s1", "user_input": "hi"},
+        headers={"Authorization": "Bearer test_token"},
     )
     assert resp.status_code == 200
     body = resp.text

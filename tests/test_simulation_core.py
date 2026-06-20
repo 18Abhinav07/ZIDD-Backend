@@ -296,6 +296,30 @@ def test_note_turn_other_keys_unchanged():
     assert result["turn"] == 5
 
 
+def test_note_turn_caps_open_threads_to_rolling_window():
+    """open_threads is a bounded rolling window, not an unbounded archive: past
+    _MAX_OPEN_THREADS, the OLDEST thread drops off so the director prompt's
+    'Open threads' line stays bounded over a long GD (regression: it used to grow
+    one entry per turn for the whole session)."""
+    from app.services.simulation.blackboard import _MAX_OPEN_THREADS
+
+    bb = new_blackboard("T")
+    for i in range(_MAX_OPEN_THREADS + 5):
+        bb = note_turn(bb, "alice", f"thread {i}")
+    assert len(bb["open_threads"]) == _MAX_OPEN_THREADS
+    assert bb["open_threads"][-1] == f"thread {_MAX_OPEN_THREADS + 4}"  # newest kept
+    assert "thread 0" not in bb["open_threads"]                        # oldest dropped
+
+
+def test_persona_block_dead_helper_removed():
+    """The orphaned _persona_block roster renderer was removed — build_director_prompt
+    renders the roster inline (the canonical path, covered by test_director_prompts).
+    Guard against the dead helper creeping back."""
+    import app.services.simulation_service as sim_service
+
+    assert not hasattr(sim_service, "_persona_block")
+
+
 # ---------------------------------------------------------------------------
 # _fallback_decision
 # ---------------------------------------------------------------------------

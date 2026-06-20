@@ -21,7 +21,7 @@ os.environ.setdefault(
 from app.graph import route  # noqa: E402
 
 
-def _state(english: bool, on_task: bool, score: float) -> dict:
+def _state(english: bool, on_task: bool, score: float, clarify_attempts: int = 0) -> dict:
     return {
         "last_eval_score": score,
         "current_mastery": 0.3,
@@ -30,6 +30,7 @@ def _state(english: bool, on_task: bool, score: float) -> dict:
         "strengthen_attempts": 0,
         "level_fails": 0,
         "attempts": 0,
+        "clarify_attempts": clarify_attempts,
     }
 
 
@@ -48,3 +49,21 @@ def test_english_offtask_still_redirects():
 
 def test_english_low_score_still_bridges():
     assert route.route_node(_state(english=True, on_task=True, score=0.2)) == "bridge"
+
+
+# ---- clarify cap (FIX #6): persistent non-English must not loop clarify forever
+
+def test_non_english_below_cap_still_clarifies():
+    # Under the cap, a non-English answer still gets the warm "say it in English"
+    # nudge.
+    state = _state(english=False, on_task=False, score=0.0,
+                   clarify_attempts=route.CLARIFY_ATTEMPT_CAP - 1)
+    assert route.route_node(state) == "clarify"
+
+
+def test_non_english_at_cap_escapes_to_teach():
+    # After CLARIFY_ATTEMPT_CAP nudges, escape the softlock: deliver content
+    # directly via teach instead of looping clarify forever.
+    state = _state(english=False, on_task=False, score=0.0,
+                   clarify_attempts=route.CLARIFY_ATTEMPT_CAP)
+    assert route.route_node(state) == "teach"

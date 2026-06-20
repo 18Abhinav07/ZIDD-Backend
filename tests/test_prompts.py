@@ -14,7 +14,7 @@ os.environ.setdefault(
     "postgresql://postgres.ref:pwd@host.pooler.supabase.com:6543/postgres",
 )
 
-from app.ai.prompts import build_eval_prompt, coach_view, _coach_block  # noqa: E402
+from app.ai.prompts import build_eval_prompt, coach_view, _coach_block, _history_block  # noqa: E402
 from app.content.registry import get_node  # noqa: E402
 
 
@@ -108,3 +108,66 @@ def test_coach_block_remediation_directive_present():
     block = _coach_block({"level_kind": "bridge", "remediation": True})
     low = block.lower()
     assert "again" in low or "before" in low or "revisit" in low or "remediat" in low
+
+
+# ---------- P1: de-formulaic openers (name + progress no longer forced every turn) ----------
+
+def test_coach_block_always_carries_vary_openings_directive():
+    # The anti-template rule must be present whenever there is any coaching dict.
+    assert "vary how you open" in _coach_block({"clean_streak": 0}).lower()
+
+
+def test_name_directive_is_soft_not_forced():
+    block = _coach_block({"name": "Rahul"})
+    low = block.lower()
+    assert "rahul" in low
+    assert "naturally" in low
+    # the old forced phrasing is gone
+    assert "must address" not in low
+    assert "at least once" not in low
+
+
+def test_progress_line_suppressed_at_zero_streak():
+    # A fresh/struggling learner must NOT be told "0 of 2" every turn.
+    block = _coach_block({"clean_streak": 0, "advance_streak": 2})
+    assert "clean passes" not in block.lower()
+
+
+def test_progress_line_present_once_streak_started():
+    block = _coach_block({"clean_streak": 1, "advance_streak": 3})
+    low = block.lower()
+    assert "1 of 3 clean passes" in low
+
+
+def test_progress_emphasises_the_win_one_pass_from_advance():
+    block = _coach_block({"clean_streak": 1, "advance_streak": 2})
+    low = block.lower()
+    assert "one clean pass from the next level" in low
+
+
+# ---- _history_block char budget (large-context builders) --------------------
+
+def test_history_block_no_budget_keeps_every_turn():
+    # the default coaching path (limit=8, no max_chars) must be byte-for-byte the
+    # old behaviour: no trimming, every turn in the window rendered.
+    msgs = [{"role": "user", "content": "x" * 500} for _ in range(8)]
+    block = _history_block(msgs)
+    assert block.count("user:") == 8
+
+
+def test_history_block_budget_drops_oldest_until_it_fits():
+    # 40 long turns exceed the budget; the oldest lines are dropped, the most
+    # recent are kept, and the block fits inside max_chars.
+    msgs = [{"role": "user", "content": f"turn-{i} " + "x" * 400} for i in range(40)]
+    block = _history_block(msgs, limit=40, max_chars=2000)
+    assert len(block) <= 2000
+    assert "turn-39" in block          # newest kept
+    assert "turn-0 " not in block      # oldest dropped
+
+
+def test_history_block_budget_never_drops_below_one_line():
+    # even a single oversized turn must still render (we never return empty).
+    msgs = [{"role": "user", "content": "y" * 5000}]
+    block = _history_block(msgs, limit=40, max_chars=100)
+    assert block.startswith("user:")
+    assert "y" in block

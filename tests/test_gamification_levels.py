@@ -128,6 +128,18 @@ async def test_slow_success_does_not_trigger_tester_level():
 
 
 @pytest.mark.asyncio
+async def test_stale_review_level_is_cleared_on_normal_advance():
+    """A review_level left True (e.g. leaked from a prior finished module) must
+    not survive a normal advance — level_kind reads it before tester_level, so a
+    stale True would mask a genuine tester stretch as a "review" section."""
+    state = _advance_ready_state(attempts=1)
+    state["review_level"] = True            # stale flag entering the advance
+    await svc._maybe_advance(state)
+    assert state["review_level"] is False   # reset with the rest of the per-node slate
+    assert level_kind(state) == "tester"    # no longer masked as "review"
+
+
+@pytest.mark.asyncio
 async def test_module_fail_triggers_bridge_section():
     """A module whose clean-rate fell below the floor enters a bridge section."""
     # Prior nodes mostly failed -> passrate below PASSRATE_FLOOR.

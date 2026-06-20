@@ -1,12 +1,15 @@
-"""Phase 3.2 — TEST-mode multi-persona simulation.
+"""Spec A — TEST-mode writers'-room simulation (director loop).
 
-The TEST behavior (interview_test / gd_test) runs a simulation: a SINGLE Ollama
-call emits ALL persona turns in one streaming pass, persona-tagged
-(`[Name]: ...`). The service parses those tags live and re-emits a discrete
-`Speaker` marker as each tagged block begins, then streams that block's text —
-so the UI renders distinct speaker bubbles without waiting for N serialized 14B
-calls. These tests pin the incremental parser (the hard part: a tag may be split
-across stream chunks) entirely offline.
+The TEST behavior (interview_test / gd_test) runs a *simulation*: per round a
+structured Director decision over the shared Blackboard picks WHO speaks and with
+WHAT intent, then a single Persona executor STREAMS that one speaker's turn. A
+round yields, in order: exactly ONE `Speaker` marker, exactly ONE
+`SimulationState` snapshot, then the persona's text tokens. Scoring is deferred
+to session end (`score_session`), never mid-stream.
+
+These tests pin the new contract entirely offline by patching the two LLM seams:
+the Director (`app.services.simulation.director.direct_simulation`) and the
+persona token stream (`stream_persona_turn` on the simulation_service module).
 """
 import os
 
@@ -19,30 +22,23 @@ os.environ.setdefault(
     "postgresql://postgres.ref:pwd@host.pooler.supabase.com:6543/postgres",
 )
 
-from app.ai.schemas import SimulationReport  # noqa: E402
+from app.ai.schemas import DirectorDecision, SimulationReport  # noqa: E402
 from app.content.task_types import TaskType  # noqa: E402
 from app.services import simulation_service as sim  # noqa: E402
+from app.services.simulation import director as director_mod  # noqa: E402
+from app.services.simulation.blackboard import new_blackboard  # noqa: E402
 from app.services.simulation_service import (  # noqa: E402
     Speaker,
+    SimulationState,
     build_personas,
     score_session,
-    split_persona_stream,
     stream_simulation_round,
 )
 
 pytestmark = pytest.mark.asyncio
 
 
-_PERSONAS = [
-    {"speaker_id": "p1", "name": "Aarav"},
-    {"speaker_id": "p2", "name": "Meera"},
-]
-
-
-async def _feed(text: str, size: int = 3):
-    """Yield `text` in small fixed-size chunks, so tags straddle chunk edges."""
-    for i in range(0, len(text), size):
-        yield text[i : i + size]
+# ---- helpers ----------------------------------------------------------------
 
 
 async def _collect(stream):
@@ -52,56 +48,50 @@ async def _collect(stream):
     return out
 
 
-async def test_gd_test_emits_multiple_personas():
-    raw = (
-        "[Aarav]: I think remote work boosts productivity.\n"
-        "[Meera]: I disagree, it isolates teams."
+def _gd_state(messages=None, **overrides):
+    """Minimal TEST-mode state the way _new_state seeds it (relevant keys only)."""
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Remote work",
+        "messages": messages if messages is not None else [],
+        "personas": None,
+        "blackboard": None,
+    }
+    state.update(overrides)
+    return state
+
+
+def _decision(next_speaker: str, *, intent="Expand on the last point.") -> DirectorDecision:
+    return DirectorDecision(
+        action="probe_deeper",
+        next_speaker=next_speaker,
+        intent=intent,
+        tension=0.5,
+        answer_quality=0.6,
+        should_close=False,
     )
-    out = await _collect(split_persona_stream(_feed(raw), _PERSONAS))
-
-    speakers = [i for i in out if isinstance(i, Speaker)]
-    assert [s.speaker_id for s in speakers] == ["p1", "p2"]
-    assert [s.name for s in speakers] == ["Aarav", "Meera"]
 
 
-async def test_persona_tag_stripped_from_streamed_text():
-    raw = "[Aarav]: Remote work helps.\n[Meera]: It can isolate teams."
-    out = await _collect(split_persona_stream(_feed(raw), _PERSONAS))
+def _patch_director(monkeypatch, decision: DirectorDecision):
+    """Patch the LLM Director seam so decide_round/apply_decision run for real."""
 
-    text = "".join(i for i in out if isinstance(i, str))
-    # the bracketed speaker tags are consumed into Speaker markers, never leaked
-    assert "[Aarav]" not in text
-    assert "[Meera]" not in text
-    assert "Remote work helps." in text
-    assert "It can isolate teams." in text
+    async def fake(bb, personas, task_type, transcript, probe_items=None):
+        return decision
+
+    monkeypatch.setattr(director_mod, "direct_simulation", fake)
 
 
-async def test_text_attributed_to_correct_speaker_in_order():
-    raw = "[Aarav]: First point.\n[Meera]: Second point."
-    out = await _collect(split_persona_stream(_feed(raw), _PERSONAS))
+def _patch_persona(monkeypatch, *tokens: str):
+    """Patch the persona token stream at its call site in simulation_service."""
 
-    # Walk the stream; every text token belongs to the most recent Speaker.
-    current = None
-    said: dict[str, str] = {}
-    for item in out:
-        if isinstance(item, Speaker):
-            current = item.speaker_id
-        else:
-            said[current] = said.get(current, "") + item
-    assert "First point." in said["p1"]
-    assert "Second point." in said["p2"]
-    assert "Second point." not in said["p1"]
+    async def fake(persona, intent, transcript, bb, roster=None):
+        for tok in tokens:
+            yield tok
+
+    monkeypatch.setattr(sim, "stream_persona_turn", fake)
 
 
-# ---- roster + round runner (single-pass, AI boundary patched) ----------------
-
-
-def _chunked(text: str, size: int = 4):
-    async def gen(spec):
-        for i in range(0, len(text), size):
-            yield text[i : i + size]
-
-    return gen
+# ---- roster -----------------------------------------------------------------
 
 
 async def test_gd_test_roster_has_distinct_named_personas():
@@ -119,90 +109,127 @@ async def test_interview_test_roster_is_interviewer():
     assert all(p["speaker_id"] for p in personas)
 
 
-async def test_gd_test_round_streams_tagged_personas(monkeypatch):
-    personas = build_personas(TaskType.GD_TEST, "Remote work")
-    a, b = personas[0]["name"], personas[1]["name"]
-    script = f"[{a}]: Remote work boosts output.\n[{b}]: It isolates teams."
-    monkeypatch.setattr(sim, "stream_generation", _chunked(script))
+# ---- round runner (director loop, both LLM seams patched) -------------------
 
-    state = {
-        "task_type": TaskType.GD_TEST.value,
-        "sim_topic": "Remote work",
-        "messages": [],
-        "user_input": "I think it depends on the team.",
-    }
+
+async def test_round_yields_speaker_then_state_then_text(monkeypatch):
+    personas = build_personas(TaskType.GD_TEST, "Remote work")
+    chosen = personas[2]["speaker_id"]  # Director picks WHO speaks (not personas[0])
+    _patch_director(monkeypatch, _decision(chosen))
+    _patch_persona(monkeypatch, "Remote ", "work ", "boosts output.")
+
+    state = _gd_state(personas=personas)
     out = await _collect(stream_simulation_round(state))
 
+    # exactly one Speaker, exactly one SimulationState, then plain str tokens
     speakers = [i for i in out if isinstance(i, Speaker)]
-    assert [s.name for s in speakers] == [a, b]
-    text = "".join(i for i in out if isinstance(i, str))
-    assert f"[{a}]" not in text and f"[{b}]" not in text
+    states = [i for i in out if isinstance(i, SimulationState)]
+    assert len(speakers) == 1
+    assert len(states) == 1
+
+    # order: first item Speaker, second item SimulationState, remainder str
+    assert isinstance(out[0], Speaker)
+    assert isinstance(out[1], SimulationState)
+    assert all(isinstance(i, str) for i in out[2:])
+
+    # the Speaker is the Director-chosen next_speaker
+    assert out[0].speaker_id == chosen
+    assert states[0].speaker_id == chosen
+    text = "".join(out[2:])
     assert "Remote work boosts output." in text
 
 
-async def test_round_persists_roster_in_state(monkeypatch):
-    monkeypatch.setattr(sim, "stream_generation", _chunked("[X]: hi."))
-    state = {
-        "task_type": TaskType.GD_TEST.value,
-        "sim_topic": "Topic",
-        "messages": [],
-        "user_input": "ok",
-    }
+async def test_round_persists_roster_and_blackboard(monkeypatch):
+    personas = build_personas(TaskType.GD_TEST, "Remote work")
+    _patch_director(monkeypatch, _decision(personas[0]["speaker_id"]))
+    _patch_persona(monkeypatch, "A point.")
+
+    state = _gd_state()
+    fresh = new_blackboard("Remote work")
     await _collect(stream_simulation_round(state))
-    # roster fixed once per session so speaker_ids stay stable across rounds
+
+    # roster cached so speaker_ids stay stable across rounds
     assert state.get("personas")
-    again = build_personas(TaskType.GD_TEST, "Topic")
+    again = build_personas(TaskType.GD_TEST, "Remote work")
     assert [p["speaker_id"] for p in state["personas"]] == [
         p["speaker_id"] for p in again
     ]
 
-
-async def test_round_prompt_carries_topic_and_personas(monkeypatch):
-    captured = {}
-
-    def fake(spec):
-        captured["spec"] = spec
-
-        async def gen():
-            yield "[Z]: hi."
-
-        return gen()
-
-    monkeypatch.setattr(sim, "stream_generation", fake)
-    personas = build_personas(TaskType.GD_TEST, "Climate policy")
-    state = {
-        "task_type": TaskType.GD_TEST.value,
-        "sim_topic": "Climate policy",
-        "messages": [],
-        "user_input": "We should act now.",
-    }
-    await _collect(stream_simulation_round(state))
-
-    prompt = captured["spec"].prompt
-    assert "Climate policy" in prompt
-    for p in personas:
-        assert p["name"] in prompt
-    # learner's latest contribution is in the prompt so personas react to it
-    assert "We should act now." in prompt
-
-
-# ---- scoring at end (test sessions scored, not coached mid-stream) -----------
+    # blackboard persisted as a dict with turn advanced vs. a fresh blackboard
+    bb = state.get("blackboard")
+    assert isinstance(bb, dict)
+    assert bb["turn"] == fresh["turn"] + 1
 
 
 async def test_round_does_not_score_midstream(monkeypatch):
-    monkeypatch.setattr(
-        sim, "stream_generation", _chunked("[Aarav]: point.\n[Meera]: counter.")
-    )
-    state = {
-        "task_type": TaskType.GD_TEST.value,
-        "sim_topic": "Topic",
-        "messages": [],
-        "user_input": "ok",
-    }
+    personas = build_personas(TaskType.GD_TEST, "Remote work")
+    _patch_director(monkeypatch, _decision(personas[1]["speaker_id"]))
+    _patch_persona(monkeypatch, "point.", " counter.")
+
+    state = _gd_state(personas=personas)
     out = await _collect(stream_simulation_round(state))
-    # only speaker markers + text mid-stream; never a score/report
-    assert all(isinstance(i, (Speaker, str)) for i in out)
+
+    # only Speaker, SimulationState, and str mid-stream; never a SimulationReport
+    assert all(isinstance(i, (Speaker, SimulationState, str)) for i in out)
     assert not any(isinstance(i, SimulationReport) for i in out)
+
+
+async def test_round_director_failure_falls_back(monkeypatch):
+    personas = build_personas(TaskType.GD_TEST, "Remote work")
+
+    async def boom(bb, personas, task_type, transcript, probe_items=None):
+        raise RuntimeError("director model unavailable")
+
+    monkeypatch.setattr(director_mod, "direct_simulation", boom)
+    _patch_persona(monkeypatch, "Falling back cleanly.")
+
+    state = _gd_state(personas=personas)
+    out = await _collect(stream_simulation_round(state))
+
+    # decide_round caught the failure and used _fallback_decision (personas[0])
+    speakers = [i for i in out if isinstance(i, Speaker)]
+    assert len(speakers) == 1
+    assert speakers[0].speaker_id == personas[0]["speaker_id"]
+    text = "".join(i for i in out if isinstance(i, str))
+    assert "Falling back cleanly." in text  # the round still streamed text
+
+
+async def test_round_empty_persona_turn_falls_back(monkeypatch):
+    personas = build_personas(TaskType.GD_TEST, "Remote work")
+    _patch_director(monkeypatch, _decision(personas[0]["speaker_id"]))
+    _patch_persona(monkeypatch)  # persona stream yields NOTHING
+
+    state = _gd_state(personas=personas)
+    out = await _collect(stream_simulation_round(state))
+
+    fallback = "Let's stay with that — can you say more?"
+    text = "".join(i for i in out if isinstance(i, str))
+    assert fallback in text  # yielded
+    # and recorded into the blackboard (note_turn appends the spoken text)
+    assert fallback in state["blackboard"]["open_threads"]
+
+
+async def test_decide_round_empty_roster_raises_before_llm(monkeypatch):
+    # An empty roster is a caller contract violation, not a runtime degradation:
+    # decide_round must fail fast at the boundary and NEVER waste an LLM
+    # round-trip. Spy on the Director seam to prove the guard fires first — a
+    # guard placed inside the try block would be swallowed into the fallback
+    # (which re-raises the same error) AND would run only after the LLM call.
+    called = {"llm": False}
+
+    async def spy(bb, personas, task_type, transcript):
+        called["llm"] = True
+        return _decision("anyone")
+
+    monkeypatch.setattr(director_mod, "direct_simulation", spy)
+
+    bb = new_blackboard("Remote work")
+    with pytest.raises(ValueError, match="non-empty personas roster"):
+        await director_mod.decide_round(bb, [], TaskType.GD_TEST, "")
+    assert called["llm"] is False  # guard fired before any LLM call
+
+
+# ---- scoring at end (test sessions scored, not coached mid-stream) ----------
 
 
 async def test_interview_test_scores_at_end(monkeypatch):
@@ -217,6 +244,8 @@ async def test_interview_test_scores_at_end(monkeypatch):
             improvements=["quantify impact"],
         )
 
+    # score_session calls the module-global `evaluate_simulation`
+    # (imported into simulation_service at module load).
     monkeypatch.setattr(sim, "evaluate_simulation", fake_eval)
     state = {
         "task_type": TaskType.INTERVIEW_TEST.value,

@@ -201,5 +201,31 @@ def test_start_failure_does_not_refund_demo_user(monkeypatch):
     assert _run(store.get_credits("test_user")) == 50
 
 
+def test_start_failure_refunds_on_non_value_error(monkeypatch):
+    # FIX #5 — the refund/compensation must fire on ANY start failure, not only
+    # ValueError. A downstream KeyError after charge() must NOT burn the wallet,
+    # and a non-ValueError fault surfaces as a 500 (not a misleading 400).
+    async def _boom(user_id, node_id, learner_name="", test_mode=False):
+        raise KeyError("downstream defect after charge")
+
+    monkeypatch.setattr(svc, "start_session", _boom)
+
+    store = get_storage()
+    _seed(store.ensure_profile("test_user"))
+    _seed(store.grant_credits("test_user", 50, "welcome"))
+
+    client = TestClient(app, raise_server_exceptions=False)
+    r = client.post(
+        "/session/start",
+        json={"user_id": "test_user", "competency_node": COMM_SECOND, "confirm": True},
+        headers=AUTH,
+    )
+    assert r.status_code == 500
+    # Charged 40 then refunded 40 despite the non-ValueError failure.
+    assert _run(store.get_credits("test_user")) == 50
+    # The ACCESS unlock charge() wrote must also be undone.
+    assert _run(store.has_unlock("test_user", "feature", COMM_ID)) is False
+
+
 def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)

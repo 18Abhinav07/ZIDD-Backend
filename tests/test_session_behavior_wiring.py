@@ -48,7 +48,7 @@ def _patch_ai(monkeypatch):
     cap = _Capture()
     monkeypatch.setattr("app.services.session_service.stream_generation", cap)
 
-    async def _fake_eval(node, messages, user_input):
+    async def _fake_eval(node, messages, user_input, behavior=None):
         return DiagnosisEval(
             score=0.9, understanding="x", errors=[], strengths=["s"],
             next_focus="n", on_task=True, english=True, affect="neutral",

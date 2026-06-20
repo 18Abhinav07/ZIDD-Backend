@@ -36,7 +36,7 @@ class _Scores:
         self._english = iter(english) if english is not None else None
         self._affect = iter(affect) if affect is not None else None
 
-    async def __call__(self, node, messages, user_input):
+    async def __call__(self, node, messages, user_input, behavior=None):
         score = next(self._it)
         return DiagnosisEval(
             score=score,
@@ -170,21 +170,30 @@ async def test_node_advance_on_clean_streak(monkeypatch):
 
 
 async def test_advance_streams_new_node_opening(monkeypatch):
-    # Desync fix #5: advancing mid-turn streams an opening for the NEW node so
-    # the tutor text matches the post-advance snapshot. The advance turn appends
-    # two assistant messages (old-node pedagogy + new-node opening).
+    # Two-step opening contract: advancing mid-turn appends only the user turn +
+    # the OLD node's pedagogy and emits a NodeAdvance marker — it does NOT
+    # auto-stream the new node's opening. The frontend shows a "Next Skill" break
+    # and fetches the opening via a separate /opening (stream_opening) call.
     _set_eval(monkeypatch, [1.0, 1.0])
     _sid, state = await svc.start_session("u3b", "comm_01_self_intro")
     state["turn_count"] = 1
 
     await _drain(svc.run_turn(_sid, "pass one"))
     before = len(state["messages"])
-    await _drain(svc.run_turn(_sid, "pass two"))  # this advances
+    advanced_from = state["competency_node"]
 
-    # user + pedagogy(assistant) + opening(assistant) = 3 new messages
+    yielded = [t async for t in svc.run_turn(_sid, "pass two")]  # this advances
+    assert state["competency_node"] != advanced_from  # moved to the new node
+
+    # advance turn appends user + old-node pedagogy only (no opening yet)
+    assert len(state["messages"]) == before + 2
+    assert state["messages"][-1]["role"] == "assistant"  # pedagogy, not opening
+    assert any(isinstance(t, svc.NodeAdvance) for t in yielded)
+
+    # the new-node opening arrives only via a separate /opening call
+    await _drain(svc.stream_opening(_sid))
     assert len(state["messages"]) == before + 3
-    assert state["messages"][-1]["role"] == "assistant"
-    assert state["messages"][-2]["role"] == "assistant"
+    assert state["messages"][-1]["role"] == "assistant"  # the opening
 
 
 async def test_clean_pass_no_remediation(monkeypatch):
