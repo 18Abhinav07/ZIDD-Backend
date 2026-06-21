@@ -17,6 +17,11 @@ class BalanceResponse(BaseModel):
     user_id: str
     credits: int
     demo_unlimited: bool
+    # The learner's display name (from their profile), so a surface that already
+    # fetches the balance can greet them by the SAME name the coach uses, instead
+    # of falling back to the raw user_id. Empty when the profile has no name.
+    name: str = ""
+    active_module: str | None = None
 
 
 class QuoteResponse(BaseModel):
