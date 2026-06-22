@@ -5,7 +5,7 @@ app.billing.gate; these routes read state and create/confirm purchases.
 import json
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from app.billing import pricing, razorpay_client
 from app.billing.gate import resolve_gate
@@ -19,6 +19,7 @@ from app.billing.models import (
     UnlockListResponse,
 )
 from app.config import get_settings
+from app.content import registry
 from app.storage import get_storage
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,50 @@ def _uid(request: Request) -> str:
 async def balance(request: Request) -> BalanceResponse:
     user_id = _uid(request)
     store = get_storage()
+    # Best-effort name read so the dashboard can greet by the profile name (the
+    # same one the coach uses); a missing/failed profile just leaves it blank.
+    try:
+        prof = await store.get_profile(user_id)
+        name = (prof or {}).get("name", "") or ""
+    except Exception:
+        name = ""
+
+    active_module = None
+    try:
+        if hasattr(store, "get_last_active_node"):
+            last_node = await store.get_last_active_node(user_id)
+            if last_node:
+                active_module = registry.module_of(last_node)
+    except Exception as e:
+        logger.warning("Failed to resolve active module for %s: %s", user_id, e)
+
     return BalanceResponse(
         user_id=user_id,
         credits=await store.get_credits(user_id),
         demo_unlimited=await store.is_demo(user_id),
+        name=name,
+        active_module=active_module,
     )
+
+
+@router.post("/dev/grant")
+async def dev_grant(request: Request, amount: int = 500) -> dict:
+    """DEV-ONLY top-up so credits can be tested locally without Razorpay.
+
+    Razorpay needs live/test keys plus a publicly reachable webhook to grant
+    credits, which is impossible on localhost, so the wallet could never be
+    funded in dev. This grants the authenticated user credits directly. Hard
+    404 outside non-prod so it can never exist on a real deployment.
+    """
+    if get_settings().app_env.lower() == "prod":
+        raise HTTPException(status_code=404, detail="Not found")
+    user_id = _uid(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    amount = max(1, min(amount, 100_000))  # sane bounds
+    store = get_storage()
+    new_balance = await store.grant_credits(user_id, amount, "dev_grant")
+    return {"user_id": user_id, "granted": amount, "credits": new_balance}
 
 
 @router.get("/packs", response_model=PackListResponse)
@@ -201,3 +241,41 @@ async def razorpay_webhook(request: Request) -> dict:
         )
         return {"status": "grant_failed"}
     return {"status": "ok"}
+
+
+@router.post("/razorpay/verify")
+async def razorpay_verify(request: Request, body: dict = Body(...)) -> dict:
+    """Grant credits on a verified Checkout success, without the webhook.
+
+    Razorpay's webhook can't reach localhost, so a TEST payment would otherwise
+    never fund the wallet. The Checkout success handler posts here with the
+    payment id/order id/signature; we verify the signature (HMAC over
+    'order_id|payment_id' with the API secret), confirm the order belongs to the
+    authenticated buyer, reconcile the amount, then grant via the SAME idempotent
+    latch the webhook uses — so a later webhook for the same order never
+    double-grants. Also a useful safety net in prod when a webhook is delayed."""
+    user_id = _uid(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    order_id = body.get("razorpay_order_id") or body.get("order_id") or ""
+    payment_id = body.get("razorpay_payment_id") or ""
+    signature = body.get("razorpay_signature") or ""
+    if not razorpay_client.verify_payment_signature(order_id, payment_id, signature):
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    store = get_storage()
+    purchase = await store.get_purchase(order_id)
+    if purchase is None:
+        raise HTTPException(status_code=404, detail="Unknown order")
+    if purchase["user_id"] != user_id:
+        # Never let one learner's verify grant against another's order.
+        raise HTTPException(status_code=403, detail="Not your order")
+    try:
+        granted = await store.mark_paid_and_grant(
+            order_id,
+            purchase["user_id"],
+            purchase["credits"],
+            f"purchase:{purchase['pack_id']}",
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=409, detail="Buyer profile missing") from e
+    return {"granted": bool(granted), "credits": await store.get_credits(user_id)}

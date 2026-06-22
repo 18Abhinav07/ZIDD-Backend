@@ -61,6 +61,80 @@ def test_balance_endpoint():
     assert body["demo_unlimited"] is False
 
 
+def test_balance_includes_profile_name():
+    # The dashboard greets by the profile name (matching the coach), so balance
+    # carries it. ensure_profile updates the name when non-empty.
+    store = get_storage()
+    _run(store.ensure_profile("test_user", "Asha"))
+    client = TestClient(app)
+    r = client.get("/billing/balance", headers=AUTH)
+    assert r.status_code == 200
+    assert r.json()["name"] == "Asha"
+
+
+def test_dev_grant_tops_up_in_non_prod():
+    store = get_storage()
+    _run(store.ensure_profile("test_user"))
+    client = TestClient(app)
+    r = client.post("/billing/dev/grant", params={"amount": 300}, headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["granted"] == 300
+    assert body["credits"] >= 300
+    bal = client.get("/billing/balance", headers=AUTH)
+    assert bal.json()["credits"] == body["credits"]
+
+
+def test_dev_grant_unavailable_in_prod(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "prod")
+    get_settings.cache_clear()
+    client = TestClient(app)
+    r = client.post("/billing/dev/grant", headers=AUTH)
+    assert r.status_code != 200  # hard-disabled outside non-prod (404, never funds)
+
+
+import hashlib as _hashlib  # noqa: E402
+import hmac as _hmac  # noqa: E402
+
+
+def _sign(order_id, payment_id, secret):
+    return _hmac.new(secret.encode(), f"{order_id}|{payment_id}".encode(), _hashlib.sha256).hexdigest()
+
+
+def test_razorpay_verify_grants_once_on_valid_signature(monkeypatch):
+    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "shh_test_secret")
+    get_settings.cache_clear()
+    store = get_storage()
+    _run(store.ensure_profile("test_user"))
+    base = _run(store.get_credits("test_user"))   # the shared DB may carry residual
+    _run(store.record_purchase("order_V", "test_user", "starter", 100, 9900, status="created"))
+    sig = _sign("order_V", "pay_V", "shh_test_secret")
+    body = {"razorpay_order_id": "order_V", "razorpay_payment_id": "pay_V", "razorpay_signature": sig}
+    client = TestClient(app)
+    r = client.post("/billing/razorpay/verify", json=body, headers=AUTH)
+    assert r.status_code == 200
+    assert r.json()["granted"] is True and r.json()["credits"] == base + 100
+    # idempotent: a second verify (or a later webhook) never double-grants
+    r2 = client.post("/billing/razorpay/verify", json=body, headers=AUTH)
+    assert r2.json()["granted"] is False and r2.json()["credits"] == base + 100
+
+
+def test_razorpay_verify_rejects_forged_signature(monkeypatch):
+    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "shh_test_secret")
+    get_settings.cache_clear()
+    store = get_storage()
+    _run(store.ensure_profile("test_user"))
+    base = _run(store.get_credits("test_user"))
+    _run(store.record_purchase("order_F", "test_user", "starter", 100, 9900, status="created"))
+    client = TestClient(app)
+    r = client.post("/billing/razorpay/verify", json={
+        "razorpay_order_id": "order_F", "razorpay_payment_id": "pay_F",
+        "razorpay_signature": "deadbeef",
+    }, headers=AUTH)
+    assert r.status_code == 400
+    assert _run(store.get_credits("test_user")) == base  # never granted
+
+
 def test_quote_free_taste_and_paid():
     store = get_storage()
     _run(store.ensure_profile("test_user"))
