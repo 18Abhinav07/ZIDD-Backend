@@ -310,6 +310,26 @@ def _strictness_gate(behavior: BehaviorPack | None) -> str:
     return ""
 
 
+def _exemplar_block(node: "Concept") -> str:
+    """Render the node's authored model answers as a calibration anchor.
+
+    The curriculum hand-authors 1-2 exemplars per node (Concept.exemplars) —
+    situated, target-context model answers that say far more than the abstract
+    success_criteria about what "mastered" actually looks like. They were dead
+    weight (no prompt consumed them); this surfaces them. Returns "" when a node
+    has no exemplars (e.g. school_english) so the caller degrades silently."""
+    exemplars = getattr(node, "exemplars", None) or []
+    if not exemplars:
+        return ""
+    lines = "\n".join(f"  - {ex}" for ex in exemplars)
+    return (
+        "Model answers at the target quality bar for THIS skill (use them to "
+        "calibrate what 'mastered' means and to recast toward — do NOT copy them "
+        "verbatim or read them aloud):\n"
+        f"{lines}\n\n"
+    )
+
+
 # ---------- evaluate (structured) ----------
 
 def build_eval_prompt(
@@ -324,6 +344,7 @@ def build_eval_prompt(
         f"{_strictness_gate(behavior)}\n"
         f"Skill being assessed: {node.skill}\n"
         f"What a mastered answer looks like: {node.success_criteria}\n\n"
+        f"{_exemplar_block(node)}"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"The learner's latest answer:\n\"{user_input}\"\n\n"
         "Assess ONLY this latest answer against the skill. Score on this anchored "
@@ -747,6 +768,17 @@ def build_test_gen_prompt(
 
 # ---------- pedagogy generations (streamed) ----------
 
+# The single most damaging tutor failure: writing the exact answer the learner is
+# meant to produce, so the task collapses to copying ("say 'Hello, I am Ryuk'").
+# Every production prompt carries this so the learner always has real work to do.
+_NO_GIVEAWAY = (
+    "Never write out the exact answer the learner should produce. Set the task and "
+    "the frame; if you show an example, use DIFFERENT details than what they should "
+    "say (a different name, place, or topic) so they still have to compose their "
+    "own. Their job is to fill the frame; yours is to set it, not to fill it."
+)
+
+
 def build_opening_prompt(
     node: Concept,
     memory_context: "list[dict] | str",
@@ -754,6 +786,8 @@ def build_opening_prompt(
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
     sim_topic: str = "",
+    interview_test: bool = False,
+    review_skills: list | None = None,
 ) -> str:
     base = (
         f"{_persona(behavior)}\n"
@@ -775,13 +809,39 @@ def build_opening_prompt(
             "verbatim — never invent a different topic), then ask them to state "
             "their opening position on it. End with that ask."
         )
+    # Interview assessment opening (P0): the examiner must NOT invent the
+    # candidate's history. Live, it opened by fabricating "your previous
+    # experience where you mentioned improving team efficiency" and then anchored
+    # the whole assessment on that phantom backstory. Force it to elicit a real
+    # example from the candidate instead of assuming one.
+    if interview_test:
+        return base + (
+            "This is a live interview assessment, not a lesson. You are the "
+            "interviewer and you have NOT heard the candidate yet. Do NOT invent "
+            "or assume any of their history, employer, projects, or metrics. Open "
+            "in 1-2 sentences: name the focus of this round, then ask the "
+            "candidate to give you a concrete example FROM THEIR OWN EXPERIENCE "
+            "for you to probe. End with that ask."
+        )
+    # Spaced retention check: skills the learner mastered a while ago but hasn't
+    # practised recently. Re-checking ONE in the warm-up fights forgetting — the
+    # longitudinal half of tracking. Renders only when present, so a normal
+    # opening (and every existing prompt snapshot) is unchanged.
+    review_line = ""
+    if review_skills:
+        skills = ", ".join(str(s) for s in review_skills[:2])
+        review_line = (
+            "The learner did well on these a while back; if it fits, slip a quick "
+            f"one-line refresher on ONE of them into the warm-up to check it stuck: {skills}.\n"
+        )
     return base + (
         "If your remembered notes name a weak spot or a 'next focus' from last "
         "time, open with a 10-second warm-up that re-tests THAT first, then move "
         "into today's skill. Otherwise open directly.\n"
+        + review_line +
         "Open the lesson in 2-3 sentences: briefly say what you'll work on, then "
         "give the learner ONE clear, small task that makes them produce language "
-        "right now. Do not over-explain. End with the task."
+        "right now. Do not over-explain. End with the task.\n" + _NO_GIVEAWAY
     )
 
 
@@ -800,13 +860,14 @@ def build_teach_prompt(
         f"{_coach_block(coach)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nTeaching focus: {node.teach_focus}\n\n"
+        f"{_exemplar_block(node)}"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
         "Give a short, targeted teaching move (2-4 sentences) as a recast "
         "sandwich: first acknowledge what genuinely worked, then gently recast "
-        "the single most important error by modelling the correct form (do not "
-        "scold or just label it wrong), then set the next small production task. "
-        "End with the task."
+        "the single most important error by modelling the correct form ON A "
+        "DIFFERENT EXAMPLE (do not scold or just label it wrong), then set the "
+        "next small production task. End with the task.\n" + _NO_GIVEAWAY
     )
 
 
@@ -888,11 +949,13 @@ def build_strengthen_prompt(
         f"{_coach_block(coach)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nSuccess looks like: {node.success_criteria}\n\n"
+        f"{_exemplar_block(node)}"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
         "The skill is shaky but present. Reinforce it as a recast sandwich: name "
-        "what worked, gently model the one weak spot correctly, give a quick tip, "
-        "then ask them to try a close variant of the same task. End with the task."
+        "what worked, gently model the one weak spot correctly ON A DIFFERENT "
+        "EXAMPLE, give a quick tip, then ask them to try a close variant of the "
+        "same task. End with the task.\n" + _NO_GIVEAWAY
     )
 
 
@@ -927,7 +990,23 @@ def build_redirect_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    model_answer: bool = False,
 ) -> str:
+    # After repeated steer-backs (model_answer), stop merely re-asking — the
+    # learner is stuck in a loop. Model a correct answer so they see exactly what
+    # is wanted, then give a fresh small task (Wave 1.2b stall-loop break).
+    tail = (
+        "The learner has answered a different question two turns running — just "
+        "re-steering is looping. Stop re-asking: MODEL one short, correct answer "
+        "to the ACTUAL task yourself (a concrete example they can copy the shape "
+        "of), then invite them to give their own version of THAT. End with the ask."
+        if model_answer else
+        "The learner wrote fluent English but answered a DIFFERENT question — "
+        "they did not attempt this skill. Do NOT scold and do NOT scaffold down "
+        "(they are clearly capable). Warmly acknowledge what they said in one "
+        "line, then steer them back: restate the actual task in one clear "
+        "sentence and ask them to try THAT now. End with the task."
+    )
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
@@ -937,11 +1016,7 @@ def build_redirect_prompt(
         f"The task / success criteria: {node.success_criteria}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
-        "The learner wrote fluent English but answered a DIFFERENT question — "
-        "they did not attempt this skill. Do NOT scold and do NOT scaffold down "
-        "(they are clearly capable). Warmly acknowledge what they said in one "
-        "line, then steer them back: restate the actual task in one clear "
-        "sentence and ask them to try THAT now. End with the task."
+        + tail
     )
 
 
@@ -953,7 +1028,26 @@ def build_clarify_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    model_answer: bool = False,
 ) -> str:
+    # After two stuck turns (model_answer), a young/low-fluency learner re-asked
+    # the same way just stalls (live: 9 turns on the same letter 'B'). Give them a
+    # complete example to copy instead of asking them to self-produce again
+    # (Wave 1.2b stall-loop break).
+    tail = (
+        "The learner has now been stuck for two turns and still has not produced "
+        "the answer. Do NOT just ask again. MODEL it for them: say one short, "
+        "complete, correct example answer for THIS task yourself, in simple "
+        "English, tell them it is now their turn to say one just like it, then ask. "
+        "Keep it tiny and encouraging. End with the ask."
+        if model_answer else
+        "The learner's last message was not in clear English (it may be another "
+        "language, empty, or unreadable). Do NOT scold, do NOT scaffold the skill "
+        "down, and do NOT guess what they meant. Assume good faith. In one warm "
+        "sentence say you want to make sure you understand them, then ask them to "
+        "say it again in English. Briefly restate the task in one simple sentence "
+        "so they know what to answer. End with that ask."
+    )
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
@@ -963,12 +1057,7 @@ def build_clarify_prompt(
         f"The task / success criteria: {node.success_criteria}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
-        "The learner's last message was not in clear English (it may be another "
-        "language, empty, or unreadable). Do NOT scold, do NOT scaffold the skill "
-        "down, and do NOT guess what they meant. Assume good faith. In one warm "
-        "sentence say you want to make sure you understand them, then ask them to "
-        "say it again in English. Briefly restate the task in one simple sentence "
-        "so they know what to answer. End with that ask."
+        + tail
     )
 
 
