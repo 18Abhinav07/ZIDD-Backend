@@ -125,6 +125,19 @@ async def test_empty_ai_result_falls_back(monkeypatch):
     assert all(it.skill_id and it.prompt for it in result)
 
 
+async def test_fallback_banks_are_full_and_skill_diverse(monkeypatch):
+    """An OFFLINE assessment (generation yields nothing, e.g. Ollama down) must
+    still open a FULL, skill-diverse probe bank — not a thin 3-item stub — for
+    both GD and interview tests, so a model outage doesn't degrade the score."""
+    for tt in (TaskType.GD_TEST.value, TaskType.INTERVIEW_TEST.value):
+        store = _FakeStore({})
+        _patch_ai(monkeypatch, store, ProbeSet(items=[]))   # force the fallback path
+        result = await generate_test_items("u1", tt, n_items=4)
+        assert len(result) >= 4, tt
+        assert len({it.skill_id for it in result}) >= 4, tt   # covers the mode's skills
+        assert all(it.skill_id and it.prompt and it.aim for it in result), tt
+
+
 async def test_no_history_still_generates(monkeypatch):
     items = ProbeSet(
         items=[

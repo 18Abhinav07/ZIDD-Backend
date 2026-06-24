@@ -96,16 +96,19 @@ async def test_test_session_reads_prep_weaknesses(monkeypatch):
     assert state["weakness_context"] == [_PREP_WEAKNESS]
 
 
-async def test_interview_sim_topic_folds_in_top_prep_weakness(monkeypatch):
-    # INTERVIEW: the weakness sharpens the interviewer's focus (sim_topic).
+async def test_interview_sim_topic_does_not_leak_prep_weakness(monkeypatch):
+    # D3 (Wave 2.2): the weakness must NOT be folded into sim_topic — that string
+    # becomes the interviewer's spoken subject and leaked the prep instruction for
+    # a returning learner. The weakness is pressed via probe_items -> the director
+    # instead; sim_topic stays the neutral teach_focus even with a prep weakness.
     store = _FakeStore({TaskType.INTERVIEW_PREP.value: [_INT_PREP_WEAKNESS]})
     monkeypatch.setattr(svc, "get_storage", lambda: store)
 
     _, state = await svc.start_session("u1", INT_NODE, test_mode=True)
 
     topic = state["sim_topic"]
-    assert get_node(INT_NODE).teach_focus in topic
-    assert "rambled without a crisp, structured pitch" in topic
+    assert topic == get_node(INT_NODE).teach_focus
+    assert "rambled without a crisp, structured pitch" not in topic
 
 
 async def test_interview_no_prep_weakness_keeps_plain_topic(monkeypatch):

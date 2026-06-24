@@ -24,9 +24,11 @@ from app.storage import get_storage
 __all__ = ["ProbeItem", "ProbeSet", "generate_test_items"]
 
 
-# Deterministic safety net: a TEST session must never open with no items. Used
-# when the engine returns an empty set or the call fails. Keyed on task_type
-# value; an unknown task_type falls through to a single generic prompt.
+# Deterministic safety net: a TEST session must never open with no items, and an
+# OFFLINE assessment (Ollama down) must be as full and skill-diverse as an online
+# one — so each bank covers ALL of its mode's micro-skills with >= n_items
+# (default 4) probes. Used when the engine returns an empty set or the call fails.
+# Keyed on task_type value; an unknown task_type falls through to a generic prompt.
 _FALLBACK: dict[str, list[ProbeItem]] = {
     TaskType.GD_TEST.value: [
         ProbeItem(
@@ -42,9 +44,22 @@ _FALLBACK: dict[str, list[ProbeItem]] = {
             aim="Directly rebuts the point instead of restating their own.",
         ),
         ProbeItem(
+            skill_id=SkillID.GD_TURN_TAKING.value,
+            prompt="Two members are talking over each other and a quieter member "
+            "hasn't spoken yet. Bring them in without losing your own point.",
+            aim="Makes space for others while holding the thread of the discussion.",
+        ),
+        ProbeItem(
             skill_id=SkillID.GD_CONSENSUS_BUILDING.value,
-            prompt="The group is split. Propose a position both sides could accept.",
+            prompt="The group is split down the middle. Propose a position both "
+            "sides could accept.",
             aim="Builds toward shared ground without abandoning a stance.",
+        ),
+        ProbeItem(
+            skill_id=SkillID.GD_STANCE_CLARITY.value,
+            prompt="In one closing line, sum up the group's discussion and where "
+            "you now stand.",
+            aim="Synthesises the exchange and restates a clear final position.",
         ),
     ],
     TaskType.INTERVIEW_TEST.value: [
@@ -61,9 +76,21 @@ _FALLBACK: dict[str, list[ProbeItem]] = {
             aim="Backs the claim with a specific, real example.",
         ),
         ProbeItem(
+            skill_id=SkillID.ANSWER_RELEVANCE.value,
+            prompt="Tell me about a time you failed. What actually went wrong — "
+            "not what you would do differently?",
+            aim="Answers the exact question asked and owns the failure honestly.",
+        ),
+        ProbeItem(
             skill_id=SkillID.CONFIDENCE_TONE.value,
             prompt="Why should we choose you over other candidates?",
             aim="Answers with composed, confident, specific language.",
+        ),
+        ProbeItem(
+            skill_id=SkillID.STRUCTURE_STAR_METHOD.value,
+            prompt="Describe a time you disagreed with a teammate. What did you do, "
+            "and how did it turn out?",
+            aim="Structures the answer and lands on a concrete result.",
         ),
     ],
 }
