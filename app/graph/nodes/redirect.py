@@ -17,6 +17,8 @@ from app.content.registry import get_node
 
 async def redirect_node(state: dict) -> dict:
     node = get_node(state["competency_node"])
+    # 2nd consecutive steer-back onward: model a correct answer instead of just
+    # re-asking (1.2b). redirect_attempts is the pre-turn count, so >=1 = stuck.
     prompt = build_redirect_prompt(
         node,
         state.get("messages", []),
@@ -25,6 +27,7 @@ async def redirect_node(state: dict) -> dict:
         coach_view(state),
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        model_answer=state.get("redirect_attempts", 0) >= 1,
     )
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="redirect"

@@ -16,6 +16,9 @@ from app.content.registry import get_node
 
 async def clarify_node(state: dict) -> dict:
     node = get_node(state["competency_node"])
+    # 2nd consecutive clarify onward: stop re-asking and model the answer (1.2b).
+    # clarify_attempts is the count BEFORE this turn, so >=1 means this is the
+    # second stuck turn.
     prompt = build_clarify_prompt(
         node,
         state.get("messages", []),
@@ -24,6 +27,7 @@ async def clarify_node(state: dict) -> dict:
         coach_view(state),
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        model_answer=state.get("clarify_attempts", 0) >= 1,
     )
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="clarify"

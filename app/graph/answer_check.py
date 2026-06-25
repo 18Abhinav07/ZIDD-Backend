@@ -42,6 +42,17 @@ _GIVEUP_PATTERNS = (
     "i cannot", "i dont get", "i don't get", "not sure what to say",
     "dont know what to say", "don't know what to say", "no clue what to say",
 )
+# Broken-English / ESL stuck signals — the SAME give-up intent in non-native
+# grammar. The struggling learner who most needs scaffolding phrases it worst
+# ("is bad i not know", "me no good speak"), and the standard patterns above all
+# assume native grammar, so these fell through to the LLM, scored english=false,
+# and were misrouted to clarify ("say it in English") instead of bridge. Kept
+# multi-word so they cannot fire as substrings of a real attempt.
+_GIVEUP_BROKEN = (
+    "i not know", "me no know", "me not know", "i no know", "me no good",
+    "no good speak", "i not understand", "me no understand", "i no understand",
+    "me no speak", "i not speak english", "i no speak", "i not good english",
+)
 # Whole-message one-word give-ups (exact match only, so they don't fire as
 # substrings of a real answer).
 _GIVEUP_EXACT = {"idk", "dunno", "nothing", "blank", "pass", "huh", "hmm"}
@@ -65,7 +76,26 @@ def is_giveup(text: str) -> bool:
         return False
     if t in _GIVEUP_EXACT:
         return True
-    return any(p in t for p in _GIVEUP_PATTERNS)
+    return any(p in t for p in _GIVEUP_PATTERNS) or any(
+        p in t for p in _GIVEUP_BROKEN
+    )
+
+
+_ALNUM = re.compile(r"[a-z0-9]", re.I)
+
+
+def is_blank_nonanswer(text: str) -> bool:
+    """True for a non-answer with NO gradable content: empty, whitespace-only,
+    or only punctuation / symbols / emoji.
+
+    A deterministic short-circuit (Wave 1.3) so the coach never ships such a turn
+    to the eval LLM — which, live, fabricated a fake summary of a prior turn
+    ("It's nice to hear about your daily activities" on an empty input) — and
+    never counts it as a scored attempt. Conservative on purpose: a single LETTER
+    or DIGIT is NOT blank, because "B" is a valid answer on an alphabet node."""
+    if not text or not text.strip():
+        return True
+    return not _ALNUM.search(text)
 
 
 def stuck_diagnosis() -> DiagnosisEval:
@@ -125,9 +155,25 @@ def _matches_one(typ: str, key: str, options: list, user_input: str) -> bool:
     if not nui or not nkey:
         return False
     if typ == "multiple_choice" and options:
-        norm_opts = [_norm(o) for o in options]
-        key_idx = norm_opts.index(nkey) if nkey in norm_opts else -1
-        chosen = _selected_option_index(user_input, options)
+        # Resolve option indices by EXACT option text FIRST. _norm strips terminal
+        # punctuation, so two options differing only by '?' vs '.' (e.g.
+        # "Where is the lion?" vs "Where is the lion.") collapse to the same
+        # normalized string — which made norm_opts.index() return the WRONG
+        # option's index and graded a distractor AS the key (even on a click). The
+        # FE sends the chosen option's exact text on a click, so match raw text
+        # first; fall back to normalized only when the key isn't stored verbatim.
+        raw_opts = [o.strip() for o in options]
+        raw_key = (key or "").strip()
+        raw_ui = (user_input or "").strip()
+        if raw_key in raw_opts:
+            key_idx = raw_opts.index(raw_key)
+        else:
+            norm_opts = [_norm(o) for o in options]
+            key_idx = norm_opts.index(nkey) if nkey in norm_opts else -1
+        if raw_ui in raw_opts:
+            chosen = raw_opts.index(raw_ui)
+        else:
+            chosen = _selected_option_index(user_input, options)
         if chosen is not None and key_idx != -1:
             return chosen == key_idx
         # Typed-text fallback for a closed-option MCQ: require an EXACT match to

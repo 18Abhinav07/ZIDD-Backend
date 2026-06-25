@@ -24,6 +24,7 @@ from app.graph.answer_check import (  # noqa: E402
     BRIDGE_CORRECT_SCORE,
     BRIDGE_WRONG_SCORE,
     grade_pending_answer,
+    is_blank_nonanswer,
     is_giveup,
 )
 from app.graph.nodes.bridge import select_bridge_exercise  # noqa: E402
@@ -34,6 +35,9 @@ from app.graph.nodes.bridge import select_bridge_exercise  # noqa: E402
 @pytest.mark.parametrize("text", [
     "idk", "IDK", "i don't know", "I dont know", "not sure",
     "hmm i am not sure what to say here", "dunno", "no idea", "I give up",
+    # broken-English / ESL stuck signals (Wave 1.2) — these are give-ups too.
+    "is bad i not know", "me no good speak", "i not understand",
+    "me no know", "i no understand the question",
 ])
 def test_giveup_detected(text):
     assert is_giveup(text) is True
@@ -44,9 +48,30 @@ def test_giveup_detected(text):
     "My name is Abhinav and I work on reliability.",
     "The capital of France is Paris.",
     "",
+    # broken English but a genuine ATTEMPT — must NOT be flagged a give-up.
+    "i go office daily by bus and i like my work",
+    "my name rahul i am from delhi city",
 ])
 def test_giveup_not_falsely_triggered(text):
     assert is_giveup(text) is False
+
+
+# ---------- (a2) blank non-answer detection (Wave 1.3) ----------
+
+@pytest.mark.parametrize("text", ["", "   ", "\t\n", "...", "!!!", "??", "🙂", "—"])
+def test_blank_nonanswer_detected(text):
+    assert is_blank_nonanswer(text) is True
+
+
+@pytest.mark.parametrize("text", [
+    "B",            # a single LETTER is a valid alphabet-node answer, not blank
+    "7",            # a single digit likewise
+    "ball",
+    "Hello, I am Abhinav.",
+    "a.",           # punctuation plus a letter still has gradable content
+])
+def test_blank_nonanswer_not_falsely_triggered(text):
+    assert is_blank_nonanswer(text) is False
 
 
 # ---------- (b) deterministic answer-key grading ----------
@@ -141,7 +166,7 @@ def test_mcq_text_and_letter_grade_consistently():
 
 def _ex(eid, band, typ="fill_blank"):
     return BridgeExercise(
-        id=eid, type=typ, sentence="s", hint="h", context="c",
+        id=eid, type=typ, sentence="fill the ___ gap", hint="h", context="c",
         answer_key="k", band=band,
     )
 
@@ -409,3 +434,33 @@ def test_content_synonym_and_numeric_blanks_configured():
 
     gd = _ex("gd_02_support_with_evidence")
     assert "For example" in (gd["gd_02_support_with_evidence_bx1"].accept or [])
+
+
+# ---------- Wave 1.3: blank non-answer short-circuits the turn ----------
+
+@pytest.mark.asyncio
+async def test_blank_input_reprompts_without_eval_or_attempt(_patched):
+    # A whitespace-only turn must NOT reach the eval LLM (which fabricated content
+    # live) and must NOT count as a scored attempt. It yields a fixed re-prompt.
+    sid, state = await svc.start_session("blank1", "comm_01_self_intro")
+    state["turn_count"] = 1
+
+    frames = await _collect(svc.run_turn(sid, "   "))
+
+    assert any("didn't catch that" in f for f in frames if isinstance(f, str))
+    assert _patched.calls == 0          # eval LLM never consulted
+    assert state.get("attempts", 0) == 0  # not scored as an attempt
+    assert state.get("last_route") is None  # the graph never ran
+
+
+@pytest.mark.asyncio
+async def test_real_answer_after_blank_is_still_evaluated(_patched):
+    # The short-circuit must not poison the session: a real answer next turn is
+    # evaluated normally (the LLM IS consulted).
+    sid, state = await svc.start_session("blank2", "comm_01_self_intro")
+    state["turn_count"] = 1
+
+    await _collect(svc.run_turn(sid, ""))            # blank -> short-circuit
+    assert _patched.calls == 0
+    await _collect(svc.run_turn(sid, "My name is Abhinav and I am from Jaipur."))
+    assert _patched.calls == 1                       # real answer was evaluated

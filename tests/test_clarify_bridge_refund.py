@@ -165,6 +165,18 @@ async def test_clean_pass_refunds_bridge_mid_session(monkeypatch, _patch_ai):
         "app.graph.nodes.evaluate.evaluate_answer",
         _Scores([0.2, 0.2, 0.6, 0.9]),
     )
+    # Every shipped node now carries authored bridge exercises (Wave 3.2), but this
+    # test exercises the LLM bridge path (scores flow through _Scores every turn).
+    # Strip the served node's exercises so bridge_node takes the generation branch.
+    import app.graph.nodes.bridge as bridge_mod
+    _real_get_node = bridge_mod.get_node
+
+    def _no_authored_bridge(nid):
+        n = _real_get_node(nid)
+        n.bridge_exercises = []
+        return n
+
+    monkeypatch.setattr(bridge_mod, "get_node", _no_authored_bridge)
     sid, state = await svc.start_session("cb2", "c2_naming_words")
     state["turn_count"] = 1
 
