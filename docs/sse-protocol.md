@@ -265,10 +265,30 @@ fire; instead the per-round sequence repeats once per round:
 
 ## Error Behavior
 
-The server never closes the stream mid-turn with an HTTP error. If the AI
-backend fails during a token stream, the fallback message
-`"Sorry — I lost my train of thought for a second there. Could you try that once more for me?"`
-is emitted as a token, and the turn ends normally with `done`.
+The server never closes the stream mid-turn with an HTTP error (the 200 +
+headers are already on the wire). There are two distinct failure paths:
+
+1. **In-band fallback (generation yielded nothing).** If the AI backend produces
+   an empty stream, the fallback message
+   `"Sorry — I lost my train of thought for a second there. Could you try that once more for me?"`
+   is emitted as a normal **token**, and the turn ends normally with `done`.
+
+2. **`event: error` frame (the stream raised).** If the opening/turn generator
+   itself throws mid-stream (e.g. the local LLM drops the connection), the server
+   emits a named error frame and then still emits the terminal `done` frame so the
+   client's streaming lock is always released:
+
+   ```
+   event: error
+   data: {"error": "stream_failed"}
+   ```
+
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | `error` | string | Machine tag — currently always `"stream_failed"` |
+
+   Clients should surface a brief retry affordance on this frame rather than a
+   silently truncated bubble, then wait for `done` as usual.
 
 If `game_prompt` generation fails, the turn falls back to a conversational
 token stream (the gamified path degrades gracefully).

@@ -123,11 +123,30 @@ def _reactor_pool(personas: list[dict]) -> list[dict]:
 # GD participants carry a `stance` so qwen renders genuinely opposed voices in
 # the single pass; the interview panel is one neutral interviewer.
 
+# Each debater carries not just a SIDE but topic-stable grounds (what they argue
+# FROM), a temperament, and a rhetorical signature, so qwen renders genuinely
+# distinct voices on any motion instead of three interchangeable "agree/disagree"
+# speakers. The Moderator is an explicit non-arguing facilitator (also kept out of
+# the reactor pool by _reactor_pool), so it never collapses into a fourth debater.
 _GD_PANEL = [
-    {"speaker_id": "moderator", "name": "Moderator", "stance": "neutral facilitator who directs the conversation and transitions speakers"},
-    {"speaker_id": "gd_a", "name": "Aarav", "stance": "strongly in favour"},
-    {"speaker_id": "gd_b", "name": "Meera", "stance": "strongly against"},
-    {"speaker_id": "gd_c", "name": "Kabir", "stance": "pragmatic middle ground"},
+    {"speaker_id": "moderator", "name": "Moderator",
+     "stance": "the neutral FACILITATOR — you never argue a side. You frame the "
+               "question, keep time, draw in whoever has stayed quiet, press a "
+               "vague claim for specifics, and periodically sum up where the group "
+               "agrees and where it splits."},
+    {"speaker_id": "gd_a", "name": "Aarav",
+     "stance": "strongly IN FAVOUR of the motion. You argue from opportunity, "
+               "progress and hard data; energetic and optimistic in temperament, "
+               "you lead with concrete real-world examples and numbers."},
+    {"speaker_id": "gd_b", "name": "Meera",
+     "stance": "strongly AGAINST the motion. You argue from risk, harm and "
+               "fairness to those worst affected; sharp and urgent in temperament, "
+               "you expose hidden assumptions and name the worst-case consequence."},
+    {"speaker_id": "gd_c", "name": "Kabir",
+     "stance": "a PRAGMATIC middle ground. You argue from trade-offs and what "
+               "actually works in practice; measured and diplomatic, you concede a "
+               "fair point before qualifying it and keep hunting for a workable "
+               "synthesis."},
 ]
 
 _INTERVIEWER = [
