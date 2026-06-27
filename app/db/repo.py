@@ -198,30 +198,49 @@ async def upsert_mastery(
     mastery: float,
     attempts: int,
     clean_pass: bool,
+    node_completed: bool = False,
 ) -> None:
     await session.execute(
         text(
             """
             INSERT INTO competency_nodes
-                (user_id, competency_node, mastery, attempts, clean_pass, updated_at)
-            VALUES (:uid, :node, :m, :a, :cp, now())
+                (user_id, competency_node, mastery, attempts, clean_pass, node_completed, updated_at)
+            VALUES (:uid, :node, :m, :a, :cp, :nc, now())
             ON CONFLICT (user_id, competency_node) DO UPDATE
             SET mastery = EXCLUDED.mastery,
                 attempts = EXCLUDED.attempts,
                 clean_pass = competency_nodes.clean_pass OR EXCLUDED.clean_pass,
+                node_completed = competency_nodes.node_completed OR EXCLUDED.node_completed,
                 updated_at = now()
             """
         ),
-        {"uid": user_id, "node": node_id, "m": mastery, "a": attempts, "cp": clean_pass},
+        {"uid": user_id, "node": node_id, "m": mastery, "a": attempts, "cp": clean_pass, "nc": node_completed},
     )
     await session.commit()
+
+
+async def get_last_active_node(session: AsyncSession, user_id: str) -> str | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT competency_node
+            FROM competency_nodes
+            WHERE user_id = :uid
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id},
+    )
+    row = result.first()
+    return row[0] if row else None
 
 
 async def get_progression(session: AsyncSession, user_id: str) -> list[dict]:
     result = await session.execute(
         text(
             """
-            SELECT competency_node as node_id, mastery as ema, attempts, clean_pass
+            SELECT competency_node as node_id, mastery as ema, attempts, clean_pass, node_completed
             FROM competency_nodes
             WHERE user_id = :uid
             """

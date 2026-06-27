@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS competency_nodes (
     competency_node TEXT NOT NULL,
     mastery         REAL NOT NULL DEFAULT 0.0,
     attempts        INTEGER NOT NULL DEFAULT 0,
-    clean_pass      BOOLEAN NOT NULL DEFAULT FALSE,  -- passed in <=2 attempts
+    clean_pass      BOOLEAN NOT NULL DEFAULT FALSE,   -- passed in <=2 attempts
+    node_completed  BOOLEAN NOT NULL DEFAULT FALSE,   -- user advanced past this node
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, competency_node)
 );

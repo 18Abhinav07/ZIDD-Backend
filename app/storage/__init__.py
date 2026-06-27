@@ -21,7 +21,7 @@ from app.storage.pg_store import PgStore
 #   end_session(session_id, final_summary="", avg_score=0.0)
 #   record_turn(session_id, user_id, node_id, score, on_task, english, affect)
 #   get_turns(session_id) -> list[dict]
-#   upsert_mastery(user_id, node_id, ema, attempts, clean_pass=False)
+#   upsert_mastery(user_id, node_id, ema, attempts, clean_pass=False, node_completed=False)
 #   get_progression(user_id) -> list[dict]
 #   get_module_passrate(user_id, node_ids) -> (clean, total)
 #   bump_weakness(user_id, task_type, skill_id, score, raw="")
