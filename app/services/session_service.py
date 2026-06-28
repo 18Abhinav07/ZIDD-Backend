@@ -110,12 +110,14 @@ from app.services.selector import (
 from app.ai.behaviors import behavior_for_value
 from app.ai.prompts import build_opening_prompt, coach_view
 from app.ai.test_gen import generate_test_items
+from app.graph.answer_check import is_blank_nonanswer
 from app.content.registry import (
     SELF_REPORT_CEFR,
     all_node_ids,
     get_module,
     get_node,
     grade_placement_node,
+    is_voice_node,
     module_of,
     next_node,
     placement_node,
@@ -336,27 +338,26 @@ def _new_state(
 def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
     """Build the assessment simulation topic for a TEST session.
 
+    The returned string becomes the blackboard `topic` that the persona prompt
+    recites as the discussion/interview subject, so it MUST be a neutral subject
+    line — never an instruction.
+
     GROUP DISCUSSION (P0-4): return a CONCRETE debate motion from the motion bank
     — never the node's teach_focus, which is a teaching instruction, not a
     debatable proposition. The motion is stored once and shared verbatim by the
     opening brief, the director, and every persona, so the learner argues exactly
-    the motion the panel debates. Weakness pressing for GD now rides probe_items
-    (threaded into the director), so it is intentionally NOT folded in here — that
-    would leak "probe their weakness: X" into the learner-facing opening.
+    the motion the panel debates.
 
-    INTERVIEW: anchored on the node's teach_focus; the top logged prep weakness is
-    folded in as a probe target so the interviewer presses exactly there. Falls
-    back to the bare focus when no prep history exists.
+    INTERVIEW: anchored on the node's teach_focus. The learner's weakness is
+    pressed through probe_items -> the director (_probe_block, "do not read this
+    list aloud"), exactly as GD does — NEVER folded in here. Folding "Probe the
+    learner's known weakness: X" into the topic leaked that instruction into the
+    interviewer's spoken subject for a returning learner (D3). `weaknesses` is
+    therefore intentionally unused; it stays in the signature for caller symmetry.
     """
     if module_of(node_id) == "group_discussion":
         return motion_for_node(node_id)
-    focus = get_node(node_id).teach_focus
-    if weaknesses:
-        top = weaknesses[0]
-        cue = (top.get("last_raw") or top.get("skill_id") or "").strip()
-        if cue:
-            return f"{focus} Probe the learner's known weakness: {cue}."
-    return focus
+    return get_node(node_id).teach_focus
 
 
 # ---------- public API ----------
@@ -376,6 +377,11 @@ async def start_session(
     memory, and weaknesses for this session."""
     if node_id not in all_node_ids():
         raise ValueError(f"unknown competency node: {node_id}")
+    # Voice tier is gated "coming soon" — refuse a direct start rather than coach
+    # a pace/pausing voice skill as typed text (D5). Placement/advance already
+    # skip these, so a normal flow never lands here; this guards a direct id.
+    if is_voice_node(node_id):
+        raise ValueError(f"voice practice is coming soon: {node_id}")
     session_id = uuid.uuid4().hex
     # task_type is the pedagogy axis (TaskType value) storage keys memory and
     # weaknesses on; module_id is the registry module that owns the node. They
@@ -429,6 +435,32 @@ async def start_session(
         memory_context = []
         weakness_context = []
 
+    # School 'Learn' sessions: the meaningful weak-spot signal lives in the
+    # dedicated school per-skill mastery (folded from exact-graded chapter tests),
+    # NOT the generic weakness table — every school skill tag coerces to OTHER
+    # there. Surface the learner's weakest assessment skills so the live tutor
+    # opens with a warm-up that re-tests a real gap. Prepended so they lead the
+    # block; best-effort, never blocks the session start. Also surface skills
+    # MASTERED earlier but gone stale, for a spaced retention check (the
+    # longitudinal half of learning tracking).
+    review_skills: list = []
+    if task_type == TaskType.SCHOOL_ENGLISH.value:
+        try:
+            school_weak = await get_storage().get_school_weak_skills(user_id)
+        except Exception:
+            school_weak = []
+        weakness_context = [
+            {"skill_id": s.replace("_", " "), "hit_count": 1, "last_raw": ""}
+            for s in school_weak
+        ] + weakness_context
+        try:
+            review_skills = [
+                s.replace("_", " ")
+                for s in await get_storage().get_school_review_skills(user_id)
+            ]
+        except Exception:
+            review_skills = []
+
     # Source the learner's display name from their stored profile (set at
     # registration) so the coach can address them by name. Isolated + best-effort:
     # a missing or failed profile read must NEVER abort the session or the
@@ -469,6 +501,8 @@ async def start_session(
     # Apply loaded progress
     state["current_mastery"] = current_mastery
     state["attempts"] = attempts
+    # Spaced-review skills (school): mastered-but-stale, re-checked in the opening.
+    state["review_context"] = review_skills
     # clean_streak deliberately starts at 0 even for a returning learner who
     # clean-passed this node before. Pre-crediting half of ADVANCE_STREAK let ONE
     # clean answer this session re-advance them (or a single borderline 0.7 trip
@@ -515,6 +549,8 @@ async def stream_opening(session_id: str) -> AsyncIterator[str]:
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
         sim_topic=_gd_sim_topic(state),
+        interview_test=state.get("task_type") == TaskType.INTERVIEW_TEST.value,
+        review_skills=state.get("review_context", []),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -543,6 +579,8 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
         sim_topic=_gd_sim_topic(state),
+        interview_test=state.get("task_type") == TaskType.INTERVIEW_TEST.value,
+        review_skills=state.get("review_context", []),
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -596,6 +634,23 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
         return
 
     state["messages"].append({"role": "user", "content": user_input})
+
+    # Blank non-answer short-circuit (Wave 1.3): an empty / whitespace / pure-
+    # symbol turn has nothing to grade. Sending it to the eval LLM made the coach
+    # fabricate a fake summary of a prior turn live, and it was scored as a real
+    # attempt. Short-circuit with a fixed honest re-prompt BEFORE the graph runs —
+    # no eval, no score, no attempt increment, no LLM call. Coaching path only;
+    # a blank in a TEST-mode sim falls through to the panel as before.
+    if state.get("task_type") not in _TEST_TASK_TYPES and is_blank_nonanswer(user_input):
+        reprompt = (
+            "Hmm, I didn't catch that — type your answer to the task above "
+            "and we'll keep going."
+        )
+        state["messages"].append({"role": "assistant", "content": reprompt})
+        state["turn_count"] += 1
+        save_sessions()
+        yield reprompt
+        return
 
     # TEST-mode (assessment) turns run a multi-persona SIMULATION, not the
     # coaching graph: record the learner's contribution, stream the panel's next
@@ -760,6 +815,30 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
     save_sessions()
 
 
+_GD_SUBSCORES = ("participation_score", "relevance_score", "language_score")
+_INT_SUBSCORES = ("clarity_score", "confidence_score")
+
+
+def _project_report_subscores(report: dict, task_type: str) -> dict:
+    """Null the sub-scores that belong to the OTHER assessment mode.
+
+    The scorer always emits all five sub-scores and zeroes the inapplicable ones,
+    so an interview report carried participation_score=0.0 / relevance_score=0.0
+    (GD-only metrics) and a GD report carried clarity/confidence=0.0 — reading to
+    the learner as a hard zero on something their session never measured. Set the
+    other mode's keys to None so the UI omits them instead of showing a fake 0."""
+    if task_type == TaskType.GD_TEST.value:
+        drop = _INT_SUBSCORES
+    elif task_type == TaskType.INTERVIEW_TEST.value:
+        drop = _GD_SUBSCORES
+    else:
+        return report
+    for k in drop:
+        if k in report:
+            report[k] = None
+    return report
+
+
 async def end_session(session_id: str) -> str:
     """Back-compat wrapper: close the session and return its closing summary.
 
@@ -796,8 +875,12 @@ async def close_session(session_id: str) -> dict:
             avg_score = report.score
             # The full report (sub-scores + strengths + improvements) is the
             # learner-facing payload — persisted to memory below and returned to
-            # the /end route so it actually reaches the learner.
-            report_dict = report.model_dump()
+            # the /end route so it actually reaches the learner. Null the other
+            # mode's sub-scores so the learner never sees a fake 0 on an unmeasured
+            # metric (4.2).
+            report_dict = _project_report_subscores(
+                report.model_dump(), state.get("task_type", "")
+            )
         except Exception:
             # score_session failed (model/JSON fault) or the learner quit before a
             # scorable transcript existed. Do NOT fall through with avg_score still
@@ -902,18 +985,34 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
         found_active = False
 
         for node in module.nodes:
+            # Voice nodes are gated "coming soon" and excluded from placement and
+            # the advance ladder — so they must not appear on the learner's path
+            # either, or it shows steps that never unlock and a "complete" module
+            # with locked nodes trailing below it.
+            if is_voice_node(node.id):
+                continue
             p = prog_by_node.get(node.id)
             mastery = p["ema"] if p else 0.0
-            is_complete = bool(p["clean_pass"]) if p else False
-            streak = curr_streak if node.id == curr_node else 0
+            # node_completed: written by _maybe_advance when the user advances past
+            # this node (regardless of clean/non-clean). clean_pass is the legacy
+            # quality flag (<=2 attempts) and also signals completion for rows
+            # written before node_completed was added.
+            is_complete = bool(p.get("node_completed") or p.get("clean_pass")) if p else False
+            is_current = node.id == curr_node
+            streak = curr_streak if is_current else 0
 
-            status = "locked"
-            if is_complete:
+            if is_current:
+                # Active session overrides mastery display so the learner always
+                # sees their live node as "active", even when replaying a mastered node.
+                status = "active"
+            elif is_complete:
                 status = "mastered"
             elif not found_active:
                 status = "active"
                 found_active = True
-                
+            else:
+                status = "locked"
+
             out.append({
                 "node_id": node.id,
                 "title": node.title,
@@ -934,6 +1033,7 @@ async def place_user(
     writing_sample: str | None = None,
     self_report: str | None = None,
     grade: int | None = None,
+    user_id: str | None = None,
 ) -> dict:
     """Onboarding placement: pick the STARTING node in a module.
 
@@ -949,6 +1049,24 @@ async def place_user(
     if uses_grade_placement(module_id):
         g = grade if grade is not None else 2
         node = grade_placement_node(g)
+        
+        if user_id:
+            try:
+                store = get_storage()
+                for n in module.nodes:
+                    if n.id == node.id:
+                        break
+                    await store.upsert_mastery(
+                        user_id=user_id,
+                        node_id=n.id,
+                        ema=1.0,
+                        attempts=2,
+                        clean_pass=True,
+                        node_completed=True,
+                    )
+            except Exception as e:
+                logger.warning("Failed to persist placement for %s: %s", user_id, e)
+
         return {
             "module_id": module_id,
             "module_title": module.title,
@@ -977,6 +1095,26 @@ async def place_user(
         rationale = f"Estimated from self-report: {self_report}."
 
     node = placement_node(module_id, estimated_cefr)
+    
+    # Persist the placement if a user is authenticated. We mark all preceding nodes
+    # in the module as fully mastered/completed so the progression map advances.
+    if user_id:
+        try:
+            store = get_storage()
+            for n in module.nodes:
+                if n.id == node.id:
+                    break
+                await store.upsert_mastery(
+                    user_id=user_id,
+                    node_id=n.id,
+                    ema=1.0,
+                    attempts=2,
+                    clean_pass=True,
+                    node_completed=True,
+                )
+        except Exception as e:
+            logger.warning("Failed to persist placement for %s: %s", user_id, e)
+
     return {
         "module_id": module_id,
         "module_title": module.title,
@@ -1090,6 +1228,18 @@ async def _maybe_advance(state: dict) -> None:
         state["module_done"] = True
         # Module finished above the clean-rate floor -> surface a review section.
         state["review_level"] = not state["remediation"]
+        # Mark the last node as completed in the DB on module finish.
+        try:
+            await get_storage().upsert_mastery(
+                state["user_id"],
+                node_id,
+                state["current_mastery"],
+                state["attempts"],
+                clean,
+                node_completed=True,
+            )
+        except Exception:
+            pass
         return
 
     if len(candidates) == 1:
@@ -1124,6 +1274,20 @@ async def _maybe_advance(state: dict) -> None:
     if decision.action == "REPEAT":
         state["clean_streak"] = 0
         return
+
+    # Mark the completed node in the DB so the progression map can show it as
+    # mastered on the next visit, regardless of clean_pass quality.
+    try:
+        await get_storage().upsert_mastery(
+            state["user_id"],
+            node_id,
+            state["current_mastery"],
+            state["attempts"],
+            clean,
+            node_completed=True,
+        )
+    except Exception:
+        pass
 
     # Fast clean advance (cleared the node within the clean-pass cap) earns a
     # harder tester stretch on the next node; a grind-it-out advance does not.
@@ -1286,9 +1450,10 @@ async def _maybe_refresh_weaknesses(state: dict) -> None:
 async def _persist_mastery(state: dict) -> None:
     """Persist current-node mastery via the dispatcher (best-effort, offline-ok)."""
     try:
-        clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS and (
-            state["current_mastery"] >= MASTERY_COMPLETE
-        )
+        # clean_pass = completed within the attempt cap (quality signal).
+        # The EMA gate was removed: EMA alpha 0.3 cannot reach 0.8 in <=2 turns,
+        # making that gate unreachable and always forcing clean_pass = False.
+        clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS
         await get_storage().upsert_mastery(
             state["user_id"],
             state["competency_node"],
