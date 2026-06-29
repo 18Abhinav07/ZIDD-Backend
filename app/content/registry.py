@@ -41,6 +41,19 @@ _NODE_INDEX: dict[str, tuple[str, Concept]] = {
     n.id: (m.id, n) for m in MODULES for n in m.nodes
 }
 
+# Merge the NCERT school curriculum chapters into the engine indexes. A chapter
+# IS a Module, so registering its levels here lets the EXISTING coaching engine
+# (get_node / module_of / next_node / start_session) tutor a chapter's levels
+# exactly like any other module — no parallel serving path needed. Chapters are
+# NOT added to MODULES, so they never appear in the onboarding module picker.
+from app.content import curriculum as _curriculum  # noqa: E402
+
+for _ch in _curriculum.all_chapters():
+    if _ch.id not in _BY_MODULE:
+        _BY_MODULE[_ch.id] = _ch
+        for _n in _ch.nodes:
+            _NODE_INDEX[_n.id] = (_ch.id, _n)
+
 # CEFR ordering for placement. Higher rank == more advanced.
 CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
 # Self-report buckets the onboarding UI offers, mapped to a target CEFR band.
@@ -99,12 +112,29 @@ def module_of(node_id: str) -> str:
     return _NODE_INDEX[node_id][0]
 
 
+def is_voice_node(node_id: str) -> bool:
+    """True if a node belongs to the voice tier (level_type == 'voice').
+
+    The voice tier is gated "coming soon" (no voice pipeline exists yet): it is
+    excluded from placement and the advance ladder, and a direct session start on
+    one is refused rather than coached/graded as typed text."""
+    return _NODE_INDEX[node_id][1].level_type == "voice"
+
+
 def next_node(node_id: str) -> str | None:
-    """Next node id within the SAME module, or None at the module's last level."""
+    """Next TEXT node id within the SAME module, or None at the last text level.
+
+    Voice-tier nodes are gated "coming soon" (no voice pipeline exists yet), so
+    the advance ladder skips them: a learner finishing the last text node
+    completes the module instead of being advanced into a voice node that would
+    silently be coached/graded as typed text."""
     module_id, _ = _NODE_INDEX[node_id]
     order = _BY_MODULE[module_id].order
     idx = order.index(node_id)
-    return order[idx + 1] if idx + 1 < len(order) else None
+    for nxt in order[idx + 1:]:
+        if not is_voice_node(nxt):
+            return nxt
+    return None
 
 
 def all_node_ids() -> set[str]:
@@ -122,7 +152,10 @@ def list_modules() -> list[dict]:
             "id": m.id,
             "title": m.title,
             "description": m.description,
-            "level_count": len(m.nodes),
+            # Count only REACHABLE nodes — voice nodes are gated "coming soon", so
+            # advertising them (e.g. "11 NODES") overstated a comm module whose
+            # learner can only reach 8. Mirrors placement/advance, which skip them.
+            "level_count": sum(1 for n in m.nodes if n.level_type != "voice"),
             # A module is placed EITHER by grade (school) OR by CEFR band; the
             # picker surfaces only the relevant range and leaves the other empty.
             "cefr_range": "" if uses_grade_placement(m.id) else _cefr_range(m),
@@ -155,11 +188,18 @@ def placement_node(module_id: str, target_cefr: str) -> Concept:
     level, so a B2 learner entering a B2-C1 module starts at level 1, while a
     C1 learner skips the B2 ramp. Falls back to level 1 if the learner is below
     the whole module, and to the last node if at/above its ceiling.
+
+    Voice-tier nodes are excluded from placement (they are gated "coming soon"):
+    without this, the non-monotonic comm ladder (comm_08 regresses to A2 after
+    comm_07=B2) made the at/above-ceiling fallback land a strong learner on the
+    last positional node — a voice node coached as text. Placement now considers
+    text nodes only, so the ceiling fallback is the last TEXT node.
     """
     module = _BY_MODULE[module_id]
     target = CEFR_RANK.get(target_cefr, 0)
-    for node in module.nodes:
+    pool = [n for n in module.nodes if n.level_type != "voice"] or list(module.nodes)
+    for node in pool:
         if CEFR_RANK.get(node.cefr, 0) >= target:
             return node
-    return module.nodes[-1]
+    return pool[-1]
 

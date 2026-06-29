@@ -84,5 +84,15 @@ def task_type_of(node_id: str, test_mode: bool = False) -> TaskType:
     (interview, group_discussion); it is ignored for single-mode modules.
     Raises KeyError if the node id is unknown (mirrors registry.module_of).
     """
-    prep, test = _MODULE_TASK_TYPES[module_of(node_id)]
+    module_id = module_of(node_id)
+    pair = _MODULE_TASK_TYPES.get(module_id)
+    if pair is None:
+        # NCERT school chapter modules (a chapter IS a module, id like c2_ch01_*)
+        # are all the single school_english task type. Identify them by their
+        # chapter metadata rather than hardcoding ids.
+        from app.content.registry import get_module
+        if get_module(module_id).class_no is not None:
+            return TaskType.SCHOOL_ENGLISH
+        raise KeyError(module_id)
+    prep, test = pair
     return test if test_mode else prep
