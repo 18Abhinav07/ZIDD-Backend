@@ -1,0 +1,251 @@
+{
+  "id": "c3_ch03_bird_talk",
+  "title": "Bird Talk",
+  "description": "NCERT Class 3 English (Marigold): 'Bird Talk'. New words, comprehension, joining words (and, but), and a writing task, closed by a chapter test.",
+  "class_no": 3,
+  "chapter_no": 3,
+  "ncert_unit": "Bird Talk",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c3_ch03_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Bird Talk': sparrow, nest, chirp, feather.",
+      "teach_focus": "What the new words from 'Bird Talk' mean (sparrow, nest, chirp, feather); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch03_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "A bird builds its ___ in a tree.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "nest",
+          "band": "foundational",
+          "accept": [
+            "nests"
+          ]
+        },
+        {
+          "id": "c3_ch03_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "The sound a small bird makes is a ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "chirp",
+          "band": "standard",
+          "options": [
+            "chirp",
+            "roar",
+            "bark"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The sparrow chirps and builds its nest.",
+        "It is small but very quick."
+      ]
+    },
+    {
+      "id": "c3_ch03_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Bird Talk' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Bird Talk'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c3_ch03_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch03_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the poem, the birds talk about ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "people",
+          "band": "foundational",
+          "options": [
+            "people",
+            "rivers",
+            "trains"
+          ]
+        },
+        {
+          "id": "c3_ch03_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "In the poem, the birds chat about the ways of ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "people",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sparrow chirps and builds its nest.",
+        "It is small but very quick."
+      ]
+    },
+    {
+      "id": "c3_ch03_l3_grammar",
+      "title": "Joining Words (and, but)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use joining words (and, but) correctly.",
+      "teach_focus": "Joining words link two ideas: 'and' adds, 'but' shows a difference.",
+      "success_criteria": "Uses joining words (and, but) correctly in a sentence.",
+      "bridge_focus": "Give one example of joining words (and, but).",
+      "prerequisites": [
+        "c3_ch03_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch03_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Join with the right word: 'I like tea ___ not coffee.'",
+          "hint": "Joining Words (and, but)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "but",
+          "band": "foundational",
+          "options": [
+            "and",
+            "but",
+            "because"
+          ]
+        },
+        {
+          "id": "c3_ch03_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "I have a pen ___ a book.",
+          "hint": "Joining Words (and, but)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "and",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "I have a pen and a book.",
+        "It is small but very fast."
+      ]
+    },
+    {
+      "id": "c3_ch03_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Bird Talk'.",
+      "teach_focus": "Write one clear sentence about 'Bird Talk': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c3_ch03_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch03_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "Birds are small ___ they can fly far.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "but",
+          "band": "foundational",
+          "accept": [
+            "and"
+          ]
+        },
+        {
+          "id": "c3_ch03_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "I have a pen ___ a book.",
+          "hint": "Joining Words (and, but)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "and",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sparrow chirps and builds its nest.",
+        "It is small but very quick."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c3_ch03_test",
+    "title": "Bird Talk: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c3_ch03_t_i1",
+        "type": "multiple_choice",
+        "prompt": "The sound a small bird makes is a ___.",
+        "answer_key": "chirp",
+        "skill": "new_words",
+        "options": [
+          "chirp",
+          "roar",
+          "bark"
+        ]
+      },
+      {
+        "id": "c3_ch03_t_i2",
+        "type": "fill_blank",
+        "prompt": "A bird builds its ___ in a tree.",
+        "answer_key": "nest",
+        "skill": "new_words",
+        "accept": [
+          "nests"
+        ]
+      },
+      {
+        "id": "c3_ch03_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the poem, the birds talk about ___.",
+        "answer_key": "people",
+        "skill": "comprehension",
+        "options": [
+          "people",
+          "rivers",
+          "trains"
+        ]
+      },
+      {
+        "id": "c3_ch03_t_i4",
+        "type": "fill_blank",
+        "prompt": "In the poem, the birds chat about the ways of ___.",
+        "answer_key": "people",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c3_ch03_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Join with the right word: 'I like tea ___ not coffee.'",
+        "answer_key": "but",
+        "skill": "grammar",
+        "options": [
+          "and",
+          "but",
+          "because"
+        ]
+      },
+      {
+        "id": "c3_ch03_t_i6",
+        "type": "fill_blank",
+        "prompt": "I have a pen ___ a book.",
+        "answer_key": "and",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,258 @@
+{
+  "class_no": 2,
+  "title": "Class 2 — English (Marigold)",
+  "description": "NCERT Class 2 English, organised by the Marigold chapters. Each chapter teaches new words, comprehension, a grammar focus, and writing, then a chapter test. Milestone reviews check cumulative learning at 30%, 60%, and 100% of the year.",
+  "chapters": [
+    "c2_ch01_first_day",
+    "c2_ch02_haldi",
+    "c2_ch03_lucky",
+    "c2_ch04_smile",
+    "c2_ch05_wind_sun",
+    "c2_ch06_zoo"
+  ],
+  "milestones": [
+    {
+      "id": "c2_milestone_30",
+      "title": "Class 2 — 30% Progress Check",
+      "kind": "milestone",
+      "at_percent": 30,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c2_m30_i1",
+          "type": "multiple_choice",
+          "prompt": "Which word is a naming word?",
+          "answer_key": "book",
+          "skill": "naming_words",
+          "options": [
+            "book",
+            "run",
+            "blue"
+          ]
+        },
+        {
+          "id": "c2_m30_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, Haldi the hen goes on an ___.",
+          "answer_key": "adventure",
+          "skill": "comprehension",
+          "options": [
+            "adventure",
+            "exam",
+            "aeroplane"
+          ]
+        },
+        {
+          "id": "c2_m30_i3",
+          "type": "multiple_choice",
+          "prompt": "Which word is an action word?",
+          "answer_key": "run",
+          "skill": "action_words",
+          "options": [
+            "run",
+            "table",
+            "red"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c2_milestone_60",
+      "title": "Class 2 — 60% Progress Check",
+      "kind": "milestone",
+      "at_percent": 60,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c2_m60_i1",
+          "type": "multiple_choice",
+          "prompt": "Which word is a naming word?",
+          "answer_key": "book",
+          "skill": "naming_words",
+          "options": [
+            "book",
+            "run",
+            "blue"
+          ]
+        },
+        {
+          "id": "c2_m60_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, Haldi the hen goes on an ___.",
+          "answer_key": "adventure",
+          "skill": "comprehension",
+          "options": [
+            "adventure",
+            "exam",
+            "aeroplane"
+          ]
+        },
+        {
+          "id": "c2_m60_i3",
+          "type": "multiple_choice",
+          "prompt": "Which word is an action word?",
+          "answer_key": "run",
+          "skill": "action_words",
+          "options": [
+            "run",
+            "table",
+            "red"
+          ]
+        },
+        {
+          "id": "c2_m60_i4",
+          "type": "multiple_choice",
+          "prompt": "The poem says the child feels ___ to be who they are.",
+          "answer_key": "lucky",
+          "skill": "comprehension",
+          "options": [
+            "lucky",
+            "angry",
+            "tired"
+          ]
+        },
+        {
+          "id": "c2_m60_i5",
+          "type": "multiple_choice",
+          "prompt": "Which word is a describing word?",
+          "answer_key": "soft",
+          "skill": "describing_words",
+          "options": [
+            "soft",
+            "run",
+            "table"
+          ]
+        },
+        {
+          "id": "c2_m60_i6",
+          "type": "multiple_choice",
+          "prompt": "The poem says a smile grows when you ___ it.",
+          "answer_key": "share",
+          "skill": "comprehension",
+          "options": [
+            "share",
+            "hide",
+            "throw"
+          ]
+        },
+        {
+          "id": "c2_m60_i7",
+          "type": "multiple_choice",
+          "prompt": "The book is far away. Which is correct?",
+          "answer_key": "That is a book.",
+          "skill": "this,_that,_these,_those",
+          "options": [
+            "This is a book.",
+            "That is a book.",
+            "These is a book."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c2_milestone_100",
+      "title": "Class 2 — Term Review",
+      "kind": "milestone",
+      "at_percent": 100,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c2_m100_i1",
+          "type": "multiple_choice",
+          "prompt": "Which word is a naming word?",
+          "answer_key": "book",
+          "skill": "naming_words",
+          "options": [
+            "book",
+            "run",
+            "blue"
+          ]
+        },
+        {
+          "id": "c2_m100_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, Haldi the hen goes on an ___.",
+          "answer_key": "adventure",
+          "skill": "comprehension",
+          "options": [
+            "adventure",
+            "exam",
+            "aeroplane"
+          ]
+        },
+        {
+          "id": "c2_m100_i3",
+          "type": "multiple_choice",
+          "prompt": "Which word is an action word?",
+          "answer_key": "run",
+          "skill": "action_words",
+          "options": [
+            "run",
+            "table",
+            "red"
+          ]
+        },
+        {
+          "id": "c2_m100_i4",
+          "type": "multiple_choice",
+          "prompt": "The poem says the child feels ___ to be who they are.",
+          "answer_key": "lucky",
+          "skill": "comprehension",
+          "options": [
+            "lucky",
+            "angry",
+            "tired"
+          ]
+        },
+        {
+          "id": "c2_m100_i5",
+          "type": "multiple_choice",
+          "prompt": "Which word is a describing word?",
+          "answer_key": "soft",
+          "skill": "describing_words",
+          "options": [
+            "soft",
+            "run",
+            "table"
+          ]
+        },
+        {
+          "id": "c2_m100_i6",
+          "type": "multiple_choice",
+          "prompt": "The poem says a smile grows when you ___ it.",
+          "answer_key": "share",
+          "skill": "comprehension",
+          "options": [
+            "share",
+            "hide",
+            "throw"
+          ]
+        },
+        {
+          "id": "c2_m100_i7",
+          "type": "multiple_choice",
+          "prompt": "The book is far away. Which is correct?",
+          "answer_key": "That is a book.",
+          "skill": "this,_that,_these,_those",
+          "options": [
+            "This is a book.",
+            "That is a book.",
+            "These is a book."
+          ]
+        },
+        {
+          "id": "c2_m100_i8",
+          "type": "multiple_choice",
+          "prompt": "In the story, who finally made the traveller take off his coat?",
+          "answer_key": "the sun",
+          "skill": "comprehension",
+          "options": [
+            "the sun",
+            "the wind",
+            "the rain"
+          ]
+        }
+      ]
+    }
+  ]
+}

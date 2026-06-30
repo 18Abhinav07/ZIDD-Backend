@@ -1,0 +1,257 @@
+{
+  "id": "c4_ch02_noses",
+  "title": "Noses",
+  "description": "NCERT Class 4 English (Marigold): 'Noses'. New words, comprehension, past tense, and a writing task, closed by a chapter test.",
+  "class_no": 4,
+  "chapter_no": 2,
+  "ncert_unit": "Noses",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c4_ch02_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Noses': nose, sniff, smell, curious.",
+      "teach_focus": "What the new words from 'Noses' mean (nose, sniff, smell, curious); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch02_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "We use our nose to ___ a flower.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "smell",
+          "band": "foundational",
+          "accept": [
+            "smells"
+          ]
+        },
+        {
+          "id": "c4_ch02_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "A word that means wanting to know about things is ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "curious",
+          "band": "standard",
+          "options": [
+            "curious",
+            "tired",
+            "afraid"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Yesterday I smelled fresh bread in the kitchen.",
+        "We went to the zoo and saw the lions."
+      ]
+    },
+    {
+      "id": "c4_ch02_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Noses' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Noses'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c4_ch02_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch02_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The funny poem wonders about all kinds of ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "noses",
+          "band": "foundational",
+          "options": [
+            "noses",
+            "shoes",
+            "hats"
+          ]
+        },
+        {
+          "id": "c4_ch02_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The funny poem wonders about all the different kinds of ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "noses",
+          "band": "standard",
+          "accept": [
+            "nose"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Yesterday I smelled fresh bread in the kitchen.",
+        "We went to the zoo and saw the lions."
+      ]
+    },
+    {
+      "id": "c4_ch02_l3_grammar",
+      "title": "Past Tense",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use past tense correctly.",
+      "teach_focus": "The past tense tells what already happened. Add -ed (jumped) or use special forms (go->went, eat->ate).",
+      "success_criteria": "Uses past tense correctly in a sentence.",
+      "bridge_focus": "Give one example of past tense.",
+      "prerequisites": [
+        "c4_ch02_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch02_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the past tense: 'She ___ the rose.'",
+          "hint": "Past Tense",
+          "context": "Identifies the grammar point.",
+          "answer_key": "smelled",
+          "band": "foundational",
+          "options": [
+            "smell",
+            "smells",
+            "smelled"
+          ]
+        },
+        {
+          "id": "c4_ch02_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Yesterday we ___ to the park. (go)",
+          "hint": "Past Tense",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "went",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Yesterday I smelled the roses.",
+        "We went to the park and played."
+      ]
+    },
+    {
+      "id": "c4_ch02_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Noses'.",
+      "teach_focus": "Write one clear sentence about 'Noses': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c4_ch02_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch02_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "Last Sunday, I ___ a beautiful garden.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "visited",
+          "band": "foundational",
+          "accept": [
+            "saw",
+            "found",
+            "explored"
+          ]
+        },
+        {
+          "id": "c4_ch02_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Yesterday we ___ to the park. (go)",
+          "hint": "Past Tense",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "went",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Yesterday I smelled fresh bread in the kitchen.",
+        "We went to the zoo and saw the lions."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c4_ch02_test",
+    "title": "Noses: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c4_ch02_t_i1",
+        "type": "multiple_choice",
+        "prompt": "A word that means wanting to know about things is ___.",
+        "answer_key": "curious",
+        "skill": "new_words",
+        "options": [
+          "curious",
+          "tired",
+          "afraid"
+        ]
+      },
+      {
+        "id": "c4_ch02_t_i2",
+        "type": "fill_blank",
+        "prompt": "We use our nose to ___ a flower.",
+        "answer_key": "smell",
+        "skill": "new_words",
+        "accept": [
+          "smells"
+        ]
+      },
+      {
+        "id": "c4_ch02_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The funny poem wonders about all kinds of ___.",
+        "answer_key": "noses",
+        "skill": "comprehension",
+        "options": [
+          "noses",
+          "shoes",
+          "hats"
+        ]
+      },
+      {
+        "id": "c4_ch02_t_i4",
+        "type": "fill_blank",
+        "prompt": "The funny poem wonders about all the different kinds of ___.",
+        "answer_key": "noses",
+        "skill": "comprehension",
+        "accept": [
+          "nose"
+        ]
+      },
+      {
+        "id": "c4_ch02_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the past tense: 'She ___ the rose.'",
+        "answer_key": "smelled",
+        "skill": "grammar",
+        "options": [
+          "smell",
+          "smells",
+          "smelled"
+        ]
+      },
+      {
+        "id": "c4_ch02_t_i6",
+        "type": "fill_blank",
+        "prompt": "Yesterday we ___ to the park. (go)",
+        "answer_key": "went",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

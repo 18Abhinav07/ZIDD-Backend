@@ -1,0 +1,248 @@
+{
+  "id": "c5_ch04_lazy_frog",
+  "title": "The Lazy Frog",
+  "description": "NCERT Class 5 English (Marigold): 'The Lazy Frog'. New words, comprehension, reported speech (basic), and a writing task, closed by a chapter test.",
+  "class_no": 5,
+  "chapter_no": 4,
+  "ncert_unit": "The Lazy Frog",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c5_ch04_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'The Lazy Frog': lazy, pond, complain, effort.",
+      "teach_focus": "What the new words from 'The Lazy Frog' mean (lazy, pond, complain, effort); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch04_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "A person who does not like to work is ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "lazy",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c5_ch04_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To say you are unhappy about something is to ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "complain",
+          "band": "standard",
+          "options": [
+            "complain",
+            "praise",
+            "thank"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The lazy frog only sat by the pond and complained.",
+        "He said that he would help us later."
+      ]
+    },
+    {
+      "id": "c5_ch04_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'The Lazy Frog' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'The Lazy Frog'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c5_ch04_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch04_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The frog in the poem will not even try, because he is ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "lazy",
+          "band": "foundational",
+          "options": [
+            "lazy",
+            "brave",
+            "clever"
+          ]
+        },
+        {
+          "id": "c5_ch04_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The frog will not even try, because he is so ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "lazy",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The lazy frog only sat by the pond and complained.",
+        "He said that he would help us later."
+      ]
+    },
+    {
+      "id": "c5_ch04_l3_grammar",
+      "title": "Reported Speech (basic)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use reported speech (basic) correctly.",
+      "teach_focus": "We can report what someone said: He said, 'I am tired' -> He said that he was tired.",
+      "success_criteria": "Uses reported speech (basic) correctly in a sentence.",
+      "bridge_focus": "Give one example of reported speech (basic).",
+      "prerequisites": [
+        "c5_ch04_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch04_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Report it: He said, 'I am busy.' -> He said that he ___ busy.",
+          "hint": "Reported Speech (basic)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "was",
+          "band": "foundational",
+          "options": [
+            "is",
+            "was",
+            "will be"
+          ]
+        },
+        {
+          "id": "c5_ch04_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "She said, 'I am happy.' -> She said that she ___ happy.",
+          "hint": "Reported Speech (basic)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "was",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "He said that he was busy.",
+        "She said that she would help."
+      ]
+    },
+    {
+      "id": "c5_ch04_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'The Lazy Frog'.",
+      "teach_focus": "Write one clear sentence about 'The Lazy Frog': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c5_ch04_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch04_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "Instead of being lazy, we should make an ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "effort",
+          "band": "foundational",
+          "accept": [
+            "attempt",
+            "try"
+          ]
+        },
+        {
+          "id": "c5_ch04_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "She said, 'I am happy.' -> She said that she ___ happy.",
+          "hint": "Reported Speech (basic)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "was",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The lazy frog only sat by the pond and complained.",
+        "He said that he would help us later."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c5_ch04_test",
+    "title": "The Lazy Frog: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c5_ch04_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To say you are unhappy about something is to ___.",
+        "answer_key": "complain",
+        "skill": "new_words",
+        "options": [
+          "complain",
+          "praise",
+          "thank"
+        ]
+      },
+      {
+        "id": "c5_ch04_t_i2",
+        "type": "fill_blank",
+        "prompt": "A person who does not like to work is ___.",
+        "answer_key": "lazy",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c5_ch04_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The frog in the poem will not even try, because he is ___.",
+        "answer_key": "lazy",
+        "skill": "comprehension",
+        "options": [
+          "lazy",
+          "brave",
+          "clever"
+        ]
+      },
+      {
+        "id": "c5_ch04_t_i4",
+        "type": "fill_blank",
+        "prompt": "The frog will not even try, because he is so ___.",
+        "answer_key": "lazy",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c5_ch04_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Report it: He said, 'I am busy.' -> He said that he ___ busy.",
+        "answer_key": "was",
+        "skill": "grammar",
+        "options": [
+          "is",
+          "was",
+          "will be"
+        ]
+      },
+      {
+        "id": "c5_ch04_t_i6",
+        "type": "fill_blank",
+        "prompt": "She said, 'I am happy.' -> She said that she ___ happy.",
+        "answer_key": "was",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

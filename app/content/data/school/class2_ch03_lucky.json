@@ -1,0 +1,272 @@
+{
+  "id": "c2_ch03_lucky",
+  "title": "I Am Lucky!",
+  "description": "NCERT Class 2 English (Marigold): 'I Am Lucky!'. New words, comprehension, describing words (adjectives), and a writing task, closed by a chapter test.",
+  "class_no": 2,
+  "chapter_no": 3,
+  "ncert_unit": "I Am Lucky!",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c2_ch03_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'I Am Lucky!': lucky, wings, tall, soft.",
+      "teach_focus": "What the new words from 'I Am Lucky!' mean (lucky, wings, tall, soft); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch03_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "A bird uses its ___ to fly.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "wings",
+          "band": "foundational",
+          "accept": [
+            "wing"
+          ]
+        },
+        {
+          "id": "c2_ch03_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which word means the opposite of 'short'?",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "tall",
+          "band": "standard",
+          "options": [
+            "tall",
+            "small",
+            "slow"
+          ]
+        }
+      ],
+      "exemplars": [
+        "I am lucky to have a kind teacher.",
+        "The soft, white rabbit hopped away."
+      ]
+    },
+    {
+      "id": "c2_ch03_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'I Am Lucky!' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'I Am Lucky!'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c2_ch03_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch03_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem says the child feels ___ to be who they are.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "lucky",
+          "band": "foundational",
+          "options": [
+            "lucky",
+            "angry",
+            "tired"
+          ]
+        },
+        {
+          "id": "c2_ch03_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "In the poem, the child feels ___ for all that they have.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "lucky",
+          "band": "standard",
+          "accept": [
+            "thankful",
+            "grateful"
+          ]
+        }
+      ],
+      "exemplars": [
+        "I am lucky to have a kind teacher.",
+        "The soft, white rabbit hopped away."
+      ]
+    },
+    {
+      "id": "c2_ch03_l3_grammar",
+      "title": "Describing Words (Adjectives)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use describing words (adjectives) correctly.",
+      "teach_focus": "A describing word (adjective) tells more about a thing: big, soft, green, happy.",
+      "success_criteria": "Uses describing words (adjectives) correctly in a sentence.",
+      "bridge_focus": "Give one example of describing words (adjectives).",
+      "prerequisites": [
+        "c2_ch03_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch03_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which word is a describing word?",
+          "hint": "Describing Words (Adjectives)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "soft",
+          "band": "foundational",
+          "options": [
+            "soft",
+            "run",
+            "table"
+          ]
+        },
+        {
+          "id": "c2_ch03_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "The rabbit has ___ fur.",
+          "hint": "Describing Words (Adjectives)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "soft",
+          "band": "standard",
+          "accept": [
+            "white",
+            "brown",
+            "grey"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The soft, brown rabbit hops away.",
+        "She has long, black hair."
+      ]
+    },
+    {
+      "id": "c2_ch03_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'I Am Lucky!'.",
+      "teach_focus": "Write one clear sentence about 'I Am Lucky!': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c2_ch03_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch03_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "I am lucky to have a ___ family.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "loving",
+          "band": "foundational",
+          "accept": [
+            "kind",
+            "big",
+            "happy",
+            "caring"
+          ]
+        },
+        {
+          "id": "c2_ch03_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "The rabbit has ___ fur.",
+          "hint": "Describing Words (Adjectives)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "soft",
+          "band": "standard",
+          "accept": [
+            "white",
+            "brown",
+            "grey"
+          ]
+        }
+      ],
+      "exemplars": [
+        "I am lucky to have a kind teacher.",
+        "The soft, white rabbit hopped away."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch03_test",
+    "title": "I Am Lucky!: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch03_t_i1",
+        "type": "multiple_choice",
+        "prompt": "Which word means the opposite of 'short'?",
+        "answer_key": "tall",
+        "skill": "new_words",
+        "options": [
+          "tall",
+          "small",
+          "slow"
+        ]
+      },
+      {
+        "id": "c2_ch03_t_i2",
+        "type": "fill_blank",
+        "prompt": "A bird uses its ___ to fly.",
+        "answer_key": "wings",
+        "skill": "new_words",
+        "accept": [
+          "wing"
+        ]
+      },
+      {
+        "id": "c2_ch03_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem says the child feels ___ to be who they are.",
+        "answer_key": "lucky",
+        "skill": "comprehension",
+        "options": [
+          "lucky",
+          "angry",
+          "tired"
+        ]
+      },
+      {
+        "id": "c2_ch03_t_i4",
+        "type": "fill_blank",
+        "prompt": "In the poem, the child feels ___ for all that they have.",
+        "answer_key": "lucky",
+        "skill": "comprehension",
+        "accept": [
+          "thankful",
+          "grateful"
+        ]
+      },
+      {
+        "id": "c2_ch03_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which word is a describing word?",
+        "answer_key": "soft",
+        "skill": "grammar",
+        "options": [
+          "soft",
+          "run",
+          "table"
+        ]
+      },
+      {
+        "id": "c2_ch03_t_i6",
+        "type": "fill_blank",
+        "prompt": "The rabbit has ___ fur.",
+        "answer_key": "soft",
+        "skill": "grammar",
+        "accept": [
+          "white",
+          "brown",
+          "grey"
+        ]
+      }
+    ]
+  }
+}

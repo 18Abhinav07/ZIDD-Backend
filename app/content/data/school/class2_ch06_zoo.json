@@ -1,0 +1,260 @@
+{
+  "id": "c2_ch06_zoo",
+  "title": "Zoo Manners",
+  "description": "NCERT Class 2 English (Marigold): 'Zoo Manners'. New words, comprehension, asking questions, and a writing task, closed by a chapter test.",
+  "class_no": 2,
+  "chapter_no": 6,
+  "ncert_unit": "Zoo Manners",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c2_ch06_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Zoo Manners': zoo, animal, polite, cage.",
+      "teach_focus": "What the new words from 'Zoo Manners' mean (zoo, animal, polite, cage); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch06_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "We see lions and tigers at the ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "zoo",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c2_ch06_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "A word that means well-behaved is ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "polite",
+          "band": "standard",
+          "options": [
+            "polite",
+            "rude",
+            "lazy"
+          ]
+        }
+      ],
+      "exemplars": [
+        "What time does the zoo open?",
+        "Where do the monkeys live?"
+      ]
+    },
+    {
+      "id": "c2_ch06_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Zoo Manners' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Zoo Manners'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c2_ch06_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch06_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem teaches us to be ___ at the zoo.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "polite",
+          "band": "foundational",
+          "options": [
+            "polite",
+            "noisy",
+            "rough"
+          ]
+        },
+        {
+          "id": "c2_ch06_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "At the zoo, we must be gentle and ___ to the animals.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "polite",
+          "band": "standard",
+          "accept": [
+            "kind"
+          ]
+        }
+      ],
+      "exemplars": [
+        "What time does the zoo open?",
+        "Where do the monkeys live?"
+      ]
+    },
+    {
+      "id": "c2_ch06_l3_grammar",
+      "title": "Asking Questions",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use asking questions correctly.",
+      "teach_focus": "A question starts with a question word (what/where/who) and ends with '?'.",
+      "success_criteria": "Uses asking questions correctly in a sentence.",
+      "bridge_focus": "Give one example of asking questions.",
+      "prerequisites": [
+        "c2_ch06_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch06_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which one is a correct question?",
+          "hint": "Asking Questions",
+          "context": "Identifies the grammar point.",
+          "answer_key": "Where is the lion?",
+          "band": "foundational",
+          "options": [
+            "Where the lion is?",
+            "Where is the lion?",
+            "The lion where is?"
+          ]
+        },
+        {
+          "id": "c2_ch06_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "___ is your favourite animal?",
+          "hint": "Asking Questions",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "What",
+          "band": "standard",
+          "accept": [
+            "what"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Where do the tigers sleep?",
+        "What does the elephant eat?"
+      ]
+    },
+    {
+      "id": "c2_ch06_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Zoo Manners'.",
+      "teach_focus": "Write one clear sentence about 'Zoo Manners': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c2_ch06_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch06_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "At the zoo, I want to see a ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "tiger",
+          "band": "foundational",
+          "accept": [
+            "lion",
+            "monkey",
+            "elephant",
+            "bear"
+          ]
+        },
+        {
+          "id": "c2_ch06_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "___ is your favourite animal?",
+          "hint": "Asking Questions",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "What",
+          "band": "standard",
+          "accept": [
+            "what"
+          ]
+        }
+      ],
+      "exemplars": [
+        "What time does the zoo open?",
+        "Where do the monkeys live?"
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch06_test",
+    "title": "Zoo Manners: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch06_t_i1",
+        "type": "multiple_choice",
+        "prompt": "A word that means well-behaved is ___.",
+        "answer_key": "polite",
+        "skill": "new_words",
+        "options": [
+          "polite",
+          "rude",
+          "lazy"
+        ]
+      },
+      {
+        "id": "c2_ch06_t_i2",
+        "type": "fill_blank",
+        "prompt": "We see lions and tigers at the ___.",
+        "answer_key": "zoo",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c2_ch06_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem teaches us to be ___ at the zoo.",
+        "answer_key": "polite",
+        "skill": "comprehension",
+        "options": [
+          "polite",
+          "noisy",
+          "rough"
+        ]
+      },
+      {
+        "id": "c2_ch06_t_i4",
+        "type": "fill_blank",
+        "prompt": "At the zoo, we must be gentle and ___ to the animals.",
+        "answer_key": "polite",
+        "skill": "comprehension",
+        "accept": [
+          "kind"
+        ]
+      },
+      {
+        "id": "c2_ch06_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which one is a correct question?",
+        "answer_key": "Where is the lion?",
+        "skill": "grammar",
+        "options": [
+          "Where the lion is?",
+          "Where is the lion?",
+          "The lion where is?"
+        ]
+      },
+      {
+        "id": "c2_ch06_t_i6",
+        "type": "fill_blank",
+        "prompt": "___ is your favourite animal?",
+        "answer_key": "What",
+        "skill": "grammar",
+        "accept": [
+          "what"
+        ]
+      }
+    ]
+  }
+}

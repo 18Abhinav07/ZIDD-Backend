@@ -1,0 +1,249 @@
+{
+  "id": "c4_ch03_run",
+  "title": "Run!",
+  "description": "NCERT Class 4 English (Marigold): 'Run!'. New words, comprehension, adverbs (how), and a writing task, closed by a chapter test.",
+  "class_no": 4,
+  "chapter_no": 3,
+  "ncert_unit": "Run!",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c4_ch03_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Run!': race, speed, finish, cheer.",
+      "teach_focus": "What the new words from 'Run!' mean (race, speed, finish, cheer); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch03_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "The runners crossed the ___ line.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "finish",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c4_ch03_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "When a crowd shouts happily for you, they ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "cheer",
+          "band": "standard",
+          "options": [
+            "cheer",
+            "sleep",
+            "frown"
+          ]
+        }
+      ],
+      "exemplars": [
+        "She ran quickly to the finish line.",
+        "He spoke loudly so everyone could hear."
+      ]
+    },
+    {
+      "id": "c4_ch03_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Run!' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Run!'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c4_ch03_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch03_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem 'Run!' is full of energy and ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "speed",
+          "band": "foundational",
+          "options": [
+            "speed",
+            "rain",
+            "sleep"
+          ]
+        },
+        {
+          "id": "c4_ch03_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The poem 'Run!' is full of energy and ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "speed",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "She ran quickly to the finish line.",
+        "He spoke loudly so everyone could hear."
+      ]
+    },
+    {
+      "id": "c4_ch03_l3_grammar",
+      "title": "Adverbs (How)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use adverbs (how) correctly.",
+      "teach_focus": "An adverb tells HOW an action is done: quickly, slowly, loudly, carefully.",
+      "success_criteria": "Uses adverbs (how) correctly in a sentence.",
+      "bridge_focus": "Give one example of adverbs (how).",
+      "prerequisites": [
+        "c4_ch03_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch03_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which word tells HOW she ran?",
+          "hint": "Adverbs (How)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "quickly",
+          "band": "foundational",
+          "options": [
+            "quickly",
+            "garden",
+            "happy"
+          ]
+        },
+        {
+          "id": "c4_ch03_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "The tortoise walked ___. (in a slow way)",
+          "hint": "Adverbs (How)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "slowly",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "She ran quickly to the line.",
+        "He spoke loudly and clearly."
+      ]
+    },
+    {
+      "id": "c4_ch03_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Run!'.",
+      "teach_focus": "Write one clear sentence about 'Run!': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c4_ch03_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch03_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "In the race, I ran very ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "fast",
+          "band": "foundational",
+          "accept": [
+            "quickly",
+            "hard",
+            "swiftly"
+          ]
+        },
+        {
+          "id": "c4_ch03_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "The tortoise walked ___. (in a slow way)",
+          "hint": "Adverbs (How)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "slowly",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "She ran quickly to the finish line.",
+        "He spoke loudly so everyone could hear."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c4_ch03_test",
+    "title": "Run!: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c4_ch03_t_i1",
+        "type": "multiple_choice",
+        "prompt": "When a crowd shouts happily for you, they ___.",
+        "answer_key": "cheer",
+        "skill": "new_words",
+        "options": [
+          "cheer",
+          "sleep",
+          "frown"
+        ]
+      },
+      {
+        "id": "c4_ch03_t_i2",
+        "type": "fill_blank",
+        "prompt": "The runners crossed the ___ line.",
+        "answer_key": "finish",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c4_ch03_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem 'Run!' is full of energy and ___.",
+        "answer_key": "speed",
+        "skill": "comprehension",
+        "options": [
+          "speed",
+          "rain",
+          "sleep"
+        ]
+      },
+      {
+        "id": "c4_ch03_t_i4",
+        "type": "fill_blank",
+        "prompt": "The poem 'Run!' is full of energy and ___.",
+        "answer_key": "speed",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c4_ch03_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which word tells HOW she ran?",
+        "answer_key": "quickly",
+        "skill": "grammar",
+        "options": [
+          "quickly",
+          "garden",
+          "happy"
+        ]
+      },
+      {
+        "id": "c4_ch03_t_i6",
+        "type": "fill_blank",
+        "prompt": "The tortoise walked ___. (in a slow way)",
+        "answer_key": "slowly",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

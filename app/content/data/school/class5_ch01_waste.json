@@ -1,0 +1,257 @@
+{
+  "id": "c5_ch01_waste",
+  "title": "Wonderful Waste!",
+  "description": "NCERT Class 5 English (Marigold): 'Wonderful Waste!'. New words, comprehension, mixed tenses (past, present, future), and a writing task, closed by a chapter test.",
+  "class_no": 5,
+  "chapter_no": 1,
+  "ncert_unit": "Wonderful Waste!",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c5_ch01_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Wonderful Waste!': waste, leftover, useful, recycle.",
+      "teach_focus": "What the new words from 'Wonderful Waste!' mean (waste, leftover, useful, recycle); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch01_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "Food that is left after a meal is called ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "leftover",
+          "band": "foundational",
+          "accept": [
+            "leftovers"
+          ]
+        },
+        {
+          "id": "c5_ch01_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To use waste again in a new way is to ___ it.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "recycle",
+          "band": "standard",
+          "options": [
+            "recycle",
+            "burn",
+            "bury"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Yesterday we cooked, today we eat, and tomorrow we will share.",
+        "Nothing is wasted if we use it wisely."
+      ]
+    },
+    {
+      "id": "c5_ch01_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Wonderful Waste!' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Wonderful Waste!'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c5_ch01_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch01_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the story, the cook turns leftover vegetables into a ___ dish.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "tasty",
+          "band": "foundational",
+          "options": [
+            "tasty",
+            "burnt",
+            "rotten"
+          ]
+        },
+        {
+          "id": "c5_ch01_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The clever cook turns leftover vegetables into a ___ dish.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "tasty",
+          "band": "standard",
+          "accept": [
+            "delicious"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Yesterday we cooked, today we eat, and tomorrow we will share.",
+        "Nothing is wasted if we use it wisely."
+      ]
+    },
+    {
+      "id": "c5_ch01_l3_grammar",
+      "title": "Mixed Tenses (Past, Present, Future)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use mixed tenses (past, present, future) correctly.",
+      "teach_focus": "Match the tense to the time: yesterday (past), every day (present), tomorrow (future, use 'will').",
+      "success_criteria": "Uses mixed tenses (past, present, future) correctly in a sentence.",
+      "bridge_focus": "Give one example of mixed tenses (past, present, future).",
+      "prerequisites": [
+        "c5_ch01_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch01_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which sentence is in the FUTURE tense?",
+          "hint": "Mixed Tenses (Past, Present, Future)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "I will cook tomorrow.",
+          "band": "foundational",
+          "options": [
+            "I cooked yesterday.",
+            "I cook daily.",
+            "I will cook tomorrow."
+          ]
+        },
+        {
+          "id": "c5_ch01_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Tomorrow I ___ help my mother in the kitchen.",
+          "hint": "Mixed Tenses (Past, Present, Future)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "will",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Yesterday I cooked; today I eat; tomorrow I will share.",
+        "She will visit us next week."
+      ]
+    },
+    {
+      "id": "c5_ch01_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Wonderful Waste!'.",
+      "teach_focus": "Write one clear sentence about 'Wonderful Waste!': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c5_ch01_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch01_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "We can reduce waste by learning to ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "recycle",
+          "band": "foundational",
+          "accept": [
+            "reuse",
+            "save",
+            "compost"
+          ]
+        },
+        {
+          "id": "c5_ch01_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Tomorrow I ___ help my mother in the kitchen.",
+          "hint": "Mixed Tenses (Past, Present, Future)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "will",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Yesterday we cooked, today we eat, and tomorrow we will share.",
+        "Nothing is wasted if we use it wisely."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c5_ch01_test",
+    "title": "Wonderful Waste!: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c5_ch01_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To use waste again in a new way is to ___ it.",
+        "answer_key": "recycle",
+        "skill": "new_words",
+        "options": [
+          "recycle",
+          "burn",
+          "bury"
+        ]
+      },
+      {
+        "id": "c5_ch01_t_i2",
+        "type": "fill_blank",
+        "prompt": "Food that is left after a meal is called ___.",
+        "answer_key": "leftover",
+        "skill": "new_words",
+        "accept": [
+          "leftovers"
+        ]
+      },
+      {
+        "id": "c5_ch01_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the story, the cook turns leftover vegetables into a ___ dish.",
+        "answer_key": "tasty",
+        "skill": "comprehension",
+        "options": [
+          "tasty",
+          "burnt",
+          "rotten"
+        ]
+      },
+      {
+        "id": "c5_ch01_t_i4",
+        "type": "fill_blank",
+        "prompt": "The clever cook turns leftover vegetables into a ___ dish.",
+        "answer_key": "tasty",
+        "skill": "comprehension",
+        "accept": [
+          "delicious"
+        ]
+      },
+      {
+        "id": "c5_ch01_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which sentence is in the FUTURE tense?",
+        "answer_key": "I will cook tomorrow.",
+        "skill": "grammar",
+        "options": [
+          "I cooked yesterday.",
+          "I cook daily.",
+          "I will cook tomorrow."
+        ]
+      },
+      {
+        "id": "c5_ch01_t_i6",
+        "type": "fill_blank",
+        "prompt": "Tomorrow I ___ help my mother in the kitchen.",
+        "answer_key": "will",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

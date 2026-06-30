@@ -1,0 +1,256 @@
+{
+  "id": "c2_ch02_haldi",
+  "title": "Haldi's Adventure",
+  "description": "NCERT Class 2 English (Marigold): 'Haldi's Adventure'. New words, comprehension, action words (verbs), and a writing task, closed by a chapter test.",
+  "class_no": 2,
+  "chapter_no": 2,
+  "ncert_unit": "Haldi's Adventure",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c2_ch02_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Haldi's Adventure': garden, hen, morning, adventure.",
+      "teach_focus": "What the new words from 'Haldi's Adventure' mean (garden, hen, morning, adventure); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch02_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "A ___ gives us eggs.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "hen",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c2_ch02_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which word names a place with plants and flowers?",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "garden",
+          "band": "standard",
+          "options": [
+            "garden",
+            "run",
+            "happy"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The hen ran into the garden.",
+        "I can run and jump in the park."
+      ]
+    },
+    {
+      "id": "c2_ch02_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Haldi's Adventure' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Haldi's Adventure'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c2_ch02_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch02_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the story, Haldi the hen goes on an ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "adventure",
+          "band": "foundational",
+          "options": [
+            "adventure",
+            "exam",
+            "aeroplane"
+          ]
+        },
+        {
+          "id": "c2_ch02_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "Haldi the hen sets off on a big ___ in the garden.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "adventure",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The hen ran into the garden.",
+        "I can run and jump in the park."
+      ]
+    },
+    {
+      "id": "c2_ch02_l3_grammar",
+      "title": "Action Words (Verbs)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use action words (verbs) correctly.",
+      "teach_focus": "A doing word (verb) tells what someone does: run, jump, eat, fly.",
+      "success_criteria": "Uses action words (verbs) correctly in a sentence.",
+      "bridge_focus": "Give one example of action words (verbs).",
+      "prerequisites": [
+        "c2_ch02_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch02_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which word is an action word?",
+          "hint": "Action Words (Verbs)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "run",
+          "band": "foundational",
+          "options": [
+            "run",
+            "table",
+            "red"
+          ]
+        },
+        {
+          "id": "c2_ch02_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Birds ___ in the sky.",
+          "hint": "Action Words (Verbs)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "fly",
+          "band": "standard",
+          "accept": [
+            "fly"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The hen runs across the garden.",
+        "Birds fly and sing in the morning."
+      ]
+    },
+    {
+      "id": "c2_ch02_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Haldi's Adventure'.",
+      "teach_focus": "Write one clear sentence about 'Haldi's Adventure': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c2_ch02_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch02_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "In the garden, I can see a ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "flower",
+          "band": "foundational",
+          "accept": [
+            "tree",
+            "bird",
+            "plant",
+            "hen"
+          ]
+        },
+        {
+          "id": "c2_ch02_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Birds ___ in the sky.",
+          "hint": "Action Words (Verbs)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "fly",
+          "band": "standard",
+          "accept": [
+            "fly"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The hen ran into the garden.",
+        "I can run and jump in the park."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch02_test",
+    "title": "Haldi's Adventure: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch02_t_i1",
+        "type": "multiple_choice",
+        "prompt": "Which word names a place with plants and flowers?",
+        "answer_key": "garden",
+        "skill": "new_words",
+        "options": [
+          "garden",
+          "run",
+          "happy"
+        ]
+      },
+      {
+        "id": "c2_ch02_t_i2",
+        "type": "fill_blank",
+        "prompt": "A ___ gives us eggs.",
+        "answer_key": "hen",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c2_ch02_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the story, Haldi the hen goes on an ___.",
+        "answer_key": "adventure",
+        "skill": "comprehension",
+        "options": [
+          "adventure",
+          "exam",
+          "aeroplane"
+        ]
+      },
+      {
+        "id": "c2_ch02_t_i4",
+        "type": "fill_blank",
+        "prompt": "Haldi the hen sets off on a big ___ in the garden.",
+        "answer_key": "adventure",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c2_ch02_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which word is an action word?",
+        "answer_key": "run",
+        "skill": "grammar",
+        "options": [
+          "run",
+          "table",
+          "red"
+        ]
+      },
+      {
+        "id": "c2_ch02_t_i6",
+        "type": "fill_blank",
+        "prompt": "Birds ___ in the sky.",
+        "answer_key": "fly",
+        "skill": "grammar",
+        "accept": [
+          "fly"
+        ]
+      }
+    ]
+  }
+}

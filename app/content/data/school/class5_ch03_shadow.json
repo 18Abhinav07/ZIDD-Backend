@@ -1,0 +1,258 @@
+{
+  "id": "c5_ch03_shadow",
+  "title": "My Shadow",
+  "description": "NCERT Class 5 English (Marigold): 'My Shadow'. New words, comprehension, prepositions (where), and a writing task, closed by a chapter test.",
+  "class_no": 5,
+  "chapter_no": 3,
+  "ncert_unit": "My Shadow",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c5_ch03_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'My Shadow': shadow, follow, sunlight, shape.",
+      "teach_focus": "What the new words from 'My Shadow' mean (shadow, follow, sunlight, shape); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch03_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "In bright sunlight, your ___ falls on the ground.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "shadow",
+          "band": "foundational",
+          "accept": [
+            "shadows"
+          ]
+        },
+        {
+          "id": "c5_ch03_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To go after someone closely is to ___ them.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "follow",
+          "band": "standard",
+          "options": [
+            "follow",
+            "lead",
+            "lose"
+          ]
+        }
+      ],
+      "exemplars": [
+        "My shadow walks beside me on the road.",
+        "The book is on the table, under the lamp."
+      ]
+    },
+    {
+      "id": "c5_ch03_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'My Shadow' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'My Shadow'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c5_ch03_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch03_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the poem, the child's shadow always seems to ___ them.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "follow",
+          "band": "foundational",
+          "options": [
+            "follow",
+            "vanish",
+            "speak"
+          ]
+        },
+        {
+          "id": "c5_ch03_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "In the poem, the child's shadow seems to ___ them everywhere.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "follow",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "My shadow walks beside me on the road.",
+        "The book is on the table, under the lamp."
+      ]
+    },
+    {
+      "id": "c5_ch03_l3_grammar",
+      "title": "Prepositions (Where)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use prepositions (where) correctly.",
+      "teach_focus": "Prepositions tell where: in, on, under, behind, beside, between.",
+      "success_criteria": "Uses prepositions (where) correctly in a sentence.",
+      "bridge_focus": "Give one example of prepositions (where).",
+      "prerequisites": [
+        "c5_ch03_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch03_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "The cat is hiding ___ the box (inside it).",
+          "hint": "Prepositions (Where)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "in",
+          "band": "foundational",
+          "options": [
+            "on",
+            "in",
+            "under"
+          ]
+        },
+        {
+          "id": "c5_ch03_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "My shadow stands ___ me when the sun is behind. (in front of)",
+          "hint": "Prepositions (Where)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "before",
+          "band": "standard",
+          "accept": [
+            "beside",
+            "near"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The cat hid under the box.",
+        "The book is on the table."
+      ]
+    },
+    {
+      "id": "c5_ch03_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'My Shadow'.",
+      "teach_focus": "Write one clear sentence about 'My Shadow': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c5_ch03_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch03_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "On a sunny day, I see my shadow ___ the wall.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "on",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c5_ch03_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "My shadow stands ___ me when the sun is behind. (in front of)",
+          "hint": "Prepositions (Where)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "before",
+          "band": "standard",
+          "accept": [
+            "beside",
+            "near"
+          ]
+        }
+      ],
+      "exemplars": [
+        "My shadow walks beside me on the road.",
+        "The book is on the table, under the lamp."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c5_ch03_test",
+    "title": "My Shadow: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c5_ch03_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To go after someone closely is to ___ them.",
+        "answer_key": "follow",
+        "skill": "new_words",
+        "options": [
+          "follow",
+          "lead",
+          "lose"
+        ]
+      },
+      {
+        "id": "c5_ch03_t_i2",
+        "type": "fill_blank",
+        "prompt": "In bright sunlight, your ___ falls on the ground.",
+        "answer_key": "shadow",
+        "skill": "new_words",
+        "accept": [
+          "shadows"
+        ]
+      },
+      {
+        "id": "c5_ch03_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the poem, the child's shadow always seems to ___ them.",
+        "answer_key": "follow",
+        "skill": "comprehension",
+        "options": [
+          "follow",
+          "vanish",
+          "speak"
+        ]
+      },
+      {
+        "id": "c5_ch03_t_i4",
+        "type": "fill_blank",
+        "prompt": "In the poem, the child's shadow seems to ___ them everywhere.",
+        "answer_key": "follow",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c5_ch03_t_i5",
+        "type": "multiple_choice",
+        "prompt": "The cat is hiding ___ the box (inside it).",
+        "answer_key": "in",
+        "skill": "grammar",
+        "options": [
+          "on",
+          "in",
+          "under"
+        ]
+      },
+      {
+        "id": "c5_ch03_t_i6",
+        "type": "fill_blank",
+        "prompt": "My shadow stands ___ me when the sun is behind. (in front of)",
+        "answer_key": "before",
+        "skill": "grammar",
+        "accept": [
+          "beside",
+          "near"
+        ]
+      }
+    ]
+  }
+}

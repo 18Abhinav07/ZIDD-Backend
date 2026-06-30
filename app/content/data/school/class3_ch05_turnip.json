@@ -1,0 +1,249 @@
+{
+  "id": "c3_ch05_turnip",
+  "title": "The Enormous Turnip",
+  "description": "NCERT Class 3 English (Marigold): 'The Enormous Turnip'. New words, comprehension, opposites, and a writing task, closed by a chapter test.",
+  "class_no": 3,
+  "chapter_no": 5,
+  "ncert_unit": "The Enormous Turnip",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c3_ch05_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'The Enormous Turnip': turnip, enormous, pull, together.",
+      "teach_focus": "What the new words from 'The Enormous Turnip' mean (turnip, enormous, pull, together); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch05_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "Something very, very big is ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "enormous",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c3_ch05_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To bring something towards you, you ___ it.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "pull",
+          "band": "standard",
+          "options": [
+            "pull",
+            "drop",
+            "throw"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The enormous turnip was hard to pull.",
+        "Together, the family pulled it out."
+      ]
+    },
+    {
+      "id": "c3_ch05_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'The Enormous Turnip' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'The Enormous Turnip'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c3_ch05_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch05_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "They could only move the turnip when they all worked ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "together",
+          "band": "foundational",
+          "options": [
+            "together",
+            "alone",
+            "slowly"
+          ]
+        },
+        {
+          "id": "c3_ch05_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The huge turnip came out only when everyone pulled ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "together",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The enormous turnip was hard to pull.",
+        "Together, the family pulled it out."
+      ]
+    },
+    {
+      "id": "c3_ch05_l3_grammar",
+      "title": "Opposites",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use opposites correctly.",
+      "teach_focus": "Opposite words have opposite meanings: big/small, pull/push, up/down.",
+      "success_criteria": "Uses opposites correctly in a sentence.",
+      "bridge_focus": "Give one example of opposites.",
+      "prerequisites": [
+        "c3_ch05_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch05_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "What is the opposite of 'enormous'?",
+          "hint": "Opposites",
+          "context": "Identifies the grammar point.",
+          "answer_key": "tiny",
+          "band": "foundational",
+          "options": [
+            "tiny",
+            "heavy",
+            "round"
+          ]
+        },
+        {
+          "id": "c3_ch05_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "The opposite of 'pull' is ___.",
+          "hint": "Opposites",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "push",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Big is the opposite of small.",
+        "We push the door, then pull it."
+      ]
+    },
+    {
+      "id": "c3_ch05_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'The Enormous Turnip'.",
+      "teach_focus": "Write one clear sentence about 'The Enormous Turnip': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c3_ch05_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch05_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "When we work together, a hard job becomes ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "easy",
+          "band": "foundational",
+          "accept": [
+            "simple",
+            "quick",
+            "fun"
+          ]
+        },
+        {
+          "id": "c3_ch05_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "The opposite of 'pull' is ___.",
+          "hint": "Opposites",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "push",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The enormous turnip was hard to pull.",
+        "Together, the family pulled it out."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c3_ch05_test",
+    "title": "The Enormous Turnip: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c3_ch05_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To bring something towards you, you ___ it.",
+        "answer_key": "pull",
+        "skill": "new_words",
+        "options": [
+          "pull",
+          "drop",
+          "throw"
+        ]
+      },
+      {
+        "id": "c3_ch05_t_i2",
+        "type": "fill_blank",
+        "prompt": "Something very, very big is ___.",
+        "answer_key": "enormous",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c3_ch05_t_i3",
+        "type": "multiple_choice",
+        "prompt": "They could only move the turnip when they all worked ___.",
+        "answer_key": "together",
+        "skill": "comprehension",
+        "options": [
+          "together",
+          "alone",
+          "slowly"
+        ]
+      },
+      {
+        "id": "c3_ch05_t_i4",
+        "type": "fill_blank",
+        "prompt": "The huge turnip came out only when everyone pulled ___.",
+        "answer_key": "together",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c3_ch05_t_i5",
+        "type": "multiple_choice",
+        "prompt": "What is the opposite of 'enormous'?",
+        "answer_key": "tiny",
+        "skill": "grammar",
+        "options": [
+          "tiny",
+          "heavy",
+          "round"
+        ]
+      },
+      {
+        "id": "c3_ch05_t_i6",
+        "type": "fill_blank",
+        "prompt": "The opposite of 'pull' is ___.",
+        "answer_key": "push",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,250 @@
+{
+  "id": "c4_ch01_wake_up",
+  "title": "Wake Up!",
+  "description": "NCERT Class 4 English (Marigold): 'Wake Up!'. New words, comprehension, present continuous (-ing), and a writing task, closed by a chapter test.",
+  "class_no": 4,
+  "chapter_no": 1,
+  "ncert_unit": "Wake Up!",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c4_ch01_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Wake Up!': dawn, stretch, yawn, fresh.",
+      "teach_focus": "What the new words from 'Wake Up!' mean (dawn, stretch, yawn, fresh); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch01_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "Early morning, when the sun comes up, is called ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "dawn",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c4_ch01_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "When you open your mouth wide because you are sleepy, you ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "yawn",
+          "band": "standard",
+          "options": [
+            "yawn",
+            "shout",
+            "laugh"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The sun is rising and the birds are singing.",
+        "I am stretching my arms to wake up."
+      ]
+    },
+    {
+      "id": "c4_ch01_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Wake Up!' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Wake Up!'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c4_ch01_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch01_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem asks us to wake up and enjoy the ___ morning.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "fresh",
+          "band": "foundational",
+          "options": [
+            "fresh",
+            "dark",
+            "cold"
+          ]
+        },
+        {
+          "id": "c4_ch01_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The poem tells us to wake up and enjoy the ___ morning.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "fresh",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sun is rising and the birds are singing.",
+        "I am stretching my arms to wake up."
+      ]
+    },
+    {
+      "id": "c4_ch01_l3_grammar",
+      "title": "Present Continuous (-ing)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use present continuous (-ing) correctly.",
+      "teach_focus": "Use 'is/are + verb-ing' for an action happening right now: the sun is rising, birds are singing.",
+      "success_criteria": "Uses present continuous (-ing) correctly in a sentence.",
+      "bridge_focus": "Give one example of present continuous (-ing).",
+      "prerequisites": [
+        "c4_ch01_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch01_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the present continuous: 'The birds ___ in the trees.'",
+          "hint": "Present Continuous (-ing)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "are singing",
+          "band": "foundational",
+          "options": [
+            "sing",
+            "sang",
+            "are singing"
+          ]
+        },
+        {
+          "id": "c4_ch01_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Right now, I ___ reading a book. (am + verb-ing)",
+          "hint": "Present Continuous (-ing)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "am",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The birds are singing in the trees.",
+        "I am stretching my arms."
+      ]
+    },
+    {
+      "id": "c4_ch01_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Wake Up!'.",
+      "teach_focus": "Write one clear sentence about 'Wake Up!': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c4_ch01_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch01_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "Early in the morning, I am ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "stretching",
+          "band": "foundational",
+          "accept": [
+            "waking",
+            "yawning",
+            "smiling",
+            "getting up"
+          ]
+        },
+        {
+          "id": "c4_ch01_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Right now, I ___ reading a book. (am + verb-ing)",
+          "hint": "Present Continuous (-ing)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "am",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sun is rising and the birds are singing.",
+        "I am stretching my arms to wake up."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c4_ch01_test",
+    "title": "Wake Up!: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c4_ch01_t_i1",
+        "type": "multiple_choice",
+        "prompt": "When you open your mouth wide because you are sleepy, you ___.",
+        "answer_key": "yawn",
+        "skill": "new_words",
+        "options": [
+          "yawn",
+          "shout",
+          "laugh"
+        ]
+      },
+      {
+        "id": "c4_ch01_t_i2",
+        "type": "fill_blank",
+        "prompt": "Early morning, when the sun comes up, is called ___.",
+        "answer_key": "dawn",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c4_ch01_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem asks us to wake up and enjoy the ___ morning.",
+        "answer_key": "fresh",
+        "skill": "comprehension",
+        "options": [
+          "fresh",
+          "dark",
+          "cold"
+        ]
+      },
+      {
+        "id": "c4_ch01_t_i4",
+        "type": "fill_blank",
+        "prompt": "The poem tells us to wake up and enjoy the ___ morning.",
+        "answer_key": "fresh",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c4_ch01_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the present continuous: 'The birds ___ in the trees.'",
+        "answer_key": "are singing",
+        "skill": "grammar",
+        "options": [
+          "sing",
+          "sang",
+          "are singing"
+        ]
+      },
+      {
+        "id": "c4_ch01_t_i6",
+        "type": "fill_blank",
+        "prompt": "Right now, I ___ reading a book. (am + verb-ing)",
+        "answer_key": "am",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

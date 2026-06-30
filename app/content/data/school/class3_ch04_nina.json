@@ -1,0 +1,258 @@
+{
+  "id": "c3_ch04_nina",
+  "title": "Nina and the Baby Sparrows",
+  "description": "NCERT Class 3 English (Marigold): 'Nina and the Baby Sparrows'. New words, comprehension, was / were, and a writing task, closed by a chapter test.",
+  "class_no": 3,
+  "chapter_no": 4,
+  "ncert_unit": "Nina and the Baby Sparrows",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c3_ch04_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Nina and the Baby Sparrows': window, kind, worried, safe.",
+      "teach_focus": "What the new words from 'Nina and the Baby Sparrows' mean (window, kind, worried, safe); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch04_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "Nina was ___ about the baby birds, so she helped them.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "worried",
+          "band": "foundational",
+          "accept": [
+            "worry"
+          ]
+        },
+        {
+          "id": "c3_ch04_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "A word that means out of danger is ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "safe",
+          "band": "standard",
+          "options": [
+            "safe",
+            "lost",
+            "sad"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The baby birds were safe in the nest.",
+        "Nina was kind to every animal."
+      ]
+    },
+    {
+      "id": "c3_ch04_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Nina and the Baby Sparrows' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Nina and the Baby Sparrows'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c3_ch04_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch04_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "Nina helped the baby sparrows that lived near her ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "window",
+          "band": "foundational",
+          "options": [
+            "window",
+            "school",
+            "river"
+          ]
+        },
+        {
+          "id": "c3_ch04_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "Nina felt ___, so she helped the baby sparrows.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "worried",
+          "band": "standard",
+          "accept": [
+            "kind"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The baby birds were safe in the nest.",
+        "Nina was kind to every animal."
+      ]
+    },
+    {
+      "id": "c3_ch04_l3_grammar",
+      "title": "Was / Were",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use was / were correctly.",
+      "teach_focus": "Use 'was' for one (he/she/it was) and 'were' for many (they/you/we were).",
+      "success_criteria": "Uses was / were correctly in a sentence.",
+      "bridge_focus": "Give one example of was / were.",
+      "prerequisites": [
+        "c3_ch04_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch04_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the correct word: 'The birds ___ very small.'",
+          "hint": "Was / Were",
+          "context": "Identifies the grammar point.",
+          "answer_key": "were",
+          "band": "foundational",
+          "options": [
+            "was",
+            "were",
+            "is"
+          ]
+        },
+        {
+          "id": "c3_ch04_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Yesterday I ___ very happy. (one person)",
+          "hint": "Was / Were",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "was",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The baby birds were safe in the nest.",
+        "Nina was very kind to them."
+      ]
+    },
+    {
+      "id": "c3_ch04_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Nina and the Baby Sparrows'.",
+      "teach_focus": "Write one clear sentence about 'Nina and the Baby Sparrows': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c3_ch04_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch04_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "I was ___ when I helped someone.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "glad",
+          "band": "foundational",
+          "accept": [
+            "happy",
+            "proud",
+            "kind",
+            "pleased"
+          ]
+        },
+        {
+          "id": "c3_ch04_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Yesterday I ___ very happy. (one person)",
+          "hint": "Was / Were",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "was",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The baby birds were safe in the nest.",
+        "Nina was kind to every animal."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c3_ch04_test",
+    "title": "Nina and the Baby Sparrows: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c3_ch04_t_i1",
+        "type": "multiple_choice",
+        "prompt": "A word that means out of danger is ___.",
+        "answer_key": "safe",
+        "skill": "new_words",
+        "options": [
+          "safe",
+          "lost",
+          "sad"
+        ]
+      },
+      {
+        "id": "c3_ch04_t_i2",
+        "type": "fill_blank",
+        "prompt": "Nina was ___ about the baby birds, so she helped them.",
+        "answer_key": "worried",
+        "skill": "new_words",
+        "accept": [
+          "worry"
+        ]
+      },
+      {
+        "id": "c3_ch04_t_i3",
+        "type": "multiple_choice",
+        "prompt": "Nina helped the baby sparrows that lived near her ___.",
+        "answer_key": "window",
+        "skill": "comprehension",
+        "options": [
+          "window",
+          "school",
+          "river"
+        ]
+      },
+      {
+        "id": "c3_ch04_t_i4",
+        "type": "fill_blank",
+        "prompt": "Nina felt ___, so she helped the baby sparrows.",
+        "answer_key": "worried",
+        "skill": "comprehension",
+        "accept": [
+          "kind"
+        ]
+      },
+      {
+        "id": "c3_ch04_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the correct word: 'The birds ___ very small.'",
+        "answer_key": "were",
+        "skill": "grammar",
+        "options": [
+          "was",
+          "were",
+          "is"
+        ]
+      },
+      {
+        "id": "c3_ch04_t_i6",
+        "type": "fill_blank",
+        "prompt": "Yesterday I ___ very happy. (one person)",
+        "answer_key": "was",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

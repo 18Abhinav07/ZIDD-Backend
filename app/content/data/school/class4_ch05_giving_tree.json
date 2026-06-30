@@ -1,0 +1,262 @@
+{
+  "id": "c4_ch05_giving_tree",
+  "title": "The Giving Tree",
+  "description": "NCERT Class 4 English (Marigold): 'The Giving Tree'. New words, comprehension, articles (a / an / the), and a writing task, closed by a chapter test.",
+  "class_no": 4,
+  "chapter_no": 5,
+  "ncert_unit": "The Giving Tree",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c4_ch05_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'The Giving Tree': tree, shade, generous, branch.",
+      "teach_focus": "What the new words from 'The Giving Tree' mean (tree, shade, generous, branch); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch05_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "On a hot day, we sit in the cool ___ of a tree.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "shade",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c4_ch05_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "A person who loves to give is ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "generous",
+          "band": "standard",
+          "options": [
+            "generous",
+            "selfish",
+            "lazy"
+          ]
+        }
+      ],
+      "exemplars": [
+        "An old tree gave the boy sweet apples.",
+        "The tree was a generous friend."
+      ]
+    },
+    {
+      "id": "c4_ch05_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'The Giving Tree' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'The Giving Tree'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c4_ch05_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch05_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The story shows that the tree was very ___ to the boy.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "generous",
+          "band": "foundational",
+          "options": [
+            "generous",
+            "angry",
+            "scared"
+          ]
+        },
+        {
+          "id": "c4_ch05_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The story shows that the tree was very ___ to the boy.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "generous",
+          "band": "standard",
+          "accept": [
+            "kind",
+            "giving"
+          ]
+        }
+      ],
+      "exemplars": [
+        "An old tree gave the boy sweet apples.",
+        "The tree was a generous friend."
+      ]
+    },
+    {
+      "id": "c4_ch05_l3_grammar",
+      "title": "Articles (a / an / the)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use articles (a / an / the) correctly.",
+      "teach_focus": "Use 'a' before a consonant sound, 'an' before a vowel sound, and 'the' for a known thing.",
+      "success_criteria": "Uses articles (a / an / the) correctly in a sentence.",
+      "bridge_focus": "Give one example of articles (a / an / the).",
+      "prerequisites": [
+        "c4_ch05_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch05_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the right word: '___ apple a day keeps illness away.'",
+          "hint": "Articles (a / an / the)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "An",
+          "band": "foundational",
+          "options": [
+            "A",
+            "An",
+            "The"
+          ]
+        },
+        {
+          "id": "c4_ch05_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "I sat under ___ big tree near my house.",
+          "hint": "Articles (a / an / the)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "the",
+          "band": "standard",
+          "accept": [
+            "a"
+          ]
+        }
+      ],
+      "exemplars": [
+        "An apple fell from the tree.",
+        "The tree gave the boy some shade."
+      ]
+    },
+    {
+      "id": "c4_ch05_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'The Giving Tree'.",
+      "teach_focus": "Write one clear sentence about 'The Giving Tree': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c4_ch05_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch05_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "A tree gives us fruit, shade, and ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "oxygen",
+          "band": "foundational",
+          "accept": [
+            "air",
+            "wood",
+            "shelter",
+            "fruits"
+          ]
+        },
+        {
+          "id": "c4_ch05_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "I sat under ___ big tree near my house.",
+          "hint": "Articles (a / an / the)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "the",
+          "band": "standard",
+          "accept": [
+            "a"
+          ]
+        }
+      ],
+      "exemplars": [
+        "An old tree gave the boy sweet apples.",
+        "The tree was a generous friend."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c4_ch05_test",
+    "title": "The Giving Tree: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c4_ch05_t_i1",
+        "type": "multiple_choice",
+        "prompt": "A person who loves to give is ___.",
+        "answer_key": "generous",
+        "skill": "new_words",
+        "options": [
+          "generous",
+          "selfish",
+          "lazy"
+        ]
+      },
+      {
+        "id": "c4_ch05_t_i2",
+        "type": "fill_blank",
+        "prompt": "On a hot day, we sit in the cool ___ of a tree.",
+        "answer_key": "shade",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c4_ch05_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The story shows that the tree was very ___ to the boy.",
+        "answer_key": "generous",
+        "skill": "comprehension",
+        "options": [
+          "generous",
+          "angry",
+          "scared"
+        ]
+      },
+      {
+        "id": "c4_ch05_t_i4",
+        "type": "fill_blank",
+        "prompt": "The story shows that the tree was very ___ to the boy.",
+        "answer_key": "generous",
+        "skill": "comprehension",
+        "accept": [
+          "kind",
+          "giving"
+        ]
+      },
+      {
+        "id": "c4_ch05_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the right word: '___ apple a day keeps illness away.'",
+        "answer_key": "An",
+        "skill": "grammar",
+        "options": [
+          "A",
+          "An",
+          "The"
+        ]
+      },
+      {
+        "id": "c4_ch05_t_i6",
+        "type": "fill_blank",
+        "prompt": "I sat under ___ big tree near my house.",
+        "answer_key": "the",
+        "skill": "grammar",
+        "accept": [
+          "a"
+        ]
+      }
+    ]
+  }
+}

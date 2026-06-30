@@ -1,0 +1,257 @@
+{
+  "id": "c4_ch04_why",
+  "title": "Why?",
+  "description": "NCERT Class 4 English (Marigold): 'Why?'. New words, comprehension, because / so, and a writing task, closed by a chapter test.",
+  "class_no": 4,
+  "chapter_no": 4,
+  "ncert_unit": "Why?",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c4_ch04_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Why?': question, reason, wonder, answer.",
+      "teach_focus": "What the new words from 'Why?' mean (question, reason, wonder, answer); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch04_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "When you ask 'why', you want a ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "reason",
+          "band": "foundational",
+          "accept": [
+            "reasons"
+          ]
+        },
+        {
+          "id": "c4_ch04_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To think with curiosity about something is to ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "wonder",
+          "band": "standard",
+          "options": [
+            "wonder",
+            "sleep",
+            "shout"
+          ]
+        }
+      ],
+      "exemplars": [
+        "I stayed in because it was raining.",
+        "The bell rang, so we went to class."
+      ]
+    },
+    {
+      "id": "c4_ch04_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Why?' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Why?'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c4_ch04_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch04_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The child in the poem keeps asking lots of ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "questions",
+          "band": "foundational",
+          "options": [
+            "questions",
+            "sweets",
+            "songs"
+          ]
+        },
+        {
+          "id": "c4_ch04_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The curious child in the poem keeps asking many ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "questions",
+          "band": "standard",
+          "accept": [
+            "question"
+          ]
+        }
+      ],
+      "exemplars": [
+        "I stayed in because it was raining.",
+        "The bell rang, so we went to class."
+      ]
+    },
+    {
+      "id": "c4_ch04_l3_grammar",
+      "title": "Because / So",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use because / so correctly.",
+      "teach_focus": "'because' gives a reason; 'so' gives a result. I stayed home because it rained, so I read a book.",
+      "success_criteria": "Uses because / so correctly in a sentence.",
+      "bridge_focus": "Give one example of because / so.",
+      "prerequisites": [
+        "c4_ch04_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch04_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Join with a reason: 'I am happy ___ it is my birthday.'",
+          "hint": "Because / So",
+          "context": "Identifies the grammar point.",
+          "answer_key": "because",
+          "band": "foundational",
+          "options": [
+            "because",
+            "but",
+            "or"
+          ]
+        },
+        {
+          "id": "c4_ch04_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "It was raining, ___ I took an umbrella.",
+          "hint": "Because / So",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "so",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "I smiled because it was my birthday.",
+        "It rained, so I stayed inside."
+      ]
+    },
+    {
+      "id": "c4_ch04_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Why?'.",
+      "teach_focus": "Write one clear sentence about 'Why?': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c4_ch04_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c4_ch04_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "I like school because of my ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "friends",
+          "band": "foundational",
+          "accept": [
+            "teacher",
+            "books",
+            "games"
+          ]
+        },
+        {
+          "id": "c4_ch04_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "It was raining, ___ I took an umbrella.",
+          "hint": "Because / So",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "so",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "I stayed in because it was raining.",
+        "The bell rang, so we went to class."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c4_ch04_test",
+    "title": "Why?: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c4_ch04_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To think with curiosity about something is to ___.",
+        "answer_key": "wonder",
+        "skill": "new_words",
+        "options": [
+          "wonder",
+          "sleep",
+          "shout"
+        ]
+      },
+      {
+        "id": "c4_ch04_t_i2",
+        "type": "fill_blank",
+        "prompt": "When you ask 'why', you want a ___.",
+        "answer_key": "reason",
+        "skill": "new_words",
+        "accept": [
+          "reasons"
+        ]
+      },
+      {
+        "id": "c4_ch04_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The child in the poem keeps asking lots of ___.",
+        "answer_key": "questions",
+        "skill": "comprehension",
+        "options": [
+          "questions",
+          "sweets",
+          "songs"
+        ]
+      },
+      {
+        "id": "c4_ch04_t_i4",
+        "type": "fill_blank",
+        "prompt": "The curious child in the poem keeps asking many ___.",
+        "answer_key": "questions",
+        "skill": "comprehension",
+        "accept": [
+          "question"
+        ]
+      },
+      {
+        "id": "c4_ch04_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Join with a reason: 'I am happy ___ it is my birthday.'",
+        "answer_key": "because",
+        "skill": "grammar",
+        "options": [
+          "because",
+          "but",
+          "or"
+        ]
+      },
+      {
+        "id": "c4_ch04_t_i6",
+        "type": "fill_blank",
+        "prompt": "It was raining, ___ I took an umbrella.",
+        "answer_key": "so",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

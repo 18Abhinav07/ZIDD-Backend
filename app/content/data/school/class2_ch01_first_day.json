@@ -1,0 +1,195 @@
+{
+  "id": "c2_ch01_first_day",
+  "title": "First Day at School",
+  "description": "NCERT Class 2 English (Marigold), Unit 1 poem. The levels move from the chapter's new words, to understanding the poem, to its grammar focus (naming words), to writing a sentence of your own.",
+  "class_no": 2,
+  "chapter_no": 1,
+  "ncert_unit": "First Day at School",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c2_ch01_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the chapter's new words: school, friend, teacher, new, happy.",
+      "teach_focus": "Meaning of each new word from the poem; use a new word in a short, correct phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word from the poem and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch01_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "On the first day, I made a new ___ at school.",
+          "hint": "a person you play and learn with",
+          "context": "Uses a chapter word in the poem's own situation.",
+          "answer_key": "friend",
+          "accept": ["friends"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_ch01_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "Who teaches you in school?",
+          "hint": "the person who helps you learn",
+          "context": "Checks the meaning of a key chapter word.",
+          "answer_key": "teacher",
+          "options": ["teacher", "driver", "cook"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["A school is a place where we learn.", "My teacher is kind and helps me."]
+    },
+    {
+      "id": "c2_ch01_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the poem: a child's feelings on the first day of school.",
+      "teach_focus": "The main idea and feelings in the poem (new, a little scared, then happy); answer a simple who/what/how question.",
+      "success_criteria": "Answers a simple question about the poem in one clear sentence.",
+      "bridge_focus": "Say how the child feels on the first day in one word.",
+      "prerequisites": ["c2_ch01_l1_new_words"],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch01_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "How does the child feel at the END of the first day?",
+          "hint": "after making friends",
+          "context": "Targets the poem's main feeling.",
+          "answer_key": "happy",
+          "options": ["happy", "angry", "sleepy"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_ch01_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "On the first day, school is a ___ place for the child.",
+          "hint": "not old; you have not seen it before",
+          "context": "Checks understanding of the first-day feeling.",
+          "answer_key": "new",
+          "accept": [],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["The child feels happy because they make new friends.", "The first day is new, but it becomes fun."]
+    },
+    {
+      "id": "c2_ch01_l3_grammar_nouns",
+      "title": "Naming Words (Nouns)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Find and use naming words (nouns) for people and things in school.",
+      "teach_focus": "A naming word names a person, place, animal, or thing (teacher, bag, book, class).",
+      "success_criteria": "Picks or writes a correct naming word for a person or thing in school.",
+      "bridge_focus": "Name one thing you carry to school.",
+      "prerequisites": ["c2_ch01_l2_understand"],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch01_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which one is a naming word (a thing in school)?",
+          "hint": "which one names a thing?",
+          "context": "Sorts a noun from a verb and an adjective.",
+          "answer_key": "book",
+          "options": ["book", "run", "fast"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_ch01_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "I keep my books in my ___.",
+          "hint": "a thing you carry to school",
+          "context": "Produces a naming word in a real school sentence.",
+          "answer_key": "bag",
+          "accept": ["schoolbag"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Naming words in my class: teacher, desk, board.", "A pencil and a book are naming words."]
+    },
+    {
+      "id": "c2_ch01_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one simple sentence about your first day or your school.",
+      "teach_focus": "A sentence has who + what, a capital letter at the start, and a full stop at the end.",
+      "success_criteria": "One complete sentence about school, with a capital letter and a full stop.",
+      "bridge_focus": "Finish: 'On my first day, I ___.'",
+      "prerequisites": ["c2_ch01_l3_grammar_nouns"],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch01_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "On my first day, I met my new ___.",
+          "hint": "a person or your teacher",
+          "context": "Scaffolds the writing task with a frame to complete.",
+          "answer_key": "friend",
+          "accept": ["teacher", "friends"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_ch01_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "My school has a big ___.",
+          "hint": "a place in school: playground, library, garden",
+          "context": "A second frame so the learner produces their own detail.",
+          "answer_key": "playground",
+          "accept": ["ground", "library", "garden", "class", "hall"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["On my first day, I felt happy and made a friend.", "My school is big and I like my class."]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch01_test",
+    "title": "First Day at School: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch01_test_i1",
+        "type": "multiple_choice",
+        "prompt": "Who teaches you in school?",
+        "answer_key": "teacher",
+        "options": ["teacher", "farmer", "doctor"],
+        "skill": "new_words"
+      },
+      {
+        "id": "c2_ch01_test_i2",
+        "type": "multiple_choice",
+        "prompt": "How does the child feel at the end of the first day?",
+        "answer_key": "happy",
+        "options": ["happy", "scared", "hungry"],
+        "skill": "comprehension"
+      },
+      {
+        "id": "c2_ch01_test_i3",
+        "type": "multiple_choice",
+        "prompt": "Which word is a naming word?",
+        "answer_key": "book",
+        "options": ["book", "jump", "blue"],
+        "skill": "nouns"
+      },
+      {
+        "id": "c2_ch01_test_i4",
+        "type": "fill_blank",
+        "prompt": "I carry my books in my ___.",
+        "answer_key": "bag",
+        "accept": ["schoolbag"],
+        "skill": "nouns"
+      },
+      {
+        "id": "c2_ch01_test_i5",
+        "type": "fill_blank",
+        "prompt": "On my first day, I made a new ___.",
+        "answer_key": "friend",
+        "accept": ["friends"],
+        "skill": "use"
+      }
+    ]
+  }
+}

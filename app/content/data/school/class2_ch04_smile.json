@@ -1,0 +1,260 @@
+{
+  "id": "c2_ch04_smile",
+  "title": "A Smile",
+  "description": "NCERT Class 2 English (Marigold): 'A Smile'. New words, comprehension, this, that, these, those, and a writing task, closed by a chapter test.",
+  "class_no": 2,
+  "chapter_no": 4,
+  "ncert_unit": "A Smile",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c2_ch04_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'A Smile': smile, happy, friend, share.",
+      "teach_focus": "What the new words from 'A Smile' mean (smile, happy, friend, share); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch04_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "When you are happy, you ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "smile",
+          "band": "foundational",
+          "accept": [
+            "smiles"
+          ]
+        },
+        {
+          "id": "c2_ch04_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "A person you like and play with is a ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "friend",
+          "band": "standard",
+          "options": [
+            "friend",
+            "stranger",
+            "stone"
+          ]
+        }
+      ],
+      "exemplars": [
+        "This is my new bag.",
+        "Those are the tall trees near the gate."
+      ]
+    },
+    {
+      "id": "c2_ch04_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'A Smile' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'A Smile'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c2_ch04_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch04_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem says a smile grows when you ___ it.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "share",
+          "band": "foundational",
+          "options": [
+            "share",
+            "hide",
+            "throw"
+          ]
+        },
+        {
+          "id": "c2_ch04_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "A smile grows bigger when you ___ it with others.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "share",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "This is my new bag.",
+        "Those are the tall trees near the gate."
+      ]
+    },
+    {
+      "id": "c2_ch04_l3_grammar",
+      "title": "This, That, These, Those",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use this, that, these, those correctly.",
+      "teach_focus": "Use 'this/these' for things near you and 'that/those' for things far away.",
+      "success_criteria": "Uses this, that, these, those correctly in a sentence.",
+      "bridge_focus": "Give one example of this, that, these, those.",
+      "prerequisites": [
+        "c2_ch04_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch04_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "The book is far away. Which is correct?",
+          "hint": "This, That, These, Those",
+          "context": "Identifies the grammar point.",
+          "answer_key": "That is a book.",
+          "band": "foundational",
+          "options": [
+            "This is a book.",
+            "That is a book.",
+            "These is a book."
+          ]
+        },
+        {
+          "id": "c2_ch04_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "___ is my pen, right here in my hand.",
+          "hint": "This, That, These, Those",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "This",
+          "band": "standard",
+          "accept": [
+            "this"
+          ]
+        }
+      ],
+      "exemplars": [
+        "This is my pen, right here.",
+        "Those birds are flying far away."
+      ]
+    },
+    {
+      "id": "c2_ch04_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'A Smile'.",
+      "teach_focus": "Write one clear sentence about 'A Smile': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c2_ch04_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch04_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "I share my ___ with my friends.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "lunch",
+          "band": "foundational",
+          "accept": [
+            "book",
+            "toys",
+            "pencil",
+            "food"
+          ]
+        },
+        {
+          "id": "c2_ch04_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "___ is my pen, right here in my hand.",
+          "hint": "This, That, These, Those",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "This",
+          "band": "standard",
+          "accept": [
+            "this"
+          ]
+        }
+      ],
+      "exemplars": [
+        "This is my new bag.",
+        "Those are the tall trees near the gate."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch04_test",
+    "title": "A Smile: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch04_t_i1",
+        "type": "multiple_choice",
+        "prompt": "A person you like and play with is a ___.",
+        "answer_key": "friend",
+        "skill": "new_words",
+        "options": [
+          "friend",
+          "stranger",
+          "stone"
+        ]
+      },
+      {
+        "id": "c2_ch04_t_i2",
+        "type": "fill_blank",
+        "prompt": "When you are happy, you ___.",
+        "answer_key": "smile",
+        "skill": "new_words",
+        "accept": [
+          "smiles"
+        ]
+      },
+      {
+        "id": "c2_ch04_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem says a smile grows when you ___ it.",
+        "answer_key": "share",
+        "skill": "comprehension",
+        "options": [
+          "share",
+          "hide",
+          "throw"
+        ]
+      },
+      {
+        "id": "c2_ch04_t_i4",
+        "type": "fill_blank",
+        "prompt": "A smile grows bigger when you ___ it with others.",
+        "answer_key": "share",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c2_ch04_t_i5",
+        "type": "multiple_choice",
+        "prompt": "The book is far away. Which is correct?",
+        "answer_key": "That is a book.",
+        "skill": "grammar",
+        "options": [
+          "This is a book.",
+          "That is a book.",
+          "These is a book."
+        ]
+      },
+      {
+        "id": "c2_ch04_t_i6",
+        "type": "fill_blank",
+        "prompt": "___ is my pen, right here in my hand.",
+        "answer_key": "This",
+        "skill": "grammar",
+        "accept": [
+          "this"
+        ]
+      }
+    ]
+  }
+}

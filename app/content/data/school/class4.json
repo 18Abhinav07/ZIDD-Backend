@@ -1,0 +1,257 @@
+{
+  "class_no": 4,
+  "title": "Class 4 — English (Marigold)",
+  "description": "NCERT Class 4 English, organised by the Marigold chapters. Each chapter teaches new words, comprehension, a grammar focus, and writing, then a chapter test. Milestone reviews check cumulative learning at 30%, 60%, and 100% of the year.",
+  "chapters": [
+    "c4_ch01_wake_up",
+    "c4_ch02_noses",
+    "c4_ch03_run",
+    "c4_ch04_why",
+    "c4_ch05_giving_tree"
+  ],
+  "milestones": [
+    {
+      "id": "c4_milestone_30",
+      "title": "Class 4 — 30% Progress Check",
+      "kind": "milestone",
+      "at_percent": 30,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c4_m30_i1",
+          "type": "multiple_choice",
+          "prompt": "Choose the present continuous: 'The birds ___ in the trees.'",
+          "answer_key": "are singing",
+          "skill": "present_continuous",
+          "options": [
+            "sing",
+            "sang",
+            "are singing"
+          ]
+        },
+        {
+          "id": "c4_m30_i2",
+          "type": "multiple_choice",
+          "prompt": "The poem asks us to wake up and enjoy the ___ morning.",
+          "answer_key": "fresh",
+          "skill": "comprehension",
+          "options": [
+            "fresh",
+            "dark",
+            "cold"
+          ]
+        },
+        {
+          "id": "c4_m30_i3",
+          "type": "multiple_choice",
+          "prompt": "Choose the past tense: 'She ___ the rose.'",
+          "answer_key": "smelled",
+          "skill": "past_tense",
+          "options": [
+            "smell",
+            "smells",
+            "smelled"
+          ]
+        },
+        {
+          "id": "c4_m30_i4",
+          "type": "multiple_choice",
+          "prompt": "The funny poem wonders about all kinds of ___.",
+          "answer_key": "noses",
+          "skill": "comprehension",
+          "options": [
+            "noses",
+            "shoes",
+            "hats"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c4_milestone_60",
+      "title": "Class 4 — 60% Progress Check",
+      "kind": "milestone",
+      "at_percent": 60,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c4_m60_i1",
+          "type": "multiple_choice",
+          "prompt": "Choose the present continuous: 'The birds ___ in the trees.'",
+          "answer_key": "are singing",
+          "skill": "present_continuous",
+          "options": [
+            "sing",
+            "sang",
+            "are singing"
+          ]
+        },
+        {
+          "id": "c4_m60_i2",
+          "type": "multiple_choice",
+          "prompt": "The poem asks us to wake up and enjoy the ___ morning.",
+          "answer_key": "fresh",
+          "skill": "comprehension",
+          "options": [
+            "fresh",
+            "dark",
+            "cold"
+          ]
+        },
+        {
+          "id": "c4_m60_i3",
+          "type": "multiple_choice",
+          "prompt": "Choose the past tense: 'She ___ the rose.'",
+          "answer_key": "smelled",
+          "skill": "past_tense",
+          "options": [
+            "smell",
+            "smells",
+            "smelled"
+          ]
+        },
+        {
+          "id": "c4_m60_i4",
+          "type": "multiple_choice",
+          "prompt": "The funny poem wonders about all kinds of ___.",
+          "answer_key": "noses",
+          "skill": "comprehension",
+          "options": [
+            "noses",
+            "shoes",
+            "hats"
+          ]
+        },
+        {
+          "id": "c4_m60_i5",
+          "type": "multiple_choice",
+          "prompt": "Which word tells HOW she ran?",
+          "answer_key": "quickly",
+          "skill": "adverbs",
+          "options": [
+            "quickly",
+            "garden",
+            "happy"
+          ]
+        },
+        {
+          "id": "c4_m60_i6",
+          "type": "multiple_choice",
+          "prompt": "The poem 'Run!' is full of energy and ___.",
+          "answer_key": "speed",
+          "skill": "comprehension",
+          "options": [
+            "speed",
+            "rain",
+            "sleep"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c4_milestone_100",
+      "title": "Class 4 — Term Review",
+      "kind": "milestone",
+      "at_percent": 100,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c4_m100_i1",
+          "type": "multiple_choice",
+          "prompt": "Choose the present continuous: 'The birds ___ in the trees.'",
+          "answer_key": "are singing",
+          "skill": "present_continuous",
+          "options": [
+            "sing",
+            "sang",
+            "are singing"
+          ]
+        },
+        {
+          "id": "c4_m100_i2",
+          "type": "multiple_choice",
+          "prompt": "The poem asks us to wake up and enjoy the ___ morning.",
+          "answer_key": "fresh",
+          "skill": "comprehension",
+          "options": [
+            "fresh",
+            "dark",
+            "cold"
+          ]
+        },
+        {
+          "id": "c4_m100_i3",
+          "type": "multiple_choice",
+          "prompt": "Choose the past tense: 'She ___ the rose.'",
+          "answer_key": "smelled",
+          "skill": "past_tense",
+          "options": [
+            "smell",
+            "smells",
+            "smelled"
+          ]
+        },
+        {
+          "id": "c4_m100_i4",
+          "type": "multiple_choice",
+          "prompt": "The funny poem wonders about all kinds of ___.",
+          "answer_key": "noses",
+          "skill": "comprehension",
+          "options": [
+            "noses",
+            "shoes",
+            "hats"
+          ]
+        },
+        {
+          "id": "c4_m100_i5",
+          "type": "multiple_choice",
+          "prompt": "Which word tells HOW she ran?",
+          "answer_key": "quickly",
+          "skill": "adverbs",
+          "options": [
+            "quickly",
+            "garden",
+            "happy"
+          ]
+        },
+        {
+          "id": "c4_m100_i6",
+          "type": "multiple_choice",
+          "prompt": "The poem 'Run!' is full of energy and ___.",
+          "answer_key": "speed",
+          "skill": "comprehension",
+          "options": [
+            "speed",
+            "rain",
+            "sleep"
+          ]
+        },
+        {
+          "id": "c4_m100_i7",
+          "type": "multiple_choice",
+          "prompt": "Join with a reason: 'I am happy ___ it is my birthday.'",
+          "answer_key": "because",
+          "skill": "because_/_so",
+          "options": [
+            "because",
+            "but",
+            "or"
+          ]
+        },
+        {
+          "id": "c4_m100_i8",
+          "type": "multiple_choice",
+          "prompt": "The child in the poem keeps asking lots of ___.",
+          "answer_key": "questions",
+          "skill": "comprehension",
+          "options": [
+            "questions",
+            "sweets",
+            "songs"
+          ]
+        }
+      ]
+    }
+  ]
+}

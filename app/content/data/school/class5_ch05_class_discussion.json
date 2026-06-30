@@ -1,0 +1,252 @@
+{
+  "id": "c5_ch05_class_discussion",
+  "title": "Class Discussion",
+  "description": "NCERT Class 5 English (Marigold): 'Class Discussion'. New words, comprehension, conjunctions (although, while, or), and a writing task, closed by a chapter test.",
+  "class_no": 5,
+  "chapter_no": 5,
+  "ncert_unit": "Class Discussion",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c5_ch05_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Class Discussion': discuss, opinion, listen, agree.",
+      "teach_focus": "What the new words from 'Class Discussion' mean (discuss, opinion, listen, agree); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch05_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "Your own idea or view about something is your ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "opinion",
+          "band": "foundational",
+          "accept": [
+            "opinions"
+          ]
+        },
+        {
+          "id": "c5_ch05_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To talk about a topic with others is to ___ it.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "discuss",
+          "band": "standard",
+          "options": [
+            "discuss",
+            "ignore",
+            "forget"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Although I disagreed, I listened politely.",
+        "We can meet today or tomorrow."
+      ]
+    },
+    {
+      "id": "c5_ch05_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Class Discussion' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Class Discussion'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c5_ch05_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch05_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "A good discussion needs us to speak AND to ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "listen",
+          "band": "foundational",
+          "options": [
+            "listen",
+            "shout",
+            "sleep"
+          ]
+        },
+        {
+          "id": "c5_ch05_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "A good discussion needs us to speak and also to ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "listen",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Although I disagreed, I listened politely.",
+        "We can meet today or tomorrow."
+      ]
+    },
+    {
+      "id": "c5_ch05_l3_grammar",
+      "title": "Conjunctions (although, while, or)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use conjunctions (although, while, or) correctly.",
+      "teach_focus": "Conjunctions link ideas: 'although' shows a contrast, 'while' shows two things at once, 'or' shows a choice.",
+      "success_criteria": "Uses conjunctions (although, while, or) correctly in a sentence.",
+      "bridge_focus": "Give one example of conjunctions (although, while, or).",
+      "prerequisites": [
+        "c5_ch05_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch05_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the right word: 'I will read ___ you write.'",
+          "hint": "Conjunctions (although, while, or)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "while",
+          "band": "foundational",
+          "options": [
+            "while",
+            "although",
+            "or"
+          ]
+        },
+        {
+          "id": "c5_ch05_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "You can have tea ___ coffee. (a choice)",
+          "hint": "Conjunctions (although, while, or)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "or",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Although I disagreed, I stayed calm.",
+        "We can meet today or tomorrow."
+      ]
+    },
+    {
+      "id": "c5_ch05_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Class Discussion'.",
+      "teach_focus": "Write one clear sentence about 'Class Discussion': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c5_ch05_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch05_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "In a discussion, I always ___ to others first.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "listen",
+          "band": "foundational",
+          "accept": [
+            "respond",
+            "reply"
+          ]
+        },
+        {
+          "id": "c5_ch05_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "You can have tea ___ coffee. (a choice)",
+          "hint": "Conjunctions (although, while, or)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "or",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "Although I disagreed, I listened politely.",
+        "We can meet today or tomorrow."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c5_ch05_test",
+    "title": "Class Discussion: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c5_ch05_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To talk about a topic with others is to ___ it.",
+        "answer_key": "discuss",
+        "skill": "new_words",
+        "options": [
+          "discuss",
+          "ignore",
+          "forget"
+        ]
+      },
+      {
+        "id": "c5_ch05_t_i2",
+        "type": "fill_blank",
+        "prompt": "Your own idea or view about something is your ___.",
+        "answer_key": "opinion",
+        "skill": "new_words",
+        "accept": [
+          "opinions"
+        ]
+      },
+      {
+        "id": "c5_ch05_t_i3",
+        "type": "multiple_choice",
+        "prompt": "A good discussion needs us to speak AND to ___.",
+        "answer_key": "listen",
+        "skill": "comprehension",
+        "options": [
+          "listen",
+          "shout",
+          "sleep"
+        ]
+      },
+      {
+        "id": "c5_ch05_t_i4",
+        "type": "fill_blank",
+        "prompt": "A good discussion needs us to speak and also to ___.",
+        "answer_key": "listen",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c5_ch05_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the right word: 'I will read ___ you write.'",
+        "answer_key": "while",
+        "skill": "grammar",
+        "options": [
+          "while",
+          "although",
+          "or"
+        ]
+      },
+      {
+        "id": "c5_ch05_t_i6",
+        "type": "fill_blank",
+        "prompt": "You can have tea ___ coffee. (a choice)",
+        "answer_key": "or",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

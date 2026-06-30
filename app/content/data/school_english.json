@@ -14,7 +14,29 @@
       "bridge_focus": "Just say one word that starts with the letter (e.g. b -> ball).",
       "cefr": "",
       "prerequisites": [],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c2_alphabet_sounds_bx1",
+          "type": "fill_blank",
+          "sentence": "The word 'ball' starts with the letter ___.",
+          "hint": "the first letter of 'ball'",
+          "context": "Maps a known word back to its beginning letter — the easiest first step.",
+          "answer_key": "b",
+          "accept": ["B"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_alphabet_sounds_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which word starts with the letter 'm'?",
+          "hint": "say each word slowly and listen to the first sound",
+          "context": "Moves from naming a letter to picking the word with that sound.",
+          "answer_key": "moon",
+          "options": ["apple", "moon", "dog"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["B is for ball.", "S is for sun."]
     },
     {
       "id": "c2_naming_words",
@@ -29,7 +51,29 @@
       "prerequisites": [
         "c2_alphabet_sounds"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c2_naming_words_bx1",
+          "type": "fill_blank",
+          "sentence": "Apple, dog, and school are all ___ words because they name things.",
+          "hint": "the kind of word that names a person, animal, place, or thing",
+          "context": "Names the category before asking the learner to produce one.",
+          "answer_key": "naming",
+          "accept": ["noun", "nouns"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_naming_words_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which one is a naming word (a noun)?",
+          "hint": "which word names a place you can go to?",
+          "context": "Sorts a naming word out from an action word and a describing word.",
+          "answer_key": "school",
+          "options": ["run", "happy", "school"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Person: teacher. Animal: cat. Place: park. Thing: book.", "Three naming words are dog, garden, and pencil."]
     },
     {
       "id": "c2_simple_sentence",
@@ -44,7 +88,29 @@
       "prerequisites": [
         "c2_naming_words"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c2_simple_sentence_bx1",
+          "type": "fill_blank",
+          "sentence": "The cat ___.",
+          "hint": "add a doing word (a verb) like runs or sleeps",
+          "context": "Supplies the naming word so the learner only adds the action.",
+          "answer_key": "runs",
+          "accept": ["sleeps", "jumps", "sat", "ran", "eats", "plays", "sits", "purrs"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_simple_sentence_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which one is a complete sentence?",
+          "hint": "a sentence needs WHO and WHAT they do, plus a full stop",
+          "context": "Tells a full sentence apart from a fragment.",
+          "answer_key": "The dog barks.",
+          "options": ["The big dog", "The dog barks.", "Barking loudly"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["The dog runs.", "My sister sings."]
     },
     {
       "id": "c2_this_that",
@@ -59,7 +125,29 @@
       "prerequisites": [
         "c2_simple_sentence"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c2_this_that_bx1",
+          "type": "fill_blank",
+          "sentence": "___ is a book. The book is right here, next to me.",
+          "hint": "near + one thing: this or that?",
+          "context": "Anchors the near + singular choice before mixing in plurals.",
+          "answer_key": "This",
+          "accept": ["this"],
+          "band": "foundational"
+        },
+        {
+          "id": "c2_this_that_bx2",
+          "type": "multiple_choice",
+          "sentence": "The balls are far away. Which sentence is correct?",
+          "hint": "far + many things",
+          "context": "Tests far + plural, the hardest of the four forms.",
+          "answer_key": "Those are balls.",
+          "options": ["This are balls.", "Those are balls.", "That is balls."],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["This is my pen.", "Those are tall trees."]
     },
     {
       "id": "c3_action_words",
@@ -74,7 +162,29 @@
       "prerequisites": [
         "c2_this_that"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c3_action_words_bx1",
+          "type": "fill_blank",
+          "sentence": "Birds ___ in the sky.",
+          "hint": "an action word (verb) for what birds do in the air",
+          "context": "A strong picture cues one obvious action word.",
+          "answer_key": "fly",
+          "accept": ["soar"],
+          "band": "foundational"
+        },
+        {
+          "id": "c3_action_words_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which word is an action word (a verb)?",
+          "hint": "which word is something you can DO?",
+          "context": "Sorts a verb out from a naming word and a describing word.",
+          "answer_key": "jump",
+          "options": ["table", "jump", "blue"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["The boy kicks the ball.", "Fish swim in the water."]
     },
     {
       "id": "c3_describing_words",
@@ -89,7 +199,29 @@
       "prerequisites": [
         "c3_action_words"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c3_describing_words_bx1",
+          "type": "fill_blank",
+          "sentence": "a ___ dog",
+          "hint": "a describing word for its size or colour",
+          "context": "Open slot before the noun — exactly where an adjective goes.",
+          "answer_key": "big",
+          "accept": ["small", "brown", "black", "white", "little", "happy", "old", "young", "red", "friendly"],
+          "band": "foundational"
+        },
+        {
+          "id": "c3_describing_words_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which word DESCRIBES the ball?",
+          "hint": "which word tells you more about how the ball looks?",
+          "context": "Picks the adjective out from a noun and a verb.",
+          "answer_key": "round",
+          "options": ["round", "ball", "throw"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["a big red ball", "a soft white cat"]
     },
     {
       "id": "c3_present_tense",
@@ -104,7 +236,29 @@
       "prerequisites": [
         "c3_describing_words"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c3_present_tense_bx1",
+          "type": "fill_blank",
+          "sentence": "Every day I ___ to school.",
+          "hint": "a present-tense action word (for 'I', no -s)",
+          "context": "The 'I' form needs no -s — the simplest present form.",
+          "answer_key": "walk",
+          "accept": ["go", "run", "cycle"],
+          "band": "foundational"
+        },
+        {
+          "id": "c3_present_tense_bx2",
+          "type": "multiple_choice",
+          "sentence": "Choose the correct present tense: 'He ___ football.'",
+          "hint": "he / she / it adds -s",
+          "context": "Targets the he/she/it -s rule, the usual present-tense slip.",
+          "answer_key": "plays",
+          "options": ["play", "plays", "played"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Every day I read a book.", "She drinks milk in the morning."]
     },
     {
       "id": "c3_questions",
@@ -119,7 +273,29 @@
       "prerequisites": [
         "c3_present_tense"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c3_questions_bx1",
+          "type": "fill_blank",
+          "sentence": "___ is your name?",
+          "hint": "the question word that asks about a name",
+          "context": "Supplies the question shape so only the question word is missing.",
+          "answer_key": "What",
+          "accept": ["what"],
+          "band": "foundational"
+        },
+        {
+          "id": "c3_questions_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which one is a correct question?",
+          "hint": "a question has the right word order and ends with '?'",
+          "context": "Tests question word order, not just the question mark.",
+          "answer_key": "Where is the cat?",
+          "options": ["You are happy.", "Where is the cat?", "The cat where is?"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["What is your favourite colour?", "Where do you live?"]
     },
     {
       "id": "c4_past_tense",
@@ -134,7 +310,29 @@
       "prerequisites": [
         "c3_questions"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c4_past_tense_bx1",
+          "type": "fill_blank",
+          "sentence": "Yesterday I ___ to the park. (go)",
+          "hint": "the past tense of 'go'",
+          "context": "A common irregular cued directly by the base verb in brackets.",
+          "answer_key": "went",
+          "accept": [],
+          "band": "foundational"
+        },
+        {
+          "id": "c4_past_tense_bx2",
+          "type": "multiple_choice",
+          "sentence": "Choose the past tense: 'She ___ an apple.'",
+          "hint": "which word shows it already happened?",
+          "context": "Targets eat -> ate, a high-frequency irregular.",
+          "answer_key": "ate",
+          "options": ["eat", "eats", "ate"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Yesterday I played cricket.", "We watched a film last night."]
     },
     {
       "id": "c4_plural_articles",
@@ -149,7 +347,29 @@
       "prerequisites": [
         "c4_past_tense"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c4_plural_articles_bx1",
+          "type": "fill_blank",
+          "sentence": "I see two ___. (more than one cat)",
+          "hint": "the plural of 'cat'",
+          "context": "Simplest plural: just add -s.",
+          "answer_key": "cats",
+          "accept": [],
+          "band": "foundational"
+        },
+        {
+          "id": "c4_plural_articles_bx2",
+          "type": "multiple_choice",
+          "sentence": "Choose the right word: '___ apple'.",
+          "hint": "use 'an' before a vowel sound (a, e, i, o, u)",
+          "context": "Targets a/an before a vowel sound, the usual article slip.",
+          "answer_key": "an",
+          "options": ["a", "an", "the"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["I have three books.", "She ate an orange."]
     },
     {
       "id": "c4_conjunctions",
@@ -164,7 +384,29 @@
       "prerequisites": [
         "c4_plural_articles"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c4_conjunctions_bx1",
+          "type": "fill_blank",
+          "sentence": "I was tired, ___ I finished my homework.",
+          "hint": "a joining word that shows a contrast (a surprise)",
+          "context": "The contrast meaning points to one joining word.",
+          "answer_key": "but",
+          "accept": [],
+          "band": "foundational"
+        },
+        {
+          "id": "c4_conjunctions_bx2",
+          "type": "multiple_choice",
+          "sentence": "Join with a reason: 'I am happy ___ it is my birthday.'",
+          "hint": "which joining word gives a REASON?",
+          "context": "Chooses 'because' for cause, contrasting with 'and' / 'or'.",
+          "answer_key": "because",
+          "options": ["but", "because", "or"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["I have a pen and a book.", "I like tea but not coffee.", "We stayed home because it rained."]
     },
     {
       "id": "c4_paragraph",
@@ -179,7 +421,29 @@
       "prerequisites": [
         "c4_conjunctions"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c4_paragraph_bx1",
+          "type": "fill_blank",
+          "sentence": "My favourite animal is the dog. A dog is ___ and loves to play.",
+          "hint": "a describing word for a friendly pet",
+          "context": "Adds one supporting sentence to a given topic sentence.",
+          "answer_key": "friendly",
+          "accept": ["playful", "cute", "loyal", "kind", "gentle", "smart", "happy"],
+          "band": "foundational"
+        },
+        {
+          "id": "c4_paragraph_bx2",
+          "type": "multiple_choice",
+          "sentence": "Your paragraph is about 'my school'. Which sentence stays ON the topic?",
+          "hint": "which sentence is about school?",
+          "context": "Teaches topic unity — keeping every sentence on one subject.",
+          "answer_key": "My school has a big playground.",
+          "options": ["My school has a big playground.", "I like ice cream.", "The moon is far away."],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["My favourite animal is the cat. It is soft and playful. It drinks milk and sleeps a lot. I love my cat."]
     },
     {
       "id": "c5_tenses_mix",
@@ -194,7 +458,29 @@
       "prerequisites": [
         "c4_paragraph"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c5_tenses_mix_bx1",
+          "type": "fill_blank",
+          "sentence": "Tomorrow I ___ visit my grandmother.",
+          "hint": "the little word that shows the future",
+          "context": "The time word 'tomorrow' cues the future marker 'will'.",
+          "answer_key": "will",
+          "accept": [],
+          "band": "foundational"
+        },
+        {
+          "id": "c5_tenses_mix_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence is in the FUTURE tense?",
+          "hint": "which one has not happened yet?",
+          "context": "Sorts future from past and present of the same verb.",
+          "answer_key": "I will eat lunch.",
+          "options": ["I ate lunch.", "I eat lunch.", "I will eat lunch."],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Yesterday I played. Today I read. Tomorrow I will swim."]
     },
     {
       "id": "c5_prepositions",
@@ -209,7 +495,29 @@
       "prerequisites": [
         "c5_tenses_mix"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c5_prepositions_bx1",
+          "type": "fill_blank",
+          "sentence": "The book is ___ the table. It is resting on top.",
+          "hint": "a position word for 'on top of'",
+          "context": "The 'on top' clue points to one preposition.",
+          "answer_key": "on",
+          "accept": [],
+          "band": "foundational"
+        },
+        {
+          "id": "c5_prepositions_bx2",
+          "type": "multiple_choice",
+          "sentence": "The cat is hiding ___ the box (inside it).",
+          "hint": "which word means 'inside'?",
+          "context": "Distinguishes in / on / under by the actual position.",
+          "answer_key": "in",
+          "options": ["on", "in", "under"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["The ball is under the chair.", "The cat sat between two boxes."]
     },
     {
       "id": "c5_story_writing",
@@ -224,7 +532,29 @@
       "prerequisites": [
         "c5_prepositions"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c5_story_writing_bx1",
+          "type": "fill_blank",
+          "sentence": "Once upon a time, there was a little ___ who loved to explore.",
+          "hint": "a character for the story (a naming word)",
+          "context": "Gives the story opener so the learner only invents a character.",
+          "answer_key": "girl",
+          "accept": ["boy", "dog", "cat", "rabbit", "mouse", "fox", "bird", "king", "queen", "elephant"],
+          "band": "foundational"
+        },
+        {
+          "id": "c5_story_writing_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which sentence is a good story ENDING?",
+          "hint": "an ending wraps the story up",
+          "context": "Tells an ending apart from a beginning and a description.",
+          "answer_key": "Finally, they all went home happy.",
+          "options": ["One day, a dog found a bone.", "Finally, they all went home happy.", "The dog was big and brown."],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["One day a little fox got lost in the forest. She followed a stream and met a kind owl. The owl showed her the way home, and she was safe at last."]
     },
     {
       "id": "c5_letter_writing",
@@ -239,7 +569,29 @@
       "prerequisites": [
         "c5_story_writing"
       ],
-      "bridge_exercises": []
+      "bridge_exercises": [
+        {
+          "id": "c5_letter_writing_bx1",
+          "type": "fill_blank",
+          "sentence": "___ Riya, thank you for the lovely gift.",
+          "hint": "the word that starts a friendly letter's greeting",
+          "context": "Isolates the greeting word — the first part of a letter.",
+          "answer_key": "Dear",
+          "accept": ["dear"],
+          "band": "foundational"
+        },
+        {
+          "id": "c5_letter_writing_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which is a good way to END a friendly letter?",
+          "hint": "a sign-off comes last and gives your name",
+          "context": "Picks a proper sign-off over a greeting or a question.",
+          "answer_key": "Your friend, Sam",
+          "options": ["Your friend, Sam", "Hello there", "What is your name?"],
+          "band": "standard"
+        }
+      ],
+      "exemplars": ["Dear Anu, Thank you for the lovely gift. I hope you can visit me soon. Your friend, Meera"]
     }
   ]
 }

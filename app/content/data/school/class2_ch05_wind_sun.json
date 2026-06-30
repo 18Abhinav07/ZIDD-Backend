@@ -1,0 +1,247 @@
+{
+  "id": "c2_ch05_wind_sun",
+  "title": "The Wind and the Sun",
+  "description": "NCERT Class 2 English (Marigold): 'The Wind and the Sun'. New words, comprehension, one and many (plurals), and a writing task, closed by a chapter test.",
+  "class_no": 2,
+  "chapter_no": 5,
+  "ncert_unit": "The Wind and the Sun",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c2_ch05_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'The Wind and the Sun': wind, sun, strong, traveller.",
+      "teach_focus": "What the new words from 'The Wind and the Sun' mean (wind, sun, strong, traveller); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch05_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "The ___ blows the leaves off the trees.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "wind",
+          "band": "foundational",
+          "accept": []
+        },
+        {
+          "id": "c2_ch05_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "Which one gives us light and heat?",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "sun",
+          "band": "standard",
+          "options": [
+            "sun",
+            "wind",
+            "cloud"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The sun is stronger than the wind.",
+        "I have three books and two pens."
+      ]
+    },
+    {
+      "id": "c2_ch05_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'The Wind and the Sun' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'The Wind and the Sun'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c2_ch05_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch05_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the story, who finally made the traveller take off his coat?",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "the sun",
+          "band": "foundational",
+          "options": [
+            "the sun",
+            "the wind",
+            "the rain"
+          ]
+        },
+        {
+          "id": "c2_ch05_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The gentle ___ made the traveller take off his coat, not the wind.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "sun",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sun is stronger than the wind.",
+        "I have three books and two pens."
+      ]
+    },
+    {
+      "id": "c2_ch05_l3_grammar",
+      "title": "One and Many (Plurals)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use one and many (plurals) correctly.",
+      "teach_focus": "Add -s to make many: one cap, two caps; one box, two boxes.",
+      "success_criteria": "Uses one and many (plurals) correctly in a sentence.",
+      "bridge_focus": "Give one example of one and many (plurals).",
+      "prerequisites": [
+        "c2_ch05_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch05_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Which is the correct plural of 'box'?",
+          "hint": "One and Many (Plurals)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "boxes",
+          "band": "foundational",
+          "options": [
+            "boxs",
+            "boxes",
+            "boxen"
+          ]
+        },
+        {
+          "id": "c2_ch05_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "I see two ___ in the sky. (one bird, two ___)",
+          "hint": "One and Many (Plurals)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "birds",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "I see two caps and three boxes.",
+        "The girls play with their toys."
+      ]
+    },
+    {
+      "id": "c2_ch05_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'The Wind and the Sun'.",
+      "teach_focus": "Write one clear sentence about 'The Wind and the Sun': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c2_ch05_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c2_ch05_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "On a windy day, I fly my ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "kite",
+          "band": "foundational",
+          "accept": [
+            "kites"
+          ]
+        },
+        {
+          "id": "c2_ch05_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "I see two ___ in the sky. (one bird, two ___)",
+          "hint": "One and Many (Plurals)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "birds",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The sun is stronger than the wind.",
+        "I have three books and two pens."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c2_ch05_test",
+    "title": "The Wind and the Sun: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c2_ch05_t_i1",
+        "type": "multiple_choice",
+        "prompt": "Which one gives us light and heat?",
+        "answer_key": "sun",
+        "skill": "new_words",
+        "options": [
+          "sun",
+          "wind",
+          "cloud"
+        ]
+      },
+      {
+        "id": "c2_ch05_t_i2",
+        "type": "fill_blank",
+        "prompt": "The ___ blows the leaves off the trees.",
+        "answer_key": "wind",
+        "skill": "new_words",
+        "accept": []
+      },
+      {
+        "id": "c2_ch05_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the story, who finally made the traveller take off his coat?",
+        "answer_key": "the sun",
+        "skill": "comprehension",
+        "options": [
+          "the sun",
+          "the wind",
+          "the rain"
+        ]
+      },
+      {
+        "id": "c2_ch05_t_i4",
+        "type": "fill_blank",
+        "prompt": "The gentle ___ made the traveller take off his coat, not the wind.",
+        "answer_key": "sun",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c2_ch05_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Which is the correct plural of 'box'?",
+        "answer_key": "boxes",
+        "skill": "grammar",
+        "options": [
+          "boxs",
+          "boxes",
+          "boxen"
+        ]
+      },
+      {
+        "id": "c2_ch05_t_i6",
+        "type": "fill_blank",
+        "prompt": "I see two ___ in the sky. (one bird, two ___)",
+        "answer_key": "birds",
+        "skill": "grammar",
+        "accept": []
+      }
+    ]
+  }
+}

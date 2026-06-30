@@ -1,0 +1,270 @@
+{
+  "id": "c3_ch02_magic_garden",
+  "title": "The Magic Garden",
+  "description": "NCERT Class 3 English (Marigold): 'The Magic Garden'. New words, comprehension, present tense, and a writing task, closed by a chapter test.",
+  "class_no": 3,
+  "chapter_no": 2,
+  "ncert_unit": "The Magic Garden",
+  "genre": "story",
+  "nodes": [
+    {
+      "id": "c3_ch02_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'The Magic Garden': garden, seed, bloom, water.",
+      "teach_focus": "What the new words from 'The Magic Garden' mean (garden, seed, bloom, water); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch02_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "We plant a ___ to grow a plant.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "seed",
+          "band": "foundational",
+          "accept": [
+            "seeds"
+          ]
+        },
+        {
+          "id": "c3_ch02_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "When a flower opens, we say it is in ___.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "bloom",
+          "band": "standard",
+          "options": [
+            "bloom",
+            "broom",
+            "gloom"
+          ]
+        }
+      ],
+      "exemplars": [
+        "She waters the plants every morning.",
+        "The seeds grow into bright flowers."
+      ]
+    },
+    {
+      "id": "c3_ch02_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'The Magic Garden' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'The Magic Garden'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c3_ch02_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch02_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "In the story, the children look after the ___ together.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "garden",
+          "band": "foundational",
+          "options": [
+            "garden",
+            "kitchen",
+            "playground"
+          ]
+        },
+        {
+          "id": "c3_ch02_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "In the story, the children grow a garden by planting a ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "seed",
+          "band": "standard",
+          "accept": [
+            "seeds"
+          ]
+        }
+      ],
+      "exemplars": [
+        "She waters the plants every morning.",
+        "The seeds grow into bright flowers."
+      ]
+    },
+    {
+      "id": "c3_ch02_l3_grammar",
+      "title": "Present Tense",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use present tense correctly.",
+      "teach_focus": "The present tense tells what happens now or every day. Add -s for he/she/it: she plants, they plant.",
+      "success_criteria": "Uses present tense correctly in a sentence.",
+      "bridge_focus": "Give one example of present tense.",
+      "prerequisites": [
+        "c3_ch02_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch02_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Choose the correct present tense: 'She ___ the plants every day.'",
+          "hint": "Present Tense",
+          "context": "Identifies the grammar point.",
+          "answer_key": "waters",
+          "band": "foundational",
+          "options": [
+            "water",
+            "waters",
+            "watered"
+          ]
+        },
+        {
+          "id": "c3_ch02_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Every day I ___ to school.",
+          "hint": "Present Tense",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "walk",
+          "band": "standard",
+          "accept": [
+            "go",
+            "run",
+            "cycle"
+          ]
+        }
+      ],
+      "exemplars": [
+        "She waters the plants every day.",
+        "They play in the garden after school."
+      ]
+    },
+    {
+      "id": "c3_ch02_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'The Magic Garden'.",
+      "teach_focus": "Write one clear sentence about 'The Magic Garden': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c3_ch02_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c3_ch02_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "In my garden, I would grow a ___.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "rose",
+          "band": "foundational",
+          "accept": [
+            "flower",
+            "mango",
+            "tomato",
+            "tree"
+          ]
+        },
+        {
+          "id": "c3_ch02_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Every day I ___ to school.",
+          "hint": "Present Tense",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "walk",
+          "band": "standard",
+          "accept": [
+            "go",
+            "run",
+            "cycle"
+          ]
+        }
+      ],
+      "exemplars": [
+        "She waters the plants every morning.",
+        "The seeds grow into bright flowers."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c3_ch02_test",
+    "title": "The Magic Garden: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c3_ch02_t_i1",
+        "type": "multiple_choice",
+        "prompt": "When a flower opens, we say it is in ___.",
+        "answer_key": "bloom",
+        "skill": "new_words",
+        "options": [
+          "bloom",
+          "broom",
+          "gloom"
+        ]
+      },
+      {
+        "id": "c3_ch02_t_i2",
+        "type": "fill_blank",
+        "prompt": "We plant a ___ to grow a plant.",
+        "answer_key": "seed",
+        "skill": "new_words",
+        "accept": [
+          "seeds"
+        ]
+      },
+      {
+        "id": "c3_ch02_t_i3",
+        "type": "multiple_choice",
+        "prompt": "In the story, the children look after the ___ together.",
+        "answer_key": "garden",
+        "skill": "comprehension",
+        "options": [
+          "garden",
+          "kitchen",
+          "playground"
+        ]
+      },
+      {
+        "id": "c3_ch02_t_i4",
+        "type": "fill_blank",
+        "prompt": "In the story, the children grow a garden by planting a ___.",
+        "answer_key": "seed",
+        "skill": "comprehension",
+        "accept": [
+          "seeds"
+        ]
+      },
+      {
+        "id": "c3_ch02_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Choose the correct present tense: 'She ___ the plants every day.'",
+        "answer_key": "waters",
+        "skill": "grammar",
+        "options": [
+          "water",
+          "waters",
+          "watered"
+        ]
+      },
+      {
+        "id": "c3_ch02_t_i6",
+        "type": "fill_blank",
+        "prompt": "Every day I ___ to school.",
+        "answer_key": "walk",
+        "skill": "grammar",
+        "accept": [
+          "go",
+          "run",
+          "cycle"
+        ]
+      }
+    ]
+  }
+}

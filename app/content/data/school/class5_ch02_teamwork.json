@@ -1,0 +1,259 @@
+{
+  "id": "c5_ch02_teamwork",
+  "title": "Teamwork",
+  "description": "NCERT Class 5 English (Marigold): 'Teamwork'. New words, comprehension, pronouns (he, she, it, they, we), and a writing task, closed by a chapter test.",
+  "class_no": 5,
+  "chapter_no": 2,
+  "ncert_unit": "Teamwork",
+  "genre": "poem",
+  "nodes": [
+    {
+      "id": "c5_ch02_l1_new_words",
+      "title": "New Words",
+      "level": 1,
+      "level_type": "text",
+      "skill": "Read and use the new words from 'Teamwork': team, together, win, support.",
+      "teach_focus": "What the new words from 'Teamwork' mean (team, together, win, support); use one correctly in a short phrase.",
+      "success_criteria": "Uses two or more of the chapter's new words correctly.",
+      "bridge_focus": "Name just one new word and what it means.",
+      "prerequisites": [],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch02_l1_bx1",
+          "type": "fill_blank",
+          "sentence": "A group that plays or works together is a ___.",
+          "hint": "a chapter word",
+          "context": "Uses a new word in context.",
+          "answer_key": "team",
+          "band": "foundational",
+          "accept": [
+            "teams"
+          ]
+        },
+        {
+          "id": "c5_ch02_l1_bx2",
+          "type": "multiple_choice",
+          "sentence": "To help and encourage someone is to ___ them.",
+          "hint": "think about the meaning",
+          "context": "Checks the meaning of a key word.",
+          "answer_key": "support",
+          "band": "standard",
+          "options": [
+            "support",
+            "ignore",
+            "blame"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The players passed the ball, and they scored together.",
+        "She is the captain, and we follow her."
+      ]
+    },
+    {
+      "id": "c5_ch02_l2_understand",
+      "title": "Read and Understand",
+      "level": 2,
+      "level_type": "text",
+      "skill": "Understand the chapter 'Teamwork' and answer a simple question about it.",
+      "teach_focus": "The main idea and feeling of 'Teamwork'; answer a who/what/how question about it in one clear sentence.",
+      "success_criteria": "Answers a simple question about the chapter in one clear sentence.",
+      "bridge_focus": "Say in one sentence what the chapter is about.",
+      "prerequisites": [
+        "c5_ch02_l1_new_words"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch02_l2_bx1",
+          "type": "multiple_choice",
+          "sentence": "The poem says a team can win only when members work ___.",
+          "hint": "remember the chapter",
+          "context": "Checks comprehension of the chapter.",
+          "answer_key": "together",
+          "band": "foundational",
+          "options": [
+            "together",
+            "alone",
+            "quietly"
+          ]
+        },
+        {
+          "id": "c5_ch02_l2_bx2",
+          "type": "fill_blank",
+          "sentence": "The poem says a team wins only when its members work ___.",
+          "hint": "think about the chapter",
+          "context": "A second comprehension check.",
+          "answer_key": "together",
+          "band": "standard",
+          "accept": []
+        }
+      ],
+      "exemplars": [
+        "The players passed the ball, and they scored together.",
+        "She is the captain, and we follow her."
+      ]
+    },
+    {
+      "id": "c5_ch02_l3_grammar",
+      "title": "Pronouns (he, she, it, they, we)",
+      "level": 3,
+      "level_type": "text",
+      "skill": "Use pronouns (he, she, it, they, we) correctly.",
+      "teach_focus": "A pronoun takes the place of a naming word: Ravi -> he; the girls -> they; the ball -> it.",
+      "success_criteria": "Uses pronouns (he, she, it, they, we) correctly in a sentence.",
+      "bridge_focus": "Give one example of pronouns (he, she, it, they, we).",
+      "prerequisites": [
+        "c5_ch02_l2_understand"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch02_l3_bx1",
+          "type": "multiple_choice",
+          "sentence": "Replace the names: 'Ravi and Sita played. ___ played well.'",
+          "hint": "Pronouns (he, she, it, they, we)",
+          "context": "Identifies the grammar point.",
+          "answer_key": "They",
+          "band": "foundational",
+          "options": [
+            "He",
+            "She",
+            "They"
+          ]
+        },
+        {
+          "id": "c5_ch02_l3_bx2",
+          "type": "fill_blank",
+          "sentence": "Meera is my friend. ___ is very kind. (she/he)",
+          "hint": "Pronouns (he, she, it, they, we)",
+          "context": "Produces the grammar point in a sentence.",
+          "answer_key": "She",
+          "band": "standard",
+          "accept": [
+            "she"
+          ]
+        }
+      ],
+      "exemplars": [
+        "Ravi and Sita played, and they won.",
+        "Meera is kind; she helps everyone."
+      ]
+    },
+    {
+      "id": "c5_ch02_l4_use_it",
+      "title": "Use It: Write a Sentence",
+      "level": 4,
+      "level_type": "text",
+      "skill": "Write one sentence of your own using ideas from 'Teamwork'.",
+      "teach_focus": "Write one clear sentence about 'Teamwork': who does what, with a capital letter and a full stop.",
+      "success_criteria": "One complete sentence on the topic, with a capital and a full stop.",
+      "bridge_focus": "Finish the sentence frame given.",
+      "prerequisites": [
+        "c5_ch02_l3_grammar"
+      ],
+      "bridge_exercises": [
+        {
+          "id": "c5_ch02_l4_bx1",
+          "type": "fill_blank",
+          "sentence": "My team wins because we ___ each other.",
+          "hint": "your own idea",
+          "context": "Scaffolds writing with a frame to complete.",
+          "answer_key": "support",
+          "band": "foundational",
+          "accept": [
+            "help",
+            "encourage",
+            "trust"
+          ]
+        },
+        {
+          "id": "c5_ch02_l4_bx2",
+          "type": "fill_blank",
+          "sentence": "Meera is my friend. ___ is very kind. (she/he)",
+          "hint": "Pronouns (he, she, it, they, we)",
+          "context": "A second frame to produce the chapter's grammar.",
+          "answer_key": "She",
+          "band": "standard",
+          "accept": [
+            "she"
+          ]
+        }
+      ],
+      "exemplars": [
+        "The players passed the ball, and they scored together.",
+        "She is the captain, and we follow her."
+      ]
+    }
+  ],
+  "chapter_test": {
+    "id": "c5_ch02_test",
+    "title": "Teamwork: Chapter Test",
+    "kind": "chapter",
+    "pass_mark": 0.6,
+    "items": [
+      {
+        "id": "c5_ch02_t_i1",
+        "type": "multiple_choice",
+        "prompt": "To help and encourage someone is to ___ them.",
+        "answer_key": "support",
+        "skill": "new_words",
+        "options": [
+          "support",
+          "ignore",
+          "blame"
+        ]
+      },
+      {
+        "id": "c5_ch02_t_i2",
+        "type": "fill_blank",
+        "prompt": "A group that plays or works together is a ___.",
+        "answer_key": "team",
+        "skill": "new_words",
+        "accept": [
+          "teams"
+        ]
+      },
+      {
+        "id": "c5_ch02_t_i3",
+        "type": "multiple_choice",
+        "prompt": "The poem says a team can win only when members work ___.",
+        "answer_key": "together",
+        "skill": "comprehension",
+        "options": [
+          "together",
+          "alone",
+          "quietly"
+        ]
+      },
+      {
+        "id": "c5_ch02_t_i4",
+        "type": "fill_blank",
+        "prompt": "The poem says a team wins only when its members work ___.",
+        "answer_key": "together",
+        "skill": "comprehension",
+        "accept": []
+      },
+      {
+        "id": "c5_ch02_t_i5",
+        "type": "multiple_choice",
+        "prompt": "Replace the names: 'Ravi and Sita played. ___ played well.'",
+        "answer_key": "They",
+        "skill": "grammar",
+        "options": [
+          "He",
+          "She",
+          "They"
+        ]
+      },
+      {
+        "id": "c5_ch02_t_i6",
+        "type": "fill_blank",
+        "prompt": "Meera is my friend. ___ is very kind. (she/he)",
+        "answer_key": "She",
+        "skill": "grammar",
+        "accept": [
+          "she"
+        ]
+      }
+    ]
+  }
+}

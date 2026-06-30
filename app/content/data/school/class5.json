@@ -1,0 +1,257 @@
+{
+  "class_no": 5,
+  "title": "Class 5 — English (Marigold)",
+  "description": "NCERT Class 5 English, organised by the Marigold chapters. Each chapter teaches new words, comprehension, a grammar focus, and writing, then a chapter test. Milestone reviews check cumulative learning at 30%, 60%, and 100% of the year.",
+  "chapters": [
+    "c5_ch01_waste",
+    "c5_ch02_teamwork",
+    "c5_ch03_shadow",
+    "c5_ch04_lazy_frog",
+    "c5_ch05_class_discussion"
+  ],
+  "milestones": [
+    {
+      "id": "c5_milestone_30",
+      "title": "Class 5 — 30% Progress Check",
+      "kind": "milestone",
+      "at_percent": 30,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c5_m30_i1",
+          "type": "multiple_choice",
+          "prompt": "Which sentence is in the FUTURE tense?",
+          "answer_key": "I will cook tomorrow.",
+          "skill": "mixed_tenses",
+          "options": [
+            "I cooked yesterday.",
+            "I cook daily.",
+            "I will cook tomorrow."
+          ]
+        },
+        {
+          "id": "c5_m30_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, the cook turns leftover vegetables into a ___ dish.",
+          "answer_key": "tasty",
+          "skill": "comprehension",
+          "options": [
+            "tasty",
+            "burnt",
+            "rotten"
+          ]
+        },
+        {
+          "id": "c5_m30_i3",
+          "type": "multiple_choice",
+          "prompt": "Replace the names: 'Ravi and Sita played. ___ played well.'",
+          "answer_key": "They",
+          "skill": "pronouns",
+          "options": [
+            "He",
+            "She",
+            "They"
+          ]
+        },
+        {
+          "id": "c5_m30_i4",
+          "type": "multiple_choice",
+          "prompt": "The poem says a team can win only when members work ___.",
+          "answer_key": "together",
+          "skill": "comprehension",
+          "options": [
+            "together",
+            "alone",
+            "quietly"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c5_milestone_60",
+      "title": "Class 5 — 60% Progress Check",
+      "kind": "milestone",
+      "at_percent": 60,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c5_m60_i1",
+          "type": "multiple_choice",
+          "prompt": "Which sentence is in the FUTURE tense?",
+          "answer_key": "I will cook tomorrow.",
+          "skill": "mixed_tenses",
+          "options": [
+            "I cooked yesterday.",
+            "I cook daily.",
+            "I will cook tomorrow."
+          ]
+        },
+        {
+          "id": "c5_m60_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, the cook turns leftover vegetables into a ___ dish.",
+          "answer_key": "tasty",
+          "skill": "comprehension",
+          "options": [
+            "tasty",
+            "burnt",
+            "rotten"
+          ]
+        },
+        {
+          "id": "c5_m60_i3",
+          "type": "multiple_choice",
+          "prompt": "Replace the names: 'Ravi and Sita played. ___ played well.'",
+          "answer_key": "They",
+          "skill": "pronouns",
+          "options": [
+            "He",
+            "She",
+            "They"
+          ]
+        },
+        {
+          "id": "c5_m60_i4",
+          "type": "multiple_choice",
+          "prompt": "The poem says a team can win only when members work ___.",
+          "answer_key": "together",
+          "skill": "comprehension",
+          "options": [
+            "together",
+            "alone",
+            "quietly"
+          ]
+        },
+        {
+          "id": "c5_m60_i5",
+          "type": "multiple_choice",
+          "prompt": "The cat is hiding ___ the box (inside it).",
+          "answer_key": "in",
+          "skill": "prepositions",
+          "options": [
+            "on",
+            "in",
+            "under"
+          ]
+        },
+        {
+          "id": "c5_m60_i6",
+          "type": "multiple_choice",
+          "prompt": "In the poem, the child's shadow always seems to ___ them.",
+          "answer_key": "follow",
+          "skill": "comprehension",
+          "options": [
+            "follow",
+            "vanish",
+            "speak"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c5_milestone_100",
+      "title": "Class 5 — Term Review",
+      "kind": "milestone",
+      "at_percent": 100,
+      "pass_mark": 0.6,
+      "items": [
+        {
+          "id": "c5_m100_i1",
+          "type": "multiple_choice",
+          "prompt": "Which sentence is in the FUTURE tense?",
+          "answer_key": "I will cook tomorrow.",
+          "skill": "mixed_tenses",
+          "options": [
+            "I cooked yesterday.",
+            "I cook daily.",
+            "I will cook tomorrow."
+          ]
+        },
+        {
+          "id": "c5_m100_i2",
+          "type": "multiple_choice",
+          "prompt": "In the story, the cook turns leftover vegetables into a ___ dish.",
+          "answer_key": "tasty",
+          "skill": "comprehension",
+          "options": [
+            "tasty",
+            "burnt",
+            "rotten"
+          ]
+        },
+        {
+          "id": "c5_m100_i3",
+          "type": "multiple_choice",
+          "prompt": "Replace the names: 'Ravi and Sita played. ___ played well.'",
+          "answer_key": "They",
+          "skill": "pronouns",
+          "options": [
+            "He",
+            "She",
+            "They"
+          ]
+        },
+        {
+          "id": "c5_m100_i4",
+          "type": "multiple_choice",
+          "prompt": "The poem says a team can win only when members work ___.",
+          "answer_key": "together",
+          "skill": "comprehension",
+          "options": [
+            "together",
+            "alone",
+            "quietly"
+          ]
+        },
+        {
+          "id": "c5_m100_i5",
+          "type": "multiple_choice",
+          "prompt": "The cat is hiding ___ the box (inside it).",
+          "answer_key": "in",
+          "skill": "prepositions",
+          "options": [
+            "on",
+            "in",
+            "under"
+          ]
+        },
+        {
+          "id": "c5_m100_i6",
+          "type": "multiple_choice",
+          "prompt": "In the poem, the child's shadow always seems to ___ them.",
+          "answer_key": "follow",
+          "skill": "comprehension",
+          "options": [
+            "follow",
+            "vanish",
+            "speak"
+          ]
+        },
+        {
+          "id": "c5_m100_i7",
+          "type": "multiple_choice",
+          "prompt": "Report it: He said, 'I am busy.' -> He said that he ___ busy.",
+          "answer_key": "was",
+          "skill": "reported_speech",
+          "options": [
+            "is",
+            "was",
+            "will be"
+          ]
+        },
+        {
+          "id": "c5_m100_i8",
+          "type": "multiple_choice",
+          "prompt": "The frog in the poem will not even try, because he is ___.",
+          "answer_key": "lazy",
+          "skill": "comprehension",
+          "options": [
+            "lazy",
+            "brave",
+            "clever"
+          ]
+        }
+      ]
+    }
+  ]
+}
