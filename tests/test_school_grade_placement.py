@@ -62,3 +62,34 @@ async def test_place_user_non_school_ignores_grade():
     out = await svc.place_user("communication", self_report="advanced")
     assert out["starting_node"] == "comm_06_persuade"  # advanced -> B2
 
+
+@pytest.mark.asyncio
+async def test_place_user_persists_preceding_nodes(monkeypatch):
+    monkeypatch.setenv("AI_BACKEND", "local")
+    from app.config import get_settings
+    get_settings.cache_clear()
+    
+    from app.storage import get_storage, reset_storage
+    reset_storage()
+    store = get_storage()
+    
+    user_id = "test-placement-persistence-user"
+    
+    # Place at Grade 4 (c4_past_tense)
+    # The nodes before c4_past_tense are Grade 2 (c2_alphabet_sounds) and Grade 3 (c3_action_words)
+    out = await svc.place_user("school_english", grade=4, user_id=user_id)
+    assert out["starting_node"] == "c4_past_tense"
+    
+    progression = await store.get_progression(user_id)
+    print("PROGRESSION:", progression)
+    assert len(progression) > 0
+    
+    mastered_nodes = {p["node_id"] for p in progression}
+    assert "c2_alphabet_sounds" in mastered_nodes
+    assert "c3_action_words" in mastered_nodes
+    
+    for p in progression:
+        assert p["ema"] == 1.0
+        assert bool(p["clean_pass"]) is True
+        assert bool(p["node_completed"]) is True
+

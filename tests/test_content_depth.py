@@ -273,10 +273,13 @@ def test_exercise_ids_globally_unique():
     assert len(all_ids) == len(set(all_ids)), "duplicate bridge_exercise id across modules"
 
 
-def test_school_english_excluded_from_depth():
+def test_school_english_now_carries_scaffolding():
+    # Reversed (Wave 3.2): school_english was deliberately left scaffold-free
+    # ("out of Depth-2 scope"), but live that produced a P0 stall-loop — a stuck
+    # grade-2 child got only conversational re-asks, never a structured scaffold.
+    # Every node now ships a foundational fill_blank + a standard multiple_choice.
     module = get_module("school_english")
+    for n in module.nodes:
+        assert n.bridge_exercises, f"{n.id} must now carry bridge exercises"
     total = sum(len(n.bridge_exercises) for n in module.nodes)
-    assert total == 0, (
-        f"school_english is grade-placed and out of Depth-2 scope; "
-        f"it must carry zero bridge exercises, got {total}"
-    )
+    assert total == 32, f"expected 2 exercises x 16 nodes, got {total}"
