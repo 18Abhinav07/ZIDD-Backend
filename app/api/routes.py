@@ -40,11 +40,12 @@ async def modules() -> list[dict]:
 
 
 @onboarding.post("/onboarding/placement")
-async def placement(req: PlacementRequest) -> dict:
+async def placement(req: PlacementRequest, request: Request) -> dict:
     """Estimate the learner's level and return their STARTING node."""
+    user_id = getattr(request.state, "user_id", None)
     try:
         return await svc.place_user(
-            req.module_id, req.writing_sample, req.self_report, req.grade
+            req.module_id, req.writing_sample, req.self_report, req.grade, user_id=user_id
         )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=f"unknown module: {req.module_id}") from e
@@ -113,6 +114,12 @@ def _state_snapshot(state: dict) -> dict:
         on_task = diag.get("on_task", True)
         english = diag.get("english", True)
         disp_score = state.get("last_eval_score")
+    # A TEST-mode simulation defers ALL scoring to the closing report, so there is
+    # no per-turn score mid-session. Without this, _avatar_emotion reads the absent
+    # score as 0.0 and shows a "concerned" face for the entire assessment, even
+    # after strong answers. Surface a neutral-engaged assessor instead.
+    in_assessment = level_kind(state) == "test"
+    avatar = "engaged" if in_assessment else _avatar_emotion(affect, disp_score)
     return {
         "session_id": state["session_id"],
         "competency_node": state["competency_node"],
@@ -137,7 +144,7 @@ def _state_snapshot(state: dict) -> dict:
         "on_task": on_task,
         "english": english,
         "affect": affect,
-        "avatar_emotion": _avatar_emotion(affect, disp_score),
+        "avatar_emotion": avatar,
         # TEST-mode persona roster (interview panel / GD debaters), fixed once per
         # session in state["personas"]. None for coaching sessions and for the
         # first simulation frame (built on the opening round). The simulator UI

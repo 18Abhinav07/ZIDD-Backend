@@ -28,6 +28,21 @@ _WEAKNESS_RECENCY_SECONDS = 30 * 24 * 60 * 60   # 30 days
 # Cap the surfaced set so a long weakness tail can't bloat the prompt / probe seed.
 _WEAKNESS_SURFACE_CAP = 5
 
+# School per-skill mastery (Phase B1). School assessment skill tags
+# (new_words / comprehension / asking_questions …) do NOT fit the communication/
+# interview SkillID taxonomy — coerce_skill_id collapses every one of them to
+# OTHER — so school skills get a DEDICATED, deterministic per-skill mastery EMA,
+# folded from exact-graded assessment results. Recency-weighted and BIDIRECTIONAL:
+# the EMA rises when a learner later passes a skill they once missed, unlike the
+# increment-only weakness counter that only ever ages out by the clock.
+_SCHOOL_MASTERY_ALPHA = 0.5    # assessments are strong, infrequent signals
+_SCHOOL_PASS_MARK = 0.6        # a per-skill ratio below this is "weak"
+_SCHOOL_WEAK_SURFACE_CAP = 5   # weakest-N surfaced to the live tutor
+# Spaced review: a skill mastered (EMA >= this) but not practised within the
+# staleness window is "due" for a quick refresher so it isn't lost to forgetting.
+_SCHOOL_MASTERED_THRESHOLD = 0.8
+_SCHOOL_REVIEW_STALE_SECONDS = 5 * 24 * 60 * 60   # 5 days
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS profiles (
     user_id TEXT PRIMARY KEY,
@@ -70,12 +85,13 @@ CREATE TABLE IF NOT EXISTS weaknesses (
     PRIMARY KEY (user_id, task_type, skill_id)
 );
 CREATE TABLE IF NOT EXISTS mastery (
-    user_id    TEXT,
-    node_id    TEXT,
-    ema        REAL,
-    attempts   INTEGER,
-    clean_pass INTEGER DEFAULT 0,
-    updated_at REAL,
+    user_id        TEXT,
+    node_id        TEXT,
+    ema            REAL,
+    attempts       INTEGER,
+    clean_pass     INTEGER DEFAULT 0,
+    node_completed INTEGER DEFAULT 0,
+    updated_at     REAL,
     PRIMARY KEY (user_id, node_id)
 );
 CREATE TABLE IF NOT EXISTS memory (
@@ -118,6 +134,26 @@ CREATE TABLE IF NOT EXISTS purchases (
     status       TEXT DEFAULT 'created',
     created      REAL
 );
+CREATE TABLE IF NOT EXISTS school_skill_mastery (
+    user_id   TEXT,
+    skill     TEXT,
+    ema       REAL,
+    attempts  INTEGER DEFAULT 0,
+    last_seen REAL,
+    PRIMARY KEY (user_id, skill)
+);
+CREATE TABLE IF NOT EXISTS school_results (
+    user_id     TEXT,
+    test_id     TEXT,
+    class_no    INTEGER,
+    kind        TEXT,
+    score       REAL,
+    passed      INTEGER DEFAULT 0,
+    by_skill    TEXT DEFAULT '[]',
+    weak_skills TEXT DEFAULT '[]',
+    updated_at  REAL,
+    PRIMARY KEY (user_id, test_id)
+);
 """
 
 
@@ -145,6 +181,7 @@ class LocalStore:
         for ddl in (
             "ALTER TABLE profiles ADD COLUMN credits INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE profiles ADD COLUMN demo_unlimited INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE mastery ADD COLUMN node_completed INTEGER DEFAULT 0",
         ):
             try:
                 self._conn.execute(ddl)
@@ -542,21 +579,30 @@ class LocalStore:
         ema: float,
         attempts: int,
         clean_pass: bool = False,
+        node_completed: bool = False,
     ) -> None:
         self._conn.execute(
-            "INSERT INTO mastery (user_id, node_id, ema, attempts, clean_pass, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?) "
+            "INSERT INTO mastery (user_id, node_id, ema, attempts, clean_pass, node_completed, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(user_id, node_id) DO UPDATE SET "
             "ema = excluded.ema, attempts = excluded.attempts, "
             "clean_pass = mastery.clean_pass OR excluded.clean_pass, "
+            "node_completed = mastery.node_completed OR excluded.node_completed, "
             "updated_at = excluded.updated_at",
-            (user_id, node_id, ema, attempts, int(clean_pass), time.time()),
+            (user_id, node_id, ema, attempts, int(clean_pass), int(node_completed), time.time()),
         )
         self._conn.commit()
 
+    async def get_last_active_node(self, user_id: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT node_id FROM mastery WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        return row["node_id"] if row else None
+
     async def get_progression(self, user_id: str) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT node_id, ema, attempts, clean_pass "
+            "SELECT node_id, ema, attempts, clean_pass, node_completed "
             "FROM mastery WHERE user_id = ?",
             (user_id,),
         ).fetchall()
@@ -576,6 +622,145 @@ class LocalStore:
         if not row or row["total"] is None:
             return (0, 0)
         return (int(row["clean"] or 0), int(row["total"] or 0))
+
+    # ---------- school progress + per-skill mastery (assessment-driven) ----------
+
+    async def record_assessment_result(
+        self,
+        user_id: str,
+        test_id: str,
+        class_no: int,
+        kind: str,
+        score: float,
+        passed: bool,
+        by_skill: list[dict],
+    ) -> None:
+        """Persist one chapter-test / milestone result and fold its per-skill
+        ratios into a recency-weighted per-skill mastery EMA.
+
+        `by_skill` is score_assessment's breakdown: [{"skill", "correct",
+        "total"}, …]. Storing the result makes school progress durable (it
+        survives a localStorage clear); the EMA gives the live 'Learn' tutor an
+        honest, bidirectional read of each skill. UPSERTs on (user_id, test_id)
+        so re-taking a test updates rather than duplicates. Multi-statement, so
+        held under the write lock — a concurrent money-write commit on the shared
+        connection must not flush a partial result+mastery state."""
+        now = time.time()
+        weak = sorted(
+            s["skill"] for s in by_skill
+            if int(s.get("total") or 0) and
+            int(s.get("correct") or 0) / int(s["total"]) < _SCHOOL_PASS_MARK
+        )
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO school_results "
+                "(user_id, test_id, class_no, kind, score, passed, by_skill, "
+                "weak_skills, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(user_id, test_id) DO UPDATE SET "
+                "class_no=excluded.class_no, kind=excluded.kind, "
+                "score=excluded.score, passed=excluded.passed, "
+                "by_skill=excluded.by_skill, weak_skills=excluded.weak_skills, "
+                "updated_at=excluded.updated_at",
+                (user_id, test_id, int(class_no), kind, float(score),
+                 int(bool(passed)), json.dumps(by_skill), json.dumps(weak), now),
+            )
+            for s in by_skill:
+                total = int(s.get("total") or 0)
+                if total <= 0:
+                    continue
+                ratio = max(0.0, min(1.0, int(s.get("correct") or 0) / total))
+                prev = self._conn.execute(
+                    "SELECT ema, attempts FROM school_skill_mastery "
+                    "WHERE user_id=? AND skill=?",
+                    (user_id, s["skill"]),
+                ).fetchone()
+                if prev is None:
+                    ema, attempts = ratio, 1
+                else:
+                    old = float(prev["ema"])
+                    ema = old + (ratio - old) * _SCHOOL_MASTERY_ALPHA
+                    attempts = int(prev["attempts"]) + 1
+                self._conn.execute(
+                    "INSERT INTO school_skill_mastery "
+                    "(user_id, skill, ema, attempts, last_seen) VALUES (?, ?, ?, ?, ?) "
+                    "ON CONFLICT(user_id, skill) DO UPDATE SET "
+                    "ema=excluded.ema, attempts=excluded.attempts, "
+                    "last_seen=excluded.last_seen",
+                    (user_id, s["skill"], ema, attempts, now),
+                )
+            self._conn.commit()
+
+    async def get_school_skill_mastery(self, user_id: str) -> list[dict]:
+        """Per-skill mastery EMA for a learner, weakest-first."""
+        rows = self._conn.execute(
+            "SELECT skill, ema, attempts, last_seen FROM school_skill_mastery "
+            "WHERE user_id=? ORDER BY ema ASC, attempts DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_school_weak_skills(
+        self, user_id: str, threshold: float = _SCHOOL_PASS_MARK,
+        limit: int = _SCHOOL_WEAK_SURFACE_CAP,
+    ) -> list[str]:
+        """The skills a learner is weakest at (EMA below threshold), weakest-first.
+
+        Feeds the live 'Learn' coaching session so a school chapter is tutored
+        against the learner's REAL weak spots from their test history, not blind."""
+        rows = self._conn.execute(
+            "SELECT skill FROM school_skill_mastery WHERE user_id=? AND ema < ? "
+            "ORDER BY ema ASC, attempts DESC LIMIT ?",
+            (user_id, threshold, limit),
+        ).fetchall()
+        return [r["skill"] for r in rows]
+
+    async def get_school_results(
+        self, user_id: str, class_no: int | None = None
+    ) -> list[dict]:
+        """Stored assessment results (durable progress / report card)."""
+        if class_no is None:
+            rows = self._conn.execute(
+                "SELECT test_id, class_no, kind, score, passed, by_skill, "
+                "weak_skills, updated_at FROM school_results WHERE user_id=? "
+                "ORDER BY updated_at",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT test_id, class_no, kind, score, passed, by_skill, "
+                "weak_skills, updated_at FROM school_results "
+                "WHERE user_id=? AND class_no=? ORDER BY updated_at",
+                (user_id, int(class_no)),
+            ).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["passed"] = bool(d["passed"])
+            d["by_skill"] = json.loads(d["by_skill"] or "[]")
+            d["weak_skills"] = json.loads(d["weak_skills"] or "[]")
+            out.append(d)
+        return out
+
+    async def get_school_review_skills(
+        self, user_id: str,
+        mastered_threshold: float = _SCHOOL_MASTERED_THRESHOLD,
+        stale_seconds: float = _SCHOOL_REVIEW_STALE_SECONDS,
+        limit: int = 3,
+    ) -> list[str]:
+        """Skills the learner MASTERED earlier (EMA >= threshold) but hasn't
+        practised within the staleness window — due for a spaced refresher so a
+        mastered skill isn't quietly lost to forgetting. Oldest-practised first.
+
+        This is the longitudinal half of learning tracking: weak skills get
+        targeted by get_school_weak_skills; strong-but-stale skills get re-checked
+        by this, so the tutor fights forgetting instead of only chasing failures."""
+        cutoff = time.time() - stale_seconds
+        rows = self._conn.execute(
+            "SELECT skill FROM school_skill_mastery WHERE user_id=? AND ema >= ? "
+            "AND last_seen < ? ORDER BY last_seen ASC LIMIT ?",
+            (user_id, mastered_threshold, cutoff, limit),
+        ).fetchall()
+        return [r["skill"] for r in rows]
 
     # ---------- weaknesses (fixed-taxonomy aggregation) ----------
 

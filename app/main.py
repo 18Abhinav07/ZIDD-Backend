@@ -15,6 +15,7 @@ from app.api.health import router as health_router
 from app.api.routes import onboarding as onboarding_router
 from app.api.routes import router as session_router
 from app.api.billing_routes import router as billing_router
+from app.api.school_routes import router as school_router
 from app.config import get_jwt_secret, get_settings
 from app.db.engine import get_engine
 from app.services.session_service import load_sessions, save_sessions
@@ -55,6 +56,7 @@ app.include_router(health_router)
 app.include_router(session_router)
 app.include_router(onboarding_router)
 app.include_router(billing_router)
+app.include_router(school_router)
 
 
 @app.get("/")

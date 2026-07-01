@@ -171,6 +171,7 @@ class PgStore:
         ema: float,
         attempts: int,
         clean_pass: bool = False,
+        node_completed: bool = False,
     ) -> None:
         from app.db import repo
 
@@ -179,10 +180,21 @@ class PgStore:
                 return
             try:
                 await repo.upsert_mastery(
-                    s, user_id, node_id, ema, attempts, clean_pass
+                    s, user_id, node_id, ema, attempts, clean_pass, node_completed
                 )
             except Exception:
                 pass
+
+    async def get_last_active_node(self, user_id: str) -> str | None:
+        from app.db import repo
+
+        async with _session() as s:
+            if s is None:
+                return None
+            try:
+                return await repo.get_last_active_node(s, user_id)
+            except Exception:
+                return None
 
     async def get_progression(self, user_id: str) -> list[dict]:
         from app.db import repo
@@ -222,6 +234,36 @@ class PgStore:
     async def get_weaknesses(
         self, user_id: str, task_type: str | None = None
     ) -> list[dict]:
+        return []
+
+    # ---------- school progress + per-skill mastery (cloud migration pending) ----------
+    # Dedicated school tables are not yet on the cloud schema; degrade gracefully
+    # like the weakness/test-item methods above. LOCAL is the source of truth
+    # during the qwen build (AI_BACKEND stays "local").
+
+    async def record_assessment_result(
+        self, user_id: str, test_id: str, class_no: int, kind: str,
+        score: float, passed: bool, by_skill: list[dict],
+    ) -> None:
+        return
+
+    async def get_school_skill_mastery(self, user_id: str) -> list[dict]:
+        return []
+
+    async def get_school_weak_skills(
+        self, user_id: str, threshold: float = 0.6, limit: int = 5
+    ) -> list[str]:
+        return []
+
+    async def get_school_results(
+        self, user_id: str, class_no: int | None = None
+    ) -> list[dict]:
+        return []
+
+    async def get_school_review_skills(
+        self, user_id: str, mastered_threshold: float = 0.8,
+        stale_seconds: float = 5 * 24 * 60 * 60, limit: int = 3,
+    ) -> list[str]:
         return []
 
     async def write_memory(
