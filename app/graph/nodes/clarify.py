@@ -28,6 +28,7 @@ async def clarify_node(state: dict) -> dict:
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
         model_answer=state.get("clarify_attempts", 0) >= 1,
+        career_context=state.get("career_context") or {},
     )
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="clarify"

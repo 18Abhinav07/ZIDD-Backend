@@ -10,8 +10,11 @@ state (name, clean-pass progress, scaffold depth, frustration flag). It is
 injected as a private directive block the model acts on but never reads aloud.
 See `coach_view` (builds the dict from state) and `_coach_block` (renders it).
 """
+import json
+
 from app.ai.behaviors import BehaviorPack, behavior_for
 from app.content.schema import Concept
+from app.content.task_types import TaskType
 
 TUTOR_PERSONA = (
     "You are Zidd, a warm, sharp personal communication coach — the kind of "
@@ -131,12 +134,20 @@ def coach_view(state: dict) -> dict:
     # module-load ordering assumptions.
     from app.graph.route import level_kind
 
-    affect = (state.get("last_diagnosis") or {}).get("affect", "neutral")
+    diagnosis = state.get("last_diagnosis") or {}
+    affect = diagnosis.get("affect", "neutral")
+    has_recent_eval = bool(diagnosis) or bool(state.get("last_turn_affect"))
+    recent_score = None
+    if has_recent_eval:
+        recent_score = state.get("last_clean_pass_score", state.get("last_eval_score"))
+    scaffolded_recovery = bool(state.get("last_graded_bridge"))
     return {
         "name": (state.get("learner_name") or "").strip(),
         "clean_streak": state.get("clean_streak", 0),
         "advance_streak": state.get("advance_streak", 2),
         "scaffold": state.get("scaffold", 0),
+        "recent_score": recent_score,
+        "scaffolded_recovery": scaffolded_recovery,
         # Support fires on the regex frustration flag OR a frustrated/discouraged
         # affect read from the diagnosis (council fix #5).
         "support": bool(state.get("needs_support", False))
@@ -144,7 +155,7 @@ def coach_view(state: dict) -> dict:
         "frustration_turns": state.get("frustration_turns", 0),
         # C20: a 'confident' affect was read by the evaluator but dropped here.
         # Surface it so the coach can stretch instead of over-praising.
-        "confident": affect == "confident",
+        "confident": affect == "confident" and not scaffolded_recovery,
         # A7: which section the learner is in (prep/bridge/review/tester/test) and
         # whether this is remediation — both were computed but never reached the
         # coach, so re-teaching read identically to first-time teaching.
@@ -193,6 +204,35 @@ def _coach_block(coach: dict | None) -> str:
                 f"Progress: {streak} of {need} clean passes at this level. When they "
                 "do well, name how close they are — only when it's genuinely earned."
             )
+    recent_score = coach.get("recent_score")
+    if isinstance(recent_score, (int, float)) and recent_score < 0.7:
+        parts.append(
+            "The last answer was weak or partial. Do NOT open with celebratory "
+            "praise such as 'Great job', 'Well done', 'Excellent', 'Awesome', "
+            "or 'You nailed it'. Use correction first: name the one specific gap, "
+            "then give one small next step. If you acknowledge effort, make it "
+            "specific and separate from answer quality."
+        )
+    elif isinstance(recent_score, (int, float)) and recent_score < 0.85:
+        parts.append(
+            "The last answer was a borderline pass, not a polished answer. Do not "
+            "open with celebratory praise such as 'Great job', 'Great start', "
+            "'Well done', 'Excellent', 'Awesome', or 'You nailed it'. Say it is "
+            "on the right track, then name the one missing quality that would make "
+            "it strong. Do not give a complete sample answer or copyable sentence; "
+            "ask the learner to revise in their own words."
+        )
+    if coach.get("scaffolded_recovery"):
+        parts.append(
+            "The last response was a correct scaffolded bridge answer, not a full "
+            "clean pass. Do not open with celebratory praise such as 'Great job', "
+            "'Great start', 'Well done', 'Excellent', 'Awesome', or 'You nailed it'. "
+            "Acknowledge the recovery briefly, but do not frame it as mastery or "
+            "say they nailed the whole skill. Use the next turn to rebuild the same "
+            "skill without the scaffold. Do not give a near-complete answer, sample "
+            "answer, or copyable sentence for the active task; ask them to produce "
+            "their own full response."
+        )
     if coach.get("support"):
         parts.append(
             "They sound discouraged or frustrated. Lead with genuine reassurance, "
@@ -210,7 +250,7 @@ def _coach_block(coach: dict | None) -> str:
             "even if the answer was wrong (e.g. 'You picked the right structure, just the "
             "tense slipped'). Make them feel seen before moving forward."
         )
-    if coach.get("scaffold", 0) >= 1:
+    if coach.get("scaffold", 0) >= 1 and not coach.get("scaffolded_recovery"):
         parts.append(
             "They have struggled repeatedly here. Scaffold HARD: model a "
             "near-complete answer and ask them only to fill one blank or copy and "
@@ -233,6 +273,195 @@ def _coach_block(coach: dict | None) -> str:
     return (
         "Coaching directives (act on these, never read them aloud):\n- "
         + "\n- ".join(parts)
+        + "\n\n"
+    )
+
+
+def _career_context_block(career_context: dict | None) -> str:
+    """Render private career personalization without exposing raw profile data."""
+    if not career_context:
+        return ""
+    role_family = (career_context.get("role_family") or "").strip()
+    primary_role = (career_context.get("primary_role") or "").strip()
+    target_roles = [
+        str(v).strip() for v in career_context.get("target_roles", []) if str(v).strip()
+    ][:5]
+    goals = [
+        str(v).strip() for v in career_context.get("interview_goals", []) if str(v).strip()
+    ][:5]
+    gd_topics = [
+        str(v).strip() for v in career_context.get("gd_topics", []) if str(v).strip()
+    ][:8]
+    resume_facts = [
+        str(v).strip() for v in career_context.get("resume_facts", []) if str(v).strip()
+    ][:8]
+    if not any([role_family, primary_role, target_roles, goals, gd_topics, resume_facts]):
+        return ""
+    lines = ["Career personalization context (private; use it, never read it aloud):"]
+    if role_family:
+        lines.append(f"- role family: {role_family}")
+    if primary_role:
+        lines.append(f"- primary role focus: {primary_role}")
+    if target_roles:
+        lines.append(f"- target roles: {', '.join(target_roles)}")
+    if goals:
+        lines.append(f"- interview goals: {', '.join(goals)}")
+    if gd_topics:
+        lines.append(f"- preferred GD topics: {', '.join(gd_topics)}")
+    if resume_facts:
+        lines.append("- safe resume/project facts to draw from:")
+        lines.extend(f"  - {fact}" for fact in resume_facts)
+        lines.append(
+            "These facts belong to the learner, not to you or any simulated "
+            "persona. Use them only to ask tailored follow-ups, assess relevance, "
+            "or choose realistic constraints; never claim them as your own "
+            "experience or speak in first person as if they happened to you."
+        )
+    lines.append(
+        "Use this for examples, follow-ups, bridge exercises, and challenge "
+        "constraints. Never invent projects, employers, metrics, or history."
+    )
+    lines.append(
+        "Do not under-score or steer away from a concrete answer just because it "
+        "uses role-specific details from this context. If you model an example, "
+        "keep it in the learner's role family or the same recent project thread; "
+        "avoid unrelated domains such as generic customer churn, sales, marketing, "
+        "or client-deliverable stories unless those are in the learner profile."
+    )
+    return "\n".join(lines) + "\n\n"
+
+
+def _gd_topic_guard(career_context: dict | None) -> str:
+    """Lock GD prep follow-ups to the learner's selected topics.
+
+    The career context may include both role and GD preferences. Role examples
+    are allowed to vary, but GD practice loses trust when a follow-up quietly
+    changes the motion. Keep this separate from the general career block so the
+    rule is explicit near every generation instruction.
+    """
+    topics = [
+        str(v).strip()
+        for v in (career_context or {}).get("gd_topics", [])
+        if str(v).strip()
+    ][:5]
+    if not topics:
+        return ""
+    topic_list = "; ".join(f'"{topic}"' for topic in topics)
+    return (
+        "GD topic lock (private): the learner selected these GD topic(s): "
+        f"{topic_list}.\n"
+        "- Do not switch to an unrelated GD topic.\n"
+        "- When showing examples, do not switch the selected GD topic; vary only "
+        "the stakeholder, evidence type, constraint, or angle inside that same topic.\n"
+        "- If you need a close variant, harder challenge, bridge, example, or "
+        "follow-up, keep it on the same selected GD topic.\n"
+        "- Only change topics if the learner explicitly asks to practise a "
+        "different GD topic.\n\n"
+    )
+
+
+def _simulation_context_block(
+    task_type,
+    scenario_config: dict | None,
+    career_context: dict | None,
+    *,
+    topic: str = "",
+) -> str:
+    """Render mode-safe context for scored simulations.
+
+    Prep can use broad career personalization. TEST mode cannot: GD tests must
+    stay locked to the active motion, and interview tests must not inherit GD
+    topic preferences. This keeps role/profile context from bleeding across the
+    two assessment modes.
+    """
+    scenario = scenario_config or {}
+    task_value = getattr(task_type, "value", str(task_type or ""))
+    inferred_gd = bool(scenario.get("topic") or scenario.get("resolved_topic"))
+    is_gd = task_value == TaskType.GD_TEST.value or (
+        inferred_gd and not scenario.get("target_role")
+    )
+    if is_gd:
+        active_topic = (
+            str(scenario.get("topic") or scenario.get("resolved_topic") or topic or "").strip()
+            or "the active GD motion"
+        )
+        environment = str(scenario.get("environment") or scenario.get("setting") or "").strip()
+        lines = [
+            "Scored GD assessment context (private; do not read aloud):",
+            f"- active GD motion: {active_topic}",
+        ]
+        if environment:
+            lines.append(f"- environment: {environment}")
+        lines.extend([
+            "- Use only the active motion above. Do not switch to profile GD preferences, resume projects, interview goals, or unrelated examples.",
+            "- The learner is being assessed on GD contribution quality, not coached mid-test.",
+        ])
+        return "\n".join(lines) + "\n\n" + _scenario_block(scenario_config)
+
+    slim_context = dict(career_context or {})
+    slim_context.pop("gd_topics", None)
+    slim_context.pop("custom_gd_topics", None)
+    lines = [
+        _career_context_block(slim_context),
+        _scenario_block(scenario_config),
+        (
+            "Scored interview assessment context (private): use role/resume facts "
+            "only to ask realistic interview probes. Do not mention or use GD "
+            "topic preferences in interview mode.\n\n"
+        ),
+    ]
+    return "".join(lines)
+
+
+def _interview_prep_context_guard(node: "Concept", career_context: dict | None) -> str:
+    """Keep interview-prep follow-ups inside the learner's role and recent thread."""
+    if not getattr(node, "id", "").startswith("int_"):
+        return ""
+    ctx = career_context or {}
+    role = (ctx.get("primary_role") or "").strip()
+    target_roles = [
+        str(v).strip() for v in ctx.get("target_roles", []) if str(v).strip()
+    ][:3]
+    role_family = (ctx.get("role_family") or "").strip()
+    if not any([role, target_roles, role_family]):
+        return ""
+    role_focus = role or ", ".join(target_roles) or role_family
+    lines = [
+        "Interview prep context lock (private):",
+        f"- Active role focus: {role_focus}. Keep examples and variants in this role family.",
+        "- Preserve the recent scenario thread shown in the transcript when it is specific; do not jump to a new domain just to vary the exercise.",
+        "- Do not introduce unrelated domains such as remote work culture, generic customer churn, sales, marketing, or broad business growth unless the learner introduced them.",
+    ]
+    if role_family == "software_technical" or any(
+        term in " ".join([role, role_family, *target_roles]).lower()
+        for term in ("backend", "software", "platform", "engineer", "developer")
+    ):
+        lines.append(
+            "- For software/backend profiles, use backend/API/reliability/payment/platform/project-ownership/trade-off contexts."
+        )
+    return "\n".join(lines) + "\n\n"
+
+
+def _scenario_block(scenario_config: dict | None) -> str:
+    if not scenario_config:
+        return ""
+    pieces = []
+    topic = scenario_config.get("resolved_topic") or scenario_config.get("topic")
+    if topic:
+        pieces.append(f"- resolved topic/focus: {topic}")
+    if scenario_config.get("environment"):
+        pieces.append(f"- GD environment: {scenario_config.get('environment')}")
+    if scenario_config.get("interview_type"):
+        pieces.append(f"- interview type: {scenario_config.get('interview_type')}")
+    if scenario_config.get("pressure_level"):
+        pieces.append(f"- pressure level: {scenario_config.get('pressure_level')}")
+    if scenario_config.get("target_role"):
+        pieces.append(f"- target role: {scenario_config.get('target_role')}")
+    if not pieces:
+        return ""
+    return (
+        "Simulation setup (private; keep the session consistent):\n"
+        + "\n".join(pieces)
         + "\n\n"
     )
 
@@ -338,10 +567,12 @@ def build_eval_prompt(
     user_input: str,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
+        f"{_career_context_block(career_context)}"
         f"Skill being assessed: {node.skill}\n"
         f"What a mastered answer looks like: {node.success_criteria}\n\n"
         f"{_exemplar_block(node)}"
@@ -412,6 +643,45 @@ def build_eval_prompt(
     )
 
 
+def build_prep_eval_prompt(packet: dict, career_context: dict | None = None) -> str:
+    """Structured career-prep rubric prompt."""
+    context = career_context or {}
+    private_context = ""
+    if context:
+        facts = context.get("resume_facts") or []
+        role = context.get("primary_role") or context.get("target_role") or ""
+        private_context = (
+            "\nPRIVATE CAREER CONTEXT (use only to interpret relevance; do not quote "
+            "personal data):\n"
+            f"- target role: {role or 'unspecified'}\n"
+            f"- learner-owned facts: {', '.join(facts[:5]) if facts else 'none'}\n"
+        )
+    return (
+        f"{TUTOR_PERSONA}\n\n"
+        "You are grading ONE career-prep answer against an explicit rubric. "
+        "Judge semantic quality only. Do not invent evidence. For every required "
+        "criterion marked met, copy a short evidence_quote from the learner answer. "
+        "If the learner implies the skill but provides no quoteable proof, mark "
+        "the criterion not met.\n"
+        f"{private_context}\n"
+        "EVALUATION PACKET JSON:\n"
+        f"{json.dumps(packet, ensure_ascii=False)}\n\n"
+        "Return JSON with:\n"
+        "- raw_score: raw semantic score 0.0-1.0\n"
+        "- effective_score: same as raw_score; backend may cap it\n"
+        "- understanding: one-line read\n"
+        "- errors: concrete misses\n"
+        "- strengths: concrete strengths\n"
+        "- next_focus: single next gap\n"
+        "- criteria: one item for each criterion id with id, met, evidence_quote, reason, quality\n"
+        "- required_missing: ids of required criteria that are not met\n"
+        "- pass_eligible: true only if the answer independently meets all required criteria\n"
+        "- mastery_eligible: true only for strong, transferable, non-borderline evidence\n"
+        "- on_task, english, affect, goodbye\n"
+        "Return only the JSON object."
+    )
+
+
 # ---------- placement (structured, onboarding) ----------
 
 def build_placement_prompt(module_title: str, writing_sample: str) -> str:
@@ -435,6 +705,9 @@ def build_simulation_score_prompt(
     behavior: BehaviorPack | None,
     topic: str,
     messages: list[dict],
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
+    task_type=None,
 ) -> str:
     """Score a whole TEST-mode simulation transcript at the end.
 
@@ -445,6 +718,7 @@ def build_simulation_score_prompt(
     return (
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
+        f"{_simulation_context_block(task_type, scenario_config, career_context, topic=topic)}"
         f"Topic of the session: {topic}\n\n"
         f"Full transcript (assistant lines are the simulated participants / "
         f"interviewer; user lines are the learner being assessed):\n"
@@ -491,7 +765,13 @@ def build_simulation_score_prompt(
         "- relevance_score: 0.0-1.0\n"
         "- language_score: 0.0-1.0\n"
         "- clarity_score: 0.0-1.0\n"
-        "- confidence_score: 0.0-1.0"
+        "- confidence_score: 0.0-1.0\n"
+        "- scenario_label: short label for the tested role/topic\n"
+        "- role_focus: target role if this was an interview, otherwise empty\n"
+        "- topic: GD topic if this was a GD, otherwise the interview focus\n"
+        "- observed_skill_gaps: list of concrete weak skills observed\n"
+        "- recommended_next_nodes: list of short next practice labels\n"
+        "- assessment_caveats: simulator-side validity issues, not learner weaknesses, or []"
     )
 
 
@@ -527,6 +807,8 @@ def build_director_prompt(
     task_type,
     transcript: str,
     probe_items: list | None = None,
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
 ) -> str:
     """The Director's brief for one writers'-room round.
 
@@ -565,6 +847,7 @@ def build_director_prompt(
         "voice speaks next and exactly what it should do. This is a live "
         "assessment, not coaching — never soften, never teach.\n"
         f"How this assessment runs: {behavior.pedagogy}\n\n"
+        f"{_simulation_context_block(task_type, scenario_config, career_context, topic=bb['topic'])}"
         f"Topic under discussion: {bb['topic']}\n"
         f"Current phase: {bb['phase']} | current tension: {bb['tension']}\n"
         f"Already covered: {covered}\n"
@@ -644,7 +927,20 @@ def build_selector_prompt(snapshot: dict, candidates: list[dict]) -> str:
     )
 
 
-def _other_voices_block(persona: dict, roster: list[dict] | None) -> str:
+def _is_moderator_persona(persona: dict) -> bool:
+    role_type = str(persona.get("role_type") or "").lower()
+    speaker_id = str(persona.get("speaker_id") or "").lower()
+    name = str(persona.get("name") or "").lower()
+    role = str(persona.get("role") or "").lower()
+    return (
+        role_type == "moderator"
+        or "moderator" in speaker_id
+        or "moderator" in name
+        or "facilitator" in role
+    )
+
+
+def _other_voices_block(persona: dict, roster: list[dict] | None, *, is_moderator: bool = False) -> str:
     """Render the OTHER participants so a persona can engage them by name.
 
     Without this, each persona spoke into a vacuum — it knew only the topic and
@@ -669,6 +965,14 @@ def _other_voices_block(persona: dict, roster: list[dict] | None) -> str:
     for p in others:
         trait = p.get("stance") or p.get("role") or "participant"
         lines.append(f"- {p['name']} ({trait})")
+    if is_moderator:
+        return (
+            "The active panelists are:\n" + "\n".join(lines) + "\n"
+            "Use their names to manage the floor, invite quieter voices, clarify "
+            "who can speak, and summarize the split in the room. Do not argue a "
+            "side, do not take a debater stance, and do not speak on behalf of "
+            "any panelist.\n\n"
+        )
     return (
         "Also in the room are these other participants (this is NOT you, and "
         "NONE of them is the learner):\n" + "\n".join(lines) + "\n"
@@ -686,6 +990,9 @@ def build_persona_prompt(
     transcript: str,
     bb: dict,
     roster: list[dict] | None = None,
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
+    task_type=None,
 ) -> str:
     """One persona's turn: speak in-character, pursuing the director's intent.
 
@@ -696,23 +1003,61 @@ def build_persona_prompt(
     voices by name so the group cross-talks instead of monologuing. All
     instruction lives in the prompt text (council rule).
     """
-    character = persona.get("stance") or persona.get("role") or "a participant"
+    character = (
+        persona.get("prompt_role")
+        or persona.get("stance")
+        or persona.get("role")
+        or "a participant"
+    )
     # Optional per-session manner (interview tonal variants). Empty for personas
     # without a style (the GD panel), so their prompt is byte-for-byte unchanged.
     style = persona.get("style")
     style_line = f"Your manner this session is {style}.\n" if style else ""
+    role_markers = " ".join(
+        str(persona.get(key) or "")
+        for key in ("speaker_id", "role_type", "role", "prompt_role")
+    ).lower()
+    context_task_type = task_type
+    if context_task_type is None:
+        if "moderator" in role_markers or "debater" in role_markers:
+            context_task_type = TaskType.GD_TEST
+        elif "interviewer" in role_markers:
+            context_task_type = TaskType.INTERVIEW_TEST
+    is_moderator = _is_moderator_persona(persona)
+    interview_guard = ""
+    if "interviewer" in role_markers:
+        interview_guard = (
+            "Interviewer discipline: ask the candidate one focused question or "
+            "follow-up. Do not provide a model answer, sample answer, or coaching "
+            "script. Do not say \"I would\" as if you were the candidate; the "
+            "candidate must produce the answer.\n"
+        )
+    if is_moderator:
+        turn_discipline = (
+            "Stay fully in facilitator character. This is a live assessment, not "
+            "a lesson: keep the group clear, manage the floor, summarize shifts, "
+            "draw in the right panelist, and ask the learner one clear next "
+            "question. Do NOT argue a side, do NOT coach, do NOT grade, do NOT "
+            "give feedback, and do NOT break character.\n"
+        )
+    else:
+        turn_discipline = (
+            "Stay fully in character. This is a live assessment, not a lesson: engage "
+            "the learner, push back, probe, and hold your stance. Do NOT coach, do "
+            "NOT grade, do NOT give feedback, and do NOT break character.\n"
+        )
     return (
         f"You are {persona['name']}, {character}, taking part in a live "
         f"discussion about: {bb['topic']}.\n"
         f"The discussion is at phase '{bb['phase']}' with tension {bb['tension']} "
         "(0.0 = calm, 1.0 = heated) — let that set how hard you push right now.\n"
         f"{style_line}"
+        f"{interview_guard}"
+        f"{_simulation_context_block(context_task_type, scenario_config, career_context, topic=bb['topic'])}"
         f"\nTranscript so far:\n{transcript}\n\n"
-        f"{_other_voices_block(persona, roster)}"
+        f"{_other_voices_block(persona, roster, is_moderator=is_moderator)}"
         f"Your goal for THIS turn: {intent}\n\n"
-        "Stay fully in character. This is a live assessment, not a lesson: engage "
-        "the learner, push back, probe, and hold your stance. Do NOT coach, do "
-        "NOT grade, do NOT give feedback, and do NOT break character.\n"
+        f"{turn_discipline}"
         "CRITICAL OUTPUT RULE: reply with ONLY your own spoken words, as plain "
         "prose. Do NOT prefix your reply with your name, a "
         f"\"{persona['name']}:\" tag, or any speaker label — your identity is "
@@ -726,6 +1071,8 @@ def build_test_gen_prompt(
     behavior: BehaviorPack | None,
     weaknesses: list | None,
     n_items: int = 4,
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
 ) -> str:
     """Generate a bank of assessment probe items for a TEST-mode session.
 
@@ -754,6 +1101,7 @@ def build_test_gen_prompt(
     return (
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
+        f"{_simulation_context_block(None, scenario_config, career_context)}"
         f"{weakness_block}"
         f"Produce exactly {n_items} assessment probe items for this task. Each "
         "item must make the learner produce real spoken/written English under "
@@ -774,8 +1122,11 @@ def build_test_gen_prompt(
 _NO_GIVEAWAY = (
     "Never write out the exact answer the learner should produce. Set the task and "
     "the frame; if you show an example, use DIFFERENT details than what they should "
-    "say (a different name, place, or topic) so they still have to compose their "
-    "own. Their job is to fill the frame; yours is to set it, not to fill it."
+    "say so they still have to compose their own. For GD practice, keep the selected "
+    "motion/topic and vary only the stakeholder, evidence type, constraint, or angle. "
+    "For interview practice, never add ownership, metrics, employers, impact, or "
+    "achievement verbs that the learner did not supply. Their job is to fill the "
+    "frame; yours is to set it, not to fill it."
 )
 
 
@@ -788,11 +1139,36 @@ def build_opening_prompt(
     sim_topic: str = "",
     interview_test: bool = False,
     review_skills: list | None = None,
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
+    allow_weakness_warmup: bool = False,
 ) -> str:
+    if sim_topic:
+        context_block = _simulation_context_block(
+            TaskType.GD_TEST,
+            scenario_config,
+            career_context,
+            topic=sim_topic,
+        )
+    elif interview_test:
+        context_block = _simulation_context_block(
+            TaskType.INTERVIEW_TEST,
+            scenario_config,
+            career_context,
+            topic=node.title,
+        )
+    else:
+        context_block = (
+            f"{_career_context_block(career_context)}"
+            f"{_interview_prep_context_guard(node, career_context)}"
+            f"{_gd_topic_guard(career_context)}"
+            f"{_scenario_block(scenario_config)}"
+        )
     base = (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{context_block}"
         f"{_stance_block(behavior)}"
         f"Today's skill: {node.title} — {node.skill}\n"
         f"Teaching focus: {node.teach_focus}\n\n"
@@ -834,11 +1210,29 @@ def build_opening_prompt(
             "The learner did well on these a while back; if it fits, slip a quick "
             f"one-line refresher on ONE of them into the warm-up to check it stuck: {skills}.\n"
         )
-    return base + (
+    gd_opening_line = ""
+    if node.id.startswith("gd_") and (career_context or {}).get("gd_topics"):
+        gd_opening_line = (
+            "GD prep opening contract: today's warm-up and main task must stay on "
+            "one of the selected GD topics above. Do not use role-specific "
+            "workplace, interview, coding, or technical-meeting scenarios as the "
+            "opening task unless that is the selected GD topic itself.\n"
+        )
+    warmup_contract = (
         "If your remembered notes name a weak spot or a 'next focus' from last "
         "time, open with a 10-second warm-up that re-tests THAT first, then move "
         "into today's skill. Otherwise open directly.\n"
-        + review_line +
+        if allow_weakness_warmup
+        else (
+            "Use remembered weak spots only to tailor examples and emphasis. Do "
+            "not open with a separate weak-spot warm-up, review drill, or prior "
+            "topic. The first learner task must practise today's skill above.\n"
+        )
+    )
+    return base + (
+        warmup_contract +
+        review_line +
+        gd_opening_line +
         "Open the lesson in 2-3 sentences: briefly say what you'll work on, then "
         "give the learner ONE clear, small task that makes them produce language "
         "right now. Do not over-explain. End with the task.\n" + _NO_GIVEAWAY
@@ -853,11 +1247,15 @@ def build_teach_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nTeaching focus: {node.teach_focus}\n\n"
         f"{_exemplar_block(node)}"
@@ -875,6 +1273,7 @@ def build_teach_game_prompt(
     node: "Concept",
     diagnosis: dict,
     coach: dict | None = None,
+    career_context: dict | None = None,
 ) -> str:
     """Prompt for the gamified teach path (scaffold >= 1).
 
@@ -884,24 +1283,55 @@ def build_teach_game_prompt(
     prose framing. Instructions live here (not in schema field descriptions)
     to comply with the Flash-Lite council rule."""
     coach_text = _coach_block(coach)
+    career_text = _career_context_block(career_context)
+    interview_context_guard = _interview_prep_context_guard(node, career_context)
+    gd_topic_guard = _gd_topic_guard(career_context)
     focus = diagnosis.get("next_focus") or node.teach_focus
     errors = diagnosis.get("errors", [])
     error_line = (
         f"\nTop mistake to fix: {errors[0]}" if errors else ""
     )
+    is_career_context = bool(
+        (career_context or {}).get("primary_role")
+        or (career_context or {}).get("target_roles")
+        or (career_context or {}).get("role_family")
+    )
+    if is_career_context:
+        hint_line = (
+            '  "hint": short interview move / GD move label (e.g. '
+            '"specific corrective habit", "evidence of impact") — do NOT put '
+            "the answer here\n"
+        )
+        career_rules = (
+            "- This is career communication practice, not a grammar or vocab drill.\n"
+            "- The gap must practice an interview move or GD move: structure, "
+            "evidence, specificity, ownership, trade-off clarity, or outcome.\n"
+            "- Do NOT target verb tense, verb base form, articles, spelling, or "
+            "grammar categories unless the listed top mistake is explicitly about "
+            "language accuracy.\n"
+        )
+    else:
+        hint_line = (
+            '  "hint": short grammar or vocab category label (e.g. "past simple verb") '
+            "— do NOT put the answer here\n"
+        )
+        career_rules = ""
     return (
         f"{coach_text}"
+        f"{career_text}"
+        f"{interview_context_guard}"
+        f"{gd_topic_guard}"
         f"Skill: {node.skill}\n"
         f"Teaching focus: {focus}{error_line}\n\n"
         "Return a single JSON object for a fill-in-the-blank practice item.\n"
         "Fields (all required):\n"
         '  "sentence": one complete, natural sentence with exactly one ___ gap\n'
-        '  "hint": short grammar or vocab category label (e.g. "past simple verb") '
-        "— do NOT put the answer here\n"
+        f"{hint_line}"
         '  "answer_key": the word or phrase that correctly fills the gap\n'
         '  "context": one line explaining why this gap targets the teaching focus\n\n'
         "Rules:\n"
         "- The gap must target ONLY the top mistake or teaching focus listed above.\n"
+        f"{career_rules}"
         "- The sentence must feel natural and realistic, not textbook-dry.\n"
         "- The hint must name the category, not hint at the spelling of the answer.\n"
         "- Return ONLY the JSON object — no prose, no markdown fences, no keys "
@@ -918,11 +1348,15 @@ def build_bridge_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\n"
         f"Easier sub-step to scaffold down to: {node.bridge_focus}\n\n"
@@ -942,11 +1376,15 @@ def build_strengthen_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nSuccess looks like: {node.success_criteria}\n\n"
         f"{_exemplar_block(node)}"
@@ -967,11 +1405,15 @@ def build_challenge_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill (now near-mastered): {node.skill}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
@@ -991,6 +1433,7 @@ def build_redirect_prompt(
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
     model_answer: bool = False,
+    career_context: dict | None = None,
 ) -> str:
     # After repeated steer-backs (model_answer), stop merely re-asking — the
     # learner is stuck in a loop. Model a correct answer so they see exactly what
@@ -1011,6 +1454,9 @@ def build_redirect_prompt(
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
@@ -1029,6 +1475,7 @@ def build_clarify_prompt(
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
     model_answer: bool = False,
+    career_context: dict | None = None,
 ) -> str:
     # After two stuck turns (model_answer), a young/low-fluency learner re-asked
     # the same way just stalls (live: 9 turns on the same letter 'B'). Give them a
@@ -1052,6 +1499,9 @@ def build_clarify_prompt(
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
@@ -1069,11 +1519,15 @@ def build_ease_prompt(
     coach: dict | None = None,
     behavior: BehaviorPack | None = None,
     weaknesses: list | None = None,
+    career_context: dict | None = None,
 ) -> str:
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
+        f"{_career_context_block(career_context)}"
+        f"{_interview_prep_context_guard(node, career_context)}"
+        f"{_gd_topic_guard(career_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\n"
         f"Easiest sub-step: {node.bridge_focus}\n\n"

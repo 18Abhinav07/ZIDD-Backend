@@ -15,6 +15,7 @@ async def strengthen_node(state: dict) -> dict:
         coach_view(state),
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        career_context=state.get("career_context") or {},
     )
     spec = GenSpec(
         provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="strengthen"

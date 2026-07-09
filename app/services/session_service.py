@@ -5,21 +5,122 @@ streams the chosen generation over the AI boundary, tracks mastery/clean-pass
 progression, advances nodes on completion, and flags a module for remediation
 when the clean pass-rate drops below 50%.
 
-DB is best-effort: every Postgres call is wrapped so the engine runs identically
-offline (dev / CI / Layer-A tests). Memory and credits degrade to no-ops when
-the DB or Ollama is unavailable. The graph and AI boundary are the only hard
-dependencies, and tests monkeypatch the AI boundary.
+Product state is persisted through Supabase/Postgres only. AI generation can
+fall back locally, but learner profiles, credits, sessions, progress, and
+history must not silently disappear into local files.
 """
 import asyncio
+import copy
 import json
 import os
 import re
+import time
 import uuid
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 logger = logging.getLogger("zidd.session")
+
+
+class ProgressionUnavailableError(RuntimeError):
+    """Raised when a valid module exists but user progress cannot be read."""
+
+
+class AwaitingNextSkillError(RuntimeError):
+    """Raised when a learner answers before the next-node opening is visible."""
+
+
+class SessionNotActiveError(RuntimeError):
+    """Raised when a closed or handed-off session receives a learner turn."""
+
+
+class SessionScoringUnavailableError(RuntimeError):
+    """Raised when a test-mode session cannot be scored yet."""
+
+
+def _bump_session_version(state: dict) -> None:
+    state["session_version"] = int(state.get("session_version") or 1) + 1
+
+
+def _mark_terminal(state: dict, reason: str) -> None:
+    """Make a coaching session immutable after learner/module completion."""
+    if (
+        state.get("status") != "ended"
+        or state.get("block_reason") != reason
+        or state.get("input_allowed") is not False
+    ):
+        _bump_session_version(state)
+    state["session_over"] = True
+    state["status"] = "ended"
+    state["input_allowed"] = False
+    state["block_reason"] = reason
+
+
+def _mark_active_turn_processing(state: dict, client_turn_id: str | None) -> None:
+    if not client_turn_id:
+        return
+    state["active_turn_id"] = client_turn_id
+    state["active_turn_status"] = "processing"
+    state["input_allowed"] = False
+    state["block_reason"] = "turn_processing"
+
+
+def _finish_active_turn(state: dict, client_turn_id: str | None, status: str) -> None:
+    if client_turn_id and state.get("active_turn_id") == client_turn_id:
+        state["last_turn_id"] = client_turn_id
+        state["last_turn_status"] = status
+        state["active_turn_id"] = None
+    state["active_turn_status"] = status
+    if state.get("block_reason") == "turn_processing":
+        if (
+            state.get("status", "active") == "active"
+            and not state.get("pending_node_transition")
+            and not state.get("module_done")
+            and not state.get("session_over")
+        ):
+            state["input_allowed"] = True
+            state["block_reason"] = None
+
+
+def turn_block_reason(state: dict) -> str | None:
+    """Return the stable API error code when a learner turn is not allowed."""
+    if state.get("status", "active") != "active":
+        reason = str(state.get("block_reason") or "")
+        if reason in {"module_done", "learner_ended", "session_over", "session_expired"}:
+            return reason
+        return "session_not_active"
+    if state.get("pending_node_transition"):
+        return "awaiting_next_skill"
+    if state.get("module_done"):
+        return "module_done"
+    if state.get("session_over"):
+        return str(state.get("block_reason") or "session_over")
+    if state.get("input_allowed") is False or state.get("block_reason"):
+        return str(state.get("block_reason") or "input_blocked")
+    if not state.get("opening_streamed", True) and not state.get("messages"):
+        return "opening_required"
+    return None
+
+
+def opening_block_reason(state: dict) -> str | None:
+    """Return a stable API error code when /opening must not mutate a session.
+
+    Transcripts for ended sessions remain readable, but opening streams append a
+    new assistant message and can clear transition state. They must therefore be
+    blocked once a source session has been handed off, ended, or is waiting for
+    the next skill to start in a new session.
+    """
+    if state.get("status", "active") != "active":
+        reason = str(state.get("block_reason") or "")
+        if reason in {"module_done", "learner_ended", "session_over", "session_expired"}:
+            return reason
+        return "session_not_active"
+    if state.get("session_over"):
+        return str(state.get("block_reason") or "session_over")
+    if state.get("pending_node_transition"):
+        return "awaiting_next_skill"
+    return None
 
 
 @dataclass(frozen=True)
@@ -132,12 +233,53 @@ from app.content.task_types import (
     test_counterpart,
 )
 from app.graph.build import get_graph
+from app.services.rubric_engine import compute_attempt_credit
+from app.services.career_context import build_career_context
+from app.services.learning_profile import CareerLearningProfileService
+from app.services.simulation_config import resolve_simulation_config
 from app.services.simulation_service import score_session, stream_simulation_round
 from app.storage import get_storage
 
 # Assessment ("test") task types run the multi-persona SIMULATION instead of the
 # coaching graph; the contribution is scored at session end, not coached mid-turn.
 _TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value})
+_CELEBRATORY_OPENING_RE = re.compile(
+    r"^\s*(?:great job|great start|good job|nice(?: work| touch)?|well done|"
+    r"excellent(?: work)?|awesome(?: work)?|"
+    r"you(?:'ve| have)? nailed it|"
+    r"you\s+(?:(?:effectively|clearly|successfully|nicely)\s+)?"
+    r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates)|"
+    r"your\s+(?:pitch|answer|response)\s+"
+    r"(?:(?:effectively|clearly|successfully|nicely)\s+)?"
+    r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates))"
+    r"(?:,\s*[^.!?\n]{1,80})?[.!?]?\s*",
+    re.IGNORECASE,
+)
+_COPYABLE_EXAMPLE_RE = re.compile(
+    r"\s*(?:for example|you could say something like)[:,-]?\s*"
+    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])",
+    re.IGNORECASE,
+)
+_COPYABLE_SCENARIO_RE = re.compile(
+    r"\s*Imagine [\s\S]{1,900}?Instead of saying [\s\S]{1,900}?"
+    r"(?=(?:Now,\s*)?(?:apply|try|use)\b)",
+    re.IGNORECASE,
+)
+_GD_GENERIC_TOPIC_PHRASES = (
+    "remote work policies",
+    "mandatory daily check-ins",
+    "remote work",
+    "single-use plastics",
+    "social media",
+    "electric cars",
+    "bike lanes",
+    "online courses",
+    "whether the budget should grow at all",
+    "budget should grow",
+)
+_COACHING_STREAM_KINDS = frozenset(
+    {"teach", "bridge", "strengthen", "challenge", "redirect", "clarify", "ease"}
+)
 
 # Precomputed probe banks (Phase 4 Layer B) go stale as the learner's prep
 # weaknesses shift; a bank older than this is treated as a cache miss and the
@@ -196,6 +338,171 @@ _FRUSTRATION_OVERRIDES = (
     "do not give up", "hard work",
 )
 
+
+def _recent_score_for_tone(state: dict) -> float | None:
+    score = state.get("last_clean_pass_score", state.get("last_eval_score"))
+    return score if isinstance(score, (int, float)) else None
+
+
+def _sanitize_coaching_opening_praise(text: str, state: dict, spec_kind: str) -> str:
+    """Remove inflated opening praise when the scored context has not earned it."""
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    match = _CELEBRATORY_OPENING_RE.match(text)
+    if not match:
+        return text
+
+    score = _recent_score_for_tone(state)
+    scaffolded = bool(state.get("last_graded_bridge"))
+    if spec_kind == "challenge" and not scaffolded and score is not None and score >= 0.85:
+        return text
+
+    remainder = text[match.end():].lstrip()
+    if scaffolded:
+        opener = "Good, that scaffolded step is in place - not the whole skill yet. "
+    elif score is not None and score < PASS_SCORE:
+        opener = "Let's tighten this. "
+    else:
+        opener = "That answer is on the right track. "
+    return opener + remainder if remainder else opener.strip()
+
+
+def _needs_full_coaching_sanitize(state: dict, spec_kind: str) -> bool:
+    if state.get("task_type") in _TEST_TASK_TYPES:
+        return False
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return False
+    if str(state.get("competency_node") or "").startswith("gd_") and _gd_topic_phrase_for_state(state):
+        return True
+    score = _recent_score_for_tone(state)
+    return bool(state.get("last_graded_bridge")) or (
+        isinstance(score, (int, float)) and score < 0.85
+    )
+
+
+def _gd_topic_phrase_for_state(state: dict) -> str:
+    context = state.get("career_context") or {}
+    topics = [
+        str(topic).strip()
+        for topic in (context.get("gd_topics") or [])
+        if str(topic).strip()
+    ]
+    scenario = state.get("scenario_config") or {}
+    topic = (
+        topics[0]
+        if topics
+        else str(scenario.get("resolved_topic") or scenario.get("topic") or "").strip()
+    )
+    if not topic:
+        return ""
+    clean = topic.strip().strip("\"'").strip()
+    clean = clean[:-1].strip() if clean.endswith("?") else clean
+    if not clean.lower().startswith("should "):
+        return clean
+    rest = clean[len("Should "):].strip()
+    words = rest.split()
+    if "be" in [word.lower() for word in words]:
+        be_index = next(i for i, word in enumerate(words) if word.lower() == "be")
+        if be_index > 0:
+            subject = " ".join(words[:be_index])
+            remainder = " ".join(words[be_index + 1:])
+            return " ".join(part for part in (subject, "being", remainder) if part).strip()
+    if len(words) < 2:
+        return rest
+    subject, verb, remainder = words[0], words[1], " ".join(words[2:])
+    ing = {
+        "abolish": "abolishing",
+        "allow": "allowing",
+        "ban": "banning",
+        "be": "being",
+        "do": "doing",
+        "get": "getting",
+        "have": "having",
+        "make": "making",
+        "replace": "replacing",
+        "require": "requiring",
+        "teach": "teaching",
+        "use": "using",
+    }.get(verb.lower())
+    if not ing:
+        return rest
+    return " ".join(part for part in (subject, ing, remainder) if part).strip()
+
+
+def _sanitize_gd_topic_drift(text: str, state: dict) -> str:
+    if not text or not str(state.get("competency_node") or "").startswith("gd_"):
+        return text
+    topic_phrase = _gd_topic_phrase_for_state(state)
+    if not topic_phrase:
+        return text
+    topic_lower = topic_phrase.lower()
+    cleaned = text
+    for phrase in _GD_GENERIC_TOPIC_PHRASES:
+        if phrase.lower() in topic_lower:
+            continue
+        replacement = (
+            f"the trade-offs in {topic_phrase}"
+            if phrase == "mandatory daily check-ins"
+            else topic_phrase
+        )
+        cleaned = re.sub(re.escape(phrase), replacement, cleaned, flags=re.IGNORECASE)
+    return cleaned
+
+
+def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
+    """Deterministically clean coaching text for weak/borderline turns.
+
+    Prompt directives reduce the chance of inflated praise/model answers, but
+    the local model can still emit them. For turns that have not earned a strong
+    score, buffer and clean the full response before showing it.
+    """
+    cleaned = _sanitize_coaching_opening_praise(text, state, spec_kind)
+    if not _needs_full_coaching_sanitize(state, spec_kind):
+        return _sanitize_gd_topic_drift(cleaned, state)
+    cleaned = _COPYABLE_SCENARIO_RE.sub(" ", cleaned, count=1)
+    cleaned = _COPYABLE_EXAMPLE_RE.sub(
+        " Keep it in your own words.",
+        cleaned,
+        count=1,
+    )
+    cleaned = _sanitize_gd_topic_drift(cleaned, state)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+async def _stream_coaching_generation(spec: GenSpec, state: dict) -> AsyncIterator[str]:
+    """Stream a generation while sanitizing only the opening praise prefix."""
+    if (
+        state.get("task_type") in _TEST_TASK_TYPES
+        or spec.kind not in _COACHING_STREAM_KINDS
+    ):
+        async for tok in stream_generation(spec):
+            yield tok
+        return
+
+    if _needs_full_coaching_sanitize(state, spec.kind):
+        full: list[str] = []
+        async for tok in stream_generation(spec):
+            full.append(tok)
+        text = _sanitize_coaching_response("".join(full), state, spec.kind)
+        if text:
+            yield text
+        return
+
+    buffer = ""
+    emitted_prefix = False
+    async for tok in stream_generation(spec):
+        if emitted_prefix:
+            yield tok
+            continue
+        buffer += tok
+        if len(buffer) >= 180 or re.search(r"[.!?]\s", buffer):
+            yield _sanitize_coaching_opening_praise(buffer, state, spec.kind)
+            emitted_prefix = True
+    if buffer and not emitted_prefix:
+        yield _sanitize_coaching_opening_praise(buffer, state, spec.kind)
+
 # session_id -> TutorState dict
 SessionStore: dict[str, dict] = {}
 
@@ -222,8 +529,8 @@ _TRANSIENT_KEYS = ("pending", "pending_game", "last_selection")
 
 
 def _store_path() -> str:
-    """Disk path for SessionStore persistence; empty string disables it."""
-    return get_settings().session_store_path
+    """Local disk session snapshots are disabled by product policy."""
+    return ""
 
 
 def save_sessions() -> None:
@@ -257,6 +564,176 @@ def load_sessions() -> None:
     SessionStore.update(data)
 
 
+def _json_safe(value):
+    """Return a JSON-safe deep copy for runtime snapshots."""
+    return json.loads(json.dumps(value, default=str))
+
+
+def _runtime_snapshot(state: dict) -> dict:
+    snapshot = {
+        k: v for k, v in state.items()
+        if k not in _TRANSIENT_KEYS
+    }
+    return _json_safe(snapshot)
+
+
+async def _persist_runtime_state(state: dict) -> None:
+    """Persist live session state to the product store.
+
+    SessionStore remains a process cache; this is the durable truth used for
+    reload, restart, multi-worker reads, and recovery.
+    """
+    store = get_storage()
+    if not hasattr(store, "upsert_session_runtime"):
+        save_sessions()
+        return
+    snapshot = _runtime_snapshot(state)
+    await store.upsert_session_runtime(
+        session_id=state["session_id"],
+        user_id=state["user_id"],
+        current_node=state["competency_node"],
+        module_id=module_of(state["competency_node"]),
+        task_type=state.get("task_type"),
+        test_mode=state.get("task_type") in _TEST_TASK_TYPES,
+        status=state.get("status", "active"),
+        state_snapshot=snapshot,
+        pending_transition=state.get("pending_node_transition"),
+        session_version=int(state.get("session_version") or 1),
+        active_turn_id=state.get("active_turn_id"),
+        active_opening_id=state.get("active_opening_id"),
+        last_error=state.get("last_error"),
+    )
+    if hasattr(store, "replace_session_messages"):
+        await store.replace_session_messages(
+            state["session_id"],
+            list(snapshot.get("messages") or []),
+        )
+    save_sessions()
+
+
+async def _record_opening_attempt(state: dict) -> None:
+    """Persist the billing/attempt ledger once the learner can use the session."""
+    store = get_storage()
+    if not hasattr(store, "record_node_attempt"):
+        return
+    await store.record_node_attempt(
+        state["session_id"],
+        state["user_id"],
+        state["competency_node"],
+        float(state.get("current_mastery") or 0.0),
+    )
+
+
+def _hydrate_runtime_state(row: dict) -> dict:
+    snapshot = dict(row.get("state_snapshot") or {})
+    state = _new_state(
+        row["user_id"],
+        row["session_id"],
+        row.get("current_node") or snapshot.get("competency_node"),
+        snapshot.get("memory_context") or [],
+        learner_name=snapshot.get("learner_name", ""),
+        weakness_context=snapshot.get("weakness_context") or [],
+        task_type=row.get("task_type") or snapshot.get("task_type", ""),
+        module_id=row.get("module_id") or snapshot.get("module_id") or "",
+        sim_topic=snapshot.get("sim_topic", ""),
+        career_context=snapshot.get("career_context") or {},
+        scenario_config=snapshot.get("scenario_config") or {},
+        personas=snapshot.get("personas"),
+        context_hash=snapshot.get("context_hash", "default"),
+    )
+    state.update(copy.deepcopy(snapshot))
+    state["session_id"] = row["session_id"]
+    state["user_id"] = row["user_id"]
+    state["competency_node"] = row.get("current_node") or state["competency_node"]
+    state["task_type"] = row.get("task_type") or state.get("task_type", "")
+    state["module_id"] = row.get("module_id") or state.get("module_id") or _module_id_for_state(state["competency_node"])
+    state["status"] = row.get("status") or state.get("status", "active")
+    state["pending_node_transition"] = (
+        row.get("pending_transition")
+        if row.get("pending_transition") is not None
+        else state.get("pending_node_transition")
+    )
+    state["session_version"] = int(row.get("session_version") or state.get("session_version") or 1)
+    state.setdefault("committed_openings", {})
+    state.setdefault("messages", [])
+    for key in _TRANSIENT_KEYS:
+        state[key] = None
+    return state
+
+
+async def get_session_state(session_id: str) -> dict | None:
+    state = SessionStore.get(session_id)
+    if state is not None:
+        if _expire_state_if_needed(state):
+            await _persist_runtime_state(state)
+        return state
+    store = get_storage()
+    if not hasattr(store, "get_session_runtime"):
+        return None
+    row = await store.get_session_runtime(session_id)
+    if not row:
+        return None
+    state = _hydrate_runtime_state(row)
+    if _expire_state_if_needed(state):
+        await _persist_runtime_state(state)
+    SessionStore[session_id] = state
+    return state
+
+
+async def handoff_transition_to_session(
+    source_session_id: str,
+    source_transition_id: str,
+    target_session_id: str,
+    target_node_id: str,
+    user_id: str,
+) -> None:
+    """Close a completed source session after its next skill starts elsewhere."""
+    state = await get_session_state(source_session_id)
+    if state is None or state.get("user_id") != user_id:
+        raise ValueError("source_session_not_found")
+
+    pending = state.get("pending_node_transition")
+    if not isinstance(pending, dict):
+        raise ValueError("source_transition_missing")
+    if pending.get("transition_id") != source_transition_id:
+        raise ValueError("source_transition_mismatch")
+    if pending.get("to_node") != target_node_id:
+        raise ValueError("source_transition_target_mismatch")
+
+    handed_off = dict(pending)
+    handed_off["status"] = "handed_off"
+    handed_off["handoff_session_id"] = target_session_id
+    handed_off["handed_off_at"] = time.time()
+
+    state["last_handed_off_transition"] = handed_off
+    state["pending_node_transition"] = None
+    state["handoff_session_id"] = target_session_id
+    state["input_allowed"] = False
+    state["block_reason"] = "transition_handed_off"
+    state["session_over"] = True
+    state["status"] = "ended"
+    state["session_version"] = int(state.get("session_version") or 1) + 1
+    await _persist_runtime_state(state)
+    await get_storage().end_session(
+        source_session_id,
+        final_summary=f"Next skill continued in session {target_session_id}.",
+        avg_score=float(state.get("current_mastery") or 0.0),
+    )
+
+
+def _module_id_for_state(node_id: str) -> str:
+    try:
+        return module_of(node_id)
+    except KeyError:
+        if node_id.startswith("int_"):
+            return "interview"
+        if node_id.startswith("gd_"):
+            return "group_discussion"
+        if node_id.startswith("school_"):
+            return "school_english"
+        return ""
+
+
 def _new_state(
     user_id: str,
     session_id: str,
@@ -265,31 +742,66 @@ def _new_state(
     learner_name: str = "",
     weakness_context: list | None = None,
     task_type: str = "",
+    module_id: str = "",
     sim_topic: str = "",
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
+    personas: list | None = None,
+    context_hash: str = "default",
 ) -> dict:
+    now = time.time()
+    ttl = max(60, int(get_settings().session_ttl_seconds))
     return {
         "user_id": user_id,
         "session_id": session_id,
+        "status": "active",
+        "started_at": now,
+        "last_seen_at": now,
+        "expires_at": now + ttl,
+        "reattempt": False,
+        "reattempt_of_session_id": None,
         "competency_node": node_id,
         "task_type": task_type,
+        "module_id": module_id or _module_id_for_state(node_id),
         "user_input": "",
         # TEST-mode simulation state (empty/None for coaching sessions): the topic
         # the panel debates, and the persona roster cached after the first round.
         "sim_topic": sim_topic,
-        "personas": None,
+        "personas": personas,
         "blackboard": None,
         # Precomputed/loaded assessment probe bank (list[dict]); empty for
         # coaching sessions. Hydrated at TEST start from the precache or a
         # synchronous regeneration. Persisted (not a transient key).
         "probe_items": [],
+        "coverage_events": [],
+        "pending_coverage_event": None,
+        "visible_event_ledger": [],
+        "assessment_validity_flags": [],
+        "floor_handoff_queue": [],
+        "simulation_segments": [],
+        "career_context": career_context or {},
+        "scenario_config": scenario_config or {},
+        "context_hash": context_hash or "default",
         "current_mastery": 0.0,
         "turn_count": 0,
         "messages": [],
+        "probe_cursor": 0,
+        "used_probe_prompts": [],
+        "simulation_report": None,
+        "simulation_score": None,
+        "simulation_round": 0,
+        "session_version": 1,
+        "input_allowed": True,
+        "block_reason": None,
+        "pending_node_transition": None,
+        "committed_openings": {},
         # True once the fresh-session opening has been streamed (stream_opening).
         # The transcript endpoint surfaces it so a browser reload restores the
         # existing transcript instead of replaying a second opening.
         "opening_streamed": False,
         "last_diagnosis": {},
+        "last_rubric_result": None,
+        "tutor_turn_plan": None,
         "last_eval_score": 0.0,
         "bridge_attempts": 0,
         "clarify_attempts": 0,
@@ -311,6 +823,8 @@ def _new_state(
         "session_summary": None,
         "pending": None,
         "pending_game": None,
+        "active_game_prompt": None,
+        "active_prompt_attempt_type": None,
         # Spec B: the selector's read of the most recent advance (transient).
         "last_selection": None,
         "last_route": None,
@@ -327,12 +841,84 @@ def _new_state(
         "session_over": False,
         # service-only bookkeeping (not consumed by the graph)
         "node_history": {},     # node_id -> {"attempts": int, "clean": bool}
+        "node_mastered": False,
+        "display_status": "active",
+        "best_independent_score": 0.0,
+        "independent_passes": 0,
+        "transfer_passes": 0,
+        "pressure_passes": 0,
+        "scaffold_successes": 0,
+        "meaningful_attempts": 0,
+        "readiness_score": 0.0,
+        "last_gap": "",
+        "mastery_evidence": [],
         "remediation": False,
         "module_done": False,
         # Phase 5 gamification level flags (set at the advance boundary):
         "tester_level": False,  # last advance was fast/clean -> harder challenge
         "review_level": False,  # module finished clean -> weakness-summary section
     }
+
+
+def touch_session(session_id: str, now: float | None = None) -> None:
+    state = SessionStore.get(session_id)
+    if state is None:
+        return
+    ts = now if now is not None else time.time()
+    ttl = max(60, int(get_settings().session_ttl_seconds))
+    state["last_seen_at"] = ts
+    state["expires_at"] = ts + ttl
+    save_sessions()
+
+
+def _expire_state_if_needed(state: dict, now: float | None = None) -> bool:
+    if state.get("status", "active") != "active":
+        return False
+    expires_at = state.get("expires_at")
+    if expires_at is None:
+        return False
+    try:
+        expiry = float(expires_at)
+    except (TypeError, ValueError):
+        return False
+    ts = now if now is not None else time.time()
+    if expiry > ts:
+        return False
+    state["status"] = "expired"
+    state["session_over"] = True
+    state["input_allowed"] = False
+    state["block_reason"] = "session_expired"
+    state["pending_node_transition"] = None
+    state["session_version"] = int(state.get("session_version") or 1) + 1
+    return True
+
+
+async def touch_session_async(session_id: str, now: float | None = None) -> None:
+    state = await get_session_state(session_id)
+    if state is None:
+        return
+    ts = now if now is not None else time.time()
+    ttl = max(60, int(get_settings().session_ttl_seconds))
+    state["last_seen_at"] = ts
+    state["expires_at"] = ts + ttl
+    store = get_storage()
+    if hasattr(store, "touch_session_runtime"):
+        await store.touch_session_runtime(session_id, state.get("status", "active"))
+    await _persist_runtime_state(state)
+
+
+async def cleanup_sessions(now: float | None = None) -> list[str]:
+    ts = now if now is not None else time.time()
+    expired: list[str] = []
+    for sid, state in list(SessionStore.items()):
+        if state.get("status") != "active" or float(state.get("expires_at", ts + 1)) <= ts:
+            state["status"] = "expired"
+            expired.append(sid)
+            SessionStore.pop(sid, None)
+            _SESSION_LOCKS.pop(sid, None)
+    if expired:
+        save_sessions()
+    return expired
 
 
 def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
@@ -363,7 +949,12 @@ def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
 # ---------- public API ----------
 
 async def start_session(
-    user_id: str, node_id: str, learner_name: str = "", test_mode: bool = False
+    user_id: str,
+    node_id: str,
+    learner_name: str = "",
+    test_mode: bool = False,
+    reattempt: bool = False,
+    simulation_config: dict | None = None,
 ) -> tuple[str, dict]:
     """Create a session, return (session_id, state). Opening msg streamed via
     stream_opening(). Loads prior memory for this node (best-effort).
@@ -377,6 +968,7 @@ async def start_session(
     memory, and weaknesses for this session."""
     if node_id not in all_node_ids():
         raise ValueError(f"unknown competency node: {node_id}")
+    await cleanup_sessions()
     # Voice tier is gated "coming soon" — refuse a direct start rather than coach
     # a pace/pausing voice skill as typed text (D5). Placement/advance already
     # skip these, so a normal flow never lands here; this guards a direct id.
@@ -387,7 +979,8 @@ async def start_session(
     # weaknesses on; module_id is the registry module that owns the node. They
     # diverge for interview/group_discussion (prep vs. test); test_mode picks the
     # assessment variant where one exists, else the coaching variant.
-    task_type = task_type_of(node_id, test_mode=test_mode).value
+    task_type_enum = task_type_of(node_id, test_mode=test_mode)
+    task_type = task_type_enum.value
     module_id = module_of(node_id)
     is_test = task_type in _TEST_TASK_TYPES
     # A TEST session logs no per-skill weaknesses of its own — it reads the prep
@@ -400,81 +993,55 @@ async def start_session(
     current_mastery = 0.0
     attempts = 0
 
-    # Storage dispatcher: LOCAL SQLite when ai_backend=="local" (works OFFLINE,
-    # the qwen-dev default), Postgres otherwise. Best-effort: storage hiccups
-    # must never block a session from starting.
+    store = get_storage()
+    await store.ensure_profile(user_id, learner_name)
+    prof = await store.get_profile(user_id) or {}
+    career_context = build_career_context(prof)
+    resolved_sim = resolve_simulation_config(
+        task_type_enum,
+        node_id,
+        simulation_config or {},
+        career_context,
+    )
     try:
-        store = get_storage()
-        await store.ensure_profile(user_id, learner_name)
-        await store.create_session(
-            session_id, user_id, task_type, module_id, node_id
-        )
-        memory_context = await store.load_context(user_id, task_type)
-        weakness_context = await store.get_weaknesses(user_id, weakness_key)
-        
-        # Load progress to continue session
         progression = await store.get_progression(user_id)
-        for p in progression:
-            if p["node_id"] == node_id:
-                current_mastery = p["ema"]
-                attempts = p["attempts"]
-                break
-    except Exception:
-        # Best-effort: a storage hiccup must never block a session from starting.
-        # But do NOT swallow it silently — that hides store/load failures and
-        # runs the assessment with no prior-session memory or weakness targeting.
-        # Log with the stack so the degradation is observable, then continue with
-        # empty context.
-        logger.warning(
-            "start_session: storage load failed for user=%s node=%s; "
-            "continuing with empty memory/weakness context",
-            user_id,
-            node_id,
-            exc_info=True,
-        )
-        memory_context = []
-        weakness_context = []
+    except Exception as e:
+        logger.exception("progression storage unavailable before session create for user=%s", user_id)
+        raise ProgressionUnavailableError("progression_unavailable") from e
+    for p in progression:
+        if p["node_id"] == node_id:
+            current_mastery = p["ema"]
+            attempts = p["attempts"]
+            break
+
+    memory_context = await store.load_context(user_id, task_type)
+    weakness_context = await store.get_weaknesses(user_id, weakness_key)
 
     # School 'Learn' sessions: the meaningful weak-spot signal lives in the
     # dedicated school per-skill mastery (folded from exact-graded chapter tests),
     # NOT the generic weakness table — every school skill tag coerces to OTHER
     # there. Surface the learner's weakest assessment skills so the live tutor
     # opens with a warm-up that re-tests a real gap. Prepended so they lead the
-    # block; best-effort, never blocks the session start. Also surface skills
-    # MASTERED earlier but gone stale, for a spaced retention check (the
-    # longitudinal half of learning tracking).
+    # block. Also surface skills MASTERED earlier but gone stale, for a spaced
+    # retention check (the longitudinal half of learning tracking).
     review_skills: list = []
     if task_type == TaskType.SCHOOL_ENGLISH.value:
-        try:
-            school_weak = await get_storage().get_school_weak_skills(user_id)
-        except Exception:
-            school_weak = []
+        school_weak = await store.get_school_weak_skills(user_id)
         weakness_context = [
             {"skill_id": s.replace("_", " "), "hit_count": 1, "last_raw": ""}
             for s in school_weak
         ] + weakness_context
-        try:
-            review_skills = [
-                s.replace("_", " ")
-                for s in await get_storage().get_school_review_skills(user_id)
-            ]
-        except Exception:
-            review_skills = []
+        review_skills = [
+            s.replace("_", " ")
+            for s in await store.get_school_review_skills(user_id)
+        ]
 
     # Source the learner's display name from their stored profile (set at
-    # registration) so the coach can address them by name. Isolated + best-effort:
-    # a missing or failed profile read must NEVER abort the session or the
-    # memory/weakness load above — the coach simply stays nameless. ensure_profile
-    # is non-clobbering on an empty name, so a returning learner keeps their name.
+    # Google sign-in) so the coach can address them by name. ensure_profile is
+    # non-clobbering on an empty name, so a returning learner keeps their name.
     if not learner_name:
-        try:
-            prof = await get_storage().get_profile(user_id)
-            if prof and prof.get("name"):
-                learner_name = prof["name"]
-        except Exception:
-            logger.debug(
-                "start_session: profile name lookup failed for user=%s", user_id, exc_info=True
-            )
+        if prof and prof.get("name"):
+            learner_name = prof["name"]
 
     last_summary = ""
     if attempts > 0:
@@ -485,7 +1052,11 @@ async def start_session(
 
     # Seed the assessment topic from the node, sharpened by the learner's top
     # prep weakness so the persona panel probes exactly where they struggled.
-    sim_topic = _seed_sim_topic(node_id, weakness_context) if is_test else ""
+    sim_topic = (
+        resolved_sim.resolved_topic
+        if is_test and resolved_sim.resolved_topic
+        else _seed_sim_topic(node_id, weakness_context) if is_test else ""
+    )
 
     state = _new_state(
         user_id,
@@ -495,12 +1066,18 @@ async def start_session(
         learner_name,
         weakness_context,
         task_type,
+        module_id,
         sim_topic,
+        career_context=career_context.private_dict(),
+        scenario_config=resolved_sim.public_dict(),
+        personas=resolved_sim.persona_roster if is_test else None,
+        context_hash=resolved_sim.context_hash,
     )
     
     # Apply loaded progress
     state["current_mastery"] = current_mastery
     state["attempts"] = attempts
+    state["reattempt"] = bool(reattempt)
     # Spaced-review skills (school): mastered-but-stale, re-checked in the opening.
     state["review_context"] = review_skills
     # clean_streak deliberately starts at 0 even for a returning learner who
@@ -523,9 +1100,27 @@ async def start_session(
     # precache (computed at the PREP sibling's end_session); on a miss or stale
     # entry, regenerate synchronously so the session still opens with a real bank.
     if is_test:
-        state["probe_items"] = await _load_or_generate_probe_items(user_id, task_type)
+        state["probe_items"] = await _load_or_generate_probe_items(
+            user_id,
+            task_type,
+            career_context=career_context.private_dict(),
+            scenario_config=resolved_sim.private_dict(),
+            context_hash=resolved_sim.context_hash,
+        )
+    await store.create_session(
+        session_id,
+        user_id,
+        task_type,
+        module_id,
+        node_id,
+        test_mode=is_test,
+        career_context=career_context.private_dict(),
+        scenario_config=resolved_sim.private_dict(),
+        persona_roster=resolved_sim.persona_roster if is_test else [],
+        context_hash=resolved_sim.context_hash,
+    )
     SessionStore[session_id] = state
-    save_sessions()
+    await _persist_runtime_state(state)
     return session_id, state
 
 
@@ -538,10 +1133,41 @@ def _gd_sim_topic(state: dict) -> str:
     return ""
 
 
-async def stream_opening(session_id: str) -> AsyncIterator[str]:
-    """Stream the lesson opening for a fresh session (turn 0)."""
+async def stream_opening(
+    session_id: str,
+    transition_id: str | None = None,
+) -> AsyncIterator[str]:
+    """Stream the lesson opening for a fresh session or pending transition.
+
+    The transition path is idempotent: a retry with the same transition id replays
+    the already-committed opening instead of appending a second assistant prompt.
+    """
     state = _require(session_id)
     node = get_node(state["competency_node"])
+    pending_transition = state.get("pending_node_transition")
+    committed = state.setdefault("committed_openings", {})
+    if transition_id and transition_id in committed:
+        await _record_opening_attempt(state)
+        yield committed[transition_id]
+        return
+    opening_key = (
+        pending_transition.get("transition_id")
+        if pending_transition
+        else f"initial:{state['competency_node']}"
+    )
+    if transition_id and opening_key != transition_id:
+        raise ValueError("transition_id_mismatch")
+
+    if opening_key in committed:
+        await _record_opening_attempt(state)
+        yield committed[opening_key]
+        return
+
+    if pending_transition:
+        pending_transition["status"] = "opening_streaming"
+        pending_transition["attempts"] = int(pending_transition.get("attempts") or 0) + 1
+        await _persist_runtime_state(state)
+
     prompt = build_opening_prompt(
         node,
         state.get("memory_context", []),
@@ -551,18 +1177,50 @@ async def stream_opening(session_id: str) -> AsyncIterator[str]:
         sim_topic=_gd_sim_topic(state),
         interview_test=state.get("task_type") == TaskType.INTERVIEW_TEST.value,
         review_skills=state.get("review_context", []),
+        career_context=state.get("career_context") or {},
+        scenario_config=state.get("scenario_config") or {},
+        allow_weakness_warmup=state.get("task_type") == TaskType.SCHOOL_ENGLISH.value,
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
-    async for tok in stream_generation(spec):
-        full.append(tok)
-        yield tok
+    try:
+        async for tok in stream_generation(spec):
+            full.append(tok)
+            yield tok
+    except Exception:
+        if pending_transition and int(pending_transition.get("attempts") or 0) < 2:
+            pending_transition["status"] = "opening_failed"
+            pending_transition["last_error"] = {"code": "stream_failed"}
+            await _persist_runtime_state(state)
+            raise
+        full = []
     text = "".join(full)
-    state["messages"].append({"role": "assistant", "content": text})
+    if not text.strip():
+        text = "This skill is ready. Let's begin."
+        yield text
+    message_id = f"{session_id}:opening:{opening_key}"
+    message = {
+        "message_id": message_id,
+        "role": "assistant",
+        "content": text,
+        "node_id": state["competency_node"],
+        "transition_id": pending_transition.get("transition_id") if pending_transition else None,
+        "message_kind": "opening",
+    }
+    state["messages"].append(message)
     state["turn_count"] += 1
+    committed[opening_key] = text
+    state["last_opening_message_id"] = message_id
     # Mark the opening as streamed so a reload rehydrates instead of replaying it.
+    await _record_opening_attempt(state)
     state["opening_streamed"] = True
-    save_sessions()
+    if pending_transition:
+        pending_transition["status"] = "committed"
+        state["pending_node_transition"] = None
+        state["input_allowed"] = True
+        state["block_reason"] = None
+        state["session_version"] = int(state.get("session_version") or 1) + 1
+    await _persist_runtime_state(state)
 
 
 async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
@@ -581,6 +1239,9 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
         sim_topic=_gd_sim_topic(state),
         interview_test=state.get("task_type") == TaskType.INTERVIEW_TEST.value,
         review_skills=state.get("review_context", []),
+        career_context=state.get("career_context") or {},
+        scenario_config=state.get("scenario_config") or {},
+        allow_weakness_warmup=state.get("task_type") == TaskType.SCHOOL_ENGLISH.value,
     )
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
@@ -592,13 +1253,47 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
         full = []
     text = "".join(full).strip()
     if not text:
-        text = "Nice work — let's move on to the next skill. Ready?"
+        text = "The next skill is ready. Let's begin."
         yield text
     state["messages"].append({"role": "assistant", "content": text})
     state["turn_count"] += 1
 
 
-async def run_turn(session_id: str, user_input: str) -> AsyncIterator[str]:
+def _append_user_turn_message(
+    state: dict,
+    user_input: str,
+    client_turn_id: str | None = None,
+    message_kind: str = "learner_answer",
+) -> bool:
+    """Append the learner's accepted answer once per client turn.
+
+    The route-level idempotency latch prevents double grading, but after an
+    accepted turn fails mid-stream the same client_turn_id is allowed to retry.
+    This helper makes that retry transcript-safe: the already-durable user
+    answer is reused instead of inserting a duplicate bubble.
+    """
+    if client_turn_id:
+        for message in state.get("messages", []):
+            if message.get("role") == "user" and message.get("turn_id") == client_turn_id:
+                return False
+    message = {
+        "role": "user",
+        "content": user_input,
+        "node_id": state.get("competency_node"),
+        "message_kind": message_kind,
+    }
+    if client_turn_id:
+        message["turn_id"] = client_turn_id
+        message["message_id"] = f"{state['session_id']}:turn:{client_turn_id}:user"
+    state["messages"].append(message)
+    return True
+
+
+async def run_turn(
+    session_id: str,
+    user_input: str,
+    client_turn_id: str | None = None,
+) -> AsyncIterator[str]:
     """Process one learner answer: evaluate -> route -> stream the response.
 
     Serializes per session (E24): the whole turn — including the streamed
@@ -607,11 +1302,15 @@ async def run_turn(session_id: str, user_input: str) -> AsyncIterator[str]:
     is held across yields, so concurrent turns on ONE session queue; different
     sessions are unaffected."""
     async with _lock_for(session_id):
-        async for tok in _run_turn_locked(session_id, user_input):
+        async for tok in _run_turn_locked(session_id, user_input, client_turn_id):
             yield tok
 
 
-async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[str]:
+async def _run_turn_locked(
+    session_id: str,
+    user_input: str,
+    client_turn_id: str | None = None,
+) -> AsyncIterator[str]:
     """run_turn body — always invoked under the session lock (see run_turn).
 
     Hardened: caps oversized input, ends the session gracefully on a goodbye,
@@ -619,21 +1318,61 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
     plain message if the stream yields nothing (backend hiccup) so the turn
     never dies silently."""
     state = _require(session_id)
+    block_reason = turn_block_reason(state)
+    if block_reason == "awaiting_next_skill":
+        raise AwaitingNextSkillError("awaiting_next_skill")
+    if block_reason:
+        raise SessionNotActiveError(block_reason)
     user_input = (user_input or "")[:MAX_INPUT_CHARS]
     state["user_input"] = user_input
+    is_test_end_control = state.get("task_type") in _TEST_TASK_TYPES and _is_session_end(user_input)
+    is_test_runtime_control = is_test_end_control
+    if state.get("task_type") in _TEST_TASK_TYPES and not is_test_end_control:
+        from app.services.simulation_service import is_simulation_control_input
+
+        is_test_runtime_control = is_simulation_control_input(
+            str(state.get("task_type") or ""),
+            user_input,
+        )
+    _append_user_turn_message(
+        state,
+        user_input,
+        client_turn_id,
+        message_kind="simulation_control" if is_test_runtime_control else "learner_answer",
+    )
+    _mark_active_turn_processing(state, client_turn_id)
+    # Once a turn has passed the route idempotency gate, the learner's message is
+    # durable before any model call. Otherwise a persona/coach stream failure can
+    # leave the server having accepted the answer while reload shows no user turn.
+    await _persist_runtime_state(state)
 
     # Graceful exit: a short "done / bye / stop" ends the session with a warm
     # farewell instead of being scored as an off-task answer.
     if _is_session_end(user_input):
-        state["session_over"] = True
+        if state.get("task_type") in _TEST_TASK_TYPES:
+            if not state.get("session_over"):
+                state["session_over"] = True
+                state["input_allowed"] = False
+                state["block_reason"] = "session_over"
+                _bump_session_version(state)
+            state["active_game_prompt"] = None
+            closing = (
+                "That's where we'll close the session. Tap finish to see your "
+                "scored feedback and where to focus next."
+            )
+            state["messages"].append({"role": "assistant", "content": closing})
+            _finish_active_turn(state, client_turn_id, "completed")
+            await _persist_runtime_state(state)
+            yield closing
+            return
+        _mark_terminal(state, "learner_ended")
+        state["active_game_prompt"] = None
         farewell = _farewell(state)
-        state["messages"].append({"role": "user", "content": user_input})
         state["messages"].append({"role": "assistant", "content": farewell})
-        save_sessions()
+        _finish_active_turn(state, client_turn_id, "completed")
+        await _persist_runtime_state(state)
         yield farewell
         return
-
-    state["messages"].append({"role": "user", "content": user_input})
 
     # Blank non-answer short-circuit (Wave 1.3): an empty / whitespace / pure-
     # symbol turn has nothing to grade. Sending it to the eval LLM made the coach
@@ -648,9 +1387,13 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
         )
         state["messages"].append({"role": "assistant", "content": reprompt})
         state["turn_count"] += 1
-        save_sessions()
+        _finish_active_turn(state, client_turn_id, "completed")
+        await _persist_runtime_state(state)
         yield reprompt
         return
+
+    state["active_game_prompt"] = None
+    state["active_prompt_attempt_type"] = None
 
     # TEST-mode (assessment) turns run a multi-persona SIMULATION, not the
     # coaching graph: record the learner's contribution, stream the panel's next
@@ -668,26 +1411,54 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
                 "scored feedback and where to focus next."
             )
             state["messages"].append({"role": "assistant", "content": closing})
-            save_sessions()
+            _finish_active_turn(state, client_turn_id, "completed")
+            await _persist_runtime_state(state)
             yield closing
             return
-        spoken: list[str] = []
-        async for item in stream_simulation_round(state):
-            if isinstance(item, Speaker):
-                spoken.append(f"\n[{item.name}]: ")
-            elif isinstance(item, str):
-                spoken.append(item)
-            yield item
-        text = "".join(spoken).strip()
-        if text:
-            state["messages"].append({"role": "assistant", "content": text})
+        speaker_messages: list[dict] = []
+        current_speaker: Speaker | None = None
+        current_chunks: list[str] = []
+
+        def flush_speaker_message() -> None:
+            nonlocal current_chunks, current_speaker
+            text = "".join(current_chunks).strip()
+            if current_speaker and text:
+                speaker_messages.append({
+                    "role": "assistant",
+                    "content": text,
+                    "speaker_name": current_speaker.name,
+                    "speaker_id": current_speaker.speaker_id,
+                    "node_id": state["competency_node"],
+                    "turn_id": client_turn_id,
+                    "message_kind": "simulation_turn",
+                })
+            current_chunks = []
+
+        try:
+            async for item in stream_simulation_round(state):
+                if isinstance(item, Speaker):
+                    flush_speaker_message()
+                    current_speaker = item
+                elif isinstance(item, str):
+                    current_chunks.append(item)
+                yield item
+        except Exception:
+            _finish_active_turn(state, client_turn_id, "failed")
+            await _persist_runtime_state(state)
+            raise
+        flush_speaker_message()
+        state["messages"].extend(speaker_messages)
         state["turn_count"] += 1
-        save_sessions()
+        if not state.get("session_over"):
+            _bump_session_version(state)
+        _finish_active_turn(state, client_turn_id, "completed")
+        await _persist_runtime_state(state)
         return
 
     # Sentiment pivot: flag support BEFORE the graph builds its prompt so the
     # coaching directives (via coach_view) reflect it this turn.
     state["needs_support"] = _detect_frustration(user_input)
+    pre_scored_snapshot = copy.deepcopy(state)
 
     # turn 0 was the opening (assistant-only), so turn_count>=1 means there is a
     # real learner answer to score this turn. Capture before the graph runs.
@@ -711,78 +1482,161 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
     # Post-graph goodbye: natural farewells ("I need to head out") evade the
     # pre-graph exact-match gate. Check LLM diagnosis and close gracefully.
     if state.get("last_diagnosis", {}).get("goodbye", False):
-        state["session_over"] = True
+        _mark_terminal(state, "learner_ended")
+        state["active_game_prompt"] = None
         farewell = _farewell(state)
         state["messages"].append({"role": "assistant", "content": farewell})
-        save_sessions()
+        _finish_active_turn(state, client_turn_id, "completed")
+        await _persist_runtime_state(state)
         yield farewell
         return
+
+    prev_node = state["competency_node"]
+    progress_mastery: float | None = None
+    progress_clean_streak: int | None = None
+    progress_attempts: int | None = None
+    suppress_same_node_response = False
+    advanced_or_done = False
+    same_node_generation_failed = False
+    scored_turn_persisted = False
+    if did_eval:
+        _update_progress(state)
+        will_attempt_advance = state.get("clean_streak", 0) >= int(
+            state.get("advance_streak") or ADVANCE_STREAK
+        )
+        # BACK-07: after exactly DOWN_LADDER_FAILS consecutive hard fails, re-query
+        # weaknesses live so the NEXT turn's coach prompt surfaces fresh weak spots.
+        # Only fires at the threshold (not every fail after it) to avoid repeated DB
+        # round-trips.
+        progress_mastery = round(state["current_mastery"], 4)
+        progress_clean_streak = state.get("clean_streak", 0)
+        progress_attempts = state.get("attempts", 0)
+        if will_attempt_advance:
+            # _maybe_advance clears the scored diagnosis for the next node, so
+            # commit advancing turns before calling it. Same-node turns wait
+            # until their assistant response is safely generated.
+            await _track_turn(state, prev_node)
+            if state.get("level_fails", 0) == DOWN_LADDER_FAILS:
+                await _maybe_refresh_weaknesses(state)
+            scored_turn_persisted = True
+        await _maybe_advance(state)
+        if state["module_done"] or state["competency_node"] != prev_node:
+            advanced_or_done = True
+            # The graph prepared a same-node follow-up before the service knew
+            # this answer completed the node. Do not leak that stale exercise
+            # into the transcript; the frontend transition card owns the break.
+            state["pending"] = None
+            state["pending_game"] = None
+            suppress_same_node_response = True
 
     # Gamified path: teach_node produced a FillBlankGame instead of a GenSpec.
     # Yield the game frame directly and skip text streaming for this turn.
     # The learner's next input (filling the blank) is scored by evaluate_node
     # as a normal answer, so no special handling is needed downstream.
-    game: dict | None = state.get("pending_game")
-    if game is not None:
-        yield GamePrompt(
-            type=game.get("type", "fill_blank"),
-            sentence=game.get("sentence", ""),
-            hint=game.get("hint", ""),
-            context=game.get("context", ""),
-            answer_key=game.get("answer_key", ""),
-            options=game.get("options"),
-        )
-        # Record a minimal assistant turn so conversation history stays valid.
-        state["messages"].append({
-            "role": "assistant",
-            "content": f"[Fill in the blank] {game.get('sentence', '')}",
-        })
-        state["turn_count"] += 1
-        state["pending_game"] = None
-    else:
-        spec: GenSpec | None = state.get("pending")
-        full = []
-        if spec is not None:
-            try:
-                async for tok in stream_generation(spec):
-                    full.append(tok)
-                    yield tok
-            except Exception:
-                full = []  # discard partial; emit the fallback below
-        text = "".join(full).strip()
-        if not text:
-            text = (
-                "Sorry — I lost my train of thought for a second there. "
+    if not suppress_same_node_response:
+        game: dict | None = state.get("pending_game")
+        if game is not None:
+            public_game = {
+                "type": game.get("type", "fill_blank"),
+                "sentence": game.get("sentence", ""),
+                "hint": game.get("hint", ""),
+                "context": game.get("context", ""),
+                "options": game.get("options"),
+            }
+            yield GamePrompt(
+                type=public_game["type"],
+                sentence=public_game["sentence"],
+                hint=public_game["hint"],
+                context=public_game["context"],
+                answer_key=game.get("answer_key", ""),
+                options=public_game["options"],
+            )
+            state["active_game_prompt"] = public_game
+            # Record a minimal assistant turn so conversation history stays valid.
+            state["messages"].append({
+                "role": "assistant",
+                "content": f"[Fill in the blank] {game.get('sentence', '')}",
+            })
+            state["turn_count"] += 1
+            state["pending_game"] = None
+        else:
+            spec: GenSpec | None = state.get("pending")
+            full = []
+            fallback_text = (
+                "Sorry - I lost my train of thought for a second there. "
                 "Could you try that once more for me?"
             )
-            yield text
-        state["messages"].append({"role": "assistant", "content": text})
-        state["turn_count"] += 1
-        state["pending"] = None
+            fallback_message: dict | None = None
+            if spec is not None:
+                try:
+                    async for tok in _stream_coaching_generation(spec, state):
+                        full.append(tok)
+                        yield tok
+                except asyncio.CancelledError:
+                    if did_eval and not advanced_or_done:
+                        state.clear()
+                        state.update(pre_scored_snapshot)
+                        state["pending"] = None
+                        state["pending_game"] = None
+                        state["active_game_prompt"] = None
+                        state["last_error"] = {"code": "response_generation_cancelled"}
+                        fallback_message = {
+                            "role": "assistant",
+                            "content": fallback_text,
+                            "node_id": state.get("competency_node"),
+                            "turn_id": client_turn_id,
+                            "message_kind": "coach_fallback",
+                        }
+                        state["messages"].append(fallback_message)
+                        state["turn_count"] = int(pre_scored_snapshot.get("turn_count") or 0) + 1
+                        await _persist_runtime_state(state)
+                    raise
+                except Exception:
+                    same_node_generation_failed = did_eval and not advanced_or_done
+                    full = []  # discard partial; emit the fallback below
+            text = "".join(full).strip()
+            if not text:
+                text = fallback_text
+                yield text
+            assistant_message = {
+                "role": "assistant",
+                "content": text,
+                "node_id": state.get("competency_node"),
+                "turn_id": client_turn_id,
+                "message_kind": "coach_fallback" if same_node_generation_failed else "coach_response",
+            }
+            state["messages"].append(assistant_message)
+            state["turn_count"] += 1
+            state["pending"] = None
 
-    if did_eval:
-        prev_node = state["competency_node"]
-        # Fine-grained activity log + weakness aggregation through the dispatcher
-        # (LOCAL SQLite offline). Best-effort: never let a tracking write break a
-        # turn. Logs the answer at the node it was SCORED on (before advance).
+            if same_node_generation_failed:
+                fallback_message = assistant_message
+                state.clear()
+                state.update(pre_scored_snapshot)
+                state["pending"] = None
+                state["pending_game"] = None
+                state["active_game_prompt"] = None
+                state["last_error"] = {"code": "response_generation_failed"}
+                state["messages"].append(fallback_message)
+                state["turn_count"] = int(pre_scored_snapshot.get("turn_count") or 0) + 1
+
+    if did_eval and not advanced_or_done and not same_node_generation_failed:
+        # Same-node turns are committed only after the learner-visible assistant
+        # response has streamed successfully. If response generation fails, the
+        # fallback asks for a retry and the answer is not counted as progress.
         await _track_turn(state, prev_node)
-        _update_progress(state)
-        # BACK-07: after exactly DOWN_LADDER_FAILS consecutive hard fails, re-query
-        # weaknesses live so the NEXT turn's coach prompt surfaces fresh weak spots.
-        # Only fires at the threshold (not every fail after it) to avoid repeated DB
-        # round-trips. best-effort — storage failure must not break the turn.
         if state.get("level_fails", 0) == DOWN_LADDER_FAILS:
             await _maybe_refresh_weaknesses(state)
-        # Persist CURRENT node mastery before any advance mutates the pointer.
         await _persist_mastery(state)
-        await _maybe_advance(state)
+        scored_turn_persisted = True
 
+    if did_eval and scored_turn_persisted:
         # Emit per-turn mastery update so the UI progress bar animates mid-stream.
         yield ProgressUpdate(
             node_id=prev_node,
-            mastery=round(state["current_mastery"], 4),
-            clean_streak=state.get("clean_streak", 0),
-            attempts=state.get("attempts", 0),
+            mastery=progress_mastery or 0.0,
+            clean_streak=progress_clean_streak or 0,
+            attempts=progress_attempts or 0,
         )
 
         # Selector rationale cue: surface WHY the path adapted, on advancing
@@ -799,7 +1653,10 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
 
         if state["module_done"]:
             yield SessionRecap(
-                nodes_completed=list(state.get("node_history", {}).keys()),
+                nodes_completed=[
+                    get_node(node_id).title
+                    for node_id in state.get("node_history", {}).keys()
+                ],
                 weaknesses=state.get("weakness_context", []),
                 avg_score=round(state["current_mastery"], 4),
             )
@@ -812,7 +1669,11 @@ async def _run_turn_locked(session_id: str, user_input: str) -> AsyncIterator[st
                 from_node=prev_node, to_node=state["competency_node"]
             )
 
-    save_sessions()
+    if did_eval and scored_turn_persisted and not advanced_or_done:
+        _bump_session_version(state)
+
+    _finish_active_turn(state, client_turn_id, "completed")
+    await _persist_runtime_state(state)
 
 
 _GD_SUBSCORES = ("participation_score", "relevance_score", "language_score")
@@ -858,9 +1719,19 @@ async def close_session(session_id: str) -> dict:
     learner earned across the simulation. For coaching ("prep") sessions `report`
     is None and only the summary applies. Returning the report here is the fix for
     the recap that previously discarded every score but the one-line summary."""
-    state = SessionStore.get(session_id)
+    state = await get_session_state(session_id)
     if state is None:
         return {"summary": "", "report": None, "score": 0.0}
+    if state.get("status") == "ended":
+        return {
+            "summary": state.get("session_summary") or "",
+            "report": state.get("simulation_report"),
+            "score": float(
+                state.get("simulation_score")
+                if state.get("simulation_score") is not None
+                else state.get("current_mastery") or 0.0
+            ),
+        }
     node = get_node(state["competency_node"])
     # TEST-mode sessions are scored once over the whole transcript (deferred from
     # the streamed rounds); the report's summary is the closing summary and its
@@ -881,45 +1752,44 @@ async def close_session(session_id: str) -> dict:
             report_dict = _project_report_subscores(
                 report.model_dump(), state.get("task_type", "")
             )
+            state["simulation_report"] = report_dict
+            if report.validity_status == "final":
+                await CareerLearningProfileService(get_storage()).record_session_report(
+                    user_id=state["user_id"],
+                    session_id=session_id,
+                    report_type=state.get("task_type", "test_report"),
+                    task_type=state.get("task_type", ""),
+                    module_id=state.get("module_id", ""),
+                    report=report_dict,
+                )
         except Exception:
-            # score_session failed (model/JSON fault) or the learner quit before a
-            # scorable transcript existed. Do NOT fall through with avg_score still
-            # equal to current_mastery: a TEST session never runs the per-skill EMA,
-            # so current_mastery is ~0.0 and persisting it would silently brand the
-            # learner with a zero they never earned. Fall back to the director's
-            # grounded read (blackboard last_quality) if any round actually ran,
-            # else a neutral incomplete marker (mirrors _neutral_diagnosis's 0.5).
-            summary = ""
-            bb = state.get("blackboard") or {}
-            avg_score = (
-                bb["last_quality"] if bb.get("turn", 0) > 0 else INCOMPLETE_SCORE
-            )
+            logger.exception("simulation scoring failed for session=%s", session_id)
+            state["last_error"] = {"code": "simulation_scoring_unavailable"}
+            await _persist_runtime_state(state)
+            raise SessionScoringUnavailableError("simulation_scoring_unavailable")
     else:
         try:
             summary = await summarize_session(node, state["messages"])
         except Exception:
             summary = ""
 
-    # Close + persist long-term memory through the dispatcher (LOCAL SQLite
-    # offline). Best-effort so a storage hiccup never blocks session teardown.
-    try:
-        store = get_storage()
-        await store.end_session(
+    # Close + persist long-term memory. This is user history, not a cache; do
+    # not silently drop it if storage fails.
+    store = get_storage()
+    await store.end_session(
+        session_id,
+        final_summary=summary,
+        avg_score=avg_score,
+    )
+    if summary:
+        await store.write_memory(
+            state["user_id"],
             session_id,
-            final_summary=summary,
-            avg_score=avg_score,
+            state["competency_node"],
+            summary,
+            state.get("task_type", ""),
+            score=avg_score,
         )
-        if summary:
-            await store.write_memory(
-                state["user_id"],
-                session_id,
-                state["competency_node"],
-                summary,
-                state.get("task_type", ""),
-                score=avg_score,
-            )
-    except Exception:
-        pass
 
     # Precache the TEST sibling's probe bank now that this PREP module is done,
     # so a later TEST start opens instantly instead of blocking on generation.
@@ -953,6 +1823,12 @@ async def close_session(session_id: str) -> dict:
     )
 
     state["session_summary"] = summary
+    state["simulation_score"] = avg_score
+    state["simulation_round"] = int((state.get("blackboard") or {}).get("turn") or 0)
+    if is_test:
+        state["session_over"] = True
+    state["status"] = "ended"
+    await _persist_runtime_state(state)
     SessionStore.pop(session_id, None)
     _SESSION_LOCKS.pop(session_id, None)  # E24: don't leak a lock per closed session
     save_sessions()
@@ -967,65 +1843,126 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
     """Progression map for the user for a specific module.
     Returns the full ordered list of nodes with locked/active/mastered status.
     """
+    from app.content.registry import get_module
+
+    module = get_module(module_id)
+
+    store = get_storage()
     try:
-        from app.content.registry import get_module
-        module = get_module(module_id)
-        
-        store = get_storage()
-        # db progress
         prog = await store.get_progression(user_id)
-        prog_by_node = {p["node_id"]: p for p in prog}
-        
-        # Check active session
-        active = [s for s in SessionStore.values() if s.get("user_id") == user_id]
-        curr_node = active[0].get("competency_node") if active else None
-        curr_streak = active[0].get("clean_streak", 0) if active else 0
-
-        out = []
-        found_active = False
-
-        for node in module.nodes:
-            # Voice nodes are gated "coming soon" and excluded from placement and
-            # the advance ladder — so they must not appear on the learner's path
-            # either, or it shows steps that never unlock and a "complete" module
-            # with locked nodes trailing below it.
-            if is_voice_node(node.id):
-                continue
-            p = prog_by_node.get(node.id)
-            mastery = p["ema"] if p else 0.0
-            # node_completed: written by _maybe_advance when the user advances past
-            # this node (regardless of clean/non-clean). clean_pass is the legacy
-            # quality flag (<=2 attempts) and also signals completion for rows
-            # written before node_completed was added.
-            is_complete = bool(p.get("node_completed") or p.get("clean_pass")) if p else False
-            is_current = node.id == curr_node
-            streak = curr_streak if is_current else 0
-
-            if is_current:
-                # Active session overrides mastery display so the learner always
-                # sees their live node as "active", even when replaying a mastered node.
-                status = "active"
-            elif is_complete:
-                status = "mastered"
-            elif not found_active:
-                status = "active"
-                found_active = True
-            else:
-                status = "locked"
-
-            out.append({
-                "node_id": node.id,
-                "title": node.title,
-                "mastery": mastery,
-                "clean_streak": streak,
-                "status": status,
-            })
-        
-        return out
     except Exception as e:
-        import logging
-        logging.getLogger("zidd.session").error(f"Error in progression map: {e}")
-        return []
+        logger.exception("progression storage unavailable for user=%s module=%s", user_id, module_id)
+        raise ProgressionUnavailableError("progression_unavailable") from e
+
+    prog_by_node = {p["node_id"]: p for p in prog}
+
+    def _state_module(state: dict) -> str | None:
+        try:
+            return module_of(state.get("competency_node", ""))
+        except KeyError:
+            return None
+
+    # Check active sessions for this module. A reattempt on a completed node
+    # is exposed as metadata but must not downgrade the node's durable
+    # mastered status on the map.
+    active = [
+        s for s in SessionStore.values()
+        if s.get("user_id") == user_id
+        and s.get("status", "active") == "active"
+        and _state_module(s) == module_id
+    ]
+    primary_active = next((s for s in active if not s.get("reattempt")), None)
+    curr_node = primary_active.get("competency_node") if primary_active else None
+    curr_streak = primary_active.get("clean_streak", 0) if primary_active else 0
+    reattempt_by_node = {
+        s.get("competency_node"): s.get("session_id")
+        for s in active
+        if s.get("reattempt")
+    }
+
+    out = []
+    found_active = False
+
+    for node in module.nodes:
+        # Voice nodes are gated "coming soon" and excluded from placement and
+        # the advance ladder — so they must not appear on the learner's path
+        # either, or it shows steps that never unlock and a "complete" module
+        # with locked nodes trailing below it.
+        if is_voice_node(node.id):
+            continue
+        p = prog_by_node.get(node.id)
+        mastery = float(p.get("ema") or 0.0) if p else 0.0
+        best_mastery = float(p.get("best_ema") or mastery) if p else 0.0
+        best_independent_score = float(p.get("best_independent_score") or 0.0) if p else 0.0
+        # Career prep separates "advanced past this node" from actual mastery.
+        # Older school/communication modules keep the legacy completed=>mastered
+        # display contract. Do not let new nullable/default columns on old rows
+        # turn completed school/communication nodes back into active nodes.
+        career_prep_module = module_id in {"interview", "group_discussion"}
+        is_complete = bool(p.get("node_completed")) if p else False
+        stored_mastered = p.get("node_mastered") if p else None
+        if career_prep_module:
+            node_mastered = bool(stored_mastered)
+        else:
+            node_mastered = bool(stored_mastered) or is_complete
+        display_mastery = (
+            1.0
+            if node_mastered
+            else max(mastery, best_mastery, best_independent_score)
+        )
+        is_current = node.id == curr_node
+        streak = curr_streak if is_current else 0
+
+        stored_display_status = (
+            p.get("display_status")
+            if p and p.get("display_status")
+            else ""
+        )
+        if node_mastered:
+            status = "mastered"
+        elif is_complete and career_prep_module:
+            status = (
+                stored_display_status
+                if stored_display_status in {"ready_to_advance", "proficient", "needs_remediation"}
+                else "ready_to_advance"
+            )
+        elif is_complete:
+            status = "mastered"
+        elif stored_display_status:
+            status = stored_display_status
+        elif is_current:
+            status = "active"
+            found_active = True
+        elif not found_active:
+            status = "active"
+            found_active = True
+        else:
+            status = "locked"
+
+        out.append({
+            "node_id": node.id,
+            "title": node.title,
+            "mastery": mastery,
+            "raw_mastery": mastery,
+            "best_mastery": best_mastery,
+            "display_mastery": display_mastery,
+            "completed": is_complete,
+            "mastered": node_mastered,
+            "node_mastered": node_mastered,
+            "display_status": status,
+            "best_independent_score": best_independent_score,
+            "independent_passes": int(p.get("independent_passes") or 0) if p else 0,
+            "transfer_passes": int(p.get("transfer_passes") or 0) if p else 0,
+            "pressure_passes": int(p.get("pressure_passes") or 0) if p else 0,
+            "scaffold_successes": int(p.get("scaffold_successes") or 0) if p else 0,
+            "last_gap": p.get("last_gap", "") if p else "",
+            "mastery_evidence": list(p.get("mastery_evidence") or []) if p else [],
+            "clean_streak": streak,
+            "status": status,
+            "reattempt_session_id": reattempt_by_node.get(node.id),
+        })
+
+    return out
 
 
 async def place_user(
@@ -1164,8 +2101,46 @@ def _update_progress(state: dict) -> None:
     # (P0-6) — a learner who strayed then returned is not penalized on their next
     # stray.
     state["redirect_attempts"] = 0
-    score = state.get("last_eval_score", 0.0)
-    if score >= PASS_SCORE:
+    score = state.get("last_clean_pass_score", state.get("last_eval_score", 0.0))
+    rubric_result = state.get("last_rubric_result")
+    is_career_prep = state.get("task_type") in {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}
+    if is_career_prep and not isinstance(rubric_result, dict):
+        # Career prep must be governed by criterion-level rubric evidence. If a
+        # model/schema/runtime failure prevents that evidence from reaching the
+        # service, fail closed instead of falling back to the legacy scalar
+        # clean-streak path that caused premature "next skill ready" states.
+        state["clean_streak"] = 0
+        if score < FAIL_SCORE:
+            state["level_fails"] = state.get("level_fails", 0) + 1
+        if state.get("level_fails", 0) >= DOWN_LADDER_FAILS:
+            state["scaffold"] = 1
+        return
+    if isinstance(rubric_result, dict):
+        credit = compute_attempt_credit(
+            {
+                "node_mastered": state.get("node_mastered", False),
+                "display_status": state.get("display_status", "active"),
+                "best_independent_score": state.get("best_independent_score", 0.0),
+                "independent_passes": state.get("independent_passes", 0),
+                "transfer_passes": state.get("transfer_passes", 0),
+                "pressure_passes": state.get("pressure_passes", 0),
+                "scaffold_successes": state.get("scaffold_successes", 0),
+                "meaningful_attempts": state.get("meaningful_attempts", 0),
+                "readiness_score": state.get("readiness_score", 0.0),
+                "last_gap": state.get("last_gap", ""),
+                "mastery_evidence": state.get("mastery_evidence", []),
+            },
+            rubric_result,
+            scaffolded=bool(state.get("last_graded_bridge")),
+        )
+        state.update(credit)
+    clean_pass_eligible = score >= PASS_SCORE
+    if isinstance(rubric_result, dict):
+        clean_pass_eligible = (
+            bool(rubric_result.get("pass_eligible"))
+            and state.get("display_status") in {"ready_to_advance", "mastered"}
+        )
+    if clean_pass_eligible:
         # A correct BRIDGE fill (graded deterministically against its answer key,
         # BRIDGE_CORRECT_SCORE == PASS_SCORE) is a scaffolded sub-step, NOT a clean
         # pass at this node: it still breaks the fail streak and refunds the bridge
@@ -1175,7 +2150,13 @@ def _update_progress(state: dict) -> None:
         # already moved it past "bridge" for a >= PASS score), so gate on the
         # bridge-grade flag evaluate_node set THIS turn.
         if not state.get("last_graded_bridge"):
-            state["clean_streak"] = state.get("clean_streak", 0) + 1
+            if isinstance(rubric_result, dict):
+                state["clean_streak"] = max(
+                    state.get("clean_streak", 0) + 1,
+                    int(state.get("advance_streak") or ADVANCE_STREAK),
+                )
+            else:
+                state["clean_streak"] = state.get("clean_streak", 0) + 1
         state["level_fails"] = 0
         state["strengthen_attempts"] = 0
         # Clean pass: the learner climbed out of bridge (sub-0.4) territory, so the
@@ -1218,7 +2199,12 @@ async def _maybe_advance(state: dict) -> None:
         return
 
     node_id = state["competency_node"]
-    clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS
+    is_career_prep = state.get("task_type") in {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}
+    clean = (
+        bool(state.get("node_mastered"))
+        if is_career_prep
+        else state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS
+    )
     state["node_history"][node_id] = {"attempts": state["attempts"], "clean": clean}
     state["remediation"] = _passrate_below_floor(state)
 
@@ -1226,31 +2212,42 @@ async def _maybe_advance(state: dict) -> None:
     candidates = compute_valid_candidates(state)
     if not candidates:
         state["module_done"] = True
+        _mark_terminal(state, "module_done")
         # Module finished above the clean-rate floor -> surface a review section.
         state["review_level"] = not state["remediation"]
         # Mark the last node as completed in the DB on module finish.
-        try:
-            await get_storage().upsert_mastery(
-                state["user_id"],
-                node_id,
-                state["current_mastery"],
-                state["attempts"],
-                clean,
-                node_completed=True,
-            )
-        except Exception:
-            pass
+        await get_storage().upsert_mastery(
+            state["user_id"],
+            node_id,
+            state["current_mastery"],
+            state["attempts"],
+            clean,
+            node_completed=True,
+            node_mastered=bool(state.get("node_mastered")) if is_career_prep else clean,
+            display_status=(
+                state.get("display_status") or "ready_to_advance"
+                if is_career_prep
+                else "mastered" if clean else "completed"
+            ),
+            best_independent_score=state.get("best_independent_score", 0.0),
+            independent_passes=state.get("independent_passes", 0),
+            transfer_passes=state.get("transfer_passes", 0),
+            pressure_passes=state.get("pressure_passes", 0),
+            scaffold_successes=state.get("scaffold_successes", 0),
+            last_gap=state.get("last_gap", ""),
+            mastery_evidence=state.get("mastery_evidence", []),
+        )
         return
 
     if len(candidates) == 1:
-        # Fast path: single valid candidate. Reproduces the old linear advance
+        # Fast path: deterministic next step. Reproduces the old linear advance
         # exactly — no LLM call (Spec B: never call the model with one candidate).
         cand = candidates[0]
         decision = SelectionDecision(
             action=cand["action"],
             next_ref=cand["next_ref"],
             band=cand.get("band", "standard"),
-            rationale="single valid candidate",
+            rationale="ready for the next skill",
         )
     else:
         # Stage 2: more than one candidate -> one structured LLM call, then
@@ -1275,19 +2272,30 @@ async def _maybe_advance(state: dict) -> None:
         state["clean_streak"] = 0
         return
 
-    # Mark the completed node in the DB so the progression map can show it as
-    # mastered on the next visit, regardless of clean_pass quality.
-    try:
-        await get_storage().upsert_mastery(
-            state["user_id"],
-            node_id,
-            state["current_mastery"],
-            state["attempts"],
-            clean,
-            node_completed=True,
-        )
-    except Exception:
-        pass
+    # Mark the completed node in the DB. Career prep stores "ready/proficient"
+    # separately from true mastery; legacy modules still pass mastered status
+    # through the non-career branch below.
+    await get_storage().upsert_mastery(
+        state["user_id"],
+        node_id,
+        state["current_mastery"],
+        state["attempts"],
+        clean,
+        node_completed=True,
+        node_mastered=bool(state.get("node_mastered")) if is_career_prep else clean,
+        display_status=(
+            state.get("display_status") or "ready_to_advance"
+            if is_career_prep
+            else "mastered" if clean else "completed"
+        ),
+        best_independent_score=state.get("best_independent_score", 0.0),
+        independent_passes=state.get("independent_passes", 0),
+        transfer_passes=state.get("transfer_passes", 0),
+        pressure_passes=state.get("pressure_passes", 0),
+        scaffold_successes=state.get("scaffold_successes", 0),
+        last_gap=state.get("last_gap", ""),
+        mastery_evidence=state.get("mastery_evidence", []),
+    )
 
     # Fast clean advance (cleared the node within the clean-pass cap) earns a
     # harder tester stretch on the next node; a grind-it-out advance does not.
@@ -1299,6 +2307,20 @@ async def _maybe_advance(state: dict) -> None:
     # slate so a normal advance always starts the new node section-clean.
     state["review_level"] = False
     # advance: fresh mastery/attempt/streak counters for the next node
+    transition = {
+        "transition_id": uuid.uuid4().hex,
+        "from_node": node_id,
+        "from_title": get_node(node_id).title,
+        "from_display_status": state.get("display_status", "active"),
+        "from_node_mastered": bool(state.get("node_mastered", False)),
+        "from_last_gap": state.get("last_gap", ""),
+        "to_node": decision.next_ref,
+        "to_title": get_node(decision.next_ref).title,
+        "status": "awaiting_next_opening",
+        "created_at": time.time(),
+        "attempts": 0,
+        "last_error": None,
+    }
     state["competency_node"] = decision.next_ref
     state["current_mastery"] = 0.0
     state["attempts"] = 0
@@ -1314,7 +2336,26 @@ async def _maybe_advance(state: dict) -> None:
     state["scaffold"] = 0
     state["needs_support"] = False
     state["last_diagnosis"] = {}
+    state["last_rubric_result"] = None
+    state["tutor_turn_plan"] = None
     state["last_eval_score"] = 0.0
+    state["last_clean_pass_score"] = 0.0
+    state["node_mastered"] = False
+    state["display_status"] = "active"
+    state["best_independent_score"] = 0.0
+    state["independent_passes"] = 0
+    state["transfer_passes"] = 0
+    state["pressure_passes"] = 0
+    state["scaffold_successes"] = 0
+    state["meaningful_attempts"] = 0
+    state["readiness_score"] = 0.0
+    state["last_gap"] = ""
+    state["mastery_evidence"] = []
+    state["opening_streamed"] = False
+    state["pending_node_transition"] = transition
+    state["input_allowed"] = False
+    state["block_reason"] = "awaiting_next_skill"
+    state["session_version"] = int(state.get("session_version") or 1) + 1
 
 
 def _passrate_below_floor(state: dict) -> bool:
@@ -1328,10 +2369,8 @@ def _passrate_below_floor(state: dict) -> bool:
 async def _track_turn(state: dict, node_id: str) -> None:
     """Log the scored answer + aggregate a weakness, through the dispatcher.
 
-    Best-effort: a storage hiccup must never abort a learner's turn. Works
-    OFFLINE — get_storage() returns the LOCAL SQLite backend on qwen-dev, so
-    turns/weaknesses accumulate even with Postgres down. This is the
-    felt-personalization fix: the old _db() path was a silent no-op offline."""
+    Storage failure is a real product error: losing turns/weaknesses breaks
+    personalization, progress, and assessment targeting."""
     diag = state.get("last_diagnosis", {})
     score = state.get("last_eval_score", 0.0)
     on_task = diag.get("on_task", True)
@@ -1347,65 +2386,100 @@ async def _track_turn(state: dict, node_id: str) -> None:
         "on_task": on_task,
         "english": english,
         "last_eval_score": score,
+        "scaffolded": bool(state.get("last_graded_bridge")),
     }
-    try:
-        store = get_storage()
-        await store.record_turn(
-            state["session_id"],
-            state["user_id"],
-            node_id,
-            score,
-            on_task=on_task,
-            english=english,
-            affect=affect,
+    store = get_storage()
+    await store.record_turn(
+        state["session_id"],
+        state["user_id"],
+        node_id,
+        score,
+        on_task=on_task,
+        english=english,
+        affect=affect,
+    )
+    rubric_result = state.get("last_rubric_result") or {}
+    tutor_plan = state.get("tutor_turn_plan") or {}
+    if rubric_result and hasattr(store, "record_turn_evaluation"):
+        turn_id = state.get("active_turn_id") or state.get("last_turn_id")
+        attempt_index = int(state.get("attempts") or 0)
+        await store.record_turn_evaluation(
+            evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
+            session_id=state["session_id"],
+            user_id=state["user_id"],
+            node_id=node_id,
+            turn_id=turn_id,
+            attempt_index=attempt_index,
+            attempt_type=str(rubric_result.get("attempt_type") or "independent"),
+            user_answer=str(state.get("user_input") or ""),
+            rubric_version="prep-rubric-v1",
+            raw_score=float(rubric_result.get("raw_score", rubric_result.get("score", score)) or 0.0),
+            effective_score=float(rubric_result.get("effective_score", score) or 0.0),
+            criteria_json=list(rubric_result.get("criteria") or []),
+            blockers=list(rubric_result.get("blockers") or []),
+            pass_eligible=bool(rubric_result.get("pass_eligible")),
+            advance_eligible=state.get("display_status") in {"ready_to_advance", "mastered"},
+            mastery_eligible=bool(rubric_result.get("mastery_eligible")),
+            tutor_plan_json=dict(tutor_plan),
+            model_name=get_settings().ollama_model if get_settings().ai_backend == "local" else "gemini",
+            prompt_version="prep-eval-v1",
         )
-        # A genuinely weak answer aggregates a weakness row keyed by SkillID.
-        # Skip the fluent-but-off-task case (competent English to the wrong
-        # question is not a skill weakness — mirrors _update_progress's guard).
-        if score < FAIL_SCORE and not (english and not on_task):
-            # Non-English answers are a language weakness regardless of next_focus;
-            # otherwise coerce the model's focus hint onto the closed taxonomy.
-            skill_id = (
-                "LANGUAGE_NOT_ENGLISH"
-                if not english
-                else coerce_skill_id(diag.get("next_focus", ""))
-            )
-            await store.bump_weakness(
-                state["user_id"],
-                state.get("task_type", ""),
-                skill_id,
-                score,
-                raw=diag.get("next_focus", ""),
-            )
-    except Exception:
-        pass
+        await CareerLearningProfileService(store).record_prep_turn_evaluation(
+            evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
+            state=state,
+            rubric_result=dict(rubric_result),
+            tutor_plan=dict(tutor_plan),
+            user_answer=str(state.get("user_input") or ""),
+            attempt_index=attempt_index,
+        )
+    # A genuinely weak answer aggregates a weakness row keyed by SkillID.
+    # Skip the fluent-but-off-task case (competent English to the wrong
+    # question is not a skill weakness — mirrors _update_progress's guard).
+    if score < FAIL_SCORE and not (english and not on_task):
+        # Non-English answers are a language weakness regardless of next_focus;
+        # otherwise coerce the model's focus hint onto the closed taxonomy.
+        skill_id = (
+            "LANGUAGE_NOT_ENGLISH"
+            if not english
+            else coerce_skill_id(diag.get("next_focus", ""))
+        )
+        await store.bump_weakness(
+            state["user_id"],
+            state.get("task_type", ""),
+            skill_id,
+            score,
+            raw=diag.get("next_focus", ""),
+        )
 
 
-async def _load_or_generate_probe_items(user_id: str, task_type: str) -> list[dict]:
+async def _load_or_generate_probe_items(
+    user_id: str,
+    task_type: str,
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
+    context_hash: str = "default",
+) -> list[dict]:
     """Probe bank for a TEST session: precache first, else regenerate (sync).
 
     Reads the bank precomputed at the PREP sibling's end_session, honouring the
     TTL so a drifted entry counts as a miss. On miss/stale, generates inline and
-    writes it back so a later start in the same window is fast. Best-effort: any
-    storage/generation hiccup degrades to the deterministic fallback bank rather
-    than blocking the session from opening. Returns list[dict] (JSON-persistable
-    on TutorState); ProbeItem objects are projected via model_dump()."""
-    try:
-        store = get_storage()
-        cached = await store.get_cached_test_items(
-            user_id, task_type, max_age=TEST_ITEM_TTL
-        )
-        if cached:
-            return cached
-    except Exception:
-        store = None
-    items = await generate_test_items(user_id, task_type)
+    writes it back so a later start in the same window is fast. Returns
+    list[dict] (JSON-persistable on TutorState); ProbeItem objects are projected
+    via model_dump()."""
+    store = get_storage()
+    cached = await store.get_cached_test_items(
+        user_id, task_type, context_hash=context_hash, max_age=TEST_ITEM_TTL
+    )
+    if cached:
+        return cached
+    items = await generate_test_items(
+        user_id,
+        task_type,
+        career_context=career_context or {},
+        scenario_config=scenario_config or {},
+    )
     dicts = [it.model_dump() for it in items]
-    if store is not None:
-        try:
-            await store.cache_test_items(user_id, task_type, dicts)
-        except Exception:
-            pass
+    await store.cache_test_items(user_id, task_type, dicts, context_hash=context_hash)
     return dicts
 
 
@@ -1415,18 +2489,23 @@ async def _precache_test_items(state: dict) -> None:
     Resolves the distinct test sibling via test_counterpart; value-equality means
     the module has no assessment variant (single-mode / already a test value), so
     there is nothing to precache and we skip. Best-effort: never let a precache
-    miss break session teardown."""
+    miss break session teardown. The caller catches and logs this optimization."""
     prep_tt = state.get("task_type", "")
     test_tt = test_counterpart(prep_tt)
     if test_tt == prep_tt:
         return  # no distinct TEST sibling -> nothing to precache
-    try:
-        items = await generate_test_items(state["user_id"], test_tt)
-        await get_storage().cache_test_items(
-            state["user_id"], test_tt, [it.model_dump() for it in items]
-        )
-    except Exception:
-        pass
+    items = await generate_test_items(
+        state["user_id"],
+        test_tt,
+        career_context=state.get("career_context") or {},
+        scenario_config=state.get("scenario_config") or {},
+    )
+    await get_storage().cache_test_items(
+        state["user_id"],
+        test_tt,
+        [it.model_dump() for it in items],
+        context_hash=state.get("context_hash") or "default",
+    )
 
 
 async def _maybe_refresh_weaknesses(state: dict) -> None:
@@ -1436,33 +2515,35 @@ async def _maybe_refresh_weaknesses(state: dict) -> None:
     Refreshing here means the NEXT turn's coach prompt gets a live weakness
     snapshot (new bumps from THIS session included), not just the session-start
     load. prep_counterpart normalises test sessions to their prep sibling's key."""
-    try:
-        store = get_storage()
-        task_type = state.get("task_type", "")
-        weakness_key = prep_counterpart(task_type)
-        fresh = await store.get_weaknesses(state["user_id"], weakness_key)
-        if fresh:
-            state["weakness_context"] = fresh
-    except Exception:
-        pass
+    store = get_storage()
+    task_type = state.get("task_type", "")
+    weakness_key = prep_counterpart(task_type)
+    fresh = await store.get_weaknesses(state["user_id"], weakness_key)
+    if fresh:
+        state["weakness_context"] = fresh
 
 
 async def _persist_mastery(state: dict) -> None:
-    """Persist current-node mastery via the dispatcher (best-effort, offline-ok)."""
-    try:
-        # clean_pass = completed within the attempt cap (quality signal).
-        # The EMA gate was removed: EMA alpha 0.3 cannot reach 0.8 in <=2 turns,
-        # making that gate unreachable and always forcing clean_pass = False.
-        clean = state["attempts"] <= CLEAN_PASS_MAX_ATTEMPTS
-        await get_storage().upsert_mastery(
-            state["user_id"],
-            state["competency_node"],
-            state["current_mastery"],
-            state["attempts"],
-            clean,
-        )
-    except Exception:
-        pass
+    """Persist current-node mastery."""
+    # In-progress rows must never persist clean_pass. clean_pass is only written
+    # by _maybe_advance when node_completed=True, otherwise it falsely marks a
+    # weak/incomplete node as mastered across progress, billing, and tiles.
+    await get_storage().upsert_mastery(
+        state["user_id"],
+        state["competency_node"],
+        state["current_mastery"],
+        state["attempts"],
+        False,
+        node_mastered=bool(state.get("node_mastered", False)),
+        display_status=state.get("display_status", "active"),
+        best_independent_score=state.get("best_independent_score", 0.0),
+        independent_passes=state.get("independent_passes", 0),
+        transfer_passes=state.get("transfer_passes", 0),
+        pressure_passes=state.get("pressure_passes", 0),
+        scaffold_successes=state.get("scaffold_successes", 0),
+        last_gap=state.get("last_gap", ""),
+        mastery_evidence=state.get("mastery_evidence", []),
+    )
 
 
 # ---------- conversational helpers (teacher-feel) ----------

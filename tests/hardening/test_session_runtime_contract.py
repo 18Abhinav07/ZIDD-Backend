@@ -1,0 +1,4497 @@
+import asyncio
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+AUTH = {"Authorization": "Bearer test_token"}
+
+
+async def _collect_stream(stream):
+    chunks = []
+    async for item in stream:
+        chunks.append(item)
+    return chunks
+
+
+def _passing_prep_rubric_result(attempt_type: str = "independent") -> dict:
+    return {
+        "raw_score": 0.86,
+        "effective_score": 0.86,
+        "understanding": "Specific, relevant answer.",
+        "criteria": [
+            {
+                "id": "answers_question",
+                "met": True,
+                "quality": 0.9,
+                "evidence_quote": "strong answer",
+                "reason": "",
+            },
+            {
+                "id": "specific_detail",
+                "met": True,
+                "quality": 0.86,
+                "evidence_quote": "strong answer",
+                "reason": "",
+            },
+            {
+                "id": "pitch_structure",
+                "met": True,
+                "quality": 0.86,
+                "evidence_quote": "strong answer",
+                "reason": "",
+            },
+        ],
+        "required_missing": [],
+        "blockers": [],
+        "strengths": ["specific enough to practise independently"],
+        "errors": [],
+        "next_focus": "try a harder follow-up",
+        "on_task": True,
+        "english": True,
+        "affect": "confident",
+        "goodbye": False,
+        "pass_eligible": True,
+        "mastery_eligible": False,
+        "attempt_type": attempt_type,
+    }
+
+
+@pytest.mark.asyncio
+async def test_downward_smoothing_cannot_promote_partial_answer_to_clean_pass(monkeypatch):
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+    from app.services import session_service as svc
+
+    async def partial_answer(*_args, **_kwargs):
+        return DiagnosisEval(
+            score=0.5,
+            understanding="Partial answer.",
+            errors=["missing the specific evidence required"],
+            strengths=["attempted the skill"],
+            next_focus="add a concrete example",
+            on_task=True,
+            english=True,
+        )
+
+    monkeypatch.setattr(eval_node, "evaluate_answer", partial_answer)
+    state = svc._new_state("user-1", "clean-pass-state", "gd_08_include_quiet", [])
+    state["user_input"] = "Rahul, what do you think?"
+    state["last_eval_score"] = 1.0
+    state["current_mastery"] = 0.8
+
+    updates = await eval_node.evaluate_node(state)
+    state.update(updates)
+    svc._update_progress(state)
+
+    assert state["last_eval_score"] == 0.7
+    assert state["last_clean_pass_score"] == 0.5
+    assert state["clean_streak"] == 0
+
+
+def test_correct_bridge_fill_does_not_increment_clean_streak_current_hardening_suite():
+    from app.graph.nodes import evaluate as eval_node
+    from app.services import session_service as svc
+
+    state = svc._new_state("user-1", "bridge-state", "int_06_failure_story", [])
+    state["current_mastery"] = 0.2
+    state["pending_answer_key"] = {"type": "fill_blank", "answer_key": "owned"}
+    state["user_input"] = "owned"
+
+    updates = eval_node._result(
+        state,
+        eval_node.grade_pending_answer(state["pending_answer_key"], state["user_input"]),
+        smooth=False,
+        clear_pending=True,
+        graded_bridge=True,
+    )
+    state.update(updates)
+    svc._update_progress(state)
+
+    assert state["last_eval_score"] == 0.7
+    assert state["last_clean_pass_score"] == 0.7
+    assert state["last_graded_bridge"] is True
+    assert state["clean_streak"] == 0
+
+
+def test_gd_prep_generic_quiet_invite_cannot_clean_pass():
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+
+    diagnosis = DiagnosisEval(
+        score=0.9,
+        understanding="The learner invited someone.",
+        errors=[],
+        strengths=["named a participant"],
+        next_focus="keep inviting quiet voices",
+        on_task=True,
+        english=True,
+    )
+
+    gated = eval_node._apply_gd_minimum_gate(
+        "gd_08_include_quiet",
+        "Rahul, what do you think?",
+        diagnosis,
+    )
+
+    assert gated.score == 0.6
+    assert any("too generic" in error for error in gated.errors)
+
+
+def test_gd_prep_stake_position_question_back_cannot_clean_pass():
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+
+    diagnosis = DiagnosisEval(
+        score=0.85,
+        understanding="The learner responded.",
+        errors=[],
+        strengths=[],
+        next_focus="state a position",
+        on_task=True,
+        english=True,
+    )
+
+    gated = eval_node._apply_gd_minimum_gate(
+        "gd_01_stake_position",
+        "Rahul, what do you think about this topic?",
+        diagnosis,
+    )
+
+    assert gated.score == 0.6
+    assert any("clear committed position" in error for error in gated.errors)
+
+
+def test_gd_prep_support_requires_concrete_support_marker():
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+
+    diagnosis = DiagnosisEval(
+        score=0.8,
+        understanding="The learner repeated a stance.",
+        errors=[],
+        strengths=["had a stance"],
+        next_focus="add evidence",
+        on_task=True,
+        english=True,
+    )
+
+    gated = eval_node._apply_gd_minimum_gate(
+        "gd_02_support_with_evidence",
+        "I support remote work. It is very good and I feel strongly about it.",
+        diagnosis,
+    )
+
+    assert gated.score == 0.6
+    assert any("concrete support" in error for error in gated.errors)
+
+
+def test_interview_star_complete_answer_gets_clean_pass_floor():
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+
+    diagnosis = DiagnosisEval(
+        score=0.55,
+        understanding="The learner gave a concrete project story.",
+        errors=["make the transition to result clearer"],
+        strengths=["specific backend project"],
+        next_focus="connect action to result",
+        on_task=True,
+        english=True,
+    )
+
+    gated = eval_node._apply_interview_minimum_gate(
+        "int_04_star_behavioral",
+        (
+            "In a checkout reliability project, support could see failed payments "
+            "but engineering had to manually connect payment events, queue retries, "
+            "and API errors. My task was to make the failure flow understandable "
+            "for product and support. I mapped the failure states, added retry "
+            "and error signals, built a dashboard, and walked support through the "
+            "trade-offs using simple diagrams. As a result, support could identify "
+            "where checkouts failed faster and engineering reduced repeat incidents."
+        ),
+        diagnosis,
+    )
+
+    assert gated.score == 0.7
+    assert any("STAR" in strength for strength in gated.strengths)
+    assert "connect action to result" in gated.next_focus
+
+
+def test_interview_star_partial_action_does_not_get_clean_pass_floor():
+    from app.ai.schemas import DiagnosisEval
+    from app.graph.nodes import evaluate as eval_node
+
+    diagnosis = DiagnosisEval(
+        score=0.55,
+        understanding="The learner gave one action detail.",
+        errors=["missing situation, task, and result"],
+        strengths=["specific action"],
+        next_focus="build the full STAR story",
+        on_task=True,
+        english=True,
+    )
+
+    gated = eval_node._apply_interview_minimum_gate(
+        "int_04_star_behavioral",
+        "I checked regional traffic windows with on-call and used a rollback checklist.",
+        diagnosis,
+    )
+
+    assert gated.score == 0.55
+    assert "missing situation, task, and result" in gated.errors
+
+
+def test_eval_prompt_threads_career_context_into_interview_grading():
+    from app.ai.prompts import build_eval_prompt
+    from app.content.registry import get_node
+
+    prompt = build_eval_prompt(
+        get_node("int_04_star_behavioral"),
+        [],
+        "I built a checkout reliability dashboard and explained the trade-offs.",
+        career_context={
+            "primary_role": "Backend Software Engineer",
+            "role_family": "software_technical",
+            "resume_facts": ["Built FastAPI checkout reliability dashboards"],
+        },
+    )
+
+    assert "Backend Software Engineer" in prompt
+    assert "FastAPI checkout reliability dashboards" in prompt
+    assert "Do not under-score" in prompt
+
+
+def test_coach_block_warns_against_celebratory_praise_after_weak_answer():
+    from app.ai.prompts import _coach_block, coach_view
+
+    coach = coach_view({
+        "last_eval_score": 0.4,
+        "last_clean_pass_score": 0.4,
+        "last_diagnosis": {
+            "affect": "neutral",
+            "english": True,
+            "on_task": True,
+        },
+    })
+
+    block = _coach_block(coach)
+
+    assert "last answer was weak" in block.lower()
+    assert "do not open with celebratory praise" in block.lower()
+    assert "correction first" in block.lower()
+
+
+def test_coach_block_treats_correct_bridge_answer_as_scaffolded_recovery_not_mastery():
+    from app.ai.prompts import _coach_block, coach_view
+
+    coach = coach_view({
+        "last_eval_score": 0.7,
+        "last_clean_pass_score": 0.7,
+        "last_graded_bridge": True,
+        "scaffold": 2,
+        "last_diagnosis": {
+            "affect": "confident",
+            "english": True,
+            "on_task": True,
+        },
+    })
+
+    block = _coach_block(coach).lower()
+
+    assert "scaffolded bridge answer" in block
+    assert "not a full clean pass" in block
+    assert "do not frame it as mastery" in block
+    assert "do not open with celebratory praise" in block
+    assert "do not give a near-complete answer" in block
+    assert "scaffold hard" not in block
+
+
+def test_coaching_stream_sanitizes_celebratory_praise_after_scaffolded_recovery():
+    from app.services.session_service import _sanitize_coaching_opening_praise
+
+    text = (
+        "Nice touch, Raptor! You nailed the bridge. Now try the same move "
+        "without the scaffold."
+    )
+    state = {
+        "task_type": "gd_prep",
+        "last_eval_score": 0.7,
+        "last_clean_pass_score": 0.7,
+        "last_graded_bridge": True,
+    }
+
+    sanitized = _sanitize_coaching_opening_praise(text, state, "teach")
+
+    assert not sanitized.lower().startswith((
+        "great job",
+        "good job",
+        "nice",
+        "well done",
+        "excellent",
+        "awesome",
+    ))
+    assert "not the whole skill yet" in sanitized
+    assert "without the scaffold" in sanitized
+
+
+def test_coaching_stream_sanitizes_great_start_for_borderline_pass():
+    from app.services.session_service import _sanitize_coaching_response
+
+    text = (
+        "Great start, Raptor QA! You recognized both sides. For example: "
+        '"While there is a valid concern that AI may miss context, on balance '
+        'its consistency makes it worth using." Now try your own version.'
+    )
+    state = {
+        "task_type": "gd_prep",
+        "last_eval_score": 0.7,
+        "last_clean_pass_score": 0.7,
+        "last_graded_bridge": False,
+    }
+
+    sanitized = _sanitize_coaching_response(text, state, "teach")
+
+    assert not sanitized.lower().startswith("great start")
+    assert "on the right track" in sanitized.lower()
+    assert "for example" not in sanitized.lower()
+    assert "while there is a valid concern" not in sanitized.lower()
+    assert "your own" in sanitized.lower()
+
+
+def test_coaching_sanitizer_preserves_ordinary_example_word():
+    from app.services.session_service import _sanitize_coaching_response
+
+    text = (
+        "Let's focus on crafting a concise pitch by including one concrete "
+        "example. Keep it focused on your backend work."
+    )
+    state = {
+        "task_type": "interview_prep",
+        "last_eval_score": 0.2,
+        "last_clean_pass_score": 0.2,
+        "last_graded_bridge": False,
+    }
+
+    sanitized = _sanitize_coaching_response(text, state, "teach")
+
+    assert "one concrete example" in sanitized
+    assert "concrete Keep it" not in sanitized
+
+
+def test_coaching_sanitizer_removes_effectively_highlighted_praise_on_weak_turn():
+    from app.services.session_service import _sanitize_coaching_response
+
+    state = {
+        "task_type": "interview_prep",
+        "last_eval_score": 0.5,
+        "last_clean_pass_score": 0.5,
+        "last_graded_bridge": False,
+    }
+
+    sanitized = _sanitize_coaching_response(
+        "You effectively highlighted your strength in explaining production "
+        "tradeoffs. However, let's refine how you tie this back to your career goal.",
+        state,
+        "teach",
+    )
+    pitch_sanitized = _sanitize_coaching_response(
+        "Your pitch effectively highlighted your strength in explaining production "
+        "tradeoffs. However, let's refine how you tie this back to your career goal.",
+        state,
+        "teach",
+    )
+    demonstrates_sanitized = _sanitize_coaching_response(
+        "Your pitch effectively demonstrates your ability to turn technical signals "
+        "into actionable insights. However, let's refine how you tie this back to your career goal.",
+        state,
+        "teach",
+    )
+
+    assert not sanitized.lower().startswith("you effectively highlighted")
+    assert sanitized.startswith("Let's tighten this.")
+    assert "tie this back to your career goal" in sanitized
+    assert not pitch_sanitized.lower().startswith("your pitch effectively highlighted")
+    assert pitch_sanitized.startswith("Let's tighten this.")
+    assert not demonstrates_sanitized.lower().startswith("your pitch effectively demonstrates")
+    assert demonstrates_sanitized.startswith("Let's tighten this.")
+
+
+def test_coaching_stream_removes_imagine_sample_after_scaffolded_recovery():
+    from app.services.session_service import _sanitize_coaching_response
+
+    text = (
+        "You did well by sticking to the format. Imagine you improved a system's "
+        "performance by optimizing database queries. Instead of saying \"I helped "
+        "improve performance,\" describe how query times went from 5 seconds to "
+        "under 1 second. Now, apply this approach to the checkout API timeouts."
+    )
+    state = {
+        "task_type": "interview_prep",
+        "last_eval_score": 0.7,
+        "last_clean_pass_score": 0.7,
+        "last_graded_bridge": True,
+    }
+
+    sanitized = _sanitize_coaching_response(text, state, "teach")
+
+    assert "imagine you improved" not in sanitized.lower()
+    assert "instead of saying" not in sanitized.lower()
+    assert "5 seconds" not in sanitized.lower()
+    assert "checkout API timeouts" in sanitized
+
+
+def test_gd_coaching_sanitizer_replaces_generic_topic_drift():
+    from app.services.session_service import _sanitize_coaching_response
+
+    text = (
+        "You did well by recognizing the drift. Here's how you might do this in a "
+        "different context: \"We've wandered a bit - let's get back to our original "
+        "discussion on remote work policies. What are your thoughts on implementing "
+        "mandatory daily check-ins?\" Now apply this to the main topic."
+    )
+    state = {
+        "task_type": "gd_prep",
+        "competency_node": "gd_09_steer_derailed",
+        "last_eval_score": 0.7,
+        "last_clean_pass_score": 0.7,
+        "last_graded_bridge": True,
+        "career_context": {
+            "gd_topics": ["Should AI replace campus placement interviews in India?"],
+        },
+    }
+
+    sanitized = _sanitize_coaching_response(text, state, "teach")
+
+    assert "remote work" not in sanitized.lower()
+    assert "mandatory daily check-ins" not in sanitized.lower()
+    assert "AI replacing campus placement interviews in India" in sanitized
+
+
+def test_gd_topic_with_profile_forces_full_response_sanitizer():
+    from app.services.session_service import _needs_full_coaching_sanitize
+
+    assert _needs_full_coaching_sanitize(
+        {
+            "task_type": "gd_prep",
+            "competency_node": "gd_02_support_with_evidence",
+            "last_eval_score": 0.95,
+            "career_context": {"gd_topics": ["AI in hiring"]},
+        },
+        "challenge",
+    )
+
+
+def test_coaching_stream_keeps_earned_challenge_praise_for_high_score():
+    from app.services.session_service import _sanitize_coaching_opening_praise
+
+    text = "Great job, Raptor! Now let's make this harder."
+    state = {
+        "task_type": "interview_prep",
+        "last_eval_score": 0.92,
+        "last_clean_pass_score": 0.92,
+        "last_graded_bridge": False,
+    }
+
+    assert _sanitize_coaching_opening_praise(text, state, "challenge") == text
+
+
+def test_coach_block_treats_borderline_pass_as_refinement_not_celebration():
+    from app.ai.prompts import _coach_block
+
+    block = _coach_block({"recent_score": 0.7}).lower()
+
+    assert "borderline" in block
+    assert "do not open with celebratory praise" in block
+    assert "do not give a complete sample answer" in block
+
+
+@pytest.mark.asyncio
+async def test_node_advance_sets_pending_transition_and_blocks_stale_turns():
+    from app.services import session_service as svc
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["current_mastery"] = 0.8
+    state["last_eval_score"] = 0.8
+    state["last_diagnosis"] = {"english": True, "on_task": True, "affect": "confident"}
+    state["attempts"] = 2
+    state["session_attempts"] = 2
+    state["clean_streak"] = 2
+
+    await svc._maybe_advance(state)
+
+    transition = state.get("pending_node_transition")
+    assert transition is not None
+    assert transition["from_node"] == "int_01_elevator_pitch"
+    assert transition["to_node"] == "int_02_strength_with_evidence"
+    assert transition["to_title"]
+    assert transition["status"] == "awaiting_next_opening"
+    assert state["input_allowed"] is False
+    assert state["block_reason"] == "awaiting_next_skill"
+
+    with pytest.raises(svc.AwaitingNextSkillError):
+        await _collect_stream(svc.run_turn(session_id, "I should not be graded yet."))
+
+
+@pytest.mark.asyncio
+async def test_pending_transition_opening_is_idempotent(monkeypatch, store):
+    from app.services import session_service as svc
+
+    async def fake_stream_generation(_spec):
+        yield "Next skill opening."
+
+    monkeypatch.setattr(svc, "stream_generation", fake_stream_generation)
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["current_mastery"] = 0.8
+    state["last_eval_score"] = 0.8
+    state["last_diagnosis"] = {"english": True, "on_task": True, "affect": "confident"}
+    state["attempts"] = 2
+    state["session_attempts"] = 2
+    state["clean_streak"] = 2
+    await svc._maybe_advance(state)
+    transition_id = state["pending_node_transition"]["transition_id"]
+
+    first = await _collect_stream(svc.stream_opening(session_id, transition_id=transition_id))
+    second = await _collect_stream(svc.stream_opening(session_id, transition_id=transition_id))
+
+    assistant_messages = [
+        m for m in state["messages"]
+        if m.get("role") == "assistant" and m.get("transition_id") == transition_id
+    ]
+    assert first == ["Next skill opening."]
+    assert second == ["Next skill opening."]
+    assert len(assistant_messages) == 1
+    assert len(store.node_attempts) == 1
+    assert store.node_attempts[session_id]["competency_node"] == "int_02_strength_with_evidence"
+    assert state["pending_node_transition"] is None
+    assert state["input_allowed"] is True
+    assert state["block_reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_opening_fallback_does_not_praise_without_model_text(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+
+    session_id, _state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    chunks = await _collect_stream(svc.stream_opening(session_id))
+    text = "".join(chunks).lower()
+
+    assert "nice work" not in text
+    assert "great job" not in text
+    assert "ready" in text or "begin" in text
+
+
+@pytest.mark.asyncio
+async def test_advancing_turn_progress_update_uses_completed_node_values(monkeypatch):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.9,
+                "last_clean_pass_score": 0.9,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "last_rubric_result": _passing_prep_rubric_result("transfer"),
+                "current_mastery": 0.8,
+                "attempts": 5,
+            }
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["clean_streak"] = 1
+    state["meaningful_attempts"] = 4
+    state["independent_passes"] = 1
+    state["best_independent_score"] = 0.82
+
+    chunks = await _collect_stream(svc.run_turn(session_id, "A strong answer."))
+    progress = [item for item in chunks if isinstance(item, svc.ProgressUpdate)]
+
+    assert len(progress) == 1
+    assert progress[0].node_id == "int_01_elevator_pitch"
+    assert progress[0].mastery == 0.8
+    assert progress[0].clean_streak == 2
+    assert progress[0].attempts == 5
+    assert state["competency_node"] == "int_02_strength_with_evidence"
+
+
+@pytest.mark.asyncio
+async def test_same_node_generation_failure_persists_fallback_without_progress(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.8,
+                "last_clean_pass_score": 0.8,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "current_mastery": 0.24,
+                "attempts": 1,
+                "session_attempts": 1,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="coach the learner",
+                    kind="coach",
+                ),
+            }
+
+    async def failing_generation(_spec):
+        raise RuntimeError("model unavailable")
+        yield "never"
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", failing_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+
+    chunks = await _collect_stream(svc.run_turn(session_id, "A solid answer."))
+
+    assert any("try that once more" in item for item in chunks if isinstance(item, str))
+    assert not any(isinstance(item, svc.ProgressUpdate) for item in chunks)
+    assert state["competency_node"] == "int_01_elevator_pitch"
+    assert state["current_mastery"] == 0.0
+    assert state["attempts"] == 0
+    assert state["clean_streak"] == 0
+    assert state["turn_count"] == 2
+    assert any(
+        m.get("role") == "assistant" and "try that once more" in m.get("content", "")
+        for m in state["messages"]
+    )
+    assert ("user-1", "int_01_elevator_pitch") not in store.mastery
+
+
+@pytest.mark.asyncio
+async def test_same_node_generation_cancellation_persists_fallback_without_progress(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.8,
+                "last_clean_pass_score": 0.8,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "current_mastery": 0.24,
+                "attempts": 1,
+                "session_attempts": 1,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="coach the learner",
+                    kind="coach",
+                ),
+            }
+
+    async def cancelled_generation(_spec):
+        raise asyncio.CancelledError()
+        yield "never"
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", cancelled_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+
+    with pytest.raises(asyncio.CancelledError):
+        await _collect_stream(svc.run_turn(session_id, "A solid answer."))
+
+    assert state["current_mastery"] == 0.0
+    assert state["attempts"] == 0
+    assert state["clean_streak"] == 0
+    assert state["turn_count"] == 2
+    assert any(
+        m.get("role") == "assistant" and "try that once more" in m.get("content", "")
+        for m in state["messages"]
+    )
+    assert ("user-1", "int_01_elevator_pitch") not in store.mastery
+
+
+@pytest.mark.asyncio
+async def test_successful_same_node_turn_bumps_session_version(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.8,
+                "last_clean_pass_score": 0.8,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "current_mastery": 0.24,
+                "attempts": 1,
+                "session_attempts": 1,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="coach the learner",
+                    kind="coach",
+                ),
+            }
+
+    async def fake_generation(_spec):
+        yield "Coach response."
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", fake_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["session_version"] = 4
+
+    await _collect_stream(svc.run_turn(session_id, "A solid answer."))
+
+    assert state["session_version"] == 5
+
+
+@pytest.mark.asyncio
+async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.9,
+                "last_clean_pass_score": 0.9,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "last_rubric_result": _passing_prep_rubric_result("transfer"),
+                "current_mastery": 0.8,
+                "attempts": 5,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test",
+                    prompt="Ask another stale exercise.",
+                    kind="teach",
+                ),
+            }
+
+    async def fake_stream_generation(_spec):
+        yield "This is another exercise that should not be shown."
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", fake_stream_generation)
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["clean_streak"] = 1
+    state["meaningful_attempts"] = 4
+    state["independent_passes"] = 1
+    state["best_independent_score"] = 0.82
+
+    chunks = await _collect_stream(svc.run_turn(session_id, "A strong answer."))
+
+    assert "This is another exercise that should not be shown." not in chunks
+    assert all(
+        "This is another exercise" not in message.get("content", "")
+        for message in state["messages"]
+    )
+    assert any(isinstance(item, svc.NodeAdvance) for item in chunks)
+    assert state["pending_node_transition"] is not None
+
+
+@pytest.mark.asyncio
+async def test_module_done_marks_session_terminal_and_blocks_more_turns():
+    from app.services import session_service as svc
+
+    session_id, state = await svc.start_session("user-1", "int_12_explain_a_gap")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["current_mastery"] = 0.85
+    state["last_eval_score"] = 0.85
+    state["last_diagnosis"] = {"english": True, "on_task": True, "affect": "confident"}
+    state["attempts"] = 2
+    state["session_attempts"] = 2
+    state["clean_streak"] = 2
+
+    await svc._maybe_advance(state)
+
+    assert state["module_done"] is True
+    assert state["session_over"] is True
+    assert state["status"] == "ended"
+    assert state["input_allowed"] is False
+    assert state["block_reason"] == "module_done"
+    assert svc.turn_block_reason(state) == "module_done"
+
+    with pytest.raises(svc.SessionNotActiveError) as exc:
+        await _collect_stream(svc.run_turn(session_id, "Can I keep answering?"))
+    assert str(exc.value) == "module_done"
+
+
+@pytest.mark.asyncio
+async def test_session_state_rehydrates_from_runtime_store_after_memory_loss(monkeypatch):
+    from app.services import session_service as svc
+
+    async def fake_stream_generation(_spec):
+        yield "Durable opening."
+
+    monkeypatch.setattr(svc, "stream_generation", fake_stream_generation)
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    await _collect_stream(svc.stream_opening(session_id))
+    assert state["messages"][-1]["content"] == "Durable opening."
+
+    svc.SessionStore.clear()
+    restored = await svc.get_session_state(session_id)
+
+    assert restored is not None
+    assert restored["session_id"] == session_id
+    assert restored["competency_node"] == "int_01_elevator_pitch"
+    assert restored["opening_streamed"] is True
+    assert restored["messages"][-1]["content"] == "Durable opening."
+
+
+def test_turn_route_blocks_closed_simulation_before_scoring(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    session_id = "simulation-closed-before-end"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_test",
+    )
+    state["opening_streamed"] = True
+    state["session_over"] = True
+    state["input_allowed"] = False
+    state["block_reason"] = "session_over"
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "One more answer after the panel closed.",
+            "client_turn_id": "closed-sim-turn-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "session_over"
+
+
+def test_transcript_restores_active_game_prompt_without_answer_key(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    session_id = "active-game-prompt-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["messages"] = [
+        {"role": "assistant", "content": "[Fill in the blank] I owned ___."}
+    ]
+    state["active_game_prompt"] = {
+        "type": "fill_blank",
+        "sentence": "I owned ___.",
+        "hint": "ownership",
+        "context": "Practice specific ownership language.",
+        "options": None,
+        "answer_key": "the mistake",
+    }
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
+
+    assert response.status_code == 200
+    prompt = response.json()["game_prompt"]
+    assert prompt == {
+        "type": "fill_blank",
+        "sentence": "I owned ___.",
+        "hint": "ownership",
+        "context": "Practice specific ownership language.",
+        "options": None,
+    }
+    assert "answer_key" not in prompt
+
+
+def test_state_snapshot_includes_opening_streamed_for_retry_ui():
+    from app.api.routes import _state_snapshot
+    from app.services import session_service as svc
+
+    state = svc._new_state(
+        "test_user",
+        "opening-state-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = False
+
+    snapshot = _state_snapshot(state)
+
+    assert snapshot["opening_streamed"] is False
+
+
+def test_test_mode_turn_persists_each_speaker_for_reload(monkeypatch, store):
+    from app.services import session_service as svc
+    from app.services.simulation_service import Speaker
+    import asyncio
+
+    async def fake_simulation_round(_state):
+        yield Speaker(speaker_id="moderator_timekeeper", name="Moderator")
+        yield "Let's frame the question clearly."
+        yield Speaker(speaker_id="quiet_expert", name="Quiet Expert")
+        yield "I would add one careful example."
+
+    monkeypatch.setattr(svc, "stream_simulation_round", fake_simulation_round)
+
+    session_id = "speaker-persistence-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "gd_01_stake_position",
+        [],
+        task_type="gd_test",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    asyncio.run(_collect_stream(svc.run_turn(session_id, "I support this topic.")))
+
+    assistant_messages = [m for m in state["messages"] if m.get("role") == "assistant"]
+    assert [m.get("speaker_name") for m in assistant_messages] == [
+        "Moderator",
+        "Quiet Expert",
+    ]
+    assert assistant_messages[0]["content"] == "Let's frame the question clearly."
+    assert assistant_messages[1]["content"] == "I would add one careful example."
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
+    assert response.status_code == 200
+    restored = [
+        (
+            m["speaker_name"],
+            m.get("speaker_id"),
+            m.get("message_kind"),
+            m.get("node_id"),
+            m["content"],
+        )
+        for m in response.json()["messages"]
+        if m["role"] == "assistant"
+    ]
+    assert restored == [
+        (
+            "Moderator",
+            "moderator_timekeeper",
+            "simulation_turn",
+            "gd_01_stake_position",
+            "Let's frame the question clearly.",
+        ),
+        (
+            "Quiet Expert",
+            "quiet_expert",
+            "simulation_turn",
+            "gd_01_stake_position",
+            "I would add one careful example.",
+        ),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_accepted_simulation_turn_persists_user_message_before_model_failure(monkeypatch, store):
+    from app.services import session_service as svc
+
+    calls = {"count": 0}
+
+    async def failing_simulation_round(_state):
+        calls["count"] += 1
+        raise RuntimeError("persona stream unavailable")
+        yield "never"
+
+    monkeypatch.setattr(svc, "stream_simulation_round", failing_simulation_round)
+    await store.ensure_profile("test_user")
+
+    session_id = "simulation-user-durable-before-failure"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_test",
+        scenario_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+        personas=[
+            {
+                "speaker_id": "interviewer",
+                "name": "Interviewer",
+                "role_type": "interviewer",
+                "role": "Mixed interview interviewer for Backend Software Engineer",
+            }
+        ],
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    await svc._persist_runtime_state(state)
+
+    with pytest.raises(RuntimeError):
+        await _collect_stream(
+            svc.run_turn(
+                session_id,
+                "I answered with a specific backend project example.",
+                client_turn_id="client-turn-1",
+            )
+        )
+
+    svc.SessionStore.clear()
+    restored = await svc.get_session_state(session_id)
+
+    assert restored is not None
+    user_messages = [m for m in restored["messages"] if m.get("role") == "user"]
+    assert [m["content"] for m in user_messages] == [
+        "I answered with a specific backend project example."
+    ]
+    assert [m.get("turn_id") for m in user_messages] == ["client-turn-1"]
+
+    svc.SessionStore[session_id] = restored
+    with pytest.raises(RuntimeError):
+        await _collect_stream(
+            svc.run_turn(
+                session_id,
+                "I answered with a specific backend project example.",
+                client_turn_id="client-turn-1",
+            )
+        )
+
+    retried = await svc.get_session_state(session_id)
+    retried_user_messages = [
+        m for m in retried["messages"] if m.get("role") == "user"
+    ]
+    assert [m["content"] for m in retried_user_messages] == [
+        "I answered with a specific backend project example."
+    ]
+    assert calls["count"] == 2
+    assert restored["competency_node"] == "int_01_elevator_pitch"
+    assert restored["scenario_config"]["target_role"] == "Backend Software Engineer"
+
+
+@pytest.mark.asyncio
+async def test_completed_interview_report_and_transcript_survive_reload(monkeypatch, store):
+    from app.ai.schemas import SimulationReport
+    from app.services import session_service as svc
+
+    async def fake_score_session(_state):
+        return SimulationReport(
+            score=0.82,
+            summary="Strong backend interview with clear trade-offs.",
+            strengths=["specific project ownership", "clear debugging narrative"],
+            improvements=["tighten one leadership story"],
+            clarity_score=0.86,
+            confidence_score=0.78,
+            scenario_label="Mixed interview for Backend Software Engineer",
+            role_focus="Backend Software Engineer",
+            topic="Mixed interview for Backend Software Engineer",
+            observed_skill_gaps=["leadership story"],
+            recommended_next_nodes=["Close and Ask Sharp Questions"],
+        )
+
+    monkeypatch.setattr(svc, "score_session", fake_score_session)
+    await store.ensure_profile("test_user")
+
+    session_id = "completed-interview-persists-after-reload"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_test",
+        sim_topic="Mixed interview for Backend Software Engineer",
+        scenario_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+            "pressure": "high",
+        },
+        personas=[
+            {
+                "speaker_id": "interviewer",
+                "name": "Interviewer",
+                "role_type": "interviewer",
+                "role": "Mixed interview interviewer for Backend Software Engineer",
+                "prompt_role": "RAW SYSTEM PROMPT SHOULD NOT BE PUBLIC",
+            }
+        ],
+    )
+    state["opening_streamed"] = True
+    state["simulation_round"] = 6
+    state["messages"] = [
+        {
+            "role": "assistant",
+            "content": "Walk me through a backend project.",
+            "speaker_name": "Interviewer",
+            "speaker_id": "interviewer",
+            "message_kind": "simulation_turn",
+            "node_id": "int_01_elevator_pitch",
+        },
+        {
+            "role": "user",
+            "content": "I built a checkout reliability dashboard with clear trade-offs.",
+        },
+    ]
+    svc.SessionStore[session_id] = state
+    await svc._persist_runtime_state(state)
+
+    close_result = await svc.close_session(session_id)
+    assert close_result["score"] == 0.82
+
+    svc.SessionStore.clear()
+    restored = await svc.get_session_state(session_id)
+
+    assert restored is not None
+    assert restored["status"] == "ended"
+    assert restored["simulation_score"] == 0.82
+    assert restored["simulation_report"]["role_focus"] == "Backend Software Engineer"
+    assert restored["scenario_config"]["target_role"] == "Backend Software Engineer"
+    assert restored["personas"][0]["name"] == "Interviewer"
+    assert restored["messages"][0]["content"] == "Walk me through a backend project."
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"]["status"] == "ended"
+    assert payload["state"]["node_title"] != "Learning Path"
+    assert payload["state"]["simulation_report"]["role_focus"] == "Backend Software Engineer"
+    assert payload["messages"][0]["content"] == "Walk me through a backend project."
+    public_persona = payload["state"]["personas"][0]
+    assert "prompt_role" not in public_persona
+    assert "RAW SYSTEM PROMPT" not in str(public_persona)
+
+
+def test_interview_public_persona_never_exposes_prompt_role():
+    from app.api.routes import _public_personas
+
+    personas = [
+        {
+            "speaker_id": "interviewer",
+            "name": "Interviewer",
+            "role_type": "interviewer",
+            "role": "Mixed interview interviewer for Backend Software Engineer",
+            "prompt_role": (
+                "MIXED INTERVIEW INTERVIEWER FOR BACKEND SOFTWARE ENGINEER. "
+                "THE INTERVIEW IS COMMUNICATION-FOCUSED: PROBE EXAMPLES."
+            ),
+            "style": "probing",
+        }
+    ]
+
+    public = _public_personas(personas)
+
+    assert public == [
+        {
+            "speaker_id": "interviewer",
+            "name": "Interviewer",
+            "role_type": "interviewer",
+            "role": "Mixed interview interviewer for Backend Software Engineer",
+            "style": "probing",
+        }
+    ]
+    assert "prompt_role" not in public[0]
+    assert "COMMUNICATION-FOCUSED" not in str(public)
+
+
+def test_interview_probe_honors_explicit_move_on_request():
+    from app.services.simulation_service import _interview_probe_intent
+
+    state = {
+        "task_type": "interview_test",
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "probe_items": [
+            {
+                "prompt": "Explain Singleton and Factory with examples.",
+                "aim": "show design-pattern fluency",
+            },
+            {
+                "prompt": "Describe a production failure you owned.",
+                "aim": "show ownership",
+            },
+        ],
+        "probe_cursor": 0,
+        "used_probe_prompts": ["Explain Singleton and Factory with examples."],
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "Explain Singleton and Factory with examples.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "I already answered Singleton and Factory with examples. "
+                    "Please move to a different dimension, such as a disagreement "
+                    "with a teammate."
+                ),
+            },
+        ],
+    }
+
+    intent = _interview_probe_intent(state, "Ask another design-pattern follow-up.")
+
+    assert "disagreement with a teammate" in intent
+    assert "Singleton and Factory" not in intent
+
+
+@pytest.mark.asyncio
+async def test_interview_stream_replaces_repeated_model_question_with_selected_probe(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import simulation_service as sim
+    from app.services.simulation.blackboard import apply_decision, new_blackboard
+
+    async def fake_decide_round(bb, personas, *_args, **_kwargs):
+        decision = DirectorDecision(
+            action="probe_deeper",
+            next_speaker="interviewer",
+            intent="Ask a next interview question.",
+            tension=0.4,
+            answer_quality=0.6,
+            should_close=False,
+        )
+        return apply_decision(bb, decision), personas[0], decision
+
+    async def repeated_persona_turn(*_args, **_kwargs):
+        yield "Can you explain Singleton and Factory with specific examples?"
+
+    monkeypatch.setattr(sim, "decide_round", fake_decide_round)
+    monkeypatch.setattr(sim, "stream_persona_turn", repeated_persona_turn)
+
+    state = {
+        "task_type": "interview_test",
+        "sim_topic": "Mixed interview for Backend Software Engineer",
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "scenario_config": {
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+        "personas": [
+            {
+                "speaker_id": "interviewer",
+                "name": "Interviewer",
+                "role_type": "interviewer",
+                "role": "Mixed interview interviewer for Backend Software Engineer",
+            }
+        ],
+        "blackboard": new_blackboard("Mixed interview for Backend Software Engineer"),
+        "probe_items": [
+            {
+                "prompt": "Explain Singleton and Factory with examples.",
+                "aim": "show design-pattern fluency",
+            },
+            {
+                "prompt": "Describe a disagreement with a teammate or stakeholder.",
+                "aim": "show collaboration and judgment",
+            },
+        ],
+        "probe_cursor": 1,
+        "used_probe_prompts": ["Explain Singleton and Factory with examples."],
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "Explain Singleton and Factory with specific examples.",
+            },
+            {
+                "role": "user",
+                "content": "I already answered that. Please move to a disagreement with a teammate.",
+            },
+        ],
+    }
+
+    chunks = await _collect_stream(sim.stream_simulation_round(state))
+    visible_text = "".join(item for item in chunks if isinstance(item, str))
+
+    assert "disagreement with a teammate" in visible_text
+    assert "Can you explain Singleton and Factory" not in visible_text
+
+
+@pytest.mark.asyncio
+async def test_gd_stream_replaces_repeated_panel_demand_before_delivery(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.content.task_types import TaskType
+    from app.services import simulation_service as sim
+    from app.services.simulation.blackboard import apply_decision, new_blackboard
+
+    async def repeated_director(bb, personas, *_args, **_kwargs):
+        decision = DirectorDecision(
+            action="probe_deeper",
+            next_speaker="data_driven_analyst",
+            intent="Demand Indian pilot evidence again.",
+            tension=0.7,
+            answer_quality=0.5,
+            should_close=False,
+        )
+        speaker = next(p for p in personas if p["speaker_id"] == "data_driven_analyst")
+        return apply_decision(bb, decision), speaker, decision
+
+    async def repeated_persona_turn(*_args, **_kwargs):
+        yield "Give Indian pilot evidence and a case study before moving forward."
+
+    monkeypatch.setattr(sim, "decide_round", repeated_director)
+    monkeypatch.setattr(sim, "stream_persona_turn", repeated_persona_turn)
+
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "AI in hiring",
+        "personas": sim.build_personas(TaskType.GD_TEST, "AI in hiring"),
+        "blackboard": new_blackboard("AI in hiring") | {
+            "phase": "pressure",
+            "turn": 4,
+            "last_speaker": "data_driven_analyst",
+        },
+        "messages": [
+            {
+                "role": "assistant",
+                "speaker_name": "Data-Driven Analyst",
+                "content": "Give Indian pilot evidence and a case study before moving forward.",
+            },
+            {
+                "role": "user",
+                "content": "A phased rollout would be safer because teams can compare hiring outcomes.",
+            },
+        ],
+    }
+
+    chunks = await _collect_stream(sim.stream_simulation_round(state))
+    visible_text = "".join(item for item in chunks if isinstance(item, str)).lower()
+
+    assert "new angle" in visible_text or "trade-off" in visible_text
+    assert "give indian pilot evidence" not in visible_text
+    assert "case study before moving forward" not in visible_text
+
+
+def test_turn_route_requires_and_replays_client_turn_id(monkeypatch, store):
+    from app.services import session_service as svc
+
+    async def fake_run_turn(_session_id, _user_input, **_kwargs):
+        calls["count"] += 1
+        yield "Coach response."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-idempotency-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    missing_id = client.post(
+        "/session/turn",
+        json={"session_id": session_id, "user_input": "hello"},
+        headers=AUTH,
+    )
+    assert missing_id.status_code == 400
+    assert missing_id.json()["detail"]["code"] == "client_turn_id_required"
+
+    missing_version = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "hello",
+            "client_turn_id": "client-turn-missing-version",
+        },
+        headers=AUTH,
+    )
+    assert missing_version.status_code == 400
+    assert missing_version.json()["detail"]["code"] == "expected_session_version_required"
+
+    first = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "hello",
+            "client_turn_id": "client-turn-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+    second = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "hello",
+            "client_turn_id": "client-turn-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert "Coach response." in first.text
+    assert "Coach response." in second.text
+    assert calls["count"] == 1
+
+
+def test_turn_stream_emits_accepted_before_model_output(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_run_turn(_session_id, _user_input, **_kwargs):
+        yield "Coach response after slow model."
+
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-accepted-first-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "hello",
+            "client_turn_id": "client-turn-accepted-first",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.text.index("event: accepted") < response.text.index("Coach response after slow model.")
+    assert store.turn_requests[(session_id, "client-turn-accepted-first")]["status"] == "completed"
+
+
+def test_transcript_exposes_active_turn_recovery_state(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    session_id = "active-turn-transcript-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["active_turn_id"] = "client-turn-processing"
+    state["active_turn_status"] = "processing"
+    state["input_allowed"] = False
+    state["block_reason"] = "turn_processing"
+    state["messages"].append({
+        "role": "user",
+        "content": "My answer is already accepted.",
+        "turn_id": "client-turn-processing",
+        "message_kind": "learner_answer",
+        "status": "accepted",
+    })
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active_turn"] == {
+        "client_turn_id": "client-turn-processing",
+        "status": "processing",
+    }
+    assert body["input_allowed"] is False
+    assert body["block_reason"] == "turn_processing"
+
+
+def test_turn_route_rejects_different_client_turn_id_for_same_session_version(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_run_turn(session_id, _user_input, **_kwargs):
+        calls["count"] += 1
+        state = svc.get_state(session_id)
+        assert state is not None
+        state["messages"].append({"role": "assistant", "content": "Coach response."})
+        state["turn_count"] += 1
+        svc._bump_session_version(state)
+        yield "Coach response."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-version-slot-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    first = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "first answer",
+            "client_turn_id": "client-turn-a",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+    second = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "duplicate browser event",
+            "client_turn_id": "client-turn-b",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "turn_version_consumed"
+    assert second.json()["detail"]["accepted_client_turn_id"] == "client-turn-a"
+    assert calls["count"] == 1
+
+
+def test_turn_route_accepts_next_turn_only_after_session_version_advances(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_run_turn(session_id, user_input, **_kwargs):
+        calls["count"] += 1
+        state = svc.get_state(session_id)
+        assert state is not None
+        state["messages"].append({"role": "user", "content": user_input})
+        state["messages"].append({"role": "assistant", "content": f"Reply {calls['count']}."})
+        state["turn_count"] += 1
+        svc._bump_session_version(state)
+        yield f"Reply {calls['count']}."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-version-advance-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    client = TestClient(app)
+    first = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "first answer",
+            "client_turn_id": "turn-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+    second = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "second answer",
+            "client_turn_id": "turn-2",
+            "expected_session_version": 2,
+        },
+        headers=AUTH,
+    )
+    stale = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "stale duplicate",
+            "client_turn_id": "turn-stale",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["code"] == "turn_version_consumed"
+    assert calls["count"] == 2
+
+
+def test_turn_latch_allows_only_one_client_turn_per_session_version(store):
+    import asyncio
+
+    first = asyncio.run(
+        store.begin_turn_request(
+            "same-version-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+    second = asyncio.run(
+        store.begin_turn_request(
+            "same-version-session",
+            "client-turn-b",
+            "hash-b",
+            7,
+        )
+    )
+
+    assert first["accepted"] is True
+    assert second["accepted"] is False
+    assert second["status"] == "version_consumed"
+    assert second["accepted_client_turn_id"] == "client-turn-a"
+
+
+def test_stale_turn_latch_releases_session_version_for_new_client_turn(store):
+    import asyncio
+    import time
+
+    store.turn_requests[("stale-turn-session", "abandoned-turn")] = {
+        "session_id": "stale-turn-session",
+        "client_turn_id": "abandoned-turn",
+        "request_hash": "hash-old",
+        "expected_version": 7,
+        "status": "in_progress",
+        "transcript_delta": [],
+        "done_snapshot": None,
+        "error_code": None,
+        "updated_at": time.time() - 10_000,
+    }
+
+    retry = asyncio.run(
+        store.begin_turn_request(
+            "stale-turn-session",
+            "fresh-turn",
+            "hash-new",
+            7,
+        )
+    )
+
+    assert retry["accepted"] is True
+    assert retry["status"] == "in_progress"
+    stale_row = store.turn_requests[("stale-turn-session", "abandoned-turn")]
+    assert stale_row["status"] == "failed"
+    assert stale_row["error_code"] == "stale_in_progress"
+
+
+def test_failed_turn_latch_does_not_consume_session_version(store):
+    import asyncio
+
+    first = asyncio.run(
+        store.begin_turn_request(
+            "retry-version-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+    asyncio.run(
+        store.complete_turn_request(
+            "retry-version-session",
+            "client-turn-a",
+            "failed",
+            error_code="session_proxy_timeout",
+        )
+    )
+    second = asyncio.run(
+        store.begin_turn_request(
+            "retry-version-session",
+            "client-turn-b",
+            "hash-b",
+            7,
+        )
+    )
+
+    assert first["accepted"] is True
+    assert second["accepted"] is True
+
+
+def test_failed_turn_latch_can_retry_same_client_turn_id(store):
+    import asyncio
+
+    first = asyncio.run(
+        store.begin_turn_request(
+            "same-client-retry-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+    asyncio.run(
+        store.complete_turn_request(
+            "same-client-retry-session",
+            "client-turn-a",
+            "failed",
+            error_code="session_proxy_timeout",
+        )
+    )
+    retry = asyncio.run(
+        store.begin_turn_request(
+            "same-client-retry-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+
+    assert first["accepted"] is True
+    assert retry["accepted"] is True
+    assert retry["status"] == "in_progress"
+
+
+def test_failed_turn_retry_respects_later_version_consumer(store):
+    import asyncio
+
+    first = asyncio.run(
+        store.begin_turn_request(
+            "failed-then-consumed-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+    asyncio.run(
+        store.complete_turn_request(
+            "failed-then-consumed-session",
+            "client-turn-a",
+            "failed",
+            error_code="session_proxy_timeout",
+        )
+    )
+    consumer = asyncio.run(
+        store.begin_turn_request(
+            "failed-then-consumed-session",
+            "client-turn-b",
+            "hash-b",
+            7,
+        )
+    )
+    retry = asyncio.run(
+        store.begin_turn_request(
+            "failed-then-consumed-session",
+            "client-turn-a",
+            "hash-a",
+            7,
+        )
+    )
+
+    assert first["accepted"] is True
+    assert consumer["accepted"] is True
+    assert retry["accepted"] is False
+    assert retry["status"] == "version_consumed"
+    assert retry["accepted_client_turn_id"] == "client-turn-b"
+
+
+def test_stale_start_request_can_retry_same_client_start_id(monkeypatch, store):
+    import asyncio
+    import time
+    from app.api import routes
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        return "recovered-start-session", {
+            "session_id": "recovered-start-session",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    payload = {
+        "competency_node": "int_01_elevator_pitch",
+        "client_start_id": "stale-start-id",
+    }
+    req = SessionStartRequest(**payload)
+    store.start_requests[("test_user", "stale-start-id")] = {
+        "user_id": "test_user",
+        "client_start_id": "stale-start-id",
+        "request_hash": routes._start_request_hash(req),
+        "status": "in_progress",
+        "session_id": None,
+        "response_json": None,
+        "error_code": None,
+        "source_session_id": None,
+        "source_transition_id": None,
+        "updated_at": time.time() - 10_000,
+    }
+
+    client = TestClient(app)
+    response = client.post("/session/start", json=payload, headers=AUTH)
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "recovered-start-session"
+    assert store.start_requests[("test_user", "stale-start-id")]["status"] == "completed"
+
+
+def test_start_latch_rejects_second_client_for_same_source_transition(store):
+    import asyncio
+
+    first = asyncio.run(store.begin_start_request(
+        "test_user",
+        "source-start-a",
+        "hash-a",
+        source_session_id="source-session",
+        source_transition_id="transition-1",
+    ))
+    second = asyncio.run(store.begin_start_request(
+        "test_user",
+        "source-start-b",
+        "hash-b",
+        source_session_id="source-session",
+        source_transition_id="transition-1",
+    ))
+
+    assert first["accepted"] is True
+    assert second["accepted"] is False
+    assert second["status"] == "source_transition_consumed"
+    assert second["accepted_client_start_id"] == "source-start-a"
+
+
+def test_session_start_requires_client_start_id(store):
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={"competency_node": "int_01_elevator_pitch"},
+        headers=AUTH,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "client_start_id_required"
+
+
+def test_session_start_rejects_locked_future_node(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_start(*_args, **_kwargs):
+        calls["count"] += 1
+        return "should-not-start", {"session_id": "should-not-start"}
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_03_weakness_framing",
+            "client_start_id": "locked-future-node",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "locked_node"
+    assert response.json()["detail"]["active_node_id"] == "int_01_elevator_pitch"
+    assert calls["count"] == 0
+
+
+def test_session_start_allows_test_mode_future_scenario(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0, "test_mode": None}
+
+    async def fake_start(_user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        calls["count"] += 1
+        calls["test_mode"] = test_mode
+        return "test-mode-session", {
+            "session_id": "test-mode-session",
+            "user_id": "test_user",
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_03_weakness_framing",
+            "test_mode": True,
+            "client_start_id": "test-mode-future-node",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "test-mode-session"
+    assert calls == {"count": 1, "test_mode": True}
+
+
+def test_advancing_turn_replays_after_pending_transition(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_run_turn(session_id, _user_input, **_kwargs):
+        calls["count"] += 1
+        state = svc.get_state(session_id)
+        assert state is not None
+        state["pending_node_transition"] = {
+            "transition_id": "transition-1",
+            "from_node": "int_01_elevator_pitch",
+            "from_title": "Tell Me About Yourself",
+            "to_node": "int_02_strength_with_evidence",
+            "to_title": "Support Strengths With Evidence",
+            "status": "awaiting_next_opening",
+        }
+        state["input_allowed"] = False
+        state["block_reason"] = "awaiting_next_skill"
+        state["session_version"] = 2
+        yield svc.ProgressUpdate(
+            node_id="int_01_elevator_pitch",
+            mastery=0.8,
+            clean_streak=2,
+            attempts=2,
+        )
+        yield svc.NodeAdvance(
+            from_node="int_01_elevator_pitch",
+            to_node="int_02_strength_with_evidence",
+        )
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "advancing-replay-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    payload = {
+        "session_id": session_id,
+        "user_input": "strong answer",
+        "client_turn_id": "advance-client-turn-1",
+        "expected_session_version": 1,
+    }
+    client = TestClient(app)
+    first = client.post("/session/turn", json=payload, headers=AUTH)
+    second = client.post("/session/turn", json=payload, headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert "event: node_advance" in first.text
+    assert "event: node_advance" in second.text
+    assert calls["count"] == 1
+
+
+def test_session_start_replays_duplicate_client_start_id(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        calls["count"] += 1
+        return "session-start-once", {
+            "session_id": "session-start-once",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    payload = {
+        "competency_node": "int_01_elevator_pitch",
+        "client_start_id": "start-id-1",
+    }
+    client = TestClient(app)
+    first = client.post("/session/start", json=payload, headers=AUTH)
+    second = client.post("/session/start", json=payload, headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["session_id"] == "session-start-once"
+    assert second.json()["session_id"] == "session-start-once"
+    assert second.json()["resumed"] is True
+    assert calls["count"] == 1
+
+
+def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    opening_calls = {"count": 0}
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        return "next-skill-session", {
+            "session_id": "next-skill-session",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        opening_calls["count"] += 1
+        yield "This old source session should not reopen."
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    source_session_id = "completed-source-session"
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "transition-to-next",
+        "from_node": "int_02_strength_with_evidence",
+        "from_title": "Support Strengths With Evidence",
+        "to_node": "int_03_weakness_framing",
+        "to_title": "Frame a Weakness",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_session_id] = source_state
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_03_weakness_framing",
+            "client_start_id": "handoff-start-1",
+            "source_session_id": source_session_id,
+            "source_transition_id": "transition-to-next",
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "next-skill-session"
+    assert source_state["pending_node_transition"] is None
+    assert source_state["status"] == "ended"
+    assert source_state["session_over"] is True
+    assert source_state["block_reason"] == "transition_handed_off"
+    assert source_state["handoff_session_id"] == "next-skill-session"
+
+    old_turn = client.post(
+        "/session/turn",
+            json={
+                "session_id": source_session_id,
+                "user_input": "Can I keep answering here?",
+                "client_turn_id": "old-session-turn-1",
+                "expected_session_version": source_state["session_version"],
+            },
+            headers=AUTH,
+        )
+    assert old_turn.status_code == 409
+    assert old_turn.json()["detail"]["code"] == "session_not_active"
+
+    old_opening = client.get(
+        f"/session/{source_session_id}/opening",
+        headers=AUTH,
+    )
+    assert old_opening.status_code == 409
+    assert old_opening.json()["detail"]["code"] == "session_not_active"
+    assert opening_calls["count"] == 0
+
+    restored_source = client.get(f"/session/{source_session_id}/state", headers=AUTH)
+    assert restored_source.status_code == 200
+    assert restored_source.json()["handoff_session_id"] == "next-skill-session"
+
+
+def test_next_skill_start_replays_completed_source_transition_after_client_timeout(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"start": 0}
+
+    async def fake_start(*_args, **_kwargs):
+        calls["start"] += 1
+        return "should-not-start-again", {}
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    source_session_id = "timeout-source-session"
+    source_transition_id = "timeout-transition"
+    next_session_id = "already-created-next-session"
+    response_json = {
+        "session_id": next_session_id,
+        "node_title": "Tell a STAR Story",
+        "first_message": "",
+        "current_mastery": 0.0,
+    }
+    store.start_requests[("test_user", "original-confirmed-start")] = {
+        "user_id": "test_user",
+        "client_start_id": "original-confirmed-start",
+        "request_hash": "original-hash",
+        "status": "completed",
+        "session_id": next_session_id,
+        "response_json": response_json,
+        "error_code": None,
+        "source_session_id": source_session_id,
+        "source_transition_id": source_transition_id,
+        "updated_at": 1_783_400_000,
+    }
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = None
+    source_state["status"] = "ended"
+    source_state["session_over"] = True
+    source_state["block_reason"] = "transition_handed_off"
+    source_state["handoff_session_id"] = next_session_id
+    svc.SessionStore[source_session_id] = source_state
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_04_star_story",
+            "client_start_id": "new-browser-start-after-reload",
+            "source_session_id": source_session_id,
+            "source_transition_id": source_transition_id,
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == next_session_id
+    assert response.json()["resumed"] is True
+    assert calls["start"] == 0
+
+
+def test_next_skill_source_transition_records_attempt_only_after_new_opening(monkeypatch, store):
+    from app.content import registry
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_stream_generation(_spec):
+        yield "Fresh next skill opening."
+
+    monkeypatch.setattr(svc, "stream_generation", fake_stream_generation)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    source_session_id = "source-session-attempt-ledger"
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "transition-for-ledger",
+        "from_node": "int_02_strength_with_evidence",
+        "from_title": "Support Strengths With Evidence",
+        "to_node": "int_03_weakness_framing",
+        "to_title": "Frame a Weakness",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_session_id] = source_state
+
+    client = TestClient(app)
+    start = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_03_weakness_framing",
+            "client_start_id": "next-ledger-start",
+            "source_session_id": source_session_id,
+            "source_transition_id": "transition-for-ledger",
+        },
+        headers=AUTH,
+    )
+
+    assert start.status_code == 200
+    next_session_id = start.json()["session_id"]
+    assert asyncio.run(store.count_attempts("test_user", registry.INT_ID)) == 0
+
+    opening = client.get(f"/session/{next_session_id}/opening", headers=AUTH)
+
+    assert opening.status_code == 200
+    assert "Fresh next skill opening." in opening.text
+    assert asyncio.run(store.count_attempts("test_user", registry.INT_ID)) == 1
+
+
+def test_pending_transition_opening_requires_session_start(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    opening_calls = {"count": 0}
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        opening_calls["count"] += 1
+        yield "This would bypass the next-skill start gate."
+
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "pending-transition-source-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    state["pending_node_transition"] = {
+        "transition_id": "transition-needs-start",
+        "from_node": "int_02_strength_with_evidence",
+        "from_title": "Support Strengths With Evidence",
+        "to_node": "int_03_weakness_framing",
+        "to_title": "Frame a Weakness",
+        "status": "awaiting_next_opening",
+    }
+    state["input_allowed"] = False
+    state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app)
+    response = client.get(
+        f"/session/{session_id}/opening?transition_id=transition-needs-start",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "next_skill_requires_session_start"
+    assert response.json()["detail"]["next_node"] == "int_03_weakness_framing"
+    assert opening_calls["count"] == 0
+
+
+def test_start_rejects_invalid_source_transition_before_starting(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        calls["count"] += 1
+        return "should-not-start", {
+            "session_id": "should-not-start",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    source_session_id = "invalid-source-session"
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "transition-to-other-node",
+        "from_node": "int_02_strength_with_evidence",
+        "to_node": "int_03_weakness_framing",
+        "status": "awaiting_next_opening",
+    }
+    svc.SessionStore[source_session_id] = source_state
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_04_star_behavioral",
+            "client_start_id": "invalid-handoff-start",
+            "source_session_id": source_session_id,
+            "source_transition_id": "transition-to-other-node",
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "invalid_source_transition"
+    assert calls["count"] == 0
+
+
+def test_opening_rejects_duplicate_in_progress_request(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    opening_calls = {"count": 0}
+
+    async def in_progress_opening(_session_id: str, _transition_id: str) -> dict:
+        return {
+            "accepted": False,
+            "status": "in_progress",
+            "message_id": None,
+            "attempts": 1,
+            "last_error": None,
+        }
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        opening_calls["count"] += 1
+        yield "Only the owner of the opening request may stream this."
+
+    monkeypatch.setattr(store, "begin_opening_request", in_progress_opening, raising=False)
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "opening-latched-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = False
+    state["messages"] = []
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/opening", headers=AUTH)
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "opening_in_progress"
+    assert opening_calls["count"] == 0
+
+
+def test_opening_failed_request_retries_and_completes(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    opening_calls = {"count": 0}
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        opening_calls["count"] += 1
+        yield "Recovered opening."
+
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "opening-retry-session"
+    node_id = "int_01_elevator_pitch"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        node_id,
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = False
+    state["messages"] = []
+    svc.SessionStore[session_id] = state
+    opening_key = f"initial:{node_id}"
+    store.opening_requests[(session_id, opening_key)] = {
+        "session_id": session_id,
+        "transition_id": opening_key,
+        "status": "failed",
+        "message_id": None,
+        "attempts": 1,
+        "last_error": "stream_failed",
+    }
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/opening", headers=AUTH)
+
+    assert response.status_code == 200
+    assert "Recovered opening." in response.text
+    assert opening_calls["count"] == 1
+    request_row = store.opening_requests[(session_id, opening_key)]
+    assert request_row["status"] == "completed"
+    assert request_row["attempts"] == 2
+    assert request_row["last_error"] is None
+
+
+def test_completed_opening_request_replays_persisted_message_after_cold_hydrate(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    opening_calls = {"count": 0}
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        opening_calls["count"] += 1
+        yield "This should not be regenerated."
+
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "opening-completed-replay-session"
+    node_id = "int_01_elevator_pitch"
+    opening_key = f"initial:{node_id}"
+    message_id = f"{session_id}:opening:{opening_key}"
+    snapshot = {
+        "session_id": session_id,
+        "user_id": "test_user",
+        "competency_node": node_id,
+        "task_type": "interview_prep",
+        "status": "active",
+        "opening_streamed": True,
+        "messages": [],
+    }
+    asyncio.run(store.upsert_session_runtime(
+        session_id,
+        "test_user",
+        node_id,
+        "interview",
+        "interview_prep",
+        False,
+        "active",
+        snapshot,
+        None,
+        1,
+    ))
+    asyncio.run(store.replace_session_messages(session_id, [
+        {
+            "message_id": message_id,
+            "role": "assistant",
+            "content": "Persisted opening from storage.",
+            "node_id": node_id,
+            "transition_id": None,
+            "message_kind": "opening",
+        }
+    ]))
+    store.opening_requests[(session_id, opening_key)] = {
+        "session_id": session_id,
+        "transition_id": opening_key,
+        "status": "completed",
+        "message_id": message_id,
+        "attempts": 1,
+        "last_error": None,
+    }
+    svc.SessionStore.pop(session_id, None)
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/opening", headers=AUTH)
+
+    assert response.status_code == 200
+    assert "Persisted opening from storage." in response.text
+    assert "This should not be regenerated." not in response.text
+    assert opening_calls["count"] == 0
+
+
+def test_completed_opening_replay_does_not_double_meter_attempt(monkeypatch, store):
+    from app.content import registry
+    from app.services import session_service as svc
+    import asyncio
+
+    generation_calls = {"count": 0}
+
+    async def fake_stream_generation(_spec):
+        generation_calls["count"] += 1
+        yield "Opening from model."
+
+    monkeypatch.setattr(svc, "stream_generation", fake_stream_generation)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "opening-replay-attempt-meter"
+    node_id = "int_01_elevator_pitch"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        node_id,
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = False
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app)
+    first = client.get(f"/session/{session_id}/opening", headers=AUTH)
+    second = client.get(f"/session/{session_id}/opening", headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert "Opening from model." in first.text
+    assert "Opening from model." in second.text
+    assert generation_calls["count"] == 1
+    assert asyncio.run(store.count_attempts("test_user", registry.INT_ID)) == 1
+
+
+def test_opening_done_frame_survives_latch_completion_failure(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_stream_opening(*_args, **_kwargs):
+        yield "Opening text before latch failure."
+
+    async def failing_complete_opening_request(*_args, **_kwargs):
+        raise RuntimeError("opening latch write failed")
+
+    monkeypatch.setattr(svc, "stream_opening", fake_stream_opening)
+    monkeypatch.setattr(
+        store,
+        "complete_opening_request",
+        failing_complete_opening_request,
+        raising=False,
+    )
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "opening-done-survives-latch-failure"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = False
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get(f"/session/{session_id}/opening", headers=AUTH)
+
+    assert response.status_code == 200
+    assert "Opening text before latch failure." in response.text
+    assert "event: done" in response.text
+
+
+def test_turn_done_frame_survives_latch_completion_failure(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_run_turn(*_args, **_kwargs):
+        yield "Tutor reply before latch failure."
+
+    async def failing_complete_turn_request(*_args, **_kwargs):
+        raise RuntimeError("turn latch write failed")
+
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+    monkeypatch.setattr(
+        store,
+        "complete_turn_request",
+        failing_complete_turn_request,
+        raising=False,
+    )
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "turn-done-survives-latch-failure"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "My answer",
+            "client_turn_id": "turn-latch-failure-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert "Tutor reply before latch failure." in response.text
+    assert "event: done" in response.text
+
+
+def test_test_mode_end_starts_async_scoring_and_report_endpoint_replays_result(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_close_session(session_id: str):
+        calls["count"] += 1
+        state = await svc.get_session_state(session_id)
+        assert state is not None
+        state["status"] = "ended"
+        state["session_over"] = True
+        state["simulation_report"] = {
+            "summary": "Role-aware report.",
+            "score": 0.82,
+            "strengths": ["Specific backend examples"],
+            "improvements": ["Tighter structure"],
+        }
+        state["simulation_score"] = 0.82
+        state["session_summary"] = "Role-aware report."
+        await svc._persist_runtime_state(state)
+        return {
+            "summary": "Role-aware report.",
+            "report": state["simulation_report"],
+            "score": 0.82,
+        }
+
+    monkeypatch.setattr(svc, "close_session", fake_close_session)
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "async-scoring-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_test",
+    )
+    state["opening_streamed"] = True
+    state["messages"].append({
+        "role": "user",
+        "content": "I built reliable APIs and debugged payment failures.",
+        "message_kind": "learner_answer",
+    })
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app)
+    end_response = client.post(f"/session/{session_id}/end", headers=AUTH)
+
+    assert end_response.status_code == 202
+    assert end_response.json()["status"] == "processing"
+
+    report_response = client.get(f"/session/{session_id}/report", headers=AUTH)
+
+    assert report_response.status_code == 200
+    assert report_response.json()["status"] == "completed"
+    assert report_response.json()["report"]["summary"] == "Role-aware report."
+    assert calls["count"] == 1
+
+
+def test_stale_opening_request_retries_as_owner(store):
+    import asyncio
+    import time
+
+    store.opening_requests[("stale-opening-session", "initial:int_01_elevator_pitch")] = {
+        "session_id": "stale-opening-session",
+        "transition_id": "initial:int_01_elevator_pitch",
+        "status": "in_progress",
+        "message_id": None,
+        "attempts": 1,
+        "last_error": None,
+        "updated_at": time.time() - 10_000,
+    }
+
+    retry = asyncio.run(
+        store.begin_opening_request(
+            "stale-opening-session",
+            "initial:int_01_elevator_pitch",
+        )
+    )
+
+    assert retry["accepted"] is True
+    assert retry["status"] == "in_progress"
+    assert retry["attempts"] == 2
+    assert retry["last_error"] is None
+
+
+def test_session_start_rejects_reused_client_start_id_with_different_payload(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        return "first-start-session", {
+            "session_id": "first-start-session",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    client = TestClient(app)
+    first = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "reused-start-id",
+        },
+        headers=AUTH,
+    )
+    second = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_02_strength_with_evidence",
+            "client_start_id": "reused-start-id",
+        },
+        headers=AUTH,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "client_start_id_reused_with_different_payload"
+
+
+def test_failed_session_start_can_retry_same_client_start_id_after_topup(monkeypatch, store):
+    import asyncio
+    from app.billing import pricing
+
+    async def used_free_attempts(_user_id: str, _module_id: str) -> int:
+        return pricing.FREE_ATTEMPTS
+
+    monkeypatch.setattr(store, "count_attempts", used_free_attempts)
+    asyncio.run(store.ensure_profile("test_user"))
+    client = TestClient(app)
+    payload = {
+        "competency_node": "int_01_elevator_pitch",
+        "client_start_id": "retry-after-topup",
+        "confirm": True,
+    }
+
+    first = client.post("/session/start", json=payload, headers=AUTH)
+    assert first.status_code == 402
+    assert first.json()["detail"]["error"] == "insufficient_credits"
+
+    asyncio.run(store.grant_credits("test_user", pricing.INT_ATTEMPT_COST, "topup"))
+    second = client.post("/session/start", json=payload, headers=AUTH)
+
+    assert second.status_code == 200
+    assert second.json()["session_id"]
+
+
+@pytest.mark.asyncio
+async def test_attempt_meter_counts_only_recorded_opening_attempts(store):
+    from app.content import registry
+
+    await store.create_session(
+        "abandoned-interview-session",
+        "test_user",
+        "interview_test",
+        registry.INT_ID,
+        "int_01_elevator_pitch",
+        test_mode=True,
+    )
+    await store.upsert_session_runtime(
+        session_id="abandoned-interview-session",
+        user_id="test_user",
+        current_node="int_01_elevator_pitch",
+        module_id=registry.INT_ID,
+        task_type="interview_test",
+        test_mode=True,
+        status="active",
+        state_snapshot={"opening_streamed": False},
+        pending_transition=None,
+        session_version=1,
+    )
+    await store.create_session(
+        "usable-interview-session",
+        "test_user",
+        "interview_test",
+        registry.INT_ID,
+        "int_02_strength_with_evidence",
+        test_mode=True,
+    )
+    await store.upsert_session_runtime(
+        session_id="usable-interview-session",
+        user_id="test_user",
+        current_node="int_02_strength_with_evidence",
+        module_id=registry.INT_ID,
+        task_type="interview_test",
+        test_mode=True,
+        status="active",
+        state_snapshot={"opening_streamed": True},
+        pending_transition=None,
+        session_version=1,
+    )
+    await store.record_node_attempt(
+        "usable-interview-session",
+        "test_user",
+        "int_02_strength_with_evidence",
+        starting_mastery=0.0,
+    )
+
+    assert await store.count_attempts("test_user", registry.INT_ID) == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_test_session_start_does_not_create_attempt_row(monkeypatch, store):
+    from app.services import session_service as svc
+
+    async def fail_probe_generation(*_args, **_kwargs):
+        raise RuntimeError("probe generation unavailable")
+
+    await store.ensure_profile("test_user")
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fail_probe_generation)
+
+    with pytest.raises(RuntimeError, match="probe generation unavailable"):
+        await svc.start_session("test_user", "int_01_elevator_pitch", test_mode=True)
+
+    assert store.sessions == {}
+
+
+def test_school_progress_includes_lesson_statuses(store):
+    import asyncio
+    from fastapi.testclient import TestClient
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(
+        store.upsert_mastery(
+            "test_user",
+            "c2_ch01_l1_new_words",
+            ema=0.0,
+            attempts=3,
+            clean_pass=False,
+            node_completed=True,
+        )
+    )
+
+    client = TestClient(app)
+    response = client.get("/school/progress?class_no=2", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lesson_progress"]["c2_ch01_l1_new_words"] == "completed"
+    assert body["passed_tests"] == []
+
+
+def test_session_message_schema_uses_numeric_sequence_for_reload_order():
+    from pathlib import Path
+
+    schema = Path("app/db/schema.sql").read_text().lower()
+    migration = Path("app/db/migrations/2026-07-06-session-runtime.sql").read_text().lower()
+    repo = Path("app/db/repo.py").read_text().lower()
+
+    assert "sequence_index" in schema
+    assert "sequence_index" in migration
+    assert "order by sequence_index" in repo
+    assert "order by created_at, message_id" not in repo
+
+
+@pytest.mark.asyncio
+async def test_completed_simulation_rehydrates_report_and_terminal_state(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.services import session_service as svc
+
+    async def fake_score_session(_state):
+        return SimulationReport(
+            score=0.82,
+            summary="Strong interview close.",
+            strengths=["clear project ownership"],
+            improvements=["vary the examples"],
+            clarity_score=0.84,
+            confidence_score=0.8,
+            scenario_label="Backend interview",
+            role_focus="Backend Software Engineer",
+            topic="Mixed interview",
+        )
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "score_session", fake_score_session)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+    )
+    state["messages"] = [
+        {"role": "assistant", "content": "Round 1"},
+        {"role": "user", "content": "Answer 1"},
+    ]
+    state["blackboard"] = {"turn": 10, "tension": 0.7, "qualities": [0.8]}
+    state["session_over"] = True
+
+    result = await svc.close_session(session_id)
+    svc.SessionStore.clear()
+    restored = await svc.get_session_state(session_id)
+
+    assert result["score"] == 0.82
+    assert restored is not None
+    assert restored["status"] == "ended"
+    assert restored["session_over"] is True
+    assert restored["simulation_report"]["score"] == 0.82
+    assert restored["simulation_round"] == 10
+
+
+@pytest.mark.asyncio
+async def test_completed_simulation_close_is_idempotent_and_does_not_rescore(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.services import session_service as svc
+
+    calls = {"score": 0}
+
+    async def fake_score_session(_state):
+        calls["score"] += 1
+        return SimulationReport(
+            score=0.82,
+            summary="First scored report.",
+            strengths=["clear ownership"],
+            improvements=["vary examples"],
+            clarity_score=0.84,
+            confidence_score=0.8,
+            scenario_label="Backend interview",
+            role_focus="Backend Software Engineer",
+            topic="Mixed interview",
+        )
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "score_session", fake_score_session)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+    )
+    state["messages"] = [
+        {"role": "assistant", "content": "Round 1"},
+        {"role": "user", "content": "Answer 1"},
+    ]
+    state["blackboard"] = {"turn": 10, "tension": 0.7, "qualities": [0.8]}
+    state["session_over"] = True
+
+    first = await svc.close_session(session_id)
+    svc.SessionStore.clear()
+    second = await svc.close_session(session_id)
+
+    assert calls["score"] == 1
+    assert second == first
+
+
+def test_completed_simulation_transcript_route_rehydrates_terminal_state(monkeypatch, store):
+    import asyncio
+    from app.ai.schemas import SimulationReport
+    from app.services import session_service as svc
+
+    async def fake_score_session(_state):
+        return SimulationReport(
+            score=0.8,
+            summary="Good backend interview with clear ownership.",
+            strengths=["clear project ownership"],
+            improvements=["cover more conflict examples"],
+            clarity_score=0.82,
+            confidence_score=0.78,
+            scenario_label="Backend interview",
+            role_focus="Backend Software Engineer",
+            topic="Mixed interview",
+        )
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "score_session", fake_score_session)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    async def scenario():
+        await store.ensure_profile("test_user")
+        session_id, state = await svc.start_session(
+            "test_user",
+            "int_01_elevator_pitch",
+            test_mode=True,
+            simulation_config={
+                "target_role": "Backend Software Engineer",
+                "interview_type": "mixed",
+            },
+        )
+        state["opening_streamed"] = True
+        state["messages"] = [
+            {"role": "assistant", "content": "[Interviewer]: First question."},
+            {"role": "user", "content": "First answer."},
+            {"role": "assistant", "content": "[Interviewer]: Final question."},
+            {"role": "user", "content": "Final answer."},
+        ]
+        state["blackboard"] = {"turn": 10, "tension": 0.7, "qualities": [0.8]}
+        state["session_over"] = True
+        await svc.close_session(session_id)
+        svc.SessionStore.clear()
+        return session_id
+
+    session_id = asyncio.run(scenario())
+
+    response = TestClient(app).get(
+        f"/session/{session_id}/transcript",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["opening_streamed"] is True
+    assert [m["content"] for m in body["messages"]] == [
+        "[Interviewer]: First question.",
+        "First answer.",
+        "[Interviewer]: Final question.",
+        "Final answer.",
+    ]
+    assert body["state"]["status"] == "ended"
+    assert body["state"]["session_over"] is True
+    assert body["state"]["simulation_round"] == 10
+    assert body["state"]["simulation_tension"] == 0.7
+    assert body["state"]["simulation_report"]["score"] == 0.8
+
+
+def test_simulation_scoring_failure_is_retryable_and_does_not_close_session(monkeypatch, store):
+    import asyncio
+    from fastapi.testclient import TestClient
+    from app.services import session_service as svc
+
+    async def failing_score_session(_state):
+        raise RuntimeError("scorer unavailable")
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "score_session", failing_score_session)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    async def scenario():
+        await store.ensure_profile("test_user")
+        session_id, state = await svc.start_session(
+            "test_user",
+            "int_01_elevator_pitch",
+            test_mode=True,
+        )
+        state["opening_streamed"] = True
+        state["messages"] = [
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Round 1"},
+            {"role": "user", "content": "Answer 1"},
+        ]
+        state["blackboard"] = {"turn": 10, "tension": 0.7, "qualities": [0.8]}
+        state["session_over"] = True
+        return session_id, state
+
+    session_id, state = asyncio.run(scenario())
+    client = TestClient(app)
+    response = client.post(f"/session/{session_id}/end", headers=AUTH)
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "processing"
+    report_response = client.get(f"/session/{session_id}/report", headers=AUTH)
+    assert report_response.status_code == 503
+    assert report_response.json()["detail"]["code"] == "simulation_scoring_unavailable"
+    assert state["status"] == "active"
+    assert state["simulation_report"] is None
+    assert state["last_error"] == {"code": "simulation_scoring_unavailable"}
+
+
+@pytest.mark.asyncio
+async def test_expired_runtime_rehydrates_as_expired_not_active(monkeypatch):
+    from app.services import session_service as svc
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+    )
+    state["expires_at"] = 1
+    await svc._persist_runtime_state(state)
+    svc.SessionStore.clear()
+
+    restored = await svc.get_session_state(session_id)
+
+    assert restored is not None
+    assert restored["status"] == "expired"
+    assert restored["input_allowed"] is False
+    assert restored["block_reason"] == "session_expired"
+
+
+def test_expired_session_routes_return_consistent_410(store):
+    import asyncio
+    from app.services import session_service as svc
+
+    async def scenario():
+        await store.ensure_profile("test_user")
+        session_id, state = await svc.start_session(
+            "test_user",
+            "int_01_elevator_pitch",
+        )
+        state["expires_at"] = 1
+        await svc._persist_runtime_state(state)
+        svc.SessionStore.clear()
+        return session_id
+
+    session_id = asyncio.run(scenario())
+    client = TestClient(app)
+
+    transcript = client.get(f"/session/{session_id}/transcript", headers=AUTH)
+    opening = client.get(f"/session/{session_id}/opening", headers=AUTH)
+    turn = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "hello",
+            "client_turn_id": "expired-turn-1",
+        },
+        headers=AUTH,
+    )
+    end = client.post(f"/session/{session_id}/end", headers=AUTH)
+
+    for response in (transcript, opening, turn, end):
+        assert response.status_code == 410
+        assert response.json()["detail"]["code"] == "session_expired"
+
+
+@pytest.mark.asyncio
+async def test_simulation_director_sees_current_user_turn(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+
+    captured: dict[str, str] = {}
+
+    async def capture_director(_bb, _personas, _task_type, transcript, _probe_items, **_kwargs):
+        captured["transcript"] = transcript
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="interviewer",
+            intent="Ask one follow-up about the learner's latest answer.",
+            tension=0.5,
+            answer_quality=0.7,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(_spec):
+        yield "Follow-up question."
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", capture_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+
+    chunks = []
+    async for item in svc.run_turn(
+        session_id,
+        "I built a checkout reliability dashboard that tracked payment retries.",
+    ):
+        if isinstance(item, str):
+            chunks.append(item)
+
+    assert "Follow-up question." in "".join(chunks)
+    assert "checkout reliability dashboard" in captured["transcript"]
+
+
+@pytest.mark.asyncio
+async def test_test_mode_end_phrase_keeps_session_scoreable(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.services import session_service as svc
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    async def fake_score_session(_state):
+        return SimulationReport(
+            score=0.82,
+            summary="The interview was closed and scored.",
+            strengths=["clear backend ownership"],
+            improvements=["add one more conflict example"],
+            clarity_score=0.8,
+            confidence_score=0.84,
+        )
+
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+    monkeypatch.setattr(svc, "score_session", fake_score_session)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+    state["messages"] = [
+        {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a backend project."},
+        {"role": "user", "content": "I built a payment retry dashboard."},
+    ]
+    state["blackboard"] = {"turn": 3, "tension": 0.5, "qualities": [0.8, 0.82]}
+
+    chunks = []
+    async for item in svc.run_turn(session_id, "done"):
+        if isinstance(item, str):
+            chunks.append(item)
+
+    assert "finish" in "".join(chunks).lower()
+    assert state["status"] == "active"
+    assert state["session_over"] is True
+    assert state["block_reason"] == "session_over"
+    assert state["messages"][-2]["role"] == "user"
+    assert state["messages"][-2]["content"] == "done"
+    assert state["messages"][-2]["message_kind"] == "simulation_control"
+
+    result = await svc.close_session(session_id)
+
+    assert result["score"] == 0.82
+    assert result["report"]["summary"] == "The interview was closed and scored."
+
+
+@pytest.mark.asyncio
+async def test_simulation_scoring_excludes_control_messages(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.content.task_types import TaskType
+    from app.services import simulation_service as sim
+
+    captured = {}
+
+    async def fake_evaluate_simulation(_task_type, _topic, messages, **_kwargs):
+        captured["messages"] = messages
+        return SimulationReport(
+            score=0.75,
+            summary="Scored only learner answers.",
+            strengths=["specific answer"],
+            improvements=["add more evidence"],
+            clarity_score=0.7,
+            confidence_score=0.8,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", fake_evaluate_simulation)
+
+    await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Backend Software Engineer",
+        "messages": [
+            {"role": "assistant", "content": "Tell me about a project."},
+            {"role": "user", "content": "I built a queue monitor.", "message_kind": "learner_answer"},
+            {"role": "user", "content": "done", "message_kind": "simulation_control"},
+            {"role": "assistant", "content": "Tell me about a disagreement."},
+            {"role": "user", "content": "I handled a disagreement with a PM.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about debugging."},
+            {"role": "user", "content": "I debugged queue retries.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about impact."},
+            {"role": "user", "content": "I reduced checkout failures.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about communication."},
+            {"role": "user", "content": "I explained tradeoffs to support.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about a failure."},
+            {"role": "user", "content": "I owned a migration lock and wrote a checklist.", "message_kind": "learner_answer"},
+        ],
+        "blackboard": {"qualities": []},
+        "scenario_config": {"target_role": "Backend Software Engineer"},
+        "career_context": {},
+    })
+
+    assert [m["content"] for m in captured["messages"] if m["role"] == "user"] == [
+        "I built a queue monitor.",
+        "I handled a disagreement with a PM.",
+        "I debugged queue retries.",
+        "I reduced checkout failures.",
+        "I explained tradeoffs to support.",
+        "I owned a migration lock and wrote a checklist.",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_simulation_scoring_excludes_unanswered_final_prompt(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.content.task_types import TaskType
+    from app.services import simulation_service as sim
+
+    captured = {}
+
+    async def fake_evaluate_simulation(_task_type, _topic, messages, **_kwargs):
+        captured["messages"] = messages
+        return SimulationReport(
+            score=0.8,
+            summary="Scored only answered turns.",
+            strengths=["clear project answer"],
+            improvements=["answer the next debugging prompt"],
+            clarity_score=0.8,
+            confidence_score=0.78,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", fake_evaluate_simulation)
+
+    report = await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Backend Software Engineer",
+        "messages": [
+            {"role": "assistant", "content": "Introduce yourself."},
+            {"role": "user", "content": "I build reliable APIs.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about a project."},
+            {"role": "user", "content": "I built payment APIs.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about debugging."},
+            {"role": "user", "content": "I isolated queue retry failures.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about disagreement."},
+            {"role": "user", "content": "I pushed for a modular monolith.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about impact."},
+            {"role": "user", "content": "I improved checkout visibility.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about failure."},
+            {"role": "user", "content": "I owned a migration mistake.", "message_kind": "learner_answer"},
+            {"role": "assistant", "content": "Tell me about a debugging process you handled."},
+        ],
+        "blackboard": {"qualities": []},
+        "scenario_config": {"target_role": "Backend Software Engineer"},
+        "career_context": {},
+    })
+
+    assert [m["content"] for m in captured["messages"]] == [
+        "Introduce yourself.",
+        "I build reliable APIs.",
+        "Tell me about a project.",
+        "I built payment APIs.",
+        "Tell me about debugging.",
+        "I isolated queue retry failures.",
+        "Tell me about disagreement.",
+        "I pushed for a modular monolith.",
+        "Tell me about impact.",
+        "I improved checkout visibility.",
+        "Tell me about failure.",
+        "I owned a migration mistake.",
+    ]
+    assert any("before the latest" in caveat.lower() for caveat in report.assessment_caveats)
+
+
+@pytest.mark.asyncio
+async def test_interview_test_probe_cursor_advances_without_repeating(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+    from app.services.simulation_service import stream_simulation_round
+
+    async def repeated_director(_bb, _personas, _task_type, _transcript, _probe_items, **_kwargs):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="interviewer",
+            intent="Ask again about Redis vs memcached composite index columns.",
+            tension=0.5,
+            answer_quality=0.6,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(spec):
+        marker = "Your goal for THIS turn:"
+        start = spec.prompt.find(marker)
+        if start == -1:
+            yield spec.prompt
+            return
+        yield spec.prompt[start + len(marker):].split("\n", 1)[0].strip()
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", repeated_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+    )
+    state["probe_items"] = [
+        {"prompt": "Ask about project tradeoffs.", "aim": "names a tradeoff"},
+        {"prompt": "Ask about teammate disagreement.", "aim": "shows collaboration"},
+        {"prompt": "Ask about debugging under pressure.", "aim": "uses evidence"},
+    ]
+
+    outputs = []
+    for answer in ("a1", "a2", "a3"):
+        state["messages"].append({"role": "user", "content": answer})
+        chunks = []
+        async for item in stream_simulation_round(state):
+            if isinstance(item, str):
+                chunks.append(item)
+        outputs.append("".join(chunks))
+
+    assert "project tradeoffs" in outputs[0].lower()
+    assert "teammate disagreement" in outputs[1].lower()
+    assert "debugging under pressure" in outputs[2].lower()
+    assert len(set(outputs)) == 3
+
+
+@pytest.mark.asyncio
+async def test_interview_persona_snapshot_does_not_expose_prompt_instructions(monkeypatch):
+    from app.api.routes import _state_snapshot
+    from app.services import session_service as svc
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+            "pressure_level": "high",
+        },
+    )
+
+    snapshot = _state_snapshot(state)
+    persona_text = str(snapshot["personas"])
+
+    assert "prompt_role" not in persona_text
+    assert "probe examples" not in persona_text.lower()
+    assert "trade-offs" not in persona_text.lower()
+    assert snapshot["personas"][0]["role"] == "Mixed interview interviewer for Backend Software Engineer"
+
+
+@pytest.mark.asyncio
+async def test_interview_test_honors_move_on_request_when_director_repeats(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+    from app.services.simulation_service import stream_simulation_round
+
+    async def repeated_director(_bb, _personas, _task_type, _transcript, _probe_items, **_kwargs):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="interviewer",
+            intent="Ask again for specific examples of Singleton and Factory design patterns.",
+            tension=0.5,
+            answer_quality=0.6,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(spec):
+        marker = "Your goal for THIS turn:"
+        start = spec.prompt.find(marker)
+        if start == -1:
+            yield spec.prompt
+            return
+        yield spec.prompt[start + len(marker):].split("\n", 1)[0].strip()
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", repeated_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "mixed",
+        },
+    )
+    state["probe_items"] = []
+    state["messages"] = [
+        {"role": "assistant", "content": "[Interviewer]: Explain Singleton and Factory design patterns."},
+        {"role": "user", "content": "I used Factory for payment adapters and Singleton for one config registry."},
+        {"role": "assistant", "content": "[Interviewer]: Give more examples of Singleton and Factory design patterns."},
+        {"role": "user", "content": "I covered that. Let's move to a disagreement-with-teammate story."},
+    ]
+    state["blackboard"] = {
+        "topic": "Mixed interview for Backend Software Engineer",
+        "phase": "pressure",
+        "tension": 0.7,
+        "turn": 4,
+        "covered": ["design patterns"],
+        "open_threads": [],
+        "positions": {},
+        "last_quality": 0.7,
+        "qualities": [0.7, 0.72, 0.74],
+        "last_speaker": "interviewer",
+    }
+
+    chunks = []
+    turns = []
+    async for item in stream_simulation_round(state):
+        if hasattr(item, "turn"):
+            turns.append(item.turn)
+        if isinstance(item, str):
+            chunks.append(item)
+
+    output = "".join(chunks).lower()
+    assert turns == [4]
+    assert state["blackboard"]["turn"] == 4
+    assert "teammate" in output or "disagreement" in output
+    assert "singleton" not in output
+    assert "factory" not in output
+
+
+@pytest.mark.asyncio
+async def test_test_item_generation_times_out_to_fallback(monkeypatch, store):
+    import asyncio
+    import time
+
+    from app.ai import test_gen
+    from app.content.task_types import TaskType
+
+    async def slow_structured(*_args, **_kwargs):
+        await asyncio.sleep(0.2)
+        raise AssertionError("slow local model should have been timed out")
+
+    monkeypatch.setattr(test_gen, "PROBE_GENERATION_TIMEOUT_SECONDS", 0.01, raising=False)
+    monkeypatch.setattr(test_gen, "ollama_structured", slow_structured)
+
+    await store.ensure_profile("test_user")
+    started = time.perf_counter()
+    items = await test_gen.generate_test_items(
+        "test_user",
+        TaskType.INTERVIEW_TEST.value,
+        career_context={
+            "role_family": "software_technical",
+            "primary_role": "Backend Software Engineer",
+        },
+        scenario_config={"target_role": "Backend Software Engineer"},
+    )
+    elapsed = time.perf_counter() - started
+
+    assert elapsed < 0.12
+    assert items
+    assert "Backend Software Engineer" in items[0].prompt
+
+
+@pytest.mark.asyncio
+async def test_gd_test_confusion_gets_moderator_guidance(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+    from app.services.simulation_service import stream_simulation_round
+
+    async def bad_director(_bb, _personas, _task_type, _transcript, _probe_items, **_kwargs):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="data_driven_analyst",
+            intent="Demand a case study with Indian pilot evidence again.",
+            tension=0.7,
+            answer_quality=0.4,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(spec):
+        marker = "Your goal for THIS turn:"
+        start = spec.prompt.find(marker)
+        if start == -1:
+            yield spec.prompt
+            return
+        yield spec.prompt[start + len(marker):].split("\n", 1)[0].strip()
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", bad_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "gd_01_stake_position",
+        test_mode=True,
+        simulation_config={"topic": "AI in hiring"},
+    )
+    state["messages"] = [
+        {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
+        {"role": "user", "content": "I don't understand what is going on here."},
+    ]
+    state["blackboard"] = {
+        "topic": "AI in hiring",
+        "phase": "pressure",
+        "tension": 0.8,
+        "turn": 5,
+        "covered": [],
+        "open_threads": [],
+        "positions": {},
+        "last_quality": 0.4,
+        "qualities": [0.4],
+        "last_speaker": "data_driven_analyst",
+    }
+
+    speakers = []
+    turns = []
+    chunks = []
+    async for item in stream_simulation_round(state):
+        if hasattr(item, "turn"):
+            turns.append(item.turn)
+        if hasattr(item, "name"):
+            speakers.append(item.name)
+        if isinstance(item, str):
+            chunks.append(item)
+
+    output = "".join(chunks).lower()
+    assert turns == [5]
+    assert state["blackboard"]["turn"] == 5
+    assert len(speakers) == 1
+    assert speakers[0].lower().startswith("moderator")
+    assert "explain" in output or "what is happening" in output
+    assert "case study" not in output
+
+
+@pytest.mark.asyncio
+async def test_gd_test_honors_move_on_request(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+    from app.services.simulation_service import stream_simulation_round
+
+    async def bad_director(_bb, _personas, _task_type, _transcript, _probe_items, **_kwargs):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="data_driven_analyst",
+            intent="Demand the same case study with Indian pilot evidence again.",
+            tension=0.7,
+            answer_quality=0.5,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(spec):
+        marker = "Your goal for THIS turn:"
+        start = spec.prompt.find(marker)
+        if start == -1:
+            yield spec.prompt
+            return
+        yield spec.prompt[start + len(marker):].split("\n", 1)[0].strip()
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", bad_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "gd_01_stake_position",
+        test_mode=True,
+        simulation_config={"topic": "Remote work for engineering teams"},
+    )
+    state["messages"] = [
+        {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
+        {"role": "user", "content": "I already covered that evidence. Can we move on to a different angle?"},
+    ]
+    state["blackboard"] = {
+        "topic": "Remote work for engineering teams",
+        "phase": "pressure",
+        "tension": 0.75,
+        "turn": 4,
+        "covered": [],
+        "open_threads": [],
+        "positions": {},
+        "last_quality": 0.5,
+        "qualities": [0.5],
+        "last_speaker": "data_driven_analyst",
+    }
+
+    speakers = []
+    turns = []
+    chunks = []
+    async for item in stream_simulation_round(state):
+        if hasattr(item, "turn"):
+            turns.append(item.turn)
+        if hasattr(item, "name"):
+            speakers.append(item.name)
+        if isinstance(item, str):
+            chunks.append(item)
+
+    output = "".join(chunks).lower()
+    assert turns == [4]
+    assert state["blackboard"]["turn"] == 4
+    assert len(speakers) == 1
+    assert speakers[0].lower().startswith("moderator")
+    assert "new angle" in output or "different angle" in output
+    assert "case study" not in output
+
+
+@pytest.mark.asyncio
+async def test_gd_test_honors_requested_quiet_expert(monkeypatch):
+    from app.ai.schemas import DirectorDecision
+    from app.services import session_service as svc
+    from app.services.simulation_service import stream_simulation_round
+
+    async def bad_director(_bb, _personas, _task_type, _transcript, _probe_items, **_kwargs):
+        return DirectorDecision(
+            action="probe_deeper",
+            next_speaker="aggressive_challenger",
+            intent="Push the learner again.",
+            tension=0.7,
+            answer_quality=0.5,
+            should_close=False,
+        )
+
+    async def fake_stream_generation(spec):
+        marker = "Your goal for THIS turn:"
+        start = spec.prompt.find(marker)
+        if start == -1:
+            yield spec.prompt
+            return
+        yield spec.prompt[start + len(marker):].split("\n", 1)[0].strip()
+
+    async def fake_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("app.services.simulation.director.direct_simulation", bad_director)
+    monkeypatch.setattr("app.services.simulation.persona.stream_generation", fake_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", fake_probe_items)
+
+    _session_id, state = await svc.start_session(
+        "user-1",
+        "gd_01_stake_position",
+        test_mode=True,
+        simulation_config={
+            "topic": "AI in hiring",
+            "personas": ["quiet_expert", "aggressive_challenger", "data_driven_analyst"],
+        },
+    )
+    state["messages"] = [
+        {"role": "assistant", "content": "[Aggressive Challenger]: Make your point stronger."},
+        {"role": "user", "content": "Can we hear from the Expert now?"},
+    ]
+
+    speakers = []
+    chunks = []
+    async for item in stream_simulation_round(state):
+        if hasattr(item, "name"):
+            speakers.append(item.name)
+        if isinstance(item, str):
+            chunks.append(item)
+
+    output = "".join(chunks).lower()
+    assert speakers[0] == "Quiet Expert"
+    assert "quiet expert" in output
+    assert "push the learner again" not in output
+
+
+def test_career_bridge_personalization_rewrites_unrelated_role_examples():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="bridge-1",
+        type="fill_blank",
+        sentence="As a data analyst, I handled ___ clearly.",
+        hint="one work responsibility",
+        context="Use the data analyst role to keep the answer concrete.",
+        answer_key="pressure",
+        band="standard",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "backend software engineer", "gd_topics": ["AI in hiring"]},
+        "interview",
+    )
+
+    assert "data analyst" not in personalized.sentence.lower()
+    assert "data analyst" not in personalized.context.lower()
+    assert "backend software engineer" in personalized.sentence
+    assert personalized.answer_key == "pressure"
+
+
+def test_career_bridge_personalization_rewrites_multiple_choice_options_and_key():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="bridge-mcq-1",
+        type="multiple_choice",
+        sentence="Which opening line makes the strongest first sentence of a pitch?",
+        hint="lead with role plus one concrete strength",
+        context="Pick the answer that is strongest for the learner's role.",
+        answer_key="I'm a data analyst who turns messy spreadsheets into dashboards leadership actually uses.",
+        options=[
+            "Well, I was born in a small town and always liked computers growing up.",
+            "I'm a data analyst who turns messy spreadsheets into dashboards leadership actually uses.",
+            "There's a lot to say about me, so let me start from the beginning.",
+        ],
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "backend software engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join([personalized.answer_key, *(personalized.options or [])]).lower()
+    assert "data analyst" not in combined
+    assert "spreadsheet" not in combined
+    assert "dashboard" not in combined
+    assert "backend software engineer" in combined
+    assert "reliable api" in combined or "production system" in combined
+    assert personalized.answer_key in (personalized.options or [])
+
+
+def test_career_bridge_personalization_rewrites_generic_weakness_for_software_role():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="int_03_weakness_framing_bx1",
+        type="fill_blank",
+        sentence="I used to struggle with delegating, so now I ___ at the start of every project.",
+        hint="a concrete corrective habit",
+        context="Drills the weakness->mitigation stem by pairing a real weakness with a specific fix.",
+        answer_key="assign clear owners to each task",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "Backend Software Engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join([personalized.sentence, personalized.hint, personalized.context, personalized.answer_key]).lower()
+    assert "delegating" not in combined
+    assert "technical trade-off" in combined or "stakeholder" in combined
+    assert "recommendation" in personalized.answer_key.lower()
+    assert "risk" in personalized.answer_key.lower()
+
+
+def test_career_bridge_personalization_rewrites_quantify_impact_for_software_role():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="int_08_quantify_impact_bx1",
+        type="fill_blank",
+        sentence="I cut report time by ___% by automating the weekly export.",
+        hint="any number (e.g. 40)",
+        context="Forces a measurable result into a vague achievement.",
+        answer_key="<number>",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "Backend Software Engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join([personalized.sentence, personalized.hint, personalized.context]).lower()
+    assert "weekly export" not in combined
+    assert "backend reliability" in combined or "checkout reliability" in combined
+    assert "triage" in personalized.sentence.lower()
+    assert personalized.answer_key == "<number>"
+
+
+def test_career_bridge_personalization_rewrites_star_action_fill_blank_for_software_role():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="int_04_star_behavioral_bx1",
+        type="fill_blank",
+        sentence="In the end, we shipped the release two days early because I ___.",
+        hint="the specific Action of STAR — what you personally did",
+        context="Anchors the Result beat first, then forces the learner to name the Action that caused it.",
+        answer_key="reorganized the testing schedule and unblocked the team",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "Backend Software Engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join(
+        [
+            personalized.sentence,
+            personalized.hint,
+            personalized.context,
+            personalized.answer_key,
+        ]
+    ).lower()
+    assert "shipped the release two days early" not in combined
+    assert "testing schedule" not in combined
+    assert "backend" in combined or "checkout" in combined or "observability" in combined
+    assert "dashboard" in personalized.answer_key.lower()
+    assert "trade-off" in personalized.answer_key.lower()
+
+
+def test_career_bridge_personalization_rewrites_star_mcq_options_and_key_for_software_role():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="int_04_star_behavioral_bx2",
+        type="multiple_choice",
+        sentence="Which sentence belongs to the ACTION beat of a STAR answer?",
+        hint="Action = the specific steps you personally took",
+        context="Trains the learner to sort sentences into the correct STAR beat, the most common structuring error.",
+        answer_key="I split the project into milestones and ran a daily ten-minute standup to catch blockers early.",
+        options=[
+            "Our team was three weeks behind on a major client deliverable.",
+            "I split the project into milestones and ran a daily ten-minute standup to catch blockers early.",
+            "We delivered on time and the client renewed their contract.",
+        ],
+        band="standard",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "Backend Software Engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join([personalized.answer_key, *(personalized.options or [])]).lower()
+    assert "major client deliverable" not in combined
+    assert "daily ten-minute standup" not in combined
+    assert "client renewed" not in combined
+    assert "checkout" in combined or "payment" in combined
+    assert "dashboard" in personalized.answer_key.lower()
+    assert "retry" in personalized.answer_key.lower() or "error signal" in personalized.answer_key.lower()
+    assert personalized.answer_key in (personalized.options or [])
+
+
+def test_career_bridge_personalization_rewrites_ambiguous_client_drill_for_software_role():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="int_07_clarify_before_answering_bx1",
+        type="fill_blank",
+        sentence="When you ask how I'd handle a difficult client — do you mean a client who's unhappy with the work, or ___?",
+        hint="offer a second clear interpretation to narrow the scope",
+        context="Practices the 'do you mean A or B' clarifier stem to narrow a vague prompt before answering.",
+        answer_key="one who keeps changing the requirements",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "Backend Software Engineer", "role_family": "software_technical"},
+        "interview",
+    )
+
+    combined = " ".join(
+        [
+            personalized.sentence,
+            personalized.hint,
+            personalized.context,
+            personalized.answer_key,
+        ]
+    ).lower()
+    assert "difficult client" not in combined
+    assert "unhappy with the work" not in combined
+    assert "changing the requirements" not in combined
+    assert "api" in combined or "checkout" in combined or "payment" in combined
+    assert "incident" in combined or "reliability" in combined or "latency" in combined
+
+
+def test_scaffolded_recovery_does_not_surface_impressed_avatar_state():
+    from app.api.routes import _avatar_emotion
+
+    assert _avatar_emotion("confident", 1.0, scaffolded=True) == "patient"
+    assert _avatar_emotion("confident", 0.9, scaffolded=False) == "impressed"
+
+
+def test_career_bridge_personalization_rewrites_software_examples_for_hr_profile():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="bridge-hr-1",
+        type="multiple_choice",
+        sentence="Which opening line makes the strongest first sentence of a pitch?",
+        hint="lead with role plus one concrete strength",
+        context="Practice a concrete opener without pretending the learner works in software.",
+        answer_key="I'm a backend developer who builds payment systems for high-traffic apps.",
+        options=[
+            "Well, I was born in a small town and always liked computers growing up.",
+            "I'm a backend developer who builds payment systems for high-traffic apps.",
+            "There's a lot to say about me, so let me start from the beginning.",
+        ],
+        band="standard",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"primary_role": "HR Business Partner", "role_family": "hr_people"},
+        "interview",
+    )
+
+    combined = " ".join([personalized.answer_key, *(personalized.options or [])]).lower()
+    assert "backend developer" not in combined
+    assert "payment systems" not in combined
+    assert "high-traffic apps" not in combined
+    assert "hr business partner" in combined
+    assert "people" in combined or "hiring" in combined
+    assert personalized.answer_key in (personalized.options or [])
+
+
+def test_career_teach_game_prompt_blocks_grammar_drills_for_profiled_career_modules():
+    from app.ai.prompts import build_teach_game_prompt
+    from app.content.registry import get_node
+
+    node = get_node("int_03_weakness_framing")
+    prompt = build_teach_game_prompt(
+        node,
+        {
+            "next_focus": "show the corrective habit and a real result",
+            "errors": ["answer is vague and lacks impact"],
+        },
+        career_context={
+            "primary_role": "Backend Software Engineer",
+            "role_family": "software_technical",
+        },
+    ).lower()
+
+    assert "career communication practice" in prompt
+    assert "not a grammar" in prompt
+    assert "verb tense" in prompt
+    assert "interview move" in prompt
+
+
+def test_gd_bridge_personalization_preserves_custom_topic_casing():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="bridge-gd-topic-1",
+        type="spoken",
+        sentence="Remote work needs one clear reason and one example.",
+        hint="Use remote work as the discussion topic.",
+        context="Practice staying specific when the GD topic is remote work.",
+        answer_key="",
+        band="standard",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"gd_topics": ["AI in hiring"]},
+        "group_discussion",
+    )
+
+    combined = " ".join([
+        personalized.sentence,
+        personalized.hint,
+        personalized.context,
+    ])
+    assert "AI in hiring" in combined
+    assert "Ai In Hiring" not in combined
+    assert "remote work" not in combined.lower()
+
+
+def test_gd_bridge_personalization_handles_question_style_custom_topics():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="bridge-gd-topic-question",
+        type="fill_blank",
+        sentence=(
+            "On this topic, I ___ that remote work helps companies more than "
+            "it hurts them."
+        ),
+        hint="a verb that commits you to a side",
+        context="Practice staying specific when the GD topic is remote work.",
+        answer_key="believe",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"gd_topics": ["Should AI replace campus placement interviews in India?"]},
+        "group_discussion",
+    )
+
+    assert "that Should" not in personalized.sentence
+    assert "Should AI replace" not in personalized.sentence
+    assert "AI replacing campus placement interviews in India" in personalized.sentence
+    assert personalized.answer_key == "believe"
+
+
+def test_gd_bridge_personalization_anchors_take_floor_to_selected_topic():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="gd_03_take_the_floor_bx1",
+        type="fill_blank",
+        sentence="If I could ___ to that, I think the cost angle matters just as much as the time saved.",
+        hint="a verb meaning to contribute something extra",
+        context="Drills the polite entry stem used to claim the floor.",
+        answer_key="add",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"gd_topics": ["Digital payments"]},
+        "group_discussion",
+    )
+
+    assert "cost angle matters just as much as the time saved" not in personalized.sentence
+    assert "Digital payments" in personalized.sentence
+    assert personalized.answer_key == "add"
+
+
+def test_gd_bridge_personalization_rewrites_take_floor_mcq_options_to_selected_topic():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="gd_03_take_the_floor_bx2",
+        type="multiple_choice",
+        sentence="The group is mid-flow. Which entry is polite, well-timed, and links to the last speaker?",
+        hint="assertive but not rude, and it should connect to what was just said",
+        context="Contrasts a graceful interjection with abrupt or self-centred ones.",
+        answer_key="Building on what Riya just said, could I add a quick point about cost?",
+        options=[
+            "Building on what Riya just said, could I add a quick point about cost?",
+            "Stop — let me talk now, I've been waiting.",
+            "Anyway, forget all that, here's a completely different topic.",
+        ],
+        band="standard",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"gd_topics": ["Should AI replace campus placement interviews in India?"]},
+        "group_discussion",
+    )
+
+    combined = " ".join([personalized.answer_key, *(personalized.options or [])])
+    assert "quick point about cost" not in combined
+    assert "AI replacing campus placement interviews in India" in combined
+    assert personalized.answer_key in (personalized.options or [])
+
+
+def test_gd_bridge_personalization_rewrites_derailed_discussion_to_selected_topic():
+    from app.content.schema import BridgeExercise
+    from app.graph.nodes.bridge import personalize_bridge_exercise
+
+    exercise = BridgeExercise(
+        id="gd_09_steer_derailed_bx1",
+        type="fill_blank",
+        sentence="I think we've ___ a bit — the real question is whether the budget should grow at all.",
+        hint="a verb meaning to wander off the topic",
+        context="Drills a redirect phrase for a derailed discussion.",
+        answer_key="drifted",
+        band="foundational",
+    )
+
+    personalized = personalize_bridge_exercise(
+        exercise,
+        {"gd_topics": ["Should AI replace campus placement interviews in India?"]},
+        "group_discussion",
+    )
+
+    assert "budget should grow" not in personalized.sentence
+    assert "AI replacing campus placement interviews in India" in personalized.sentence
+    assert personalized.answer_key == "drifted"
+
+
+def test_gd_prep_followup_prompts_lock_to_selected_topic():
+    from app.ai.prompts import build_challenge_prompt, build_strengthen_prompt
+    from app.content.registry import get_node
+
+    node = get_node("gd_01_stake_position")
+    career_context = {
+        "gd_topics": ["Should AI replace campus placement interviews in India?"],
+    }
+    diagnosis = {
+        "understanding": "The learner gave a clear initial stance.",
+        "strengths": ["specific position"],
+        "errors": ["needs stronger support"],
+        "next_focus": "add one concrete reason tied to campus hiring",
+        "affect": "focused",
+    }
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                "AI can screen resumes, but final campus placement interviews "
+                "still need human judgment."
+            ),
+        }
+    ]
+
+    strengthen = build_strengthen_prompt(
+        node,
+        messages,
+        diagnosis,
+        memory_context=[],
+        career_context=career_context,
+    )
+    challenge = build_challenge_prompt(
+        node,
+        messages,
+        diagnosis,
+        memory_context=[],
+        career_context=career_context,
+    )
+
+    for prompt in (strengthen, challenge):
+        assert "Should AI replace campus placement interviews in India?" in prompt
+        assert "Do not switch to an unrelated GD topic" in prompt
+        assert "remote work" not in prompt.lower()
+
+
+def test_interview_prep_followup_prompts_lock_to_role_and_recent_thread():
+    from app.ai.prompts import build_challenge_prompt, build_strengthen_prompt
+    from app.content.registry import get_node
+
+    node = get_node("int_07_clarify_before_answering")
+    career_context = {
+        "primary_role": "Backend Software Engineer",
+        "role_family": "software_technical",
+        "target_roles": ["Platform Engineer"],
+        "resume_facts": ["Built FastAPI payment and checkout reliability dashboards"],
+    }
+    diagnosis = {
+        "understanding": "The learner asked a clarifying question with backend and user-trust angles.",
+        "strengths": ["offered concrete backend/payment scopes"],
+        "errors": ["can be more concise"],
+        "next_focus": "ask a sharper clarifier tied to backend payment systems",
+        "affect": "confident",
+    }
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                "Before I answer, do you want me to focus on backend risks of "
+                "digital payments like latency and fraud, or user trust?"
+            ),
+        }
+    ]
+
+    strengthen = build_strengthen_prompt(
+        node,
+        messages,
+        diagnosis,
+        memory_context=[],
+        career_context=career_context,
+    )
+    challenge = build_challenge_prompt(
+        node,
+        messages,
+        diagnosis,
+        memory_context=[],
+        career_context=career_context,
+    )
+
+    for prompt in (strengthen, challenge):
+        assert "Interview prep context lock" in prompt
+        assert "Backend Software Engineer" in prompt
+        assert "digital payments" in prompt
+        assert "Do not introduce unrelated domains" in prompt
+        assert "remote work culture" in prompt
+        assert "backend/API/reliability" in prompt
+
+
+def test_gd_prep_opening_prompt_keeps_warmup_on_selected_topic():
+    from app.ai.prompts import build_opening_prompt
+    from app.content.registry import get_node
+
+    prompt = build_opening_prompt(
+        get_node("gd_04_build_on_others"),
+        memory_context=[],
+        career_context={
+            "primary_role": "Backend Software Engineer",
+            "role_family": "software_technical",
+            "gd_topics": ["Should AI replace campus placement interviews in India?"],
+        },
+    )
+
+    assert "Should AI replace campus placement interviews in India?" in prompt
+    assert "GD prep opening contract" in prompt
+    assert "Do not use role-specific workplace" in prompt
+    assert "technical-meeting scenarios" in prompt
+    assert "do not switch the selected gd topic" in prompt.lower()
+    assert "a different name, place, or topic" not in prompt
+
+
+def test_interview_prep_opening_does_not_replace_node_with_weakness_warmup():
+    from app.ai.behaviors import behavior_for_value
+    from app.ai.prompts import build_opening_prompt
+    from app.content.registry import get_node
+
+    prompt = build_opening_prompt(
+        get_node("int_05_why_this_role"),
+        memory_context=[],
+        behavior=behavior_for_value("interview_prep"),
+        weaknesses=[
+            {
+                "skill_id": "technical_tradeoff",
+                "hit_count": 3,
+                "last_raw": "Explain Redis queues versus other queue systems.",
+            }
+        ],
+        career_context={
+            "primary_role": "Backend Software Engineer",
+            "role_family": "software_technical",
+        },
+    )
+
+    assert "Today's skill: Why This Company" in prompt
+    assert "Do not open with a separate weak-spot warm-up" in prompt
+    assert "Use remembered weak spots only to tailor examples" in prompt
+    assert "open with a 10-second warm-up" not in prompt
+    assert "re-tests THAT first" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_interview_report_flags_repeated_prompts_as_assessment_caveat(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.content.task_types import TaskType
+    from app.services.simulation_service import score_session
+
+    async def fake_evaluate_simulation(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.8,
+            summary="The candidate stayed composed.",
+            strengths=["Clear project context"],
+            improvements=["Elaborate further on the repeated Redis vs memcached prompt."],
+            clarity_score=0.8,
+            confidence_score=0.78,
+        )
+
+    monkeypatch.setattr("app.services.simulation_service.evaluate_simulation", fake_evaluate_simulation)
+
+    repeated = "Can you explain the Redis vs memcached tradeoff in your backend project?"
+    state = {
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for backend engineer",
+        "scenario_config": {"target_role": "Backend Software Engineer"},
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "blackboard": {"qualities": [0.8, 0.78, 0.76, 0.75]},
+        "messages": [
+            {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
+            {"role": "user", "content": "I used Redis for caching and Memcached for simple ephemeral lookups."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
+            {"role": "user", "content": "I think I covered that. Could we discuss disagreement with a teammate?"},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
+            {"role": "user", "content": "Again, Redis handled richer data structures and persistence tradeoffs."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a teammate disagreement."},
+            {"role": "user", "content": "I disagreed with microservices for a small CRUD tool and explained why a modular monolith fit better."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a production failure."},
+            {"role": "user", "content": "I caused a migration lock, helped rollback, and added traffic-window checks."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about leadership."},
+            {"role": "user", "content": "I mentored two juniors until they needed only minor review notes."},
+        ],
+    }
+
+    report = await score_session(state)
+
+    assert report.assessment_caveats
+    assert "repeated" in report.assessment_caveats[0].lower()
+    assert all("elaborate further" not in item.lower() for item in report.improvements)
+
+
+@pytest.mark.asyncio
+async def test_progression_map_returns_display_safe_completed_career_ready_state(store):
+    from app.services import session_service as svc
+
+    await store.upsert_mastery(
+        "user-1",
+        "int_01_elevator_pitch",
+        ema=0.0,
+        attempts=3,
+        clean_pass=False,
+        node_completed=True,
+        node_mastered=False,
+        display_status="active",
+    )
+
+    rows = await svc.get_progression_map("user-1", "interview")
+    first = next(row for row in rows if row["node_id"] == "int_01_elevator_pitch")
+
+    assert first["status"] == "ready_to_advance"
+    assert first["completed"] is True
+    assert first["mastered"] is False
+    assert first["raw_mastery"] == 0.0
+    assert first["display_mastery"] == 0.0

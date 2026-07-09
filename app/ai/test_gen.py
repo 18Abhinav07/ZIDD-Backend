@@ -10,6 +10,8 @@ the assessment concentrates exactly where they struggled, and rides the same
 A TEST session must never open with an empty roster, so an empty or failed
 generation falls back to a deterministic per-task set.
 """
+import asyncio
+
 from app.ai.behaviors import behavior_for
 from app.ai.calls import _local
 from app.ai.clients import get_gemini_client
@@ -22,6 +24,9 @@ from app.content.task_types import TaskType, prep_counterpart
 from app.storage import get_storage
 
 __all__ = ["ProbeItem", "ProbeSet", "generate_test_items"]
+
+
+PROBE_GENERATION_TIMEOUT_SECONDS = 120.0
 
 
 # Deterministic safety net: a TEST session must never open with no items, and an
@@ -104,12 +109,109 @@ _GENERIC_FALLBACK = [
 ]
 
 
-def _fallback_items(task_type: str) -> list[ProbeItem]:
+def _fallback_items(
+    task_type: str,
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
+) -> list[ProbeItem]:
+    career_context = career_context or {}
+    scenario_config = scenario_config or {}
+    if task_type == TaskType.INTERVIEW_TEST.value:
+        role_family = career_context.get("role_family", "")
+        target_role = (
+            scenario_config.get("target_role")
+            or career_context.get("primary_role")
+            or "the selected role"
+        )
+        if role_family == "software_technical":
+            return [
+                ProbeItem(
+                    skill_id=SkillID.SPECIFICITY_EXAMPLES.value,
+                    prompt=(
+                        f"Walk me through one technical project relevant to {target_role}. "
+                        "What was the problem, what did you own, and what changed because of your work?"
+                    ),
+                    aim="Gives a concrete project deep dive with ownership and outcome.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.ANSWER_RELEVANCE.value,
+                    prompt=(
+                        "Tell me about a production bug, latency issue, or technical mistake you debugged. "
+                        "How did you isolate the cause?"
+                    ),
+                    aim="Explains debugging process clearly instead of listing tools.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.STRUCTURE_STAR_METHOD.value,
+                    prompt=(
+                        "Describe a trade-off you made in a project: speed versus quality, simplicity versus scale, "
+                        "or user impact versus engineering effort."
+                    ),
+                    aim="Structures a technical trade-off with action and result.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.CONFIDENCE_TONE.value,
+                    prompt=f"Why are you ready for a {target_role} role right now?",
+                    aim="Answers with composed, specific evidence.",
+                ),
+            ]
+        if role_family in {"business_management", "hr_people"}:
+            return [
+                ProbeItem(
+                    skill_id=SkillID.STRUCTURE_STAR_METHOD.value,
+                    prompt="Tell me about a time you handled conflict with a stakeholder or teammate.",
+                    aim="Uses a clear situation-action-result structure.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.SPECIFICITY_EXAMPLES.value,
+                    prompt="Describe a people or process decision you influenced. What evidence shaped your call?",
+                    aim="Gives a concrete management or HR example with reasoning.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.ANSWER_RELEVANCE.value,
+                    prompt=f"What would make you effective in a {target_role} role?",
+                    aim="Connects strengths to the actual role rather than generic traits.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.CONFIDENCE_TONE.value,
+                    prompt="Tell me about a time you had to give or receive difficult feedback.",
+                    aim="Shows composure, judgment, and ownership.",
+                ),
+            ]
+    if task_type == TaskType.GD_TEST.value:
+        topic = scenario_config.get("resolved_topic") or scenario_config.get("topic")
+        if topic:
+            return [
+                ProbeItem(
+                    skill_id=SkillID.GD_STANCE_CLARITY.value,
+                    prompt=f"Motion: '{topic}' Open with a clear stance and one reason.",
+                    aim="Commits to a position before explaining.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.GD_REBUTTAL.value,
+                    prompt=f"A participant challenges your stance on '{topic}'. Respond with one direct rebuttal.",
+                    aim="Rebuts a specific point instead of repeating the opening.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.GD_TURN_TAKING.value,
+                    prompt="Two members are dominating the discussion. Bring in a quieter voice while keeping your point alive.",
+                    aim="Balances assertiveness with collaborative floor control.",
+                ),
+                ProbeItem(
+                    skill_id=SkillID.GD_CONSENSUS_BUILDING.value,
+                    prompt=f"Close the discussion on '{topic}' by proposing a balanced group conclusion.",
+                    aim="Synthesizes positions into a practical ending.",
+                ),
+            ]
     return list(_FALLBACK.get(task_type, _GENERIC_FALLBACK))
 
 
 async def generate_test_items(
-    user_id: str, task_type: str, n_items: int = 4
+    user_id: str,
+    task_type: str,
+    n_items: int = 4,
+    career_context: dict | None = None,
+    scenario_config: dict | None = None,
 ) -> list[ProbeItem]:
     """Build the assessment probe bank for a TEST-mode session.
 
@@ -124,17 +226,31 @@ async def generate_test_items(
         weaknesses = []
 
     behavior = behavior_for(TaskType(task_type))
-    prompt = build_test_gen_prompt(behavior, weaknesses, n_items)
+    prompt = build_test_gen_prompt(
+        behavior,
+        weaknesses,
+        n_items,
+        career_context=career_context or {},
+        scenario_config=scenario_config or {},
+    )
 
     try:
         if _local():
-            result = await ollama_structured(prompt, ProbeSet)
+            result = await asyncio.wait_for(
+                ollama_structured(prompt, ProbeSet),
+                timeout=PROBE_GENERATION_TIMEOUT_SECONDS,
+            )
         else:
-            result = await call_with_structured_output(
-                get_gemini_client(), prompt, ProbeSet
+            result = await asyncio.wait_for(
+                call_with_structured_output(get_gemini_client(), prompt, ProbeSet),
+                timeout=PROBE_GENERATION_TIMEOUT_SECONDS,
             )
         items = list(result.items)
     except Exception:
         items = []
 
-    return items if items else _fallback_items(task_type)
+    return items if items else _fallback_items(
+        task_type,
+        career_context=career_context or {},
+        scenario_config=scenario_config or {},
+    )

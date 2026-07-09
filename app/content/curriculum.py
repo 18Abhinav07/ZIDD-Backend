@@ -24,7 +24,9 @@ def _load() -> None:
     for f in sorted(_DIR.glob("class*_ch*.json")):
         m = Module.model_validate(json.load(open(f)))
         _CHAPTERS[m.id] = m
-    for f in sorted(_DIR.glob("class[2-5].json")):   # manifests: class2.json .. class5.json
+    for f in sorted(_DIR.glob("class*.json")):
+        if "_ch" in f.stem:
+            continue
         c = SchoolClass.model_validate(json.load(open(f)))
         # fail fast on a manifest that points at a chapter we never loaded
         missing = [cid for cid in c.chapters if cid not in _CHAPTERS]

@@ -1,78 +1,103 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import jwt
 import datetime
-import bcrypt
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 from app.config import get_jwt_secret, get_settings
+from app.storage import get_storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 ALGORITHM = "HS256"
+GOOGLE_CERT_TIMEOUT_SECONDS = 5.0
 
-def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except Exception:
-        return False
+class BoundedGoogleRequest:
+    """google-auth Request wrapper with a short cert-fetch timeout."""
 
-from app.storage import get_storage
+    def __init__(self, delegate: google_requests.Request, timeout: float) -> None:
+        self._delegate = delegate
+        self._timeout = timeout
 
-class AuthRequest(BaseModel):
-    user_id: str
-    password: str
-    # Optional display name captured at registration so the coach can address the
-    # learner by name. Ignored by login. Stored on the profile and sourced into
-    # every session's learner_name by start_session.
-    name: str = ""
+    def __call__(
+        self,
+        url,
+        method="GET",
+        body=None,
+        headers=None,
+        timeout=None,
+        **kwargs,
+    ):
+        effective_timeout = self._timeout
+        if timeout is not None:
+            effective_timeout = min(float(timeout), self._timeout)
+        return self._delegate(
+            url,
+            method=method,
+            body=body,
+            headers=headers,
+            timeout=effective_timeout,
+            **kwargs,
+        )
+
+
+_google_request = BoundedGoogleRequest(
+    google_requests.Request(), GOOGLE_CERT_TIMEOUT_SECONDS
+)
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+    is_new_user: bool = False
 
-@router.post("/register", response_model=TokenResponse)
-async def register(req: AuthRequest):
-    # Reject empty / whitespace-only credentials up front. A blank user_id would
-    # later become a blank JWT `sub` (which the middleware now rejects) and a
-    # blank password is never a real credential.
-    user_id = req.user_id.strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id must not be empty")
-    if not req.password:
-        raise HTTPException(status_code=400, detail="password must not be empty")
+class GoogleAuthRequest(BaseModel):
+    id_token: str
 
-    store = get_storage()
-    profile = await store.get_profile(user_id)
-    if profile:
-        raise HTTPException(status_code=400, detail="User already exists")
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(req: GoogleAuthRequest):
+    """Verify a Google-issued id_token (from Next.js/NextAuth) and mint our own
+    JWT. Resolves the account by google_sub first, then by email for legacy
+    account continuity, else creates a new profile. Welcome credits are granted
+    exactly once, only on that creation path.
+    """
+    settings = get_settings()
+    if not settings.google_client_id:
+        raise HTTPException(status_code=500, detail="Google sign-in is not configured")
 
-    # Hash password using bcrypt
-    hashed_password = hash_password(req.password)
-    await store.ensure_profile(user_id, name=req.name.strip(), password_hash=hashed_password)
-    await store.grant_credits(user_id, get_settings().welcome_credits, "welcome")
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            req.id_token, _google_request, settings.google_client_id
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    # Google's own doc-recommended issuer check: verify_oauth2_token already
+    # validates signature/audience/expiry, but not which of Google's two valid
+    # issuer strings was used — enforce it explicitly rather than trusting the
+    # library's default.
+    if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise HTTPException(status_code=401, detail="Invalid token issuer")
+
+    google_sub = claims.get("sub")
+    email = claims.get("email")
+    email_verified = claims.get("email_verified", False)
+    name = claims.get("name", "") or ""
+
+    if not google_sub or not email or not email_verified:
+        raise HTTPException(status_code=401, detail="Google account missing a verified email")
+
+    resolved = await get_storage().resolve_google_login(
+        google_sub=google_sub,
+        email=email,
+        name=name,
+        welcome_credits=get_settings().welcome_credits,
+    )
+    user_id = resolved["user_id"]
+    is_new = bool(resolved["is_new_user"])
 
     token = create_access_token({"sub": user_id})
-    return {"access_token": token, "token_type": "bearer"}
-
-@router.post("/login", response_model=TokenResponse)
-async def login(req: AuthRequest):
-    store = get_storage()
-    profile = await store.get_profile(req.user_id)
-
-    # A missing profile, OR a profile with no/blank password hash (session-seeded,
-    # legacy, or demo ids), is NOT a usable credential. The old code hashed the
-    # caller's submitted password INTO such a profile and then verified against
-    # that just-written hash, minting a valid token for any account it knew the
-    # id of (account takeover). Any null/blank-hash profile must 401 instead.
-    hashed_password = profile.get("password_hash") if profile else None
-    if not hashed_password or not verify_password(req.password, hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-
-    token = create_access_token({"sub": req.user_id})
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "is_new_user": is_new}
 
 def create_access_token(data: dict):
     to_encode = data.copy()

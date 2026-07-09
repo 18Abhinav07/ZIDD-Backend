@@ -23,6 +23,7 @@ from app.ai.behaviors import BehaviorPack, behavior_for
 from app.ai.prompts import (
     build_director_prompt,
     build_eval_prompt,
+    build_prep_eval_prompt,
     build_placement_prompt,
     build_selector_prompt,
     build_simulation_score_prompt,
@@ -34,6 +35,7 @@ from app.ai.schemas import (
     DirectorDecision,
     FillBlankGame,
     PlacementEval,
+    PrepRubricEval,
     SelectionDecision,
     SimulationReport,
 )
@@ -41,6 +43,8 @@ from app.ai.structured import call_with_structured_output
 from app.config import get_settings
 from app.content.schema import Concept
 from app.content.task_types import TaskType
+from app.services.rubric_engine import RubricResult, apply_caps, build_evaluation_packet
+from app.services.rubrics import get_rubric
 
 GROQ_70B = "llama-3.3-70b-versatile"
 GROQ_8B = "llama-3.1-8b-instant"
@@ -69,6 +73,7 @@ async def evaluate_answer(
     messages: list[dict],
     user_input: str,
     behavior: BehaviorPack | None = None,
+    career_context: dict | None = None,
 ) -> DiagnosisEval:
     """Structured assessment of the latest learner answer.
 
@@ -77,12 +82,42 @@ async def evaluate_answer(
     previously never threaded here, so `_strictness_gate`/`_persona` in
     build_eval_prompt were dead code and a child's phonics and a mock interview
     were graded on the identical bar. None preserves the legacy standard rubric."""
-    prompt = build_eval_prompt(node, messages, user_input, behavior=behavior)
+    prompt = build_eval_prompt(
+        node,
+        messages,
+        user_input,
+        behavior=behavior,
+        career_context=career_context,
+    )
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, DiagnosisEval)
         client = get_gemini_client()
         return await call_with_structured_output(client, prompt, DiagnosisEval)
+
+
+async def evaluate_prep_answer(
+    node: Concept,
+    messages: list[dict],
+    user_input: str,
+    behavior: BehaviorPack | None = None,
+    career_context: dict | None = None,
+    state: dict | None = None,
+) -> RubricResult:
+    """Structured rubric assessment for interview/GD prep nodes."""
+    packet_state = dict(state or {})
+    packet_state.setdefault("messages", messages)
+    packet_state.setdefault("career_context", career_context or {})
+    rubric = get_rubric(node.id)
+    packet = build_evaluation_packet(packet_state, node, user_input, rubric)
+    prompt = build_prep_eval_prompt(packet.model_dump(), career_context=career_context)
+    async with llm_semaphore:
+        if _local():
+            raw = await ollama_structured(prompt, PrepRubricEval)
+        else:
+            client = get_gemini_client()
+            raw = await call_with_structured_output(client, prompt, PrepRubricEval)
+    return apply_caps(packet, raw)
 
 
 async def evaluate_placement(module_title: str, writing_sample: str) -> PlacementEval:
@@ -96,13 +131,24 @@ async def evaluate_placement(module_title: str, writing_sample: str) -> Placemen
 
 
 async def evaluate_simulation(
-    task_type: TaskType, topic: str, messages: list[dict]
+    task_type: TaskType,
+    topic: str,
+    messages: list[dict],
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
 ) -> SimulationReport:
     """Structured end-of-session score for a TEST-mode simulation.
 
     Test sessions are scored, not coached mid-stream; this runs once at the end
     over the whole transcript with the task's (strict) behavior pack."""
-    prompt = build_simulation_score_prompt(behavior_for(task_type), topic, messages)
+    prompt = build_simulation_score_prompt(
+        behavior_for(task_type),
+        topic,
+        messages,
+        scenario_config=scenario_config,
+        career_context=career_context,
+        task_type=task_type,
+    )
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, SimulationReport)
@@ -111,7 +157,13 @@ async def evaluate_simulation(
 
 
 async def direct_simulation(
-    bb, personas, task_type, transcript, probe_items=None
+    bb,
+    personas,
+    task_type,
+    transcript,
+    probe_items=None,
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
 ) -> DirectorDecision:
     """Director's structured decision for one writers'-room round (the deliberate
     'thinking' beat). Non-streamed: returns a DirectorDecision. This is the LLM
@@ -120,7 +172,15 @@ async def direct_simulation(
     `probe_items` is the prep-weakness probe bank; it is rendered into the prompt
     so the director presses the learner's known weak spots (previously generated
     then never consumed)."""
-    prompt = build_director_prompt(bb, personas, task_type, transcript, probe_items)
+    prompt = build_director_prompt(
+        bb,
+        personas,
+        task_type,
+        transcript,
+        probe_items,
+        scenario_config=scenario_config,
+        career_context=career_context,
+    )
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, DirectorDecision)
@@ -146,13 +206,16 @@ async def select_next_content(
 
 
 async def generate_game_item(
-    node: Concept, diagnosis: dict, coach: dict | None = None
+    node: Concept,
+    diagnosis: dict,
+    coach: dict | None = None,
+    career_context: dict | None = None,
 ) -> FillBlankGame:
     """Gamified fill-blank for scaffold turns (scaffold >= 1).
 
     Structured call — same pattern as evaluate_answer. Returns FillBlankGame;
     teach_node stores it as pending_game in state (no pending/stream GenSpec)."""
-    prompt = build_teach_game_prompt(node, diagnosis, coach)
+    prompt = build_teach_game_prompt(node, diagnosis, coach, career_context=career_context)
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, FillBlankGame)

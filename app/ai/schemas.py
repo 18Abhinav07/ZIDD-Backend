@@ -3,9 +3,9 @@
 Council rule (structured.py): Flash-Lite ignores schema `description` fields,
 so instructions live in the prompt, not here. Keep string fields short.
 """
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DiagnosisEval(BaseModel):
@@ -29,6 +29,95 @@ class DiagnosisEval(BaseModel):
     english: bool = True        # competent English (vs empty/gibberish/non-English)?
     affect: Literal["neutral", "frustrated", "confident", "confused"] = "neutral"
     goodbye: bool = False       # learner is ending the session (natural farewell)
+
+
+class CriterionEval(BaseModel):
+    """LLM judgment for one explicit prep-rubric criterion.
+
+    The model judges semantics; backend code validates required evidence and
+    applies score caps. `evidence_quote` must be copied from the learner answer
+    for required criteria, not inferred from the rubric text.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "id" not in out and "criterion_id" in out:
+            out["id"] = out["criterion_id"]
+        if "reason" not in out and "rationale" in out:
+            out["reason"] = out["rationale"]
+        if "quality" not in out and "score" in out:
+            out["quality"] = out["score"]
+        return out
+
+    id: str
+    met: bool = False
+    evidence_quote: str = ""
+    reason: str = ""
+    quality: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    @property
+    def criterion_id(self) -> str:
+        return self.id
+
+    @property
+    def rationale(self) -> str:
+        return self.reason
+
+    @property
+    def score(self) -> float:
+        return self.quality
+
+
+class PrepRubricEval(BaseModel):
+    """Structured career-prep evaluation over explicit node criteria.
+
+    Keeps the DiagnosisEval surface (understanding/errors/strengths/next_focus
+    plus routing flags) while carrying criterion-level proof and backend-applied
+    eligibility. Non-career modules continue to use DiagnosisEval.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "raw_score" not in out and "score" in out:
+            out["raw_score"] = out["score"]
+        if "required_missing" not in out and "missing_required_criteria" in out:
+            out["required_missing"] = out["missing_required_criteria"]
+        return out
+
+    raw_score: float = Field(ge=0.0, le=1.0)
+    effective_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    understanding: str = ""
+    errors: list[str] = Field(default_factory=list)
+    strengths: list[str] = Field(default_factory=list)
+    next_focus: str
+    criteria: list[CriterionEval] = Field(default_factory=list)
+    pass_eligible: bool = False
+    mastery_eligible: bool = False
+    required_missing: list[str] = Field(default_factory=list)
+    on_task: bool = True
+    english: bool = True
+    affect: Literal["neutral", "frustrated", "confident", "confused"] = "neutral"
+    goodbye: bool = False
+
+    @property
+    def score(self) -> float:
+        return self.raw_score
+
+    @property
+    def missing_required_criteria(self) -> list[str]:
+        return self.required_missing
 
 
 class SimulationReport(BaseModel):
@@ -56,6 +145,19 @@ class SimulationReport(BaseModel):
     # Interview rubric dimensions — 0.0 default keeps GD callers valid
     clarity_score: float = Field(default=0.0, ge=0.0, le=1.0)
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    scenario_label: str = ""
+    role_focus: str = ""
+    topic: str = ""
+    observed_skill_gaps: list[str] = Field(default_factory=list)
+    recommended_next_nodes: list[str] = Field(default_factory=list)
+    assessment_caveats: list[str] = Field(default_factory=list)
+    validity_status: Literal["final", "partial", "insufficient_evidence", "invalid_simulation"] = "final"
+    scorable_turn_count: int = 0
+    coverage_map: dict[str, Any] = Field(default_factory=dict)
+    evidence_quotes: list[str] = Field(default_factory=list)
+    repeated_answer_flags: list[str] = Field(default_factory=list)
+    topic_drift_flags: list[str] = Field(default_factory=list)
+    persona_warnings: list[str] = Field(default_factory=list)
 
 
 class ProbeItem(BaseModel):

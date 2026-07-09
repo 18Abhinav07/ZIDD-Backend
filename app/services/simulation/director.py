@@ -67,6 +67,8 @@ async def decide_round(
     task_type,
     transcript: str,
     probe_items: list | None = None,
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
 ) -> tuple[Blackboard, dict, DirectorDecision]:
     """Run the Director's beat for one round: decide, snap, apply, resolve.
 
@@ -88,7 +90,13 @@ async def decide_round(
     fell_back = False
     try:
         decision = await direct_simulation(
-            bb, personas, task_type, transcript, probe_items
+            bb,
+            personas,
+            task_type,
+            transcript,
+            probe_items,
+            scenario_config=scenario_config,
+            career_context=career_context,
         )
     except Exception:
         decision = _fallback_decision(bb, personas)

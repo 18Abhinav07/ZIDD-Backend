@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 import time
 from collections import defaultdict
 
+from app.config import get_settings
+
 # Max 2 concurrent LLM calls globally
 llm_semaphore = asyncio.Semaphore(2)
 
@@ -16,6 +18,20 @@ turn_counts = defaultdict(lambda: {"date": "", "count": 0})
 # user_id ever seen (including spoofable/anonymous ids) and never shrinks — an
 # unbounded memory leak. We bound it at _MAX_TRACKED and prune lazily.
 _MAX_TRACKED = 10000
+
+# IP-keyed throttle for /auth/google. It is publicly reachable (no JWT yet), so
+# it needs brute-force/backoff protection even though password auth is gone.
+# {ip: {"window": "YYYY-MM-DDTHH:MM", "count": 0}}, one-minute buckets.
+auth_ip_counts = defaultdict(lambda: {"window": "", "count": 0})
+_MAX_TRACKED_IPS = 10000
+
+
+def _prune_ips(window: str) -> None:
+    stale = [ip for ip, t in auth_ip_counts.items() if t["window"] != window]
+    for ip in stale:
+        del auth_ip_counts[ip]
+    while len(auth_ip_counts) > _MAX_TRACKED_IPS:
+        auth_ip_counts.pop(next(iter(auth_ip_counts)))
 
 
 def _prune(today: str) -> None:
@@ -37,8 +53,33 @@ def _prune(today: str) -> None:
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # We only apply turn rate limiting to the turn endpoints
-        if request.url.path.startswith("/session") and request.method == "POST":
+        if request.url.path == "/auth/google":
+            limit = get_settings().auth_google_limit_per_minute
+            ip = request.client.host if request.client else "unknown"
+            window = time.strftime("%Y-%m-%dT%H:%M")
+            if len(auth_ip_counts) > _MAX_TRACKED_IPS:
+                _prune_ips(window)
+            tracker = auth_ip_counts[ip]
+            if tracker["window"] != window:
+                tracker["window"] = window
+                tracker["count"] = 0
+            if tracker["count"] >= limit:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": {
+                            "code": "auth_rate_limited",
+                            "message": "Too many Google sign-in attempts, slow down",
+                        }
+                    },
+                )
+            tracker["count"] += 1
+
+        # Count only real learner turns. Starting, opening, ending, progress, and
+        # transcript reads are control-plane actions and must not burn the daily
+        # learning-turn quota.
+        if request.url.path == "/session/turn" and request.method == "POST":
+            limit = get_settings().session_turn_limit_per_day
             # Just extract user_id from state (populated by AuthMiddleware)
             user_id = getattr(request.state, "user_id", "anonymous")
 
@@ -52,18 +93,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 tracker["date"] = today
                 tracker["count"] = 0
             
-            if tracker["count"] >= 100:
-                return JSONResponse(status_code=429, content={"detail": "Daily limit of 100 turns exceeded"})
+            if tracker["count"] >= limit:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": {
+                            "code": "turn_limit_exceeded",
+                            "message": "Daily limit of 100 turns exceeded",
+                        }
+                    },
+                )
             
             tracker["count"] += 1
 
-        # We wrap the downstream call in the semaphore if it's hitting an endpoint
-        # However, asyncio.Semaphore across the whole request could cause deadlocks if SSE is open.
-        # The prompt actually says: "max 2 concurrent LLM calls (asyncio.Semaphore)".
-        # It's better to put the semaphore inside `app/ai/calls.py` so it only blocks the exact LLM call,
-        # not the entire request including the SSE stream idle time.
-        # But since the task explicitly says `app/middleware/`, I will add a request-level semaphore 
-        # or maybe the task just listed `app/middleware/` for the rate limiter. I will just do the daily limit here
-        # and inject the semaphore in `app/ai/calls.py` for "LLM calls". 
-        
         return await call_next(request)

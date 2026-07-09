@@ -26,9 +26,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
+_LOCAL_DEV_HOSTS = {"localhost", "127.0.0.1", "::1", "testserver"}
+
 
 def _uid(request: Request) -> str:
     return getattr(request.state, "user_id", None) or ""
+
+
+def _is_local_dev_grant_enabled(request: Request) -> bool:
+    settings = get_settings()
+    if settings.app_env.lower() not in {"dev", "test", "local"}:
+        return False
+    if not settings.enable_dev_credit_grant:
+        return False
+    host = (request.url.hostname or "").lower()
+    origin = (request.headers.get("origin") or "").strip()
+    if host not in _LOCAL_DEV_HOSTS:
+        return False
+    if origin:
+        try:
+            origin_host = origin.split("://", 1)[1].split("/", 1)[0].split(":", 1)[0].lower()
+        except IndexError:
+            return False
+        if origin_host not in _LOCAL_DEV_HOSTS:
+            return False
+    return True
 
 
 @router.get("/balance", response_model=BalanceResponse)
@@ -37,15 +59,17 @@ async def balance(request: Request) -> BalanceResponse:
     store = get_storage()
     # Best-effort name read so the dashboard can greet by the profile name (the
     # same one the coach uses); a missing/failed profile just leaves it blank.
+    prof = None
     try:
         prof = await store.get_profile(user_id)
         name = (prof or {}).get("name", "") or ""
     except Exception:
         name = ""
 
-    active_module = None
+    prefs = (prof or {}).get("preferences") or {}
+    active_module = prefs.get("active_module") if isinstance(prefs, dict) else None
     try:
-        if hasattr(store, "get_last_active_node"):
+        if not active_module and hasattr(store, "get_last_active_node"):
             last_node = await store.get_last_active_node(user_id)
             if last_node:
                 active_module = registry.module_of(last_node)
@@ -70,7 +94,7 @@ async def dev_grant(request: Request, amount: int = 500) -> dict:
     funded in dev. This grants the authenticated user credits directly. Hard
     404 outside non-prod so it can never exist on a real deployment.
     """
-    if get_settings().app_env.lower() == "prod":
+    if not _is_local_dev_grant_enabled(request):
         raise HTTPException(status_code=404, detail="Not found")
     user_id = _uid(request)
     if not user_id:

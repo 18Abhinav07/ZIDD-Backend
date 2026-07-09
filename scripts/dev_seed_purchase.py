@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed a profile + 'created' purchase straight into the local store (dev only).
+"""Seed a profile + 'created' purchase through the cloud store (dev only).
 
 This is the isolated-test companion to ``dev_webhook.py``. The real money loop
 records a purchase via ``POST /billing/purchase/order`` (which calls the Razorpay
@@ -9,8 +9,8 @@ single-grant latch — we don't need a real Razorpay order at all: we only need 
 profile row (so ``grant_credits`` finds it instead of raising ``KeyError``) and a
 ``purchases`` row with a known ``order_id`` + ``amount_paise``.
 
-Run from the Zidd-Backend directory so the relative ``.zidd_local.db`` resolves
-to the same file uvicorn writes:
+Run from the Zidd-Backend directory so `.env` resolves to the same Supabase
+pooler URL as uvicorn:
 
     ./.venv/bin/python scripts/dev_seed_purchase.py
     ./.venv/bin/python scripts/dev_seed_purchase.py --order-id order_SIM_x --pack-id value
@@ -39,7 +39,7 @@ DEFAULT_PACK_ID = "starter"
 
 async def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Seed a profile + 'created' purchase into the local store for webhook testing.",
+        description="Seed a profile + 'created' purchase into Supabase for webhook testing.",
     )
     parser.add_argument("--order-id", default=DEFAULT_ORDER_ID)
     parser.add_argument("--user-id", default=DEFAULT_USER_ID)

@@ -14,6 +14,7 @@ Model: qwen2.5:14b (q4) — strong JSON + instruction-following on 24GB M4 Pro.
 Uses /api/chat with `format=<pydantic json schema>` for structured output and
 streamed deltas for pedagogy generations. Same httpx pattern as memory/embed.py.
 """
+import asyncio
 import json
 
 import httpx
@@ -22,19 +23,32 @@ from pydantic import BaseModel, ValidationError
 from app.config import get_settings
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
-_STRUCTURED_TIMEOUT = 60.0   # local 14B JSON gen can take a few s on first load
-_STREAM_TIMEOUT = 120.0
+_STRUCTURED_TIMEOUT = 180.0  # local 14B JSON/scoring can cross 60s under load
+_STREAM_TIMEOUT = 300.0
 _NUM_CTX = 8192              # history + node prompt; default 4096 risks truncation
 _KEEP_ALIVE = "30m"         # keep model resident; default 5m evicts mid-session
 _NUM_PREDICT = 700          # cap pedagogy gen; stops rare runaway mid-sentence cut
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
 
 
 def _model() -> str:
     return get_settings().ollama_model
 
 
+def _is_transient_http_error(err: Exception) -> bool:
+    if isinstance(err, httpx.RequestError):
+        return True
+    if isinstance(err, httpx.HTTPStatusError):
+        return err.response.status_code in _TRANSIENT_STATUS
+    return False
+
+
 async def ollama_structured(
-    prompt: str, schema_cls: type[BaseModel], max_retries: int = 2
+    prompt: str,
+    schema_cls: type[BaseModel],
+    max_retries: int = 2,
+    server_retries: int = 3,
+    base_delay: float = 0.25,
 ) -> BaseModel:
     """Structured JSON from local model, validated against `schema_cls`.
 
@@ -55,8 +69,15 @@ async def ollama_structured(
             # temp 0 is deterministic, so a retry of the SAME body reproduces the
             # same bad parse. Nudge temperature up on each retry to vary output.
             body["options"]["temperature"] = 0.0 if attempt == 0 else 0.3 * attempt
-            resp = await client.post(OLLAMA_CHAT_URL, json=body)
-            resp.raise_for_status()
+            for server_attempt in range(server_retries + 1):
+                try:
+                    resp = await client.post(OLLAMA_CHAT_URL, json=body)
+                    resp.raise_for_status()
+                    break
+                except Exception as err:
+                    if not _is_transient_http_error(err) or server_attempt == server_retries:
+                        raise
+                    await asyncio.sleep(base_delay * (2 ** server_attempt))
             content = resp.json()["message"]["content"]
             try:
                 return schema_cls.model_validate_json(content)
@@ -67,7 +88,12 @@ async def ollama_structured(
     raise last_err  # unreachable; satisfies type checker
 
 
-async def ollama_stream(prompt: str, temperature: float = 0.6):
+async def ollama_stream(
+    prompt: str,
+    temperature: float = 0.6,
+    server_retries: int = 3,
+    base_delay: float = 0.25,
+):
     """Stream pedagogy text token-by-token from the local model."""
     body = {
         "model": _model(),
@@ -84,17 +110,24 @@ async def ollama_stream(prompt: str, temperature: float = 0.6):
         },
     }
     async with httpx.AsyncClient(timeout=_STREAM_TIMEOUT) as client:
-        async with client.stream("POST", OLLAMA_CHAT_URL, json=body) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line.strip():
-                    continue
-                chunk = json.loads(line)
-                tok = chunk.get("message", {}).get("content")
-                if tok:
-                    yield tok
-                if chunk.get("done"):
-                    break
+        for server_attempt in range(server_retries + 1):
+            try:
+                async with client.stream("POST", OLLAMA_CHAT_URL, json=body) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line.strip():
+                            continue
+                        chunk = json.loads(line)
+                        tok = chunk.get("message", {}).get("content")
+                        if tok:
+                            yield tok
+                        if chunk.get("done"):
+                            continue
+                    return
+            except Exception as err:
+                if not _is_transient_http_error(err) or server_attempt == server_retries:
+                    raise
+                await asyncio.sleep(base_delay * (2 ** server_attempt))
 
 
 async def ollama_complete(prompt: str, temperature: float = 0.3) -> str:

@@ -54,13 +54,16 @@ def new_blackboard(topic: str) -> Blackboard:
 
 
 def apply_decision(
-    bb: Blackboard, decision: DirectorDecision, count_quality: bool = True
+    bb: Blackboard,
+    decision: DirectorDecision,
+    count_quality: bool = True,
+    count_turn: bool = True,
 ) -> Blackboard:
     """Return a new Blackboard reflecting the Director's decision.
 
     - phase mapped from decision.action
     - tension clamped to [0.0, 1.0]; answer_quality (stored as last_quality) also clamped to [0.0, 1.0]
-    - turn incremented by 1
+    - turn incremented by 1 only when count_turn is True
     - intent appended to covered
     - the clamped answer_quality appended to `qualities` (the per-round series the
       whole-session score blends over) ONLY when `count_quality` is True;
@@ -75,14 +78,21 @@ def apply_decision(
     down-score a strong learner. The caller passes count_quality=False for a
     fallback round so only GENUINE Director reads enter the blend; the round still
     advances `turn` (so the cap counts it) and carries `last_quality` through.
+
+    Runtime-control turns (confusion, move-on, speaker requests) are different:
+    they are not learner answers and scoring excludes them, so callers pass
+    count_turn=False as well. The blackboard can still carry the updated phase,
+    tension, and intent so the simulation stays coherent without burning a
+    scored round.
     """
     quality = max(0.0, min(1.0, decision.answer_quality))
     prior_qualities = bb.get("qualities", [])
+    turn = bb["turn"] + (1 if count_turn else 0)
     return Blackboard(
         topic=bb["topic"],
         phase=_ACTION_TO_PHASE[decision.action],
         tension=max(0.0, min(1.0, decision.tension)),
-        turn=bb["turn"] + 1,
+        turn=turn,
         covered=bb["covered"] + [decision.intent],
         open_threads=list(bb["open_threads"]),
         positions=dict(bb["positions"]),

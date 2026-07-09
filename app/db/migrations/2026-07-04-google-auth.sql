@@ -1,0 +1,3 @@
+ALTER TABLE learner_profiles
+    ADD COLUMN IF NOT EXISTS email      TEXT UNIQUE,
+    ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE;

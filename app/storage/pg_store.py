@@ -1,40 +1,19 @@
-"""Postgres storage backend — wraps the existing repo + pgvector memory store.
+"""Postgres/Supabase storage backend.
 
-Same surface as LocalStore so the cloud swap is config-only (flip AI_BACKEND).
-Each call acquires its own AsyncSession and degrades gracefully: if Postgres is
-unreachable the method is a best-effort no-op (empty/zero), never an exception —
-the engine must run with the DB offline.
-
-NOTE: the weakness-aggregation tables (Phase 2.2) are not yet migrated on the
-cloud schema. Until that migration lands, the weakness methods here are
-degrade-gracefully no-ops; the LOCAL backend is the source of truth during the
-qwen build (AI_BACKEND stays "local"). When the cloud schema gains the
-`weaknesses`/`turns` tables these wrap repo calls the same way the others do.
+This is the product runtime store. PgStore must not silently no-op when
+Supabase is unavailable, because that loses auth profiles, credits, progress,
+and session history while making the product look functional.
 """
 from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
 async def _session():
-    """Yield an AsyncSession, or None when Postgres is unreachable.
+    """Yield an AsyncSession, raising if Supabase cannot be reached/configured."""
+    from app.db.engine import get_sessionmaker
 
-    Single yield per path: either we hand back a live session (closed in the
-    finally), or — if the engine/sessionmaker can't be built — we yield None so
-    the caller no-ops. A body exception propagates UNCHANGED: every PgStore
-    method wraps its own body and degrades, so this context manager never needs
-    to swallow. The old `except Exception: yield None` around the body yielded a
-    SECOND time, which makes asynccontextmanager raise
-    RuntimeError("generator didn't stop after athrow()") and masks the real
-    error; it was harmless only because no method ever let its body raise here.
-    """
-    try:
-        from app.db.engine import get_sessionmaker
-
-        maker = get_sessionmaker()
-        sess = maker()
-    except Exception:
-        yield None
-        return
+    maker = get_sessionmaker()
+    sess = maker()
     try:
         yield sess
     finally:
@@ -45,14 +24,12 @@ async def _session():
 
 
 def _parse_context_rows(rows: list[dict]) -> list[dict]:
-    """Turn pgvector (node_id, content) rows into LocalStore's list[dict] shape.
+    """Turn pgvector (node_id, content) rows into the app context shape.
 
     Each row's `content` is a raw session summary (the 3-line Strengths/Watch/
-    Next focus format write_memory persists). Parse the named lines the same way
-    LocalStore and _memory_block do, and stamp the REAL competency node_id the row
-    carries so a caller matching a summary to a node (the welcome-back recap) works
-    identically on both backends. score/date are unknown on pg -> 0.0/"" (the
-    fields LocalStore fills), so both backends return structurally identical dicts.
+    Next focus format write_memory persists). Parse the named lines and stamp
+    the REAL competency node_id the row carries so a caller matching a summary
+    to a node (the welcome-back recap) works without a second lookup.
     """
     result: list[dict] = []
     for row in rows or []:
@@ -80,42 +57,95 @@ def _parse_context_rows(rows: list[dict]) -> list[dict]:
 
 class PgStore:
     async def ping_writable(self) -> bool:
-        """Cloud equivalent of the writability probe: confirm the pooled
-        Postgres connection answers. SELECT 1 is sufficient — repo writes already
-        degrade to no-ops when the pooler is down, so connectivity is the health
-        signal that matters. Returns False on any connection/query failure."""
+        """Confirm the pooled Postgres connection answers a trivial query."""
         from sqlalchemy import text
 
-        async with _session() as s:
-            if s is None:
-                return False
-            try:
-                result = await s.execute(text("SELECT 1"))
-                return result.scalar() == 1
-            except Exception:
-                return False
+        try:
+            async with _session() as s:
+                try:
+                    result = await s.execute(text("SELECT 1"))
+                    return result.scalar() == 1
+                except Exception:
+                    return False
+        except Exception:
+            return False
 
-    async def ensure_profile(self, user_id: str, name: str = "", password_hash: str | None = None) -> None:
+    async def ensure_profile(
+        self,
+        user_id: str,
+        name: str = "",
+        email: str | None = None,
+        google_sub: str | None = None,
+    ) -> None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return
-            try:
-                await repo.ensure_profile(s, user_id, name, password_hash)
-            except Exception:
-                pass
+            await repo.ensure_profile(s, user_id, name, email, google_sub)
 
     async def get_profile(self, user_id: str) -> dict | None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.get_profile(s, user_id)
-            except Exception:
-                return None
+            return await repo.get_profile(s, user_id)
+
+    async def get_profile_by_email(self, email: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_profile_by_email(s, email)
+
+    async def get_profile_by_google_sub(self, google_sub: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_profile_by_google_sub(s, google_sub)
+
+    async def resolve_google_login(
+        self,
+        google_sub: str,
+        email: str,
+        name: str,
+        welcome_credits: int,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.resolve_google_login(
+                s, google_sub, email, name, welcome_credits
+            )
+
+    async def get_preferences(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_preferences(s, user_id)
+
+    async def update_preferences(self, user_id: str, patch: dict) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.update_preferences(s, user_id, patch)
+
+    async def update_onboarding_state(self, user_id: str, draft: dict) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.update_onboarding_state(s, user_id, draft)
+
+    async def complete_onboarding(
+        self,
+        user_id: str,
+        display_name: str,
+        primary_motive: str,
+        school_profile: dict,
+        career_profile: dict,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.complete_onboarding(
+                s, user_id, display_name, primary_motive, school_profile, career_profile
+            )
 
     async def create_session(
         self,
@@ -124,16 +154,114 @@ class PgStore:
         task_type: str,
         module_id: str,
         node_id: str,
+        test_mode: bool = False,
+        career_context: dict | None = None,
+        scenario_config: dict | None = None,
+        persona_roster: list | None = None,
+        context_hash: str = "default",
     ) -> None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return
-            try:
-                await repo.create_session(s, session_id, user_id, node_id)
-            except Exception:
-                pass
+            await repo.create_session(
+                s,
+                session_id,
+                user_id,
+                task_type,
+                module_id,
+                node_id,
+                test_mode=test_mode,
+                career_context=career_context or {},
+                scenario_config=scenario_config or {},
+                persona_roster=persona_roster or [],
+                context_hash=context_hash,
+            )
+
+    async def begin_start_request(
+        self,
+        user_id: str,
+        client_start_id: str,
+        request_hash: str,
+        source_session_id: str | None = None,
+        source_transition_id: str | None = None,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.begin_start_request(
+                s,
+                user_id,
+                client_start_id,
+                request_hash,
+                source_session_id=source_session_id,
+                source_transition_id=source_transition_id,
+            )
+
+    async def get_start_request(
+        self,
+        user_id: str,
+        client_start_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_start_request(s, user_id, client_start_id)
+
+    async def get_start_request_for_source_transition(
+        self,
+        source_session_id: str,
+        source_transition_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_start_request_for_source_transition(
+                s,
+                source_session_id,
+                source_transition_id,
+            )
+
+    async def reset_start_request(
+        self,
+        user_id: str,
+        client_start_id: str,
+        request_hash: str,
+        source_session_id: str | None = None,
+        source_transition_id: str | None = None,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.reset_start_request(
+                s,
+                user_id,
+                client_start_id,
+                request_hash,
+                source_session_id=source_session_id,
+                source_transition_id=source_transition_id,
+            )
+
+    async def complete_start_request(
+        self,
+        user_id: str,
+        client_start_id: str,
+        status: str,
+        session_id: str | None = None,
+        response_json: dict | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.complete_start_request(
+                s,
+                user_id,
+                client_start_id,
+                status,
+                session_id=session_id,
+                response_json=response_json or {},
+                error_code=error_code,
+            )
 
     async def end_session(
         self, session_id: str, final_summary: str = "", avg_score: float = 0.0
@@ -141,12 +269,7 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return
-            try:
-                await repo.end_session(s, session_id, 0, avg_score, final_summary)
-            except Exception:
-                pass
+            await repo.end_session(s, session_id, 0, avg_score, final_summary)
 
     async def record_turn(
         self,
@@ -158,11 +281,214 @@ class PgStore:
         english: bool = True,
         affect: str = "neutral",
     ) -> None:
-        # turns table not yet on cloud schema (Phase 2.2 migration) — no-op.
-        return
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.record_turn(
+                s, session_id, user_id, node_id, score, on_task, english, affect
+            )
 
     async def get_turns(self, session_id: str) -> list[dict]:
-        return []
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_turns(s, session_id)
+
+    async def record_turn_evaluation(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.record_turn_evaluation(s, **kwargs)
+
+    async def record_learning_event(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.record_learning_event(s, **kwargs)
+
+    async def upsert_session_report(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_session_report(s, **kwargs)
+
+    async def upsert_learner_skill_profile(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_learner_skill_profile(s, **kwargs)
+
+    async def get_learning_graph(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_learning_graph(s, user_id)
+
+    async def upsert_session_runtime(
+        self,
+        session_id: str,
+        user_id: str,
+        current_node: str,
+        module_id: str | None,
+        task_type: str | None,
+        test_mode: bool,
+        status: str,
+        state_snapshot: dict,
+        pending_transition: dict | None,
+        session_version: int,
+        active_turn_id: str | None = None,
+        active_opening_id: str | None = None,
+        last_error: dict | None = None,
+        lease_expires_at: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_session_runtime(
+                s,
+                session_id,
+                user_id,
+                current_node,
+                module_id,
+                task_type,
+                test_mode,
+                status,
+                state_snapshot,
+                pending_transition,
+                session_version,
+                active_turn_id=active_turn_id,
+                active_opening_id=active_opening_id,
+                last_error=last_error,
+                lease_expires_at=lease_expires_at,
+            )
+
+    async def get_session_runtime(self, session_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            row = await repo.get_session_runtime(s, session_id)
+            if row:
+                messages = await repo.list_session_messages(s, session_id)
+                if messages:
+                    snapshot = dict(row.get("state_snapshot") or {})
+                    snapshot["messages"] = messages
+                    row["state_snapshot"] = snapshot
+            return row
+
+    async def touch_session_runtime(
+        self,
+        session_id: str,
+        status: str = "active",
+        lease_expires_at: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.touch_session_runtime(s, session_id, status, lease_expires_at)
+
+    async def replace_session_messages(
+        self, session_id: str, messages: list[dict]
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.replace_session_messages(s, session_id, messages)
+
+    async def begin_turn_request(
+        self,
+        session_id: str,
+        client_turn_id: str,
+        request_hash: str,
+        expected_version: int | None,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.begin_turn_request(
+                s, session_id, client_turn_id, request_hash, expected_version
+            )
+
+    async def complete_turn_request(
+        self,
+        session_id: str,
+        client_turn_id: str,
+        status: str,
+        transcript_delta: list[dict] | None = None,
+        done_snapshot: dict | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.complete_turn_request(
+                s,
+                session_id,
+                client_turn_id,
+                status,
+                transcript_delta,
+                done_snapshot,
+                error_code,
+            )
+
+    async def begin_opening_request(
+        self,
+        session_id: str,
+        transition_id: str,
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.begin_opening_request(s, session_id, transition_id)
+
+    async def complete_opening_request(
+        self,
+        session_id: str,
+        transition_id: str,
+        status: str,
+        message_id: str | None = None,
+        last_error: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.complete_opening_request(
+                s,
+                session_id,
+                transition_id,
+                status,
+                message_id,
+                last_error,
+            )
+
+    async def begin_end_request(self, session_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.begin_end_request(s, session_id)
+
+    async def complete_end_request(
+        self,
+        session_id: str,
+        status: str,
+        response_json: dict | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.complete_end_request(
+                s,
+                session_id,
+                status,
+                response_json,
+                error_code,
+            )
+
+    async def get_end_request(self, session_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_end_request(s, session_id)
 
     async def upsert_mastery(
         self,
@@ -172,40 +498,49 @@ class PgStore:
         attempts: int,
         clean_pass: bool = False,
         node_completed: bool = False,
+        node_mastered: bool | None = None,
+        display_status: str | None = None,
+        best_independent_score: float = 0.0,
+        independent_passes: int = 0,
+        transfer_passes: int = 0,
+        pressure_passes: int = 0,
+        scaffold_successes: int = 0,
+        last_gap: str = "",
+        mastery_evidence: list[str] | None = None,
     ) -> None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return
-            try:
-                await repo.upsert_mastery(
-                    s, user_id, node_id, ema, attempts, clean_pass, node_completed
-                )
-            except Exception:
-                pass
+            await repo.upsert_mastery(
+                s,
+                user_id,
+                node_id,
+                ema,
+                attempts,
+                clean_pass,
+                node_completed,
+                node_mastered=node_mastered,
+                display_status=display_status,
+                best_independent_score=best_independent_score,
+                independent_passes=independent_passes,
+                transfer_passes=transfer_passes,
+                pressure_passes=pressure_passes,
+                scaffold_successes=scaffold_successes,
+                last_gap=last_gap,
+                mastery_evidence=mastery_evidence,
+            )
 
     async def get_last_active_node(self, user_id: str) -> str | None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.get_last_active_node(s, user_id)
-            except Exception:
-                return None
+            return await repo.get_last_active_node(s, user_id)
 
     async def get_progression(self, user_id: str) -> list[dict]:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return []
-            try:
-                return await repo.get_progression(s, user_id)
-            except Exception:
-                return []
+            return await repo.get_progression(s, user_id)
 
     async def get_module_passrate(
         self, user_id: str, node_ids: list[str]
@@ -213,12 +548,7 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return (0, 0)
-            try:
-                return await repo.get_module_passrate(s, user_id, node_ids)
-            except Exception:
-                return (0, 0)
+            return await repo.get_module_passrate(s, user_id, node_ids)
 
     async def bump_weakness(
         self,
@@ -228,43 +558,70 @@ class PgStore:
         score: float,
         raw: str = "",
     ) -> None:
-        # weaknesses table not yet on cloud schema (Phase 2.2 migration) — no-op.
-        return
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.bump_weakness(s, user_id, task_type, skill_id, score, raw)
 
     async def get_weaknesses(
         self, user_id: str, task_type: str | None = None
     ) -> list[dict]:
-        return []
+        from app.db import repo
 
-    # ---------- school progress + per-skill mastery (cloud migration pending) ----------
-    # Dedicated school tables are not yet on the cloud schema; degrade gracefully
-    # like the weakness/test-item methods above. LOCAL is the source of truth
-    # during the qwen build (AI_BACKEND stays "local").
+        async with _session() as s:
+            return await repo.get_weaknesses(s, user_id, task_type)
+
+    # ---------- school progress + per-skill mastery ----------
 
     async def record_assessment_result(
         self, user_id: str, test_id: str, class_no: int, kind: str,
         score: float, passed: bool, by_skill: list[dict],
     ) -> None:
-        return
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.record_assessment_result(
+                s, user_id, test_id, class_no, kind, score, passed, by_skill
+            )
 
     async def get_school_skill_mastery(self, user_id: str) -> list[dict]:
-        return []
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_skill_mastery(s, user_id)
 
     async def get_school_weak_skills(
         self, user_id: str, threshold: float = 0.6, limit: int = 5
     ) -> list[str]:
-        return []
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_weak_skills(s, user_id, threshold, limit)
 
     async def get_school_results(
         self, user_id: str, class_no: int | None = None
     ) -> list[dict]:
-        return []
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_results(s, user_id, class_no)
+
+    async def get_activity_snapshot(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_activity_snapshot(s, user_id)
 
     async def get_school_review_skills(
         self, user_id: str, mastered_threshold: float = 0.8,
         stale_seconds: float = 5 * 24 * 60 * 60, limit: int = 3,
     ) -> list[str]:
-        return []
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_review_skills(
+                s, user_id, mastered_threshold, stale_seconds, limit
+            )
 
     async def write_memory(
         self,
@@ -275,62 +632,61 @@ class PgStore:
         task_type: str = "",
         score: float = 0.0,
     ) -> bool:
-        # `score` mirrors LocalStore.write_memory's signature so session_service's
-        # end_session call `write_memory(..., score=avg_score)` does not raise a
+        # Keep `score` in the method signature so session_service's end_session
+        # call `write_memory(..., score=avg_score)` does not raise a
         # TypeError under the cloud backend (which a bare `except Exception: pass`
         # at the call site would have silently swallowed, dropping the memory).
         # The pgvector store keys on content, so score is not forwarded.
         from app.memory import store as memory_store
 
         async with _session() as s:
-            if s is None:
-                return False
-            try:
-                return await memory_store.write_memory(
-                    s, user_id, session_id, node_id, content
-                )
-            except Exception:
-                return False
+            return await memory_store.write_memory(
+                s, user_id, session_id, node_id, content
+            )
 
     async def load_context(self, user_id: str, task_type: str, k: int = 3) -> list[dict]:
         """Most recent k session summaries as structured dicts, newest-first.
 
-        Identical return shape to LocalStore.load_context (list[dict] with keys
-        node_id, score, strengths, watch, next_focus, date, raw) so callers see
-        ONE contract regardless of backend. The pgvector store hands back
-        (node_id, content) rows; each carries the REAL competency node that
-        produced the summary, so the node-level match in start_session (the
-        welcome-back recap) holds the same as on LocalStore. Empty/offline -> []."""
+        Returns list[dict] with keys node_id, score, strengths, watch,
+        next_focus, date, raw. The pgvector store hands back (node_id, content)
+        rows; each carries the REAL competency node that produced the summary,
+        so the node-level match in start_session works. Empty/offline -> []."""
         from app.memory import store as memory_store
 
         async with _session() as s:
-            if s is None:
-                return []
-            try:
-                # task_type biases the semantic query; each row carries its true
-                # competency node_id (see memory_store.load_context).
-                rows = await memory_store.load_context(s, user_id, task_type, k)
-            except Exception:
-                return []
+            # task_type biases the semantic query; each row carries its true
+            # competency node_id (see memory_store.load_context).
+            rows = await memory_store.load_context(s, user_id, task_type, k)
         return _parse_context_rows(rows)
 
-    # ---------- test-item cache (Phase 4 Layer B) ----------
-    # Not migrated to the cloud schema yet; degrade gracefully. Local backend is
-    # the source of truth during the qwen build, so a cloud miss just regenerates.
+    # ---------- test-item cache ----------
 
     async def cache_test_items(
         self,
         user_id: str,
         task_type: str,
         items: list[dict],
+        context_hash: str = "default",
         ts: float | None = None,
     ) -> None:
-        return
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.cache_test_items(s, user_id, task_type, items, context_hash, ts)
 
     async def get_cached_test_items(
-        self, user_id: str, task_type: str, max_age: float | None = None
+        self,
+        user_id: str,
+        task_type: str,
+        context_hash: str = "default",
+        max_age: float | None = None,
     ) -> list[dict] | None:
-        return None
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_cached_test_items(
+                s, user_id, task_type, context_hash, max_age
+            )
 
     # ---------- billing: credits ----------
 
@@ -338,59 +694,34 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return 0
-            try:
-                return await repo.get_credits(s, user_id)
-            except Exception:
-                return 0
+            return await repo.get_credits(s, user_id)
 
     async def is_demo(self, user_id: str) -> bool:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
+            profile = await repo.get_profile(s, user_id)
+            if profile is None:
                 return False
-            try:
-                profile = await repo.get_profile(s, user_id)
-                if profile is None:
-                    return False
-                return bool(profile["demo_unlimited"])
-            except Exception:
-                return False
+            return bool(profile["demo_unlimited"])
 
     async def set_demo_unlimited(self, user_id: str, enabled: bool = True) -> None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.set_demo_unlimited(s, user_id, enabled)
-            except Exception:
-                return None
+            return await repo.set_demo_unlimited(s, user_id, enabled)
 
     async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return 0
-            try:
-                return await repo.grant_credits(s, user_id, amount, reason)
-            except Exception:
-                return 0
+            return await repo.grant_credits(s, user_id, amount, reason)
 
     async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return False
-            try:
-                return await repo.deduct_credit(s, user_id, amount, reason)
-            except Exception:
-                return False
+            return await repo.deduct_credit(s, user_id, amount, reason)
 
     async def charge_and_unlock(
         self,
@@ -404,14 +735,9 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return False
-            try:
-                return await repo.charge_and_unlock(
-                    s, user_id, amount, reason, scope, ref_id
-                )
-            except Exception:
-                return False
+            return await repo.charge_and_unlock(
+                s, user_id, amount, reason, scope, ref_id
+            )
 
     # ---------- billing: content unlocks ----------
 
@@ -419,12 +745,7 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return False
-            try:
-                return await repo.has_unlock(s, user_id, scope, ref_id)
-            except Exception:
-                return False
+            return await repo.has_unlock(s, user_id, scope, ref_id)
 
     async def add_unlock(
         self, user_id: str, scope: str, ref_id: str, credits_spent: int
@@ -432,56 +753,55 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.add_unlock(
-                    s, user_id, scope, ref_id, credits_spent
-                )
-            except Exception:
-                return None
+            return await repo.add_unlock(
+                s, user_id, scope, ref_id, credits_spent
+            )
 
     async def remove_unlock(self, user_id: str, scope: str, ref_id: str) -> None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.remove_unlock(s, user_id, scope, ref_id)
-            except Exception:
-                return None
+            return await repo.remove_unlock(s, user_id, scope, ref_id)
 
     async def list_unlocks(self, user_id: str) -> list[dict]:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return []
-            try:
-                return await repo.list_unlocks(s, user_id)
-            except Exception:
-                return []
+            return await repo.list_unlocks(s, user_id)
 
     async def count_attempts(self, user_id: str, module_id: str) -> int:
         from app.content import registry
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return 0
-            try:
-                nodes = await repo.list_session_nodes(s, user_id)
-                count = 0
-                for node_id in nodes:
-                    try:
-                        if registry.module_of(node_id) == module_id:
-                            count += 1
-                    except KeyError:
-                        continue
-                return count
-            except Exception:
-                return 0
+            nodes = await repo.list_node_attempt_nodes(s, user_id)
+            count = 0
+            for node_id in nodes:
+                try:
+                    if registry.module_of(node_id) == module_id:
+                        count += 1
+                except KeyError:
+                    continue
+            return count
+
+    async def record_node_attempt(
+        self,
+        session_id: str,
+        user_id: str,
+        node_id: str,
+        starting_mastery: float = 0.0,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.record_node_attempt(
+                s,
+                attempt_id=session_id,
+                session_id=session_id,
+                user_id=user_id,
+                node_id=node_id,
+                starting_mastery=starting_mastery,
+            )
 
     # ---------- billing: purchases ----------
 
@@ -497,36 +817,21 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.record_purchase(
-                    s, order_id, user_id, pack_id, credits, amount_paise, status=status
-                )
-            except Exception:
-                return None
+            return await repo.record_purchase(
+                s, order_id, user_id, pack_id, credits, amount_paise, status=status
+            )
 
     async def get_purchase(self, order_id: str) -> dict | None:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return None
-            try:
-                return await repo.get_purchase(s, order_id)
-            except Exception:
-                return None
+            return await repo.get_purchase(s, order_id)
 
     async def mark_purchase_paid(self, order_id: str) -> bool:
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return False
-            try:
-                return await repo.mark_purchase_paid(s, order_id)
-            except Exception:
-                return False
+            return await repo.mark_purchase_paid(s, order_id)
 
     async def mark_paid_and_grant(
         self, order_id: str, user_id: str, credits: int, reason: str
@@ -534,8 +839,8 @@ class PgStore:
         """Latch a purchase to 'paid' AND grant its credits in ONE transaction.
 
         Delegates to repo.mark_paid_and_grant, which folds the latch + grant +
-        ledger row under a SINGLE commit() with rollback-on-failure, mirroring
-        LocalStore. The old body committed the latch and the grant in TWO
+        ledger row under a SINGLE commit() with rollback-on-failure. The old
+        body committed the latch and the grant in TWO
         separate transactions (mark_purchase_paid then grant_credits): an error
         between them left the order permanently 'paid' with credits never
         granted, and Razorpay's retry then skipped the grant forever.
@@ -545,14 +850,11 @@ class PgStore:
         and the grant is never lost: a missing-profile KeyError is handled by the
         webhook route (deferred for reconciliation), and a transient DB error
         propagates to a 5xx so Razorpay retries. Returns True on the first
-        captured webhook (granted once); False on a retry (already paid) or when
-        the DB is offline.
+        captured webhook (granted once); False on a retry (already paid).
         """
         from app.db import repo
 
         async with _session() as s:
-            if s is None:
-                return False
             return await repo.mark_paid_and_grant(
                 s, order_id, user_id, credits, reason
             )

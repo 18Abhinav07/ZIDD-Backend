@@ -14,6 +14,9 @@ def stream_persona_turn(
     transcript: str,
     bb: dict,
     roster: list[dict] | None = None,
+    scenario_config: dict | None = None,
+    career_context: dict | None = None,
+    task_type=None,
 ):
     """Return the async token stream for `persona` speaking toward `intent`.
 
@@ -27,7 +30,16 @@ def stream_persona_turn(
     spec = GenSpec(
         provider="gemini",
         model=GEMINI_FLASH,
-        prompt=build_persona_prompt(persona, intent, transcript, bb, roster),
+        prompt=build_persona_prompt(
+            persona,
+            intent,
+            transcript,
+            bb,
+            roster,
+            scenario_config=scenario_config,
+            career_context=career_context,
+            task_type=task_type,
+        ),
         kind="simulation",
     )
     return stream_generation(spec)

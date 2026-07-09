@@ -19,9 +19,16 @@ async def teach_node(state: dict) -> dict:
         # Falls back to conversational if the structured call fails.
         try:
             game = await generate_game_item(
-                node, state.get("last_diagnosis", {}), coach
+                node,
+                state.get("last_diagnosis", {}),
+                coach,
+                career_context=state.get("career_context") or {},
             )
-            return {"pending_game": game.model_dump(), "last_route": "teach"}
+            return {
+                "pending_game": game.model_dump(),
+                "last_route": "teach",
+                "active_prompt_attempt_type": "scaffolded",
+            }
         except Exception:
             pass  # fall through to conversational on any model failure
 
@@ -34,6 +41,7 @@ async def teach_node(state: dict) -> dict:
         coach,
         behavior=behavior_for_value(state.get("task_type", "")),
         weaknesses=state.get("weakness_context", []),
+        career_context=state.get("career_context") or {},
     )
     spec = GenSpec(provider="groq", model=GROQ_70B, prompt=prompt, kind="teach")
     return {"pending": spec, "last_route": "teach"}

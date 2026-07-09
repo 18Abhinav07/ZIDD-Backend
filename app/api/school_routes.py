@@ -94,8 +94,13 @@ async def submit_test(
     ]
     # Persist the result + fold per-skill ratios into the learner's school
     # mastery so progress is durable AND the live 'Learn' tutor can target real
-    # weak spots. Best-effort: a storage hiccup must never fail a graded submit.
+    # weak spots. Best-effort: a storage hiccup must never fail a graded submit,
+    # but it must be visible to the client so progress is not falsely presented
+    # as saved.
     user_id = _uid(request)
+    saved = False
+    degraded = False
+    persistence_error = None
     if user_id:
         try:
             await get_storage().record_assessment_result(
@@ -108,16 +113,27 @@ async def submit_test(
                 by_skill=[{"skill": s.skill, "correct": s.correct, "total": s.total}
                           for s in r.by_skill],
             )
+            saved = True
         except Exception:
             logger.warning(
                 "submit_test: failed to persist result for user=%s test=%s",
                 user_id, test_id, exc_info=True,
             )
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "progress_not_saved", "test_id": test_id},
+            )
+    else:
+        degraded = True
+        persistence_error = "auth_missing"
     return {
         "test_id": r.assessment_id, "title": r.title, "kind": r.kind,
         "score": r.score, "correct": r.correct, "total": r.total, "passed": r.passed,
         "by_skill": by_skill,
         "weak_skills": r.weak_skills, "missed_item_ids": r.missed_item_ids,
+        "saved": saved,
+        "degraded": degraded,
+        "persistence_error": persistence_error,
     }
 
 
@@ -125,16 +141,47 @@ async def submit_test(
 async def progress(request: Request, class_no: int | None = None) -> dict:
     """Durable, server-side learning record for the authenticated learner.
 
-    Replaces localStorage-only progress: which chapter tests / milestones were
-    passed, the per-skill mastery EMA, and the current weak skills — the same
-    signal the live 'Learn' tutor uses to personalise. Empty when nothing has
-    been attempted yet."""
+    Tracks which chapter tests / milestones were passed, the per-skill mastery
+    EMA, and the current weak skills — the same signal the live 'Learn' tutor
+    uses to personalise. Empty when nothing has been attempted yet."""
     user_id = _uid(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    chapters = None
+    if class_no is not None:
+        try:
+            chapters = list(cur.class_chapters(class_no))
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail="Unknown class") from e
     store = get_storage()
-    results = await store.get_school_results(user_id, class_no)
-    mastery = await store.get_school_skill_mastery(user_id)
+    try:
+        results = await store.get_school_results(user_id, class_no)
+        mastery = await store.get_school_skill_mastery(user_id)
+        tutor_progress = await store.get_progression(user_id)
+        weak_skills = await store.get_school_weak_skills(user_id)
+    except Exception as e:
+        logger.exception(
+            "school progress unavailable for user=%s class_no=%s",
+            user_id,
+            class_no,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "progress_unavailable", "class_no": class_no},
+        ) from e
+    tutor_by_node = {row.get("node_id"): row for row in tutor_progress}
+    lesson_progress: dict[str, str] = {}
+    if chapters is not None:
+        for chapter in chapters:
+            for node in chapter.nodes:
+                row = tutor_by_node.get(node.id) or {}
+                if row.get("node_completed"):
+                    status = "completed"
+                elif row.get("attempts") or row.get("ema") or row.get("mastery"):
+                    status = "in_progress"
+                else:
+                    status = "learn"
+                lesson_progress[node.id] = status
     passed_tests = sorted(r["test_id"] for r in results if r["passed"])
     overall = round(sum(r["score"] for r in results) / len(results), 4) if results else 0.0
     return {
@@ -149,7 +196,8 @@ async def progress(request: Request, class_no: int | None = None) -> dict:
             {"skill": m["skill"], "mastery": round(m["ema"], 4), "attempts": m["attempts"]}
             for m in mastery
         ],
-        "weak_skills": await store.get_school_weak_skills(user_id),
+        "lesson_progress": lesson_progress,
+        "weak_skills": weak_skills,
         "overall": overall,
     }
 

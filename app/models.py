@@ -6,7 +6,7 @@ TutorState is the LangGraph state object. Includes the two council fixes:
 """
 from typing import Literal, Optional, TypedDict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TutorState(TypedDict):
@@ -19,6 +19,8 @@ class TutorState(TypedDict):
     turn_count: int
     messages: list[dict]
     last_diagnosis: dict
+    last_rubric_result: Optional[dict]
+    tutor_turn_plan: Optional[dict]
     last_eval_score: float
     bridge_attempts: int
     # NOTE: every key a graph NODE returns must be declared here. LangGraph's
@@ -35,6 +37,8 @@ class TutorState(TypedDict):
     # rubric) and the ids already served this node (so bridge never repeats one).
     pending_answer_key: Optional[dict]
     served_bridge_ids: list
+    active_game_prompt: Optional[dict]  # public-safe copy of the visible card for reload restore
+    active_prompt_attempt_type: Optional[str]  # scaffolded/transfer/pressure marker for the visible prompt
     # True only on a turn that graded a served BRIDGE fill against its answer key
     # (set by evaluate_node, read by _update_progress). A correct bridge fill is a
     # scaffolded sub-step, NOT a clean pass at this node, so the advance-streak
@@ -64,16 +68,25 @@ class TutorState(TypedDict):
     personas: Optional[list]      # roster cached after the first simulation round
     blackboard: Optional[dict]    # writers'-room group memory; lazy-init on the first simulation round
     probe_items: Optional[list]   # prep-weakness probe bank threaded into the Director prompt (test mode)
+    career_context: Optional[dict]  # private, sanitized career context for prompts
+    scenario_config: Optional[dict] # public-safe scenario labels and selected setup
+    context_hash: str              # task/profile hash for context-aware probe cache
 
 
 # ===== API contract v0 (skeleton — wired when graph lands) =====
 
 
 class SessionStartRequest(BaseModel):
-    user_id: str
+    model_config = ConfigDict(extra="forbid")
+
     competency_node: str
     test_mode: bool = False   # True -> open on the assessment TaskType variant
     confirm: bool = False     # True -> learner accepted the credit charge (two-tap gate)
+    reattempt_confirmed: bool = False
+    simulation_config: dict = Field(default_factory=dict)
+    client_start_id: Optional[str] = None
+    source_session_id: Optional[str] = None
+    source_transition_id: Optional[str] = None
 
 
 class SessionStartResponse(BaseModel):
@@ -81,11 +94,14 @@ class SessionStartResponse(BaseModel):
     node_title: str
     first_message: str
     current_mastery: float
+    resumed: bool = False
 
 
 class SessionTurnRequest(BaseModel):
     session_id: str
     user_input: str
+    client_turn_id: Optional[str] = None
+    expected_session_version: Optional[int] = None
 
 
 class PlacementRequest(BaseModel):
@@ -188,6 +204,17 @@ class DoneFrame(BaseModel):
     attempts: int = 0
     clean_streak: int = 0
     scaffold: int = 0
+    node_mastered: bool = False
+    display_status: str = "active"
+    best_independent_score: float = 0.0
+    independent_passes: int = 0
+    transfer_passes: int = 0
+    pressure_passes: int = 0
+    scaffold_successes: int = 0
+    meaningful_attempts: int = 0
+    readiness_score: float = 0.0
+    last_gap: str = ""
+    mastery_evidence: list[str] = []
     remediation: bool = False
     module_done: bool = False
     phase: str = ""           # macro lifecycle label (e.g. "early", "mid", "late")
@@ -203,3 +230,13 @@ class DoneFrame(BaseModel):
     # simulation frame. Lets the simulator UI label bubbles/avatars with the real
     # roster instead of a hardcoded fallback.
     personas: Optional[list] = None
+    scenario_config: Optional[dict] = None
+    status: str = "active"
+    session_over: bool = False
+    simulation_round: int = 0
+    simulation_score: Optional[float] = None
+    simulation_report: Optional[dict] = None
+    session_version: int = 1
+    pending_transition: Optional[dict] = None
+    input_allowed: bool = True
+    block_reason: Optional[str] = None

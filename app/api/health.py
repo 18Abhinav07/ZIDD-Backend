@@ -19,11 +19,7 @@ async def health() -> dict:
     except Exception:
         pass
 
-    # 2. Check the ACTIVE persistence backend. Previously this always probed the
-    #    Supabase pooler engine via get_engine(), so a local build — whose real
-    #    store is the SQLite LocalStore — reported sqlite_writable:false even
-    #    though every credit/purchase/grant persists fine. Ask the active store
-    #    (LocalStore under AI_BACKEND=local, else Postgres) about itself instead.
+    # 2. Check the cloud persistence backend.
     db_ok = False
     try:
         db_ok = await get_storage().ping_writable()
@@ -37,6 +33,6 @@ async def health() -> dict:
         "status": "ok", 
         "service": "zidd-engine",
         "ollama_reachable": ollama_ok,
-        "sqlite_writable": db_ok, # Supabase / sqlite dependent on get_engine
+        "storage_writable": db_ok,
         "active_sessions": active_sessions
     }

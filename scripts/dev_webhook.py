@@ -11,12 +11,12 @@ bytes to ``/billing/razorpay/webhook`` with the ``X-Razorpay-Signature`` header.
 
 The secret comes from ``get_settings().razorpay_webhook_secret`` — the *same*
 source the backend verifies against — so a match is guaranteed when both read
-the same ``.env``. The amount is auto-resolved from the local store via the
-real ``get_purchase`` accessor (no schema coupling), so the happy path needs
-only an ``order_id``.
+the same ``.env``. The amount is auto-resolved from Supabase via the real
+``get_purchase`` accessor (no schema coupling), so the happy path needs only an
+``order_id``.
 
-Run it from the Zidd-Backend directory (so ``app`` imports and the relative
-``.zidd_local.db`` resolves to the same file uvicorn writes):
+Run it from the Zidd-Backend directory so ``app`` imports and `.env` resolves to
+the same Supabase pooler URL as uvicorn:
 
     ./.venv/bin/python scripts/dev_webhook.py <order_id>
 
@@ -39,8 +39,8 @@ import os
 import sys
 
 # Make `app` importable regardless of the caller's CWD (script lives in
-# Zidd-Backend/scripts/). The relative SQLite path still resolves against CWD,
-# so run from Zidd-Backend/ for the store lookup to find uvicorn's DB.
+# Zidd-Backend/scripts/). Run from Zidd-Backend/ so `.env` resolves the same
+# cloud store as uvicorn.
 _BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _BACKEND_ROOT not in sys.path:
     sys.path.insert(0, _BACKEND_ROOT)
@@ -91,7 +91,7 @@ def _expected(
     bad signature (400) > non-captured event (ignored) > order not in store
     (unknown_order) > amount mismatch (amount_mismatch) > grant (ok). The order
     matters: the route resolves the purchase BEFORE comparing the amount, so an
-    order that isn't in the local store returns unknown_order even under
+    order that isn't in Supabase returns unknown_order even under
     --wrong-amount (and the happy path with an absent order is unknown_order,
     not ok).
     """
@@ -114,7 +114,7 @@ async def main() -> int:
     )
     parser.add_argument("order_id", help="Razorpay order id from POST /billing/purchase/order")
     parser.add_argument("--amount", type=int, default=None,
-                        help="Override amount in paise (default: resolved from the local store)")
+                        help="Override amount in paise (default: resolved from Supabase)")
     parser.add_argument("--status", default="captured",
                         help="Payment entity status (default: captured)")
     parser.add_argument("--event", default="payment.captured",
@@ -150,8 +150,8 @@ async def main() -> int:
     else:
         base_amount = DEFAULT_AMOUNT
         if not args.unknown_order:
-            print(f"  ! order {order_id!r} not found in local store — webhook will likely "
-                  f"return unknown_order. Run from Zidd-Backend/, or pass --amount.")
+            print(f"  ! order {order_id!r} not found in Supabase — webhook will likely "
+                  f"return unknown_order. Check SUPABASE_POOLER_URL, or pass --amount.")
 
     send_amount = base_amount + 100 if args.wrong_amount else base_amount
     captured = (args.event == "payment.captured" and args.status == "captured")

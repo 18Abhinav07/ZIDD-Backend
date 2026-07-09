@@ -1,9 +1,10 @@
 """Async SQLAlchemy engine for Supabase transaction pooler.
 
-CRITICAL constraints (do not change without reading architecture-v3):
+CRITICAL constraints:
   - Port 6543 (transaction pooler) only. Never direct :5432.
-  - NullPool mandatory — transaction pooler manages pooling server-side;
-    a client-side pool double-pools and breaks under serverless.
+  - Keep the client pool small and bounded. We reuse a few TLS/auth connections
+    to the pooler so hot auth requests do not spend seconds reconnecting, while
+    still leaving server-side pooling to Supabase.
   - statement_cache_size=0 mandatory — asyncpg prepared-statement cache is
     incompatible with the transaction pooler (statements not pinned to a conn).
   - prepared_statement_name_func mandatory — even uncached, asyncpg names every
@@ -18,11 +19,11 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 
 _engine: AsyncEngine | None = None
+_sessionmaker: async_sessionmaker | None = None
 
 
 def get_engine() -> AsyncEngine:
@@ -31,7 +32,10 @@ def get_engine() -> AsyncEngine:
         settings = get_settings()
         _engine = create_async_engine(
             settings.async_database_url,
-            poolclass=NullPool,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            pool_pre_ping=settings.effective_db_pool_pre_ping,
+            pool_recycle=1800,
             connect_args={
                 "statement_cache_size": 0,
                 "prepared_statement_cache_size": 0,
@@ -42,4 +46,7 @@ def get_engine() -> AsyncEngine:
 
 
 def get_sessionmaker() -> async_sessionmaker:
-    return async_sessionmaker(get_engine(), expire_on_commit=False)
+    global _sessionmaker
+    if _sessionmaker is None:
+        _sessionmaker = async_sessionmaker(get_engine(), expire_on_commit=False)
+    return _sessionmaker
