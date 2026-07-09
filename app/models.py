@@ -21,7 +21,10 @@ class TutorState(TypedDict):
     last_diagnosis: dict
     last_rubric_result: Optional[dict]
     tutor_turn_plan: Optional[dict]
+    evaluation_retry_required: bool
+    evaluation_integrity_failure: Optional[dict]
     last_eval_score: float
+    last_clean_pass_score: float
     bridge_attempts: int
     # NOTE: every key a graph NODE returns must be declared here. LangGraph's
     # StateGraph(TutorState) treats the TypedDict keys as the only channels, and
@@ -32,13 +35,30 @@ class TutorState(TypedDict):
     redirect_attempts: int        # consecutive fluent-off-task steer-backs (redirect cap)
     attempts: int                 # scored answers this node (clean-pass tracking)
     session_attempts: int         # scored answers THIS session (ceiling-escape gate)
+    node_mastered: bool
+    display_status: str
+    best_independent_score: float
+    independent_passes: int
+    transfer_passes: int
+    pressure_passes: int
+    scaffold_successes: int
+    meaningful_attempts: int
+    readiness_score: float
+    last_gap: str
+    mastery_evidence: list
+    core_qualified: bool
+    core_qualification_turn_id: Optional[str]
+    core_qualification_evidence: Optional[dict]
     # Pre-authored bridge bookkeeping: the served exercise's answer key (so the
     # NEXT turn can grade a fill_blank/MCQ deterministically instead of by fuzzy
     # rubric) and the ids already served this node (so bridge never repeats one).
     pending_answer_key: Optional[dict]
     served_bridge_ids: list
     active_game_prompt: Optional[dict]  # public-safe copy of the visible card for reload restore
-    active_prompt_attempt_type: Optional[str]  # scaffolded/transfer/pressure marker for the visible prompt
+    active_prompt_attempt_type: Optional[str]  # marker for the last committed visible prompt
+    pending_prompt_attempt_type: Optional[str]  # transient marker for the in-flight prompt
+    active_gd_prompt_topic: Optional[str]  # exact motion attached to the committed learner prompt
+    pending_gd_prompt_topic: Optional[str]  # exact motion staged for the next visible prompt
     # True only on a turn that graded a served BRIDGE fill against its answer key
     # (set by evaluate_node, read by _update_progress). A correct bridge fill is a
     # scaffolded sub-step, NOT a clean pass at this node, so the advance-streak
@@ -62,6 +82,10 @@ class TutorState(TypedDict):
     scaffold: int                 # >=1 -> scaffold HARD (down-ladder)
     needs_support: bool           # set per-turn from frustration detection
     frustration_turns: int        # consecutive turns flagged as frustrated/confused
+    remediation: bool
+    tester_level: bool
+    review_level: bool
+    session_learning_delta: dict
     session_over: bool            # learner ended the session with a goodbye
     # TEST-mode (assessment) simulation state; empty/None for coaching sessions.
     sim_topic: str                # the topic the persona panel debates/probes
@@ -87,6 +111,7 @@ class SessionStartRequest(BaseModel):
     client_start_id: Optional[str] = None
     source_session_id: Optional[str] = None
     source_transition_id: Optional[str] = None
+    source_action: Optional[Literal["advance", "reattempt"]] = None
 
 
 class SessionStartResponse(BaseModel):
@@ -95,6 +120,20 @@ class SessionStartResponse(BaseModel):
     first_message: str
     current_mastery: float
     resumed: bool = False
+    display_status: str = "active"
+    node_mastered: bool = False
+    readiness_score: float = 0.0
+    best_independent_score: float = 0.0
+
+
+class AssessmentClientAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["ask_panelist", "clarify", "new_angle", "move_on"]
+    speaker_id: Optional[str] = None
+    speaker_name: Optional[str] = None
+    label: Optional[str] = None
+    source: Literal["quick_action", "typed_control"] = "quick_action"
 
 
 class SessionTurnRequest(BaseModel):
@@ -102,6 +141,7 @@ class SessionTurnRequest(BaseModel):
     user_input: str
     client_turn_id: Optional[str] = None
     expected_session_version: Optional[int] = None
+    assessment_action: Optional[AssessmentClientAction] = None
 
 
 class PlacementRequest(BaseModel):
@@ -139,6 +179,7 @@ class GamePromptFrame(BaseModel):
     hint: str           # grammar/vocab category label
     context: str        # why this gap targets the teaching focus
     options: list[str] | None = None
+    turn_id: str | None = None
 
 
 class NodeAdvanceFrame(BaseModel):
@@ -151,6 +192,7 @@ class ProgressUpdateFrame(BaseModel):
     """event: progress_update — per-turn mastery signal for the progress bar."""
     node_id: str
     mastery: float          # current EMA mastery (0.0–1.0)
+    readiness_score: float
     clean_streak: int       # consecutive passing answers on this node
     attempts: int           # total scored answers on this node
 
@@ -166,7 +208,10 @@ class SessionRecapFrame(BaseModel):
     """event: session_recap — emitted when all module nodes are complete."""
     nodes_completed: list[str]       # node_id strings in completion order
     weaknesses: list[WeaknessRow]
-    avg_score: float                 # final EMA mastery at session close (0.0–1.0)
+    score_metric: str = "mastery"
+    readiness_score: float = 0.0
+    mastery_score: float = 0.0
+    avg_score: Optional[float] = None  # deprecated compatibility alias
 
 
 class SpeakerFrame(BaseModel):
@@ -194,6 +239,8 @@ class DoneFrame(BaseModel):
     """event: done — always the final frame; full post-turn state snapshot."""
     session_id: str
     competency_node: str
+    task_type: str = ""
+    module_id: str = ""
     node_title: str
     current_mastery: float
     turn_count: int

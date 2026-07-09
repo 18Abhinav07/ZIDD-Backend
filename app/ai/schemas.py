@@ -5,7 +5,7 @@ so instructions live in the prompt, not here. Keep string fields short.
 """
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class DiagnosisEval(BaseModel):
@@ -151,6 +151,11 @@ class SimulationReport(BaseModel):
     observed_skill_gaps: list[str] = Field(default_factory=list)
     recommended_next_nodes: list[str] = Field(default_factory=list)
     assessment_caveats: list[str] = Field(default_factory=list)
+    learner_assessment_caveats: list[str] = Field(default_factory=list)
+    simulator_integrity_notes: list[str] = Field(default_factory=list)
+    score_breakdown: dict[str, Any] = Field(default_factory=dict)
+    score_explanations: dict[str, str] = Field(default_factory=dict)
+    read_observations: list[str] = Field(default_factory=list)
     validity_status: Literal["final", "partial", "insufficient_evidence", "invalid_simulation"] = "final"
     scorable_turn_count: int = 0
     coverage_map: dict[str, Any] = Field(default_factory=dict)
@@ -220,6 +225,140 @@ class DirectorDecision(BaseModel):
     tension: float              # 0.0-1.0 target after this turn
     answer_quality: float       # director's read of the learner's last answer (0-1)
     should_close: bool          # signal the simulation should wrap
+
+
+class AssessmentAnalysis(BaseModel):
+    """Superset analysis schema for provider-compatible structured output."""
+
+    mode: Literal["gd_test", "interview_test"] = "gd_test"
+    routing_case: Literal[
+        "reply_only",
+        "reply_and_request",
+        "point_only",
+        "request_only",
+        "clarification_request",
+        "move_on",
+    ] = "point_only"
+    answer_kind: Literal[
+        "answer",
+        "clarification_request",
+        "move_on_request",
+        "dodge",
+        "end_request",
+    ] = "answer"
+    control_intent: Literal["none", "clarify", "move_on", "end"] = "none"
+    scorable: bool = True
+    addressed_personas: list[str] = Field(default_factory=list)
+    addressed_event_ids: list[str] = Field(default_factory=list)
+    requested_next_speaker: str = ""
+    request_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    question_to_requested_speaker: str = ""
+    stance: str = ""
+    evidence_points: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    active_probe_id: str = ""
+    criteria_met: list[str] = Field(default_factory=list)
+    missing_criteria: list[str] = Field(default_factory=list)
+    follow_up_focus: str = ""
+    quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    @field_validator("request_confidence", "quality_score", mode="before", check_fields=False)
+    @classmethod
+    def _normalize_percent_scale_scores(cls, value: Any) -> Any:
+        if value in (None, ""):
+            return value
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return value
+        if 1.0 < number <= 10.0:
+            return round(number / 10.0, 4)
+        if 10.0 < number <= 100.0:
+            return round(number / 100.0, 4)
+        return value
+
+
+class GDAnalysis(AssessmentAnalysis):
+    """One-turn semantic read for a scored group-discussion assessment."""
+
+    mode: Literal["gd_test"] = "gd_test"
+    routing_case: Literal[
+        "reply_only",
+        "reply_and_request",
+        "point_only",
+        "request_only",
+        "clarification_request",
+        "move_on",
+    ] = "point_only"
+    scorable: bool = True
+    addressed_personas: list[str] = Field(default_factory=list)
+    addressed_event_ids: list[str] = Field(default_factory=list)
+    requested_next_speaker: str = ""
+    request_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    question_to_requested_speaker: str = ""
+    stance: str = ""
+    evidence_points: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    control_intent: Literal["none", "clarify", "move_on", "end"] = "none"
+
+
+class InterviewAnalysis(AssessmentAnalysis):
+    """One-turn semantic read for a scored interview assessment."""
+
+    mode: Literal["interview_test"] = "interview_test"
+    answer_kind: Literal[
+        "answer",
+        "clarification_request",
+        "move_on_request",
+        "dodge",
+        "end_request",
+    ] = "answer"
+    control_intent: Literal["none", "clarify", "move_on", "end"] = "none"
+    scorable: bool = True
+    active_probe_id: str = ""
+    criteria_met: list[str] = Field(default_factory=list)
+    missing_criteria: list[str] = Field(default_factory=list)
+    evidence_points: list[str] = Field(default_factory=list)
+    follow_up_focus: str = ""
+    quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class NextAction(BaseModel):
+    """Model-proposed next assessment action. Backend policy must authorize it."""
+
+    speaker_id: str
+    action_type: str
+    intent: str
+    should_close: bool = False
+
+
+class VisibleResponse(BaseModel):
+    """The learner-visible turn text drafted by the structured assessment call."""
+
+    speaker_id: str
+    text: str
+
+
+class AssessmentTurnCall(BaseModel):
+    """Single structured model call for a normal test-mode learner turn."""
+
+    analysis: AssessmentAnalysis
+    next_action: NextAction
+    visible_response: VisibleResponse
+
+
+class AssessmentEvent(BaseModel):
+    """Durable typed event used by reports and learning-profile projection."""
+
+    event_id: str
+    event_type: Literal["learner_turn", "analysis", "visible_response"]
+    task_type: str
+    speaker_id: str = ""
+    scorable: bool = True
+    analysis: dict[str, Any] = Field(default_factory=dict)
+    content: str = ""
+    validity_flags: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SelectionDecision(BaseModel):
