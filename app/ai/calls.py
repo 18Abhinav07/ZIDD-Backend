@@ -21,6 +21,7 @@ from app.ai.clients import get_gemini_client, get_groq_client
 from app.ai.local import ollama_complete, ollama_stream, ollama_structured
 from app.ai.behaviors import BehaviorPack, behavior_for
 from app.ai.prompts import (
+    build_assessment_turn_prompt,
     build_director_prompt,
     build_eval_prompt,
     build_prep_eval_prompt,
@@ -31,6 +32,8 @@ from app.ai.prompts import (
     build_teach_game_prompt,
 )
 from app.ai.schemas import (
+    AssessmentTurnCall,
+    CriterionEval,
     DiagnosisEval,
     DirectorDecision,
     FillBlankGame,
@@ -43,7 +46,12 @@ from app.ai.structured import call_with_structured_output
 from app.config import get_settings
 from app.content.schema import Concept
 from app.content.task_types import TaskType
-from app.services.rubric_engine import RubricResult, apply_caps, build_evaluation_packet
+from app.services.rubric_engine import (
+    RubricResult,
+    apply_caps,
+    build_evaluation_packet,
+    invalid_required_evidence_ids,
+)
 from app.services.rubrics import get_rubric
 
 GROQ_70B = "llama-3.3-70b-versatile"
@@ -66,7 +74,187 @@ class GenSpec:
     kind: str       # opening | teach | bridge | strengthen | redirect | ease | challenge
 
 
+class PrepEvaluationRetryRequired(RuntimeError):
+    def __init__(self, criterion_ids: list[str]):
+        self.criterion_ids = list(dict.fromkeys(criterion_ids))
+        super().__init__(
+            "prep_evaluation_retry_required: " + ", ".join(self.criterion_ids)
+        )
+
+
+_DETERMINISTIC_PREP_REPAIR_NODES = frozenset({
+    "int_07_clarify_before_answering",
+    "int_08_quantify_impact",
+    "int_09_diplomatic_pushback",
+    "gd_01_stake_position",
+    "gd_02_support_with_evidence",
+    "gd_03_take_the_floor",
+    "gd_04_build_on_others",
+    "gd_05_disagree_respectfully",
+})
+
+
 from app.middleware.rate_limit import llm_semaphore
+
+
+def _expected_criterion_ids(packet) -> list[str]:
+    """The prompt contract requires exactly one row for every packet criterion."""
+    return list(dict.fromkeys(str(criterion["id"]) for criterion in packet.criteria))
+
+
+def _structurally_invalid_criterion_ids(packet, raw: PrepRubricEval) -> list[str]:
+    counts: dict[str, int] = {}
+    for row in raw.criteria:
+        criterion_id = str(row.id)
+        counts[criterion_id] = counts.get(criterion_id, 0) + 1
+    structural = [
+        criterion_id
+        for criterion_id in _expected_criterion_ids(packet)
+        if counts.get(criterion_id, 0) != 1
+    ]
+    return list(dict.fromkeys([
+        *structural,
+        *invalid_required_evidence_ids(packet, raw),
+    ]))
+
+
+def _rows_by_id(raw: PrepRubricEval) -> dict[str, list]:
+    rows: dict[str, list] = {}
+    for row in raw.criteria:
+        rows.setdefault(str(row.id), []).append(row)
+    return rows
+
+
+def _allows_deterministic_prep_repair(packet) -> bool:
+    if packet.node_id == "int_09_diplomatic_pushback":
+        return packet.attempt_type in {"independent", "transfer", "pressure"}
+    return packet.node_id in _DETERMINISTIC_PREP_REPAIR_NODES
+
+
+def _ordered_valid_first_response(packet, raw: PrepRubricEval) -> PrepRubricEval:
+    rows = _rows_by_id(raw)
+    ordered = [rows[criterion_id][0] for criterion_id in _expected_criterion_ids(packet)]
+    return raw.model_copy(update={"criteria": ordered})
+
+
+def _merge_structural_repair(
+    packet,
+    first: PrepRubricEval,
+    repair: PrepRubricEval,
+    target_ids: list[str],
+) -> PrepRubricEval:
+    first_rows = _rows_by_id(first)
+    repair_rows = _rows_by_id(repair)
+    invalid_repair_targets = [
+        criterion_id
+        for criterion_id in target_ids
+        if len(repair_rows.get(criterion_id, [])) != 1
+    ]
+    if invalid_repair_targets:
+        raise PrepEvaluationRetryRequired(invalid_repair_targets)
+
+    targets = set(target_ids)
+    ordered = [
+        repair_rows[criterion_id][0]
+        if criterion_id in targets
+        else first_rows[criterion_id][0]
+        for criterion_id in _expected_criterion_ids(packet)
+    ]
+    repaired_met = {
+        criterion_id
+        for criterion_id in targets
+        if repair_rows[criterion_id][0].met
+    }
+    required_missing = [
+        criterion_id
+        for criterion_id in (first.required_missing or [])
+        if str(criterion_id) not in repaired_met
+    ]
+    required_ids = {
+        str(criterion["id"])
+        for criterion in packet.criteria
+        if bool(criterion.get("required"))
+    }
+    met_ids = {str(row.id) for row in ordered if row.met}
+    pass_eligible = bool(
+        not required_missing
+        and required_ids.issubset(met_ids)
+        and first.on_task
+        and first.english
+        and float(first.effective_score or first.raw_score) >= float(packet.pass_score)
+    )
+    return first.model_copy(update={
+        "criteria": ordered,
+        "required_missing": required_missing,
+        "pass_eligible": pass_eligible,
+        "mastery_eligible": bool(first.mastery_eligible and pass_eligible),
+    })
+
+
+def _merge_structural_fallback(
+    packet,
+    first: PrepRubricEval,
+    target_ids: list[str],
+) -> PrepRubricEval:
+    """Preserve valid first-call rows and mark unresolved repair targets unmet."""
+    first_rows = _rows_by_id(first)
+    targets = set(target_ids)
+    ordered = []
+    for criterion_id in _expected_criterion_ids(packet):
+        rows = first_rows.get(criterion_id, [])
+        if criterion_id not in targets and len(rows) == 1:
+            ordered.append(rows[0])
+            continue
+        ordered.append(CriterionEval(
+            id=criterion_id,
+            met=False,
+            quality=0.0,
+            evidence_quote="",
+            reason="criterion missing from evaluator output",
+        ))
+    required_missing = list(dict.fromkeys([
+        *(first.required_missing or []),
+        *[
+            criterion_id
+            for criterion_id in target_ids
+            if any(
+                str(criterion.get("id") or "") == criterion_id
+                and bool(criterion.get("required"))
+                for criterion in packet.criteria
+            )
+        ],
+    ]))
+    return first.model_copy(update={
+        "criteria": ordered,
+        "required_missing": required_missing,
+        "pass_eligible": False,
+        "mastery_eligible": False,
+    })
+
+
+def _prep_repair_prompt(
+    original_prompt: str,
+    raw: PrepRubricEval,
+    invalid_ids: list[str],
+) -> str:
+    return (
+        f"{original_prompt}\n\n"
+        "REPAIR ONLY: the previous structured response omitted, duplicated, or used an invalid evidence_quote for expected criterion IDs. "
+        "Preserve every non-target field and criterion judgment exactly. Return one row for each invalid ID. "
+        "For a met target, evidence_quote must be one short contiguous verbatim quote copied from the learner answer; "
+        "if no exact quote proves it, mark that target not met. Return one complete PrepRubricEval JSON object. "
+        "Do not improve scores or change non-target judgments.\n"
+        f"Structurally invalid expected IDs: {', '.join(invalid_ids)}\n"
+        f"Previous structured response: {raw.model_dump_json()}"
+    )
+
+
+async def _call_prep_structured(prompt: str) -> PrepRubricEval:
+    if _local():
+        return await ollama_structured(prompt, PrepRubricEval)
+    client = get_gemini_client()
+    return await call_with_structured_output(client, prompt, PrepRubricEval)
+
 
 async def evaluate_answer(
     node: Concept,
@@ -112,12 +300,40 @@ async def evaluate_prep_answer(
     packet = build_evaluation_packet(packet_state, node, user_input, rubric)
     prompt = build_prep_eval_prompt(packet.model_dump(), career_context=career_context)
     async with llm_semaphore:
-        if _local():
-            raw = await ollama_structured(prompt, PrepRubricEval)
+        first = await _call_prep_structured(prompt)
+        invalid_ids = _structurally_invalid_criterion_ids(packet, first)
+        if invalid_ids:
+            repair_prompt = _prep_repair_prompt(prompt, first, invalid_ids)
+            try:
+                repair = await _call_prep_structured(repair_prompt)
+            except Exception as exc:
+                if not _allows_deterministic_prep_repair(packet):
+                    raise PrepEvaluationRetryRequired(invalid_ids) from exc
+                raw = _merge_structural_fallback(packet, first, invalid_ids)
+            else:
+                try:
+                    raw = _merge_structural_repair(packet, first, repair, invalid_ids)
+                except PrepEvaluationRetryRequired:
+                    if not _allows_deterministic_prep_repair(packet):
+                        raise
+                    raw = _merge_structural_fallback(packet, first, invalid_ids)
+                else:
+                    invalid_repair_ids = _structurally_invalid_criterion_ids(packet, raw)
+                    if invalid_repair_ids:
+                        if not _allows_deterministic_prep_repair(packet):
+                            raise PrepEvaluationRetryRequired(invalid_repair_ids)
+                        raw = _merge_structural_fallback(packet, raw, invalid_repair_ids)
         else:
-            client = get_gemini_client()
-            raw = await call_with_structured_output(client, prompt, PrepRubricEval)
-    return apply_caps(packet, raw)
+            raw = _ordered_valid_first_response(packet, first)
+    result = apply_caps(packet, raw)
+    unresolved_ids = [
+        str(blocker).split(":", 1)[1]
+        for blocker in result.blockers
+        if str(blocker).startswith(("evaluator_incomplete:", "invalid_proof:"))
+    ]
+    if unresolved_ids:
+        raise PrepEvaluationRetryRequired(unresolved_ids)
+    return result
 
 
 async def evaluate_placement(module_title: str, writing_sample: str) -> PlacementEval:
@@ -186,6 +402,29 @@ async def direct_simulation(
             return await ollama_structured(prompt, DirectorDecision)
         client = get_gemini_client()
         return await call_with_structured_output(client, prompt, DirectorDecision)
+
+
+async def evaluate_assessment_turn(
+    *,
+    plan: dict,
+    visible_ledger: list[dict],
+    transcript: str,
+    learner_turn: str,
+    turn_context: dict | None = None,
+) -> AssessmentTurnCall:
+    """Single structured model call for one test-mode learner turn."""
+    prompt = build_assessment_turn_prompt(
+        plan=plan,
+        visible_ledger=visible_ledger,
+        transcript=transcript,
+        learner_turn=learner_turn,
+        turn_context=turn_context,
+    )
+    async with llm_semaphore:
+        if _local():
+            return await ollama_structured(prompt, AssessmentTurnCall)
+        client = get_gemini_client()
+        return await call_with_structured_output(client, prompt, AssessmentTurnCall)
 
 
 async def select_next_content(
