@@ -28,6 +28,9 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
     "test_items": {
         "context_hash",
     },
+    "credit_transactions": {
+        "idempotency_key",
+    },
     "competency_nodes": {
         "best_mastery",
         "node_completed",
@@ -94,6 +97,7 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "error_code",
         "source_session_id",
         "source_transition_id",
+        "claim_generation",
     },
     "session_opening_requests": {
         "session_id",
@@ -128,6 +132,7 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "advance_eligible",
         "mastery_eligible",
         "tutor_plan_json",
+        "context_json",
         "model_name",
         "prompt_version",
     },
@@ -258,6 +263,12 @@ REQUIRED_RUNTIME_INDEXES: dict[str, tuple[str, ...]] = {
         "mastery",
         "last_seen_at",
     ),
+    "idx_credit_transactions_idempotency_key": (
+        "CREATE UNIQUE INDEX",
+        "credit_transactions",
+        "user_id",
+        "idempotency_key",
+    ),
 }
 
 REQUIRED_MIGRATION_FILES: tuple[str, ...] = (
@@ -268,6 +279,9 @@ REQUIRED_MIGRATION_FILES: tuple[str, ...] = (
     "app/db/migrations/2026-07-06-session-start-idempotency.sql",
     "app/db/migrations/2026-07-08-prep-turn-evaluations.sql",
     "app/db/migrations/2026-07-09-career-learning-profile.sql",
+    "app/db/migrations/2026-07-11-attempt-charge-idempotency.sql",
+    "app/db/migrations/2026-07-11-start-request-claim-generation.sql",
+    "app/db/migrations/2026-07-12-turn-evaluation-context.sql",
 )
 
 

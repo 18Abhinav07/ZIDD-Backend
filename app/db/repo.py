@@ -325,6 +325,114 @@ async def deduct_credit(
     return True
 
 
+async def deduct_credit_once(
+    session: AsyncSession,
+    user_id: str,
+    amount: int,
+    reason: str,
+    idempotency_key: str,
+) -> bool:
+    """Atomically debit one metered action at most once per user/key."""
+    profile = await get_profile(session, user_id)
+    if profile is None:
+        return False
+    if profile["demo_unlimited"]:
+        return True
+    try:
+        inserted = await session.execute(
+            text(
+                """
+                INSERT INTO credit_transactions (user_id, delta, reason, idempotency_key)
+                VALUES (:uid, :delta, :reason, :key)
+                ON CONFLICT (user_id, idempotency_key)
+                    WHERE idempotency_key IS NOT NULL
+                DO NOTHING
+                RETURNING id
+                """
+            ),
+            {
+                "uid": user_id,
+                "delta": -amount,
+                "reason": reason,
+                "key": idempotency_key,
+            },
+        )
+        if inserted.first() is None:
+            existing = await session.execute(
+                text(
+                    """
+                    SELECT delta, reason
+                    FROM credit_transactions
+                    WHERE user_id = :uid AND idempotency_key = :key
+                    """
+                ),
+                {"uid": user_id, "key": idempotency_key},
+            )
+            row = existing.mappings().first()
+            await session.rollback()
+            if not row or int(row["delta"]) != -amount or str(row["reason"]) != reason:
+                raise ValueError("credit_idempotency_key_reused_with_different_payload")
+            return True
+        debited = await session.execute(
+            text(
+                "UPDATE learner_profiles SET credits = credits - :amt "
+                "WHERE user_id = :uid AND credits >= :amt"
+            ),
+            {"amt": amount, "uid": user_id},
+        )
+        if debited.rowcount == 0:
+            await session.rollback()
+            return False
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def refund_idempotent_charge(
+    session: AsyncSession,
+    user_id: str,
+    amount: int,
+    idempotency_key: str,
+    reason: str = "refund",
+) -> bool:
+    """Reverse one keyed debit, preserving a net-zero audit trail for retries."""
+    try:
+        released = await session.execute(
+            text(
+                """
+                UPDATE credit_transactions
+                SET idempotency_key = NULL
+                WHERE user_id = :uid
+                  AND idempotency_key = :key
+                  AND delta = :delta
+                RETURNING id
+                """
+            ),
+            {"uid": user_id, "key": idempotency_key, "delta": -amount},
+        )
+        if released.first() is None:
+            await session.rollback()
+            return False
+        await session.execute(
+            text("UPDATE learner_profiles SET credits = credits + :amt WHERE user_id = :uid"),
+            {"amt": amount, "uid": user_id},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO credit_transactions (user_id, delta, reason) "
+                "VALUES (:uid, :amt, :reason)"
+            ),
+            {"uid": user_id, "amt": amount, "reason": reason},
+        )
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
+
+
 async def charge_and_unlock(
     session: AsyncSession,
     user_id: str,
@@ -332,7 +440,7 @@ async def charge_and_unlock(
     reason: str,
     scope: str,
     ref_id: str,
-) -> bool:
+) -> tuple[bool, bool]:
     """Deduct credits AND insert a content_unlocks row in ONE transaction.
 
     Atomic combination of deduct_credit + add_unlock: the credit debit, the
@@ -345,9 +453,9 @@ async def charge_and_unlock(
     """
     profile = await get_profile(session, user_id)
     if profile is None:
-        return False
+        return False, False
     if profile["demo_unlimited"]:
-        return True
+        return True, False
     try:
         # Insert the unlock FIRST and let ON CONFLICT arbitrate idempotency: an
         # already-owned (user, scope, ref) inserts 0 rows, so only a FRESH unlock
@@ -368,7 +476,7 @@ async def charge_and_unlock(
         if unlock_result.rowcount == 0:
             # Already owned: discard the no-op insert and do not charge again.
             await session.rollback()
-            return True
+            return True, False
         # Fresh unlock — now debit. The balance check and decrement are one
         # statement so concurrent spends cannot both pass. rowcount == 0 =>
         # insufficient funds: roll back the unlock too.
@@ -381,7 +489,7 @@ async def charge_and_unlock(
         )
         if result.rowcount == 0:
             await session.rollback()
-            return False
+            return False, False
         await session.execute(
             text(
                 "INSERT INTO credit_transactions (user_id, delta, reason) "
@@ -390,7 +498,7 @@ async def charge_and_unlock(
             {"uid": user_id, "delta": -amount, "reason": reason},
         )
         await session.commit()
-        return True
+        return True, True
     except Exception:
         # Any failure mid-transaction rolls back the whole unit: no debit, no
         # ledger row, no unlock.
@@ -483,6 +591,7 @@ async def begin_start_request(
                 """
                 SELECT user_id, client_start_id, request_hash, status, session_id,
                        response_json, error_code, source_session_id, source_transition_id,
+                       claim_generation,
                        created_at, updated_at
                 FROM session_start_requests
                 WHERE source_session_id = :source_session_id
@@ -531,6 +640,7 @@ async def begin_start_request(
             ON CONFLICT (user_id, client_start_id) DO NOTHING
             RETURNING user_id, client_start_id, request_hash, status, session_id,
                       response_json, error_code, source_session_id, source_transition_id,
+                      claim_generation,
                       created_at, updated_at
             """
         ),
@@ -555,6 +665,7 @@ async def begin_start_request(
             """
             SELECT user_id, client_start_id, request_hash, status, session_id,
                    response_json, error_code, source_session_id, source_transition_id,
+                   claim_generation,
                    created_at, updated_at
             FROM session_start_requests
             WHERE user_id = :uid AND client_start_id = :client_start_id
@@ -585,6 +696,7 @@ async def get_start_request(
             """
             SELECT user_id, client_start_id, request_hash, status, session_id,
                    response_json, error_code, source_session_id, source_transition_id,
+                   claim_generation,
                    created_at, updated_at
             FROM session_start_requests
             WHERE user_id = :uid AND client_start_id = :client_start_id
@@ -609,6 +721,7 @@ async def get_start_request(
                   AND updated_at < now() - make_interval(secs => :stale_seconds)
                 RETURNING user_id, client_start_id, request_hash, status, session_id,
                           response_json, error_code, source_session_id, source_transition_id,
+                          claim_generation,
                           created_at, updated_at
                 """
             ),
@@ -642,6 +755,7 @@ async def get_start_request_for_source_transition(
             """
             SELECT user_id, client_start_id, request_hash, status, session_id,
                    response_json, error_code, source_session_id, source_transition_id,
+                   claim_generation,
                    created_at, updated_at
             FROM session_start_requests
             WHERE source_session_id = :source_session_id
@@ -677,6 +791,75 @@ async def reset_start_request(
     source_session_id: str | None = None,
     source_transition_id: str | None = None,
 ) -> dict:
+    if source_session_id and source_transition_id:
+        source_key = f"{source_session_id}:{source_transition_id}"
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:source_key)::bigint)"),
+            {"source_key": source_key},
+        )
+        await session.execute(
+            text(
+                """
+                UPDATE session_start_requests
+                SET status = 'failed',
+                    error_code = 'stale_in_progress',
+                    updated_at = now()
+                WHERE source_session_id = :source_session_id
+                  AND source_transition_id = :source_transition_id
+                  AND status = 'in_progress'
+                  AND updated_at < now() - make_interval(secs => :stale_seconds)
+                """
+            ),
+            {
+                "source_session_id": source_session_id,
+                "source_transition_id": source_transition_id,
+                "stale_seconds": _REQUEST_STALE_SECONDS,
+            },
+        )
+        consumed = await session.execute(
+            text(
+                """
+                SELECT user_id, client_start_id, request_hash, status, session_id,
+                       response_json, error_code, source_session_id, source_transition_id,
+                       claim_generation, created_at, updated_at
+                FROM session_start_requests
+                WHERE source_session_id = :source_session_id
+                  AND source_transition_id = :source_transition_id
+                  AND status IN ('in_progress', 'completed')
+                  AND NOT (user_id = :uid AND client_start_id = :client_start_id)
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """
+            ),
+            {
+                "uid": user_id,
+                "client_start_id": client_start_id,
+                "source_session_id": source_session_id,
+                "source_transition_id": source_transition_id,
+            },
+        )
+        consumed_row = consumed.mappings().first()
+        if consumed_row:
+            await session.rollback()
+            data = dict(consumed_row)
+            response_json = data.get("response_json")
+            if isinstance(response_json, str):
+                try:
+                    data["response_json"] = json.loads(response_json)
+                except json.JSONDecodeError:
+                    data["response_json"] = None
+            data["accepted"] = False
+            data["request_mismatch"] = False
+            data["consumed_status"] = data.get("status")
+            data["status"] = "source_transition_consumed"
+            data["accepted_client_start_id"] = data.get("client_start_id")
+            return data
+
+    lock_key = f"{user_id}:{client_start_id}"
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key)::bigint)"),
+        {"lock_key": lock_key},
+    )
     result = await session.execute(
         text(
             """
@@ -688,10 +871,14 @@ async def reset_start_request(
                 error_code = NULL,
                 source_session_id = :source_session_id,
                 source_transition_id = :source_transition_id,
+                claim_generation = claim_generation + 1,
                 updated_at = now()
-            WHERE user_id = :uid AND client_start_id = :client_start_id
+            WHERE user_id = :uid
+              AND client_start_id = :client_start_id
+              AND status = 'failed'
             RETURNING user_id, client_start_id, request_hash, status, session_id,
                       response_json, error_code, source_session_id, source_transition_id,
+                      claim_generation,
                       created_at, updated_at
             """
         ),
@@ -704,10 +891,25 @@ async def reset_start_request(
         },
     )
     row = result.mappings().first()
+    if row is None:
+        existing = await session.execute(
+            text(
+                """
+                SELECT user_id, client_start_id, request_hash, status, session_id,
+                       response_json, error_code, source_session_id, source_transition_id,
+                       claim_generation,
+                       created_at, updated_at
+                FROM session_start_requests
+                WHERE user_id = :uid AND client_start_id = :client_start_id
+                """
+            ),
+            {"uid": user_id, "client_start_id": client_start_id},
+        )
+        row = existing.mappings().first()
     await session.commit()
     data = dict(row or {})
-    data["accepted"] = True
-    data["request_mismatch"] = False
+    data["accepted"] = bool(data) and data.get("status") == "in_progress" and data.get("updated_at") is not None and result.rowcount == 1
+    data["request_mismatch"] = bool(data) and data.get("request_hash") != request_hash
     return data
 
 
@@ -719,8 +921,9 @@ async def complete_start_request(
     session_id: str | None = None,
     response_json: dict | None = None,
     error_code: str | None = None,
-) -> None:
-    await session.execute(
+    claim_generation: int = 1,
+) -> bool:
+    result = await session.execute(
         text(
             """
             UPDATE session_start_requests
@@ -729,7 +932,11 @@ async def complete_start_request(
                 response_json = CAST(:response_json AS jsonb),
                 error_code = :error_code,
                 updated_at = now()
-            WHERE user_id = :uid AND client_start_id = :client_start_id
+            WHERE user_id = :uid
+              AND client_start_id = :client_start_id
+              AND claim_generation = :claim_generation
+              AND status = 'in_progress'
+            RETURNING claim_generation
             """
         ),
         {
@@ -739,9 +946,342 @@ async def complete_start_request(
             "session_id": session_id,
             "response_json": json.dumps(response_json or {}),
             "error_code": error_code,
+            "claim_generation": claim_generation,
         },
     )
     await session.commit()
+    return result.mappings().first() is not None
+
+
+async def renew_start_request_claim(
+    session: AsyncSession,
+    user_id: str,
+    client_start_id: str,
+    claim_generation: int,
+) -> bool:
+    result = await session.execute(
+        text(
+            """
+            UPDATE session_start_requests
+            SET updated_at = now()
+            WHERE user_id = :uid
+              AND client_start_id = :client_start_id
+              AND claim_generation = :claim_generation
+              AND status = 'in_progress'
+            RETURNING claim_generation
+            """
+        ),
+        {
+            "uid": user_id,
+            "client_start_id": client_start_id,
+            "claim_generation": claim_generation,
+        },
+    )
+    await session.commit()
+    return result.mappings().first() is not None
+
+
+async def commit_claimed_session_start(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    client_start_id: str,
+    claim_generation: int,
+    session_record: dict,
+    runtime_record: dict,
+    messages: list[dict],
+    response_json: dict,
+) -> bool:
+    """Publish a prepared session and complete its start latch in one transaction."""
+    try:
+        owned = await session.execute(
+            text(
+                """
+                SELECT claim_generation
+                FROM session_start_requests
+                WHERE user_id = :uid
+                  AND client_start_id = :client_start_id
+                  AND claim_generation = :claim_generation
+                  AND status = 'in_progress'
+                FOR UPDATE
+                """
+            ),
+            {
+                "uid": user_id,
+                "client_start_id": client_start_id,
+                "claim_generation": claim_generation,
+            },
+        )
+        if owned.first() is None:
+            await session.rollback()
+            return False
+
+        session_id = str(session_record["session_id"])
+        await session.execute(
+            text(
+                """
+                INSERT INTO sessions (
+                    session_id, user_id, competency_node, task_type, module_id,
+                    test_mode, career_context, scenario_config, persona_roster,
+                    context_hash
+                )
+                VALUES (
+                    :sid, :uid, :node, :task_type, :module_id, :test_mode,
+                    CAST(:career_context AS jsonb), CAST(:scenario_config AS jsonb),
+                    CAST(:persona_roster AS jsonb), :context_hash
+                )
+                ON CONFLICT (session_id) DO NOTHING
+                """
+            ),
+            {
+                "sid": session_id,
+                "uid": user_id,
+                "node": session_record["node_id"],
+                "task_type": session_record["task_type"],
+                "module_id": session_record["module_id"],
+                "test_mode": bool(session_record.get("test_mode")),
+                "career_context": json.dumps(session_record.get("career_context") or {}),
+                "scenario_config": json.dumps(session_record.get("scenario_config") or {}),
+                "persona_roster": json.dumps(session_record.get("persona_roster") or []),
+                "context_hash": session_record.get("context_hash") or "default",
+            },
+        )
+        await session.execute(
+            text(
+                """
+                INSERT INTO session_runtime (
+                    session_id, user_id, current_node, module_id, task_type,
+                    test_mode, status, state_snapshot, pending_transition,
+                    session_version, active_turn_id, active_opening_id, last_error,
+                    lease_expires_at, updated_at
+                )
+                VALUES (
+                    :sid, :uid, :node, :module_id, :task_type, :test_mode,
+                    :status, CAST(:snapshot AS jsonb), CAST(:pending AS jsonb),
+                    :version, :active_turn_id, :active_opening_id,
+                    CAST(:last_error AS jsonb), NULL, now()
+                )
+                ON CONFLICT (session_id) DO UPDATE SET
+                    user_id = EXCLUDED.user_id,
+                    current_node = EXCLUDED.current_node,
+                    module_id = EXCLUDED.module_id,
+                    task_type = EXCLUDED.task_type,
+                    test_mode = EXCLUDED.test_mode,
+                    status = EXCLUDED.status,
+                    state_snapshot = EXCLUDED.state_snapshot,
+                    pending_transition = EXCLUDED.pending_transition,
+                    session_version = EXCLUDED.session_version,
+                    active_turn_id = EXCLUDED.active_turn_id,
+                    active_opening_id = EXCLUDED.active_opening_id,
+                    last_error = EXCLUDED.last_error,
+                    lease_expires_at = EXCLUDED.lease_expires_at,
+                    updated_at = now()
+                """
+            ),
+            {
+                "sid": session_id,
+                "uid": user_id,
+                "node": runtime_record["current_node"],
+                "module_id": runtime_record.get("module_id"),
+                "task_type": runtime_record.get("task_type"),
+                "test_mode": bool(runtime_record.get("test_mode")),
+                "status": runtime_record.get("status") or "active",
+                "snapshot": json.dumps(runtime_record.get("state_snapshot") or {}),
+                "pending": json.dumps(runtime_record.get("pending_transition"))
+                if runtime_record.get("pending_transition")
+                else None,
+                "version": int(runtime_record.get("session_version") or 1),
+                "active_turn_id": runtime_record.get("active_turn_id"),
+                "active_opening_id": runtime_record.get("active_opening_id"),
+                "last_error": json.dumps(runtime_record.get("last_error"))
+                if runtime_record.get("last_error")
+                else None,
+            },
+        )
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext('session_messages:' || :sid)::bigint)"),
+            {"sid": session_id},
+        )
+        await session.execute(
+            text("DELETE FROM session_messages WHERE session_id = :sid"),
+            {"sid": session_id},
+        )
+        for index, message in enumerate(messages or []):
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO session_messages (
+                        message_id, session_id, sequence_index, turn_id, transition_id, node_id,
+                        role, content, speaker_name, speaker_id, message_kind, status
+                    )
+                    VALUES (
+                        :message_id, :sid, :sequence_index, :turn_id, :transition_id, :node_id,
+                        :role, :content, :speaker_name, :speaker_id, :message_kind, :status
+                    )
+                    ON CONFLICT (message_id) DO UPDATE SET
+                        sequence_index = EXCLUDED.sequence_index,
+                        turn_id = EXCLUDED.turn_id,
+                        transition_id = EXCLUDED.transition_id,
+                        node_id = EXCLUDED.node_id,
+                        role = EXCLUDED.role,
+                        content = EXCLUDED.content,
+                        speaker_name = EXCLUDED.speaker_name,
+                        speaker_id = EXCLUDED.speaker_id,
+                        message_kind = EXCLUDED.message_kind,
+                        status = EXCLUDED.status
+                    """
+                ),
+                {
+                    "message_id": message.get("message_id") or f"{session_id}:{index}",
+                    "sid": session_id,
+                    "sequence_index": int(message.get("sequence_index") or index),
+                    "turn_id": message.get("turn_id"),
+                    "transition_id": message.get("transition_id"),
+                    "node_id": message.get("node_id"),
+                    "role": message.get("role") or "assistant",
+                    "content": message.get("content") or "",
+                    "speaker_name": message.get("speaker_name"),
+                    "speaker_id": message.get("speaker_id"),
+                    "message_kind": message.get("message_kind"),
+                    "status": message.get("status") or "committed",
+                },
+            )
+        completed = await session.execute(
+            text(
+                """
+                UPDATE session_start_requests
+                SET status = 'completed',
+                    session_id = :sid,
+                    response_json = CAST(:response_json AS jsonb),
+                    error_code = NULL,
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND client_start_id = :client_start_id
+                  AND claim_generation = :claim_generation
+                  AND status = 'in_progress'
+                RETURNING claim_generation
+                """
+            ),
+            {
+                "sid": session_id,
+                "uid": user_id,
+                "client_start_id": client_start_id,
+                "claim_generation": claim_generation,
+                "response_json": json.dumps(response_json or {}),
+            },
+        )
+        if completed.first() is None:
+            raise RuntimeError("start_claim_lost_during_atomic_commit")
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def compensate_claimed_attempt_charge(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    client_start_id: str,
+    claim_generation: int,
+    amount: int,
+    charge_key: str,
+    debit_reason: str,
+    refund_reason: str,
+    error_code: str,
+) -> bool:
+    """Reverse a failed metered attempt and fail its latch under one claim lock."""
+    try:
+        owned = await session.execute(
+            text(
+                """
+                SELECT claim_generation
+                FROM session_start_requests
+                WHERE user_id = :uid
+                  AND client_start_id = :client_start_id
+                  AND claim_generation = :claim_generation
+                  AND status = 'in_progress'
+                FOR UPDATE
+                """
+            ),
+            {
+                "uid": user_id,
+                "client_start_id": client_start_id,
+                "claim_generation": claim_generation,
+            },
+        )
+        if owned.first() is None:
+            await session.rollback()
+            return False
+
+        released = await session.execute(
+            text(
+                """
+                UPDATE credit_transactions
+                SET idempotency_key = NULL
+                WHERE user_id = :uid
+                  AND idempotency_key = :key
+                  AND delta = :delta
+                  AND reason = :debit_reason
+                RETURNING id
+                """
+            ),
+            {
+                "uid": user_id,
+                "key": charge_key,
+                "delta": -amount,
+                "debit_reason": debit_reason,
+            },
+        )
+        if released.first() is None:
+            raise RuntimeError("claimed_start_charge_missing")
+
+        credited = await session.execute(
+            text("UPDATE learner_profiles SET credits = credits + :amt WHERE user_id = :uid"),
+            {"amt": amount, "uid": user_id},
+        )
+        if credited.rowcount != 1:
+            raise RuntimeError("claimed_start_profile_missing")
+        await session.execute(
+            text(
+                """
+                INSERT INTO credit_transactions (user_id, delta, reason)
+                VALUES (:uid, :amt, :reason)
+                """
+            ),
+            {"uid": user_id, "amt": amount, "reason": refund_reason},
+        )
+        failed = await session.execute(
+            text(
+                """
+                UPDATE session_start_requests
+                SET status = 'failed',
+                    session_id = NULL,
+                    response_json = NULL,
+                    error_code = :error_code,
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND client_start_id = :client_start_id
+                  AND claim_generation = :claim_generation
+                  AND status = 'in_progress'
+                RETURNING claim_generation
+                """
+            ),
+            {
+                "uid": user_id,
+                "client_start_id": client_start_id,
+                "claim_generation": claim_generation,
+                "error_code": error_code,
+            },
+        )
+        if failed.first() is None:
+            raise RuntimeError("start_claim_lost_during_compensation")
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def end_session(
@@ -817,6 +1357,7 @@ async def record_turn_evaluation(
     advance_eligible: bool,
     mastery_eligible: bool,
     tutor_plan_json: dict,
+    context_json: dict | None = None,
     model_name: str | None = None,
     prompt_version: str | None = None,
 ) -> None:
@@ -828,14 +1369,14 @@ async def record_turn_evaluation(
                  attempt_index, attempt_type, user_answer, rubric_version,
                  raw_score, effective_score, criteria_json, blockers,
                  pass_eligible, advance_eligible, mastery_eligible,
-                 tutor_plan_json, model_name, prompt_version)
+                 tutor_plan_json, context_json, model_name, prompt_version)
             VALUES
                 (:evaluation_id, :session_id, :user_id, :node_id, :turn_id,
                  :attempt_index, :attempt_type, :user_answer, :rubric_version,
                  :raw_score, :effective_score, CAST(:criteria_json AS jsonb),
                  CAST(:blockers AS jsonb), :pass_eligible, :advance_eligible,
                  :mastery_eligible, CAST(:tutor_plan_json AS jsonb),
-                 :model_name, :prompt_version)
+                 CAST(:context_json AS jsonb), :model_name, :prompt_version)
             ON CONFLICT (evaluation_id) DO NOTHING
             """
         ),
@@ -857,11 +1398,41 @@ async def record_turn_evaluation(
             "advance_eligible": advance_eligible,
             "mastery_eligible": mastery_eligible,
             "tutor_plan_json": json.dumps(tutor_plan_json or {}),
+            "context_json": json.dumps(context_json or {}),
             "model_name": model_name,
             "prompt_version": prompt_version,
         },
     )
     await session.commit()
+
+
+async def get_latest_passing_turn_evaluation(
+    session: AsyncSession,
+    user_id: str,
+    node_id: str,
+    attempt_type: str = "independent",
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT evaluation_id, session_id, user_id, node_id, turn_id,
+                   attempt_index, attempt_type, user_answer, context_json,
+                   effective_score, pass_eligible,
+                   blockers, created_at
+            FROM turn_evaluations
+            WHERE user_id = :uid
+              AND node_id = :node
+              AND attempt_type = :attempt_type
+              AND pass_eligible = TRUE
+              AND jsonb_array_length(blockers) = 0
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id, "node": node_id, "attempt_type": attempt_type},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
 
 
 async def get_turns(session: AsyncSession, session_id: str) -> list[dict]:
@@ -1085,6 +1656,79 @@ async def upsert_learner_skill_profile(
     await session.commit()
 
 
+async def replace_learner_skill_profiles_for_task(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    domain: str,
+    task_type: str,
+    report_id: str,
+    profiles: list[dict],
+) -> None:
+    latest_report = await session.execute(
+        text(
+            """
+            SELECT report_id
+            FROM session_reports
+            WHERE user_id = :uid
+              AND task_type = :task_type
+              AND status NOT IN ('insufficient_evidence', 'invalid_simulation')
+            ORDER BY created_at DESC, report_id DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id, "task_type": task_type},
+    )
+    if str(latest_report.scalar_one_or_none() or "") != report_id:
+        await session.rollback()
+        return
+    await session.execute(
+        text(
+            """
+            DELETE FROM learner_skill_profiles
+            WHERE user_id = :uid AND domain = :domain AND task_type = :task_type
+            """
+        ),
+        {"uid": user_id, "domain": domain, "task_type": task_type},
+    )
+    if profiles:
+        statement = text(
+            """
+            INSERT INTO learner_skill_profiles
+                (user_id, domain, skill_id, module_id, task_type, mastery,
+                 readiness, confidence, attempts, strengths_json, gaps_json,
+                 evidence_json, recommended_next_action, source_summary)
+            VALUES
+                (:user_id, :domain, :skill_id, :module_id, :task_type,
+                 :mastery, :readiness, :confidence, :attempts,
+                 CAST(:strengths_json AS jsonb), CAST(:gaps_json AS jsonb),
+                 CAST(:evidence_json AS jsonb), :recommended_next_action,
+                 :source_summary)
+            """
+        )
+        params = [
+            {
+                "user_id": user_id,
+                "domain": domain,
+                "skill_id": str(profile.get("skill_id") or ""),
+                "module_id": str(profile.get("module_id") or ""),
+                "task_type": task_type,
+                "mastery": float(profile.get("mastery") or 0.0),
+                "readiness": float(profile.get("readiness") or 0.0),
+                "confidence": float(profile.get("confidence") or 0.0),
+                "attempts": int(profile.get("attempts") or 0),
+                "strengths_json": json.dumps(profile.get("strengths_json") or []),
+                "gaps_json": json.dumps(profile.get("gaps_json") or []),
+                "evidence_json": json.dumps(profile.get("evidence_json") or {}),
+                "recommended_next_action": str(profile.get("recommended_next_action") or ""),
+                "source_summary": str(profile.get("source_summary") or ""),
+            }
+            for profile in profiles
+        ]
+        await session.execute(statement, params)
+    await session.commit()
+
+
 async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
     profiles = await session.execute(
         text(
@@ -1226,6 +1870,75 @@ async def get_session_runtime(
     return dict(row) if row else None
 
 
+async def get_active_session_runtime_for_node(
+    session: AsyncSession,
+    user_id: str,
+    node_id: str,
+    task_type: str,
+    test_mode: bool,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT
+                session_id, user_id, current_node, module_id, task_type,
+                test_mode, status, state_snapshot, pending_transition,
+                session_version, active_turn_id, active_opening_id, last_error,
+                lease_expires_at, updated_at
+            FROM session_runtime
+            WHERE user_id = :uid
+              AND current_node = :node_id
+              AND task_type = :task_type
+              AND test_mode = :test_mode
+              AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "node_id": node_id,
+            "task_type": task_type,
+            "test_mode": bool(test_mode),
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_latest_active_session_runtime_for_module(
+    session: AsyncSession,
+    user_id: str,
+    module_id: str,
+    test_mode: bool,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT
+                session_id, user_id, current_node, module_id, task_type,
+                test_mode, status, state_snapshot, pending_transition,
+                session_version, active_turn_id, active_opening_id, last_error,
+                lease_expires_at, updated_at
+            FROM session_runtime
+            WHERE user_id = :uid
+              AND module_id = :module_id
+              AND test_mode = :test_mode
+              AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "module_id": module_id,
+            "test_mode": bool(test_mode),
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
 async def touch_session_runtime(
     session: AsyncSession,
     session_id: str,
@@ -1262,6 +1975,10 @@ async def replace_session_messages(
     session_id: str,
     messages: list[dict],
 ) -> None:
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext('session_messages:' || :sid)::bigint)"),
+        {"sid": session_id},
+    )
     await session.execute(
         text("DELETE FROM session_messages WHERE session_id = :sid"),
         {"sid": session_id},
@@ -1377,7 +2094,8 @@ async def begin_turn_request(
                 consumed = await session.execute(
                     text(
                         """
-                        SELECT client_turn_id, status, transcript_delta, done_snapshot, error_code
+                        SELECT client_turn_id, status, transcript_delta, done_snapshot, error_code,
+                               EXTRACT(EPOCH FROM (now() - updated_at)) AS age_seconds
                         FROM session_turn_requests
                         WHERE session_id = :sid
                           AND expected_version = :expected_version
@@ -1401,6 +2119,8 @@ async def begin_turn_request(
                         "accepted": False,
                         "status": "version_consumed",
                         "accepted_client_turn_id": consumed_data.get("client_turn_id"),
+                        "accepted_status": consumed_data.get("status"),
+                        "accepted_age_seconds": float(consumed_data.get("age_seconds") or 0.0),
                         "transcript_delta": consumed_data.get("transcript_delta"),
                         "done_snapshot": consumed_data.get("done_snapshot"),
                         "error_code": consumed_data.get("error_code"),
@@ -1433,7 +2153,8 @@ async def begin_turn_request(
         consumed = await session.execute(
             text(
                 """
-                SELECT client_turn_id, status, transcript_delta, done_snapshot, error_code
+                SELECT client_turn_id, status, transcript_delta, done_snapshot, error_code,
+                       EXTRACT(EPOCH FROM (now() - updated_at)) AS age_seconds
                 FROM session_turn_requests
                 WHERE session_id = :sid
                   AND expected_version = :expected_version
@@ -1457,6 +2178,8 @@ async def begin_turn_request(
                 "accepted": False,
                 "status": "version_consumed",
                 "accepted_client_turn_id": data.get("client_turn_id"),
+                "accepted_status": data.get("status"),
+                "accepted_age_seconds": float(data.get("age_seconds") or 0.0),
                 "transcript_delta": data.get("transcript_delta"),
                 "done_snapshot": data.get("done_snapshot"),
                 "error_code": data.get("error_code"),
@@ -1881,7 +2604,27 @@ async def get_progression(session: AsyncSession, user_id: str) -> list[dict]:
                    attempts, clean_pass, node_completed, completed_at, completion_count,
                    last_completed_session_id, node_mastered, display_status,
                    best_independent_score, independent_passes, transfer_passes,
-                   pressure_passes, scaffold_successes, last_gap, mastery_evidence
+                   pressure_passes, scaffold_successes, last_gap, mastery_evidence,
+                   GREATEST(
+                       COALESCE(independent_passes, 0)
+                       + COALESCE(transfer_passes, 0)
+                       + COALESCE(pressure_passes, 0),
+                       COALESCE((
+                       SELECT COUNT(*)
+                       FROM turn_evaluations te
+                       WHERE te.user_id = competency_nodes.user_id
+                         AND te.node_id = competency_nodes.competency_node
+                         AND te.pass_eligible = TRUE
+                         AND te.attempt_type <> 'scaffolded'
+                   ), 0)) AS meaningful_attempts,
+                   COALESCE((
+                       SELECT te.effective_score
+                       FROM turn_evaluations te
+                       WHERE te.user_id = competency_nodes.user_id
+                         AND te.node_id = competency_nodes.competency_node
+                       ORDER BY te.created_at DESC
+                       LIMIT 1
+                   ), mastery) AS readiness_score
             FROM competency_nodes
             WHERE user_id = :uid
             """

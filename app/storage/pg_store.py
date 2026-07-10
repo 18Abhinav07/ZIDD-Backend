@@ -249,17 +249,87 @@ class PgStore:
         session_id: str | None = None,
         response_json: dict | None = None,
         error_code: str | None = None,
-    ) -> None:
+        claim_generation: int = 1,
+    ) -> bool:
         from app.db import repo
 
         async with _session() as s:
-            await repo.complete_start_request(
+            return await repo.complete_start_request(
                 s,
                 user_id,
                 client_start_id,
                 status,
                 session_id=session_id,
                 response_json=response_json or {},
+                error_code=error_code,
+                claim_generation=claim_generation,
+            )
+
+    async def renew_start_request_claim(
+        self,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.renew_start_request_claim(
+                s,
+                user_id,
+                client_start_id,
+                claim_generation,
+            )
+
+    async def commit_claimed_session_start(
+        self,
+        *,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+        session_record: dict,
+        runtime_record: dict,
+        messages: list[dict],
+        response_json: dict,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.commit_claimed_session_start(
+                s,
+                user_id=user_id,
+                client_start_id=client_start_id,
+                claim_generation=claim_generation,
+                session_record=session_record,
+                runtime_record=runtime_record,
+                messages=messages,
+                response_json=response_json,
+            )
+
+    async def compensate_claimed_attempt_charge(
+        self,
+        *,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+        amount: int,
+        charge_key: str,
+        debit_reason: str,
+        refund_reason: str,
+        error_code: str,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.compensate_claimed_attempt_charge(
+                s,
+                user_id=user_id,
+                client_start_id=client_start_id,
+                claim_generation=claim_generation,
+                amount=amount,
+                charge_key=charge_key,
+                debit_reason=debit_reason,
+                refund_reason=refund_reason,
                 error_code=error_code,
             )
 
@@ -300,6 +370,22 @@ class PgStore:
         async with _session() as s:
             await repo.record_turn_evaluation(s, **kwargs)
 
+    async def get_latest_passing_turn_evaluation(
+        self,
+        user_id: str,
+        node_id: str,
+        attempt_type: str = "independent",
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_latest_passing_turn_evaluation(
+                s,
+                user_id,
+                node_id,
+                attempt_type,
+            )
+
     async def record_learning_event(self, **kwargs) -> None:
         from app.db import repo
 
@@ -317,6 +403,12 @@ class PgStore:
 
         async with _session() as s:
             await repo.upsert_learner_skill_profile(s, **kwargs)
+
+    async def replace_learner_skill_profiles_for_task(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.replace_learner_skill_profiles_for_task(s, **kwargs)
 
     async def get_learning_graph(self, user_id: str) -> dict:
         from app.db import repo
@@ -369,6 +461,47 @@ class PgStore:
             row = await repo.get_session_runtime(s, session_id)
             if row:
                 messages = await repo.list_session_messages(s, session_id)
+                if messages:
+                    snapshot = dict(row.get("state_snapshot") or {})
+                    snapshot["messages"] = messages
+                    row["state_snapshot"] = snapshot
+            return row
+
+    async def get_active_session_runtime_for_node(
+        self,
+        user_id: str,
+        node_id: str,
+        task_type: str,
+        test_mode: bool,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            row = await repo.get_active_session_runtime_for_node(
+                s, user_id, node_id, task_type, test_mode
+            )
+            if row:
+                messages = await repo.list_session_messages(s, row["session_id"])
+                if messages:
+                    snapshot = dict(row.get("state_snapshot") or {})
+                    snapshot["messages"] = messages
+                    row["state_snapshot"] = snapshot
+            return row
+
+    async def get_latest_active_session_runtime_for_module(
+        self,
+        user_id: str,
+        module_id: str,
+        test_mode: bool,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            row = await repo.get_latest_active_session_runtime_for_module(
+                s, user_id, module_id, test_mode
+            )
+            if row:
+                messages = await repo.list_session_messages(s, row["session_id"])
                 if messages:
                     snapshot = dict(row.get("state_snapshot") or {})
                     snapshot["messages"] = messages
@@ -723,6 +856,42 @@ class PgStore:
         async with _session() as s:
             return await repo.deduct_credit(s, user_id, amount, reason)
 
+    async def deduct_credits_once(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str,
+        idempotency_key: str,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.deduct_credit_once(
+                s,
+                user_id,
+                amount,
+                reason,
+                idempotency_key,
+            )
+
+    async def refund_idempotent_charge(
+        self,
+        user_id: str,
+        amount: int,
+        idempotency_key: str,
+        reason: str = "refund",
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.refund_idempotent_charge(
+                s,
+                user_id,
+                amount,
+                idempotency_key,
+                reason,
+            )
+
     async def charge_and_unlock(
         self,
         user_id: str,
@@ -730,8 +899,8 @@ class PgStore:
         reason: str,
         scope: str,
         ref_id: str,
-    ) -> bool:
-        """Deduct credits AND record an ACCESS unlock atomically (one txn)."""
+    ) -> tuple[bool, bool]:
+        """Return (allowed, charged) for one atomic ACCESS unlock attempt."""
         from app.db import repo
 
         async with _session() as s:

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.content.registry import module_of
-from app.services.learning_profile import CareerLearningProfileService
+from app.services.learning_profile import CareerLearningProfileService, build_career_memory_context
 from app.storage import get_storage
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -314,6 +314,7 @@ async def learning_graph(request: Request) -> dict:
         "profiles": _activity_rows(graph.get("profiles")),
         "reports": _activity_rows(graph.get("reports")),
         "events": _activity_rows(graph.get("events")),
+        "memory_context": build_career_memory_context(graph),
         "degraded": degraded,
     }
 

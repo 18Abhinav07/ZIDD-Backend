@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS session_start_requests (
     error_code           TEXT,
     source_session_id    TEXT,
     source_transition_id TEXT,
+    claim_generation     INTEGER NOT NULL DEFAULT 1,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, client_start_id)
@@ -179,6 +180,7 @@ CREATE TABLE IF NOT EXISTS turn_evaluations (
     advance_eligible BOOLEAN NOT NULL DEFAULT FALSE,
     mastery_eligible BOOLEAN NOT NULL DEFAULT FALSE,
     tutor_plan_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    context_json   JSONB NOT NULL DEFAULT '{}'::jsonb,
     model_name    TEXT,
     prompt_version TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -372,9 +374,13 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     user_id     TEXT NOT NULL REFERENCES learner_profiles(user_id),
     delta       INTEGER NOT NULL,        -- negative = spend, positive = grant
     reason      TEXT NOT NULL,
+    idempotency_key TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_credit_user ON credit_transactions(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_idempotency_key
+    ON credit_transactions(user_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
 
 -- ---------- content unlocks + purchases ----------
 CREATE TABLE IF NOT EXISTS content_unlocks (

@@ -33,6 +33,9 @@ DEFAULT_MIGRATIONS = [
     ROOT / "app/db/migrations/2026-07-06-session-start-idempotency.sql",
     ROOT / "app/db/migrations/2026-07-08-prep-turn-evaluations.sql",
     ROOT / "app/db/migrations/2026-07-09-career-learning-profile.sql",
+    ROOT / "app/db/migrations/2026-07-11-attempt-charge-idempotency.sql",
+    ROOT / "app/db/migrations/2026-07-11-start-request-claim-generation.sql",
+    ROOT / "app/db/migrations/2026-07-12-turn-evaluation-context.sql",
 ]
 
 
