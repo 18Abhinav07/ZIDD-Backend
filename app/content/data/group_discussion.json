@@ -43,11 +43,34 @@
           "type": "spoken",
           "sentence": "Topic: 'Social media does more harm than good.' Open the discussion by stating your position in one sentence before any reasons.",
           "hint": "lead with your stance, not a question or a hedge",
-          "context": "Free production of a committed, position-first opening under a live topic.",
-          "answer_key": "I believe social media does more harm than good, mainly because of what it does to attention and mental health.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Free production of a committed, position-first opening under a live topic.",
+        "answer_key": "Expected elements: position-first opening, clear commitment to one side, and no hedging or question opener.",
+        "band": "stretch"
+      },
+      {
+        "id": "gd_01_stake_position_bx4",
+        "type": "multiple_choice",
+        "sentence": "Which opening commits to a side while leaving room for nuance?",
+        "hint": "clear side first, qualification second",
+        "context": "Helps the learner avoid fence-sitting while still sounding mature.",
+        "answer_key": "I support making remote work the default, with planned in-person moments for trust and onboarding.",
+        "options": [
+          "I support making remote work the default, with planned in-person moments for trust and onboarding.",
+          "Remote work has advantages and disadvantages, so it depends.",
+          "I am not sure because both sides have points."
+        ],
+        "band": "standard"
+      },
+      {
+        "id": "gd_01_stake_position_bx5",
+        "type": "spoken",
+        "sentence": "Open a GD on a topic you care about. Commit to one side in one sentence, then add one guardrail or condition.",
+        "hint": "position first, condition second",
+        "context": "Pressure variant for a clear opening that is decisive without becoming simplistic.",
+        "answer_key": "Expected elements: clear position plus one guardrail or condition that makes the stance more mature without fence-sitting.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "On this topic, I believe a four-day work week would raise productivity, not lower it.",
         "My position is clear: schools should teach financial literacy as a core subject."
@@ -97,7 +120,7 @@
           "sentence": "State your position on 'Electric cars are better for the planet,' then support it with one concrete fact, example, or analogy.",
           "hint": "say your stance, then 'because' or 'for instance' and one specific detail",
           "context": "Free production of the position-then-concrete-support pattern.",
-          "answer_key": "Electric cars are better for the planet — for instance, even on today's mixed grid, studies show they emit far less over their lifetime than petrol cars.",
+          "answer_key": "Expected elements: stance followed by one concrete fact, example, or analogy; avoid repeating the opinion as evidence.",
           "band": "stretch"
         }
       ],
@@ -149,7 +172,7 @@
           "sentence": "Two people are debating whether exams should be scrapped. Interrupt politely, link to the last point, and add something new.",
           "hint": "use an entry phrase, acknowledge them, then add your point",
           "context": "Free production of a well-timed, linked entry into a live discussion.",
-          "answer_key": "If I could come in there — you're right that exams cause stress, and I'd add that they also reward memorising over real understanding.",
+          "answer_key": "Expected elements: polite entry phrase, link to the prior speaker's point, and one new relevant contribution.",
           "band": "stretch"
         }
       ],
@@ -201,7 +224,7 @@
           "sentence": "A peer just said 'remote work saves commute time.' Credit them, then extend the idea with something new.",
           "hint": "acknowledge, then add a fresh angle they didn't mention",
           "context": "Free production of the credit-then-extend collaborative move.",
-          "answer_key": "Building on what Arjun said about saved commute time, we could also point out that those reclaimed hours often go into family time, which boosts retention.",
+          "answer_key": "Expected elements: credit the prior speaker, extend their idea, and add new value rather than merely agreeing.",
           "band": "stretch"
         }
       ],
@@ -252,11 +275,33 @@
           "type": "spoken",
           "sentence": "A peer argues 'AI will replace most teachers within a decade.' Disagree respectfully: concede a fair point, then state your counter.",
           "hint": "validate something true, then push back on the idea, not the person",
-          "context": "Free production of the concede-then-counter civil disagreement.",
-          "answer_key": "You're right that AI will change teaching, but I'd push back on 'replace' — it can grade and tutor, yet the mentoring part still needs a human.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Free production of the concede-then-counter civil disagreement.",
+        "answer_key": "Expected elements: concede one fair point, counter the idea rather than the person, and keep a civil GD tone.",
+        "band": "stretch"
+      },
+      {
+        "id": "gd_05_disagree_respectfully_bx4",
+        "type": "fill_blank",
+        "sentence": "I agree with the concern about speed, ___ I think safeguards matter more here.",
+        "hint": "soft contrast connector",
+        "context": "Practises disagreeing through ideas instead of blunt rejection.",
+        "answer_key": "but",
+        "accept": [
+          "though",
+          "however"
+        ],
+        "band": "foundational"
+      },
+      {
+        "id": "gd_05_disagree_respectfully_bx5",
+        "type": "spoken",
+        "sentence": "A peer says, 'This policy is obviously the fastest option.' Disagree respectfully by conceding speed, then naming the safeguard risk.",
+        "hint": "concede speed, then counter with risk",
+        "context": "Pressure variant for challenging an overconfident participant without sounding hostile.",
+        "answer_key": "Expected elements: concede speed or another valid benefit, then name the safeguard risk as the counter-point.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "I hear you on cost, but if we delay we lose the whole quarter — so I'd still ship now.",
         "That's a fair concern, though I'd argue the data points the other way on safety."
@@ -305,7 +350,7 @@
           "sentence": "Topic: 'Should homework be abolished?' Name one fair point for each side, then say which is stronger and why.",
           "hint": "grant the opposing side honestly before you land your conclusion",
           "context": "Free production of weigh-both-sides-then-conclude reasoning.",
-          "answer_key": "Homework can deepen practice, and I'll grant it builds discipline — but it also widens the gap for kids without support at home, so on balance I'd reform it, not abolish it.",
+          "answer_key": "Expected elements: one fair point for each side, a clear final verdict, and the reason that side is stronger.",
           "band": "stretch"
         }
       ],
@@ -357,7 +402,7 @@
           "sentence": "The topic is 'Should city centres ban cars?' but the group is now arguing about football. Steer them back without blaming anyone.",
           "hint": "name the drift gently, restate the real question, offer a refocusing point",
           "context": "Free production of a neutral, well-judged redirect.",
-          "answer_key": "We've wandered off a little — the real question is whether banning cars from city centres works, so maybe we start with how it went in places that tried it.",
+          "answer_key": "Expected elements: neutral drift marker, restatement of the real topic, and one concrete refocusing point.",
           "band": "stretch"
         }
       ],
@@ -408,11 +453,29 @@
           "type": "spoken",
           "sentence": "In a discussion on minimum wage, one person hasn't spoken at all. Invite them in naturally, referencing the topic for them.",
           "hint": "name them, tie it to the topic, leave room to decline",
-          "context": "Free production of a specific, low-pressure invitation.",
-          "answer_key": "Rohit, you've been listening carefully — I'd really like to hear your view on whether raising the minimum wage helps or hurts small shops.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Free production of a specific, low-pressure invitation.",
+        "answer_key": "Expected elements: name the quiet participant, connect the invitation to the topic or their experience, and leave room to decline.",
+        "band": "stretch"
+      },
+      {
+        "id": "gd_08_include_quiet_bx4",
+        "type": "fill_blank",
+        "sentence": "Neha, you've been quiet on the customer-impact side; I'd like to ___ your view if you want to add.",
+        "hint": "invite without pressure",
+        "context": "Practises a specific invitation that leaves room to decline.",
+        "answer_key": "hear",
+        "band": "foundational"
+      },
+      {
+        "id": "gd_08_include_quiet_bx5",
+        "type": "spoken",
+        "sentence": "A quiet participant has relevant experience but has not spoken. Invite them in naturally, connect to the topic, and avoid putting them on the spot.",
+        "hint": "name them, connect to their angle, leave space",
+        "context": "Pressure variant for facilitation without spotlight pressure.",
+        "answer_key": "Expected elements: low-pressure invitation that connects the quiet participant's angle to the active discussion.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "I'd like to hear Aman's take on this — he mentioned earlier he'd seen it firsthand.",
         "Leena, you've stayed quiet on the cost side — what's your read on that?"
@@ -460,11 +523,29 @@
           "type": "spoken",
           "sentence": "A participant keeps cutting others off and dominating the GD on climate policy. Reclaim the floor and hand it to the group.",
           "hint": "acknowledge their point, interrupt cleanly, then pass it on",
-          "context": "Free production of an assertive, non-hostile floor-reclaiming move.",
-          "answer_key": "You've made some strong points there, and I want to make sure we hear others too — let me pause you and bring in someone who hasn't spoken yet.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Free production of an assertive, non-hostile floor-reclaiming move.",
+        "answer_key": "Expected elements: brief validation, clean pause or interruption, and redistribution of the floor without hostility.",
+        "band": "stretch"
+      },
+      {
+        "id": "gd_09_manage_dominator_bx4",
+        "type": "fill_blank",
+        "sentence": "Those are useful points, Vik; let me ___ you there so we can bring in another view.",
+        "hint": "a polite interrupt verb",
+        "context": "Practises pausing a dominant speaker without attacking them.",
+        "answer_key": "pause",
+        "band": "foundational"
+      },
+      {
+        "id": "gd_09_manage_dominator_bx5",
+        "type": "spoken",
+        "sentence": "A participant keeps interrupting others. Validate their point, pause them, and hand the floor to someone else in one or two sentences.",
+        "hint": "validate -> pause -> redistribute",
+        "context": "Pressure variant for assertive facilitation under a tense GD moment.",
+        "answer_key": "Expected elements: validate the dominant speaker's point, pause them firmly, and hand the floor to another voice or the group.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "That's a strong point — let me pause you there so we can also hear from the others.",
         "I appreciate the detail, Sid; in the interest of time, let's open it up to the rest of the group."
@@ -510,10 +591,10 @@
         {
           "id": "gd_10_drive_consensus_bx3",
           "type": "spoken",
-          "sentence": "The GD on 'four-day work week' is ending. Summarize the two main points raised and propose where the group can agree.",
+          "sentence": "The GD on 'four-day work week' is ending. One side argued it can improve productivity and wellbeing; the other warned about customer coverage and compressed workloads. Summarize both points and propose where the group can agree.",
           "hint": "fairly capture both threads, name common ground, propose a conclusion",
           "context": "Free production of a fair synthesis that drives toward consensus.",
-          "answer_key": "To sum up, we agreed the four-day week could boost focus but worried about client coverage — so maybe the consensus is to trial it with rotating cover and review the results.",
+          "answer_key": "Expected elements: fair summary of two main threads, named common ground, and a proposed consensus the group can accept.",
           "band": "stretch"
         }
       ],

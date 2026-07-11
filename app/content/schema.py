@@ -55,8 +55,8 @@ class BridgeExercise(BaseModel):
                 raise ValueError(
                     f"BridgeExercise {self.id!r}: multiple_choice answer_key must be one of options"
                 )
-        # 'spoken' has no single keyed answer to grade against — answer_key is a
-        # model answer, validated only for non-emptiness via the loop above.
+        # 'spoken' has no single keyed answer to grade against — answer_key is
+        # evaluator guidance, not a learner-visible model answer.
         return self
 
 

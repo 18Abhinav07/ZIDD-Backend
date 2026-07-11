@@ -43,11 +43,29 @@
           "type": "spoken",
           "sentence": "Give me your 'Tell me about yourself' in three sentences: present role, one strength, the goal you're moving toward.",
           "hint": "present -> proof -> direction; stop after the goal",
-          "context": "Stretches the learner to deliver the full present->proof->direction structure aloud.",
-          "answer_key": "I'm a project coordinator who keeps cross-team launches on schedule. Last year I shipped four product releases without a single missed deadline. Now I'm looking to move into a program lead role where I own delivery end to end.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Stretches the learner to deliver the full present->proof->direction structure aloud.",
+        "answer_key": "Expected elements: present role, one concrete proof point, and a forward goal in no more than three sentences; no biography.",
+        "band": "stretch"
+      },
+      {
+        "id": "int_01_elevator_pitch_bx4",
+        "type": "fill_blank",
+        "sentence": "My strongest proof is that I ___ in my last project.",
+        "hint": "a concrete achievement, not a personality adjective",
+        "context": "Helps the learner add proof to a pitch instead of only naming a role.",
+        "answer_key": "improved checkout reliability",
+        "band": "standard"
+      },
+      {
+        "id": "int_01_elevator_pitch_bx5",
+        "type": "spoken",
+        "sentence": "Give a tighter pitch for a rushed interviewer: role, one proof point, and what role you want next. Stop at three sentences.",
+        "hint": "role -> proof -> direction; no biography",
+        "context": "Pressure variant for keeping the pitch concise when time is limited.",
+        "answer_key": "Expected elements: role, one measurable proof point, and next-role direction; concise enough for a rushed interviewer.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "I'm a frontend engineer who builds accessible web apps. At my last job I rebuilt our checkout flow and cut drop-off noticeably. Now I want to join a product team where design and engineering work closely.",
         "I'm a customer success manager who turns at-risk accounts into renewals. I took my team's churn from a real problem to under control in a year. I'm aiming for a senior role leading a small CS team."
@@ -96,7 +114,7 @@
           "sentence": "Name one real strength of yours, then immediately prove it with one specific thing you actually did.",
           "hint": "say the strength, then 'for example, once I...' with a real situation",
           "context": "Stretches the learner to generate and deliver a claim->proof pair aloud, unscripted.",
-          "answer_key": "One of my strengths is mentoring. For example, when a junior teammate kept missing requirements, I started doing fifteen-minute kickoff calls with her, and within a month her work went back clean.",
+          "answer_key": "Expected elements: one genuine strength, one specific action or situation proving it, and an observable outcome or change.",
           "band": "stretch"
         }
       ],
@@ -147,11 +165,29 @@
           "type": "spoken",
           "sentence": "Tell me about a real weakness, the specific habit you built to manage it, and one sign it's getting better.",
           "hint": "weakness -> the fix you put in place -> evidence of progress",
-          "context": "Stretches the learner to deliver the full honesty-plus-mitigation arc aloud without sounding rehearsed.",
-          "answer_key": "I used to take on too much and miss deadlines. So now I block out my week every Monday and say no to work that doesn't fit. Last quarter I hit every deadline for the first time.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Stretches the learner to deliver the full honesty-plus-mitigation arc aloud without sounding rehearsed.",
+        "answer_key": "Expected elements: real weakness, concrete corrective habit, and recent evidence that the habit is improving performance; no humble-brag.",
+        "band": "stretch"
+      },
+      {
+        "id": "int_03_weakness_framing_bx4",
+        "type": "fill_blank",
+        "sentence": "A sign it is improving is that now I ___.",
+        "hint": "evidence of progress",
+        "context": "Forces the progress evidence that weak answers often skip.",
+        "answer_key": "send shorter updates that get decisions faster",
+        "band": "standard"
+      },
+      {
+        "id": "int_03_weakness_framing_bx5",
+        "type": "spoken",
+        "sentence": "Answer the weakness question without sounding rehearsed: name the weakness, the habit you built, and one recent sign it is improving.",
+        "hint": "real weakness -> habit -> progress signal",
+        "context": "Transfer variant that requires the full improvement loop in the learner's own words.",
+        "answer_key": "Expected elements: weakness, habit, and progress signal delivered conversationally rather than as a rehearsed script.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "I used to avoid asking for help and waste hours stuck. Now I give myself a thirty-minute rule, then ask. My output's gone up and I'm a lot less stressed.",
         "Public speaking made me freeze. So I joined a speaking group and now volunteer to present in team meetings — it's still not natural, but it's no longer a blocker."
@@ -199,11 +235,34 @@
           "type": "spoken",
           "sentence": "Tell me about a time you handled a difficult deadline. Keep the situation and task short, spend most of it on your actions, and end on a clear result.",
           "hint": "S/T brief -> expand A (what YOU did) -> measurable R",
-          "context": "Stretches the learner to deliver all four beats in order with correct weighting toward Action and Result.",
-          "answer_key": "Our biggest client moved a launch up by two weeks. I was the lead, so I had to compress the plan. I cut the scope to must-haves, reassigned two engineers to the critical path, and ran short daily check-ins. We launched on the new date and the client signed a second contract.",
-          "band": "stretch"
-        }
-      ],
+        "context": "Stretches the learner to deliver all four beats in order with correct weighting toward Action and Result.",
+        "answer_key": "Expected elements: brief Situation and Task, learner-owned Actions with more detail than setup, and a clear Result.",
+        "band": "stretch"
+      },
+      {
+        "id": "int_04_star_behavioral_bx4",
+        "type": "multiple_choice",
+        "sentence": "Which answer includes a clear RESULT beat instead of stopping at actions?",
+        "hint": "Result = what changed because of your action",
+        "context": "Targets the common STAR gap where the learner describes work but not outcome.",
+        "answer_key": "I added retry alerts and a support dashboard, so triage time fell from forty minutes to under ten.",
+        "options": [
+          "I added retry alerts and a support dashboard.",
+          "I added retry alerts and a support dashboard, so triage time fell from forty minutes to under ten.",
+          "I worked hard with the team and handled many issues."
+        ],
+        "band": "standard"
+      },
+      {
+        "id": "int_04_star_behavioral_bx5",
+        "type": "spoken",
+        "sentence": "Use STAR for a production problem: one sentence each for Situation and Task, two sentences for Action, one sentence for Result.",
+        "hint": "short S/T, detailed A, measurable R",
+        "context": "Pressure variant that forces correct STAR weighting rather than a vague project summary.",
+        "answer_key": "Expected elements: one sentence each for Situation and Task, two learner-owned Action sentences, and one measurable Result sentence.",
+        "band": "stretch"
+      }
+    ],
       "exemplars": [
         "Our app was crashing for new users during signup. As on-call, I had to stabilize it fast. I traced it to a bad migration, rolled it back, and added a check to the deploy step. Crashes dropped to zero within an hour and we kept the fix permanent.",
         "We were losing customers at renewal. My task was to find out why. I interviewed ten churned accounts, found onboarding was the gap, and built a guided first-week flow. Renewal rates climbed over the next two quarters."
@@ -252,7 +311,7 @@
           "sentence": "Name one specific thing about a company you'd want to join, then explain why it genuinely matters to you and your goals.",
           "hint": "one concrete fact -> 'that matters to me because...' tied to your direction",
           "context": "Stretches the learner to build a researched, non-generic motivation aloud from a real company fact.",
-          "answer_key": "Your team published how you cut cloud costs by rearchitecting your data pipeline. That matters to me because I've spent two years on infrastructure efficiency, and I want to solve those problems at your scale rather than a smaller one.",
+          "answer_key": "Expected elements: a specific company fact, why it genuinely matters to the learner, and a link to role fit or career direction.",
           "band": "stretch"
         }
       ],
@@ -304,7 +363,7 @@
           "sentence": "Tell me about a real failure of yours. Own it fully in the first person, then say the specific lesson you applied afterward.",
           "hint": "your call -> what went wrong -> the concrete change you made next time",
           "context": "Stretches the learner to deliver ownership plus an applied lesson aloud, with no blame and no deflection.",
-          "answer_key": "I pushed a feature live without enough testing because I wanted to hit a date. It broke checkout for two hours and we lost sales. That was my call. Since then I never ship anything customer-facing without a staging pass, and I've held that line even under pressure.",
+          "answer_key": "Expected elements: full ownership of the failure, what went wrong, and a concrete behavior change applied afterward; no blame-shifting.",
           "band": "stretch"
         }
       ],
@@ -356,7 +415,7 @@
           "sentence": "I'll ask a deliberately vague question: 'Tell me how you'd grow this business.' Ask one sharp clarifying question to narrow it, then give a focused answer to the version you chose.",
           "hint": "clarify scope first ('do you mean ___ or ___?'), then answer that narrowed version",
           "context": "Stretches the learner to clarify a loaded prompt and then deliver a focused answer in one smooth turn.",
-          "answer_key": "By grow, do you mean new revenue from new customers, or more revenue from the ones we already have? If it's existing customers, I'd start with the accounts using only one feature, because that's usually the fastest upsell.",
+          "answer_key": "Expected elements: one sharp clarifying question, an explicit narrowed scope, and a focused answer to that chosen scope.",
           "band": "stretch"
         }
       ],
@@ -408,7 +467,7 @@
           "sentence": "Take a vague win of yours and say it again with a real number, percentage, scale, or before/after contrast attached.",
           "hint": "swap 'I helped/improved' for a metric: 'I ___, which changed ___ by ___'",
           "context": "Stretches the learner to quantify their own contribution aloud rather than recognizing a number in a prompt.",
-          "answer_key": "Instead of saying I improved support, I'd say I rewrote our help docs and first-response time dropped from about a day to under two hours, which cut repeat tickets by roughly a quarter.",
+          "answer_key": "Expected elements: a vague win converted into a number, percentage, scale, or before-after contrast tied to the learner's action.",
           "band": "stretch"
         }
       ],
@@ -424,7 +483,7 @@
       "level_type": "text",
       "skill": "Push back on a premise or assertion diplomatically, holding your position with respect.",
       "teach_focus": "Acknowledge -> reframe -> assert; disagree with the idea, not the person; stay warm.",
-      "success_criteria": "A respectful disagreement that concedes a point, states a clear counter-position, and keeps rapport.",
+      "success_criteria": "A respectful disagreement that acknowledges one fair point, states a clear counter-position, grounds it in a requirement or trade-off, and keeps rapport.",
       "bridge_focus": "Use the stem: 'I see your point, though I'd argue ___.'",
       "cefr": "C1",
       "prerequisites": [
@@ -460,7 +519,7 @@
           "sentence": "I'll assert something you likely disagree with: 'The best engineers always work alone.' Push back diplomatically — acknowledge a point, reframe it, and hold your counter-position warmly.",
           "hint": "acknowledge -> reframe -> assert; keep rapport, don't concede your view",
           "context": "Stretches the learner to run the full acknowledge->reframe->assert arc aloud while protecting the relationship.",
-          "answer_key": "I see where that comes from — deep work does need solo focus, and the best engineers protect that. Though I'd argue the very best also multiply others: the ones I've learned most from reviewed my code and unblocked the team. So I'd say it's both, not either-or.",
+          "answer_key": "Expected elements: acknowledge a valid part of the premise, reframe the issue, and state a respectful counter-position without attacking.",
           "band": "stretch"
         }
       ],
@@ -475,8 +534,8 @@
       "level": 10,
       "level_type": "text",
       "skill": "End the interview by asking an insightful question and stating fit confidently.",
-      "teach_focus": "Ask a question that signals research and ambition; reaffirm value without arrogance.",
-      "success_criteria": "One substantive, non-generic question for the interviewer plus a confident, specific close.",
+      "teach_focus": "Ask a question that signals research and ambition; reaffirm specific value without arrogance. The question and fit statement may appear in either natural order.",
+      "success_criteria": "One substantive, non-generic question plus a confident close that names specific role-fit value, in either natural order.",
       "bridge_focus": "Ask one real question about the role or team, then stop.",
       "cefr": "C1",
       "prerequisites": [
@@ -490,6 +549,7 @@
           "hint": "a concrete timeframe makes the question sharper",
           "context": "Practices turning a generic closing question into a specific, research-signaling one.",
           "answer_key": "ninety days",
+          "accept": ["90 days", "three months", "six months"],
           "band": "foundational"
         },
         {
@@ -512,7 +572,7 @@
           "sentence": "Close the interview: ask one substantive question about the role or team, then state your fit confidently and specifically in a sentence or two.",
           "hint": "one real question -> a confident, specific close that reaffirms value without arrogance",
           "context": "Stretches the learner to combine a sharp question and a confident, non-arrogant close in one smooth ending.",
-          "answer_key": "What's the one thing the last person in this role wished they'd done differently? And to be direct — the metering work you described is exactly what I've built before, so I'm confident I can be useful here from week one.",
+          "answer_key": "Expected elements: one substantive role or team question plus a specific fit close that is confident without sounding arrogant.",
           "band": "stretch"
         }
       ],
@@ -526,9 +586,9 @@
       "title": "Negotiate Your Offer",
       "level": 11,
       "level_type": "text",
-      "skill": "State a salary expectation with a researched anchor and a justification, and hold it without apologizing.",
-      "teach_focus": "Anchor on a concrete number or range; justify with market rate plus your value; never hedge, apologize, or pre-discount yourself.",
-      "success_criteria": "An explicit number or range backed by one concrete justification (market rate or demonstrated value), delivered without apology or backpedaling.",
+      "skill": "State a salary expectation with a researched anchor and justification, then offer bounded flexibility on the package without lowering the anchor.",
+      "teach_focus": "Anchor on a concrete number or range; justify it with market rate or demonstrated value; name one package element you can discuss without pre-discounting the anchor. A courteous thank-you for the offer is professional, not an apology.",
+      "success_criteria": "An explicit number or range, one market-or-value justification, and one bounded package option, delivered without apology, concession, or backpedaling; courteous acknowledgement is allowed.",
       "bridge_focus": "Give one number, then one reason: 'I'm targeting ___, based on ___.'",
       "cefr": "C1",
       "prerequisites": [
@@ -564,13 +624,13 @@
           "sentence": "I'll ask your salary expectation. Give me a specific number or range, justify it in one line, and hold it without apologizing or immediately offering to go lower.",
           "hint": "anchor with a number -> one line of justification (market + your value) -> stop, don't backpedal",
           "context": "Stretches the learner to deliver a confident, justified anchor aloud and resist the urge to pre-discount it.",
-          "answer_key": "Based on my experience and the market for this role, I'm targeting 22 to 26 lakhs. I've led billing platforms end to end, which is exactly the work here, so I'm confident that's where I add value. I'm open to discussing the full package, but that's my range on base.",
+          "answer_key": "Expected elements: a specific number or range, one market-or-value justification, and no apology, backpedal, or immediate discount.",
           "band": "stretch"
         }
       ],
       "exemplars": [
-        "I've researched the band for this role and I'm looking for 18 to 22 lakhs. That reflects the market rate plus the data pipelines I've built, and it's a number I'm comfortable standing behind.",
-        "My target is around 15 lakhs base. I've delivered two production launches in similar roles, so I'd place myself at the upper half of the band rather than the entry point."
+        "I've researched the band for this role and I'm looking for 18 to 22 lakhs. That reflects the market rate plus the data pipelines I've built; I am open to discussing the bonus and equity mix while keeping that base range.",
+        "My target is around 15 lakhs base. I've delivered two production launches in similar roles, so I'd place myself at the upper half of the band; I can be flexible on the signing bonus and start date."
       ]
     },
     {
@@ -616,7 +676,7 @@
           "sentence": "Tell me why you left your last role, or explain a gap in your history. Keep it short and honest, don't badmouth anyone, and end on what you're moving toward.",
           "hint": "brief honest reason -> what you gained or did -> the forward intent; no blame",
           "context": "Stretches the learner to deliver the full honest-but-forward arc aloud without slipping into resentment.",
-          "answer_key": "I left because I'd taken the role about as far as it could go and wanted to own delivery end to end, which the structure there didn't allow. I used the transition to go deep on system design through a course and a side project. Now I'm looking for a role where I can lead that kind of work from the start.",
+          "answer_key": "Expected elements: brief honest reason, what was gained or done during the transition, and a forward-looking intent; no badmouthing.",
           "band": "stretch"
         }
       ],

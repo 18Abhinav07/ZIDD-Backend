@@ -10,14 +10,22 @@ import logging
 from dataclasses import replace
 
 from app.ai.behaviors import behavior_for_value
-from app.ai.calls import evaluate_answer, evaluate_prep_answer
+from app.ai.calls import PrepEvaluationRetryRequired, evaluate_answer, evaluate_prep_answer
 from app.ai.langgate import fails_language_gate
 from app.ai.schemas import CriterionEval, DiagnosisEval
 from app.content.registry import get_node, module_of
 from app.content.task_types import TaskType
 from app.graph.answer_check import grade_pending_answer, is_giveup, stuck_diagnosis
 from app.graph.route import update_mastery
-from app.services.rubric_engine import RubricResult, build_evaluation_packet
+from app.services.rubric_engine import (
+    RubricResult,
+    build_evaluation_packet,
+    gd_answer_is_topic_grounded,
+    gd_has_direct_addressee,
+    gd_invitation_clause,
+    gd_prompt_participant_names,
+    resolve_prompt_gd_topic,
+)
 from app.services.tutor_plan import build_tutor_turn_plan
 
 logger = logging.getLogger("zidd.evaluate")
@@ -73,30 +81,38 @@ def _cap_diagnosis(diagnosis: DiagnosisEval, error: str, next_focus: str) -> Dia
     })
 
 
-def _has_specific_quiet_invite(text: str) -> bool:
-    invite = _contains_any(text, ("hear", "take", "view", "thought", "perspective", "add"))
-    topic_link = _contains_any(
-        text,
-        (
-            " on ",
-            " about ",
-            " regarding ",
-            " whether ",
-            " how ",
-            " issue",
-            " topic",
-            " policy",
-            " proposal",
-            " point",
-            " side",
-            " affects",
-        ),
+def _has_specific_quiet_invite(text: str, active_topic: str = "", prompt: str = "") -> bool:
+    invitation = gd_invitation_clause(text, gd_prompt_participant_names(prompt))
+    addressed_participant = gd_has_direct_addressee(invitation)
+    lowered = invitation.lower()
+    invite = _contains_any(
+        lowered,
+        ("hear", "take", "view", "thought", "perspective", "share", "add"),
     )
-    generic_only = "what do you think" in text and not topic_link
-    return invite and topic_link and not generic_only
+    topic_link = gd_answer_is_topic_grounded(invitation, active_topic)
+    optional = bool(re.search(
+        r"\b(?:if\s+you(?:'d|\s+would)?\s*(?:like|want|feel\s+comfortable)|"
+        r"if\s+you\s+are\s+comfortable|when\s+you(?:'re|\s+are)\s+ready|"
+        r"feel\s+free|could\s+you|would\s+you)\b",
+        lowered,
+        re.IGNORECASE,
+    ))
+    coercive = bool(re.search(
+        r"\b(?:must|have\s+to|right\s+now|everyone\s+needs\s+to)\b",
+        lowered,
+        re.IGNORECASE,
+    ))
+    return addressed_participant and invite and topic_link and optional and not coercive
 
 
-def _apply_gd_minimum_gate(node_id: str, user_input: str, diagnosis: DiagnosisEval) -> DiagnosisEval:
+def _apply_gd_minimum_gate(
+    node_id: str,
+    user_input: str,
+    diagnosis: DiagnosisEval,
+    *,
+    active_topic: str = "",
+    active_prompt: str = "",
+) -> DiagnosisEval:
     """Cap GD prep scores when a node's non-negotiable behavior is absent.
 
     The LLM rubric is still responsible for quality, language, and coaching
@@ -164,7 +180,11 @@ def _apply_gd_minimum_gate(node_id: str, user_input: str, diagnosis: DiagnosisEv
                 "add one fact, example, number, analogy, or experience",
             )
 
-    if node_id == "gd_08_include_quiet" and not _has_specific_quiet_invite(text):
+    if node_id == "gd_08_include_quiet" and not _has_specific_quiet_invite(
+        user_input,
+        active_topic,
+        active_prompt,
+    ):
         return _cap_diagnosis(
             diagnosis,
             "invitation was too generic and did not link the quieter speaker to the topic",
@@ -432,7 +452,17 @@ def _result(state: dict, diagnosis: DiagnosisEval, *, smooth: bool,
         # permanently below PASS — the sign-blind bug this fixes.
         if prev is not None and prev > 0.0 and prev - score > _SWING_THRESHOLD:
             score = round(_SWING_ALPHA * score + (1 - _SWING_ALPHA) * prev, 4)
-    new_mastery = update_mastery(state["current_mastery"], score)
+    non_scorable_integrity = bool(
+        rubric_result
+        and "minimum_gate:transfer_context" in set(rubric_result.blockers or [])
+    )
+    mastery_candidate = update_mastery(state["current_mastery"], score)
+    if non_scorable_integrity:
+        new_mastery = state["current_mastery"]
+    elif rubric_result is not None and not rubric_result.pass_eligible:
+        new_mastery = min(state["current_mastery"], mastery_candidate)
+    else:
+        new_mastery = mastery_candidate
     # `attempts` counts only GENUINE attempts at the skill. A non-English answer
     # (clarify) or a fluent off-task one (redirect) is not an attempt at this
     # competency — counting it would inflate the count that drives the clean-pass
@@ -441,8 +471,10 @@ def _result(state: dict, diagnosis: DiagnosisEval, *, smooth: bool,
     # first genuine strong answer). Give-up and graded bridge items are on-task
     # English attempts, so they still count. mastery needs no such guard: a 0.0
     # score is already flat under update_mastery's raise-floor.
-    scored = diagnosis.english and diagnosis.on_task
+    scored = diagnosis.english and diagnosis.on_task and not non_scorable_integrity
     out = {
+        "evaluation_retry_required": False,
+        "evaluation_integrity_failure": None,
         "last_eval_score": score,
         "last_clean_pass_score": raw_score,
         "last_diagnosis": diagnosis.model_dump(),
@@ -558,6 +590,22 @@ async def evaluate_node(state: dict) -> dict:
                     behavior=behavior_for_value(state.get("task_type", "")),
                     career_context=state.get("career_context") or {},
                 )
+        except PrepEvaluationRetryRequired as exc:
+            logger.warning(
+                "prep evaluation integrity retry required node=%s session=%s criteria=%s",
+                node.id,
+                state.get("session_id"),
+                ",".join(exc.criterion_ids),
+            )
+            return {
+                "evaluation_retry_required": True,
+                "evaluation_integrity_failure": {
+                    "code": "required_criteria_omitted",
+                    "criterion_ids": list(exc.criterion_ids),
+                },
+                "pending": None,
+                "pending_game": None,
+            }
         except Exception as exc:
             if _is_career_prep_state(state):
                 logger.exception(
@@ -566,20 +614,32 @@ async def evaluate_node(state: dict) -> dict:
                     state.get("session_id"),
                     exc,
                 )
+                return {
+                    "evaluation_retry_required": True,
+                    "evaluation_integrity_failure": {
+                        "code": "structured_evaluator_unavailable",
+                        "criterion_ids": [],
+                    },
+                    "pending": None,
+                    "pending_game": None,
+                }
             diagnosis = _neutral_diagnosis()
-            rubric_result = (
-                _fallback_rubric_failure(
-                    state,
-                    node,
-                    diagnosis,
-                    blocker="structured_eval_unavailable",
-                )
-                if _is_career_prep_state(state)
-                else None
-            )
+            rubric_result = None
 
     diagnosis = _apply_interview_minimum_gate(node.id, state["user_input"], diagnosis)
-    diagnosis = _apply_gd_minimum_gate(node.id, state["user_input"], diagnosis)
+    active_prompt = next((
+        str(message.get("content") or "")
+        for message in reversed(state.get("messages") or [])
+        if str(message.get("role") or "") == "assistant"
+        and str(message.get("node_id") or "") == node.id
+    ), "")
+    diagnosis = _apply_gd_minimum_gate(
+        node.id,
+        state["user_input"],
+        diagnosis,
+        active_topic=resolve_prompt_gd_topic(state),
+        active_prompt=active_prompt,
+    )
     if rubric_result is not None:
         rubric_result = _sync_rubric_with_diagnosis(rubric_result, diagnosis)
     return _result(state, diagnosis, smooth=True, rubric_result=rubric_result)

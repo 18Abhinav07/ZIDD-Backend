@@ -11,6 +11,8 @@ skipped so the learner never gets the same exercise twice. For closed items
 (fill_blank / MCQ) the answer key is stashed so the next turn grades the fill
 deterministically (P0-3b) instead of through the key-blind LLM rubric.
 """
+import re
+
 from app.ai.calls import GEMINI_FLASH, GenSpec
 from app.ai.behaviors import behavior_for_value
 from app.ai.prompts import build_bridge_prompt, coach_view
@@ -19,6 +21,53 @@ from app.content.schema import BridgeExercise
 from app.services.content_personalization import render_gd_bridge_exercise
 
 _BAND_ORDER = ["foundational", "standard", "stretch"]  # easiest -> hardest
+_GAP_STOPWORDS = {
+    "about",
+    "again",
+    "answer",
+    "backed",
+    "because",
+    "before",
+    "could",
+    "focus",
+    "from",
+    "into",
+    "more",
+    "next",
+    "named",
+    "need",
+    "needs",
+    "only",
+    "proof",
+    "reason",
+    "same",
+    "show",
+    "single",
+    "that",
+    "their",
+    "then",
+    "there",
+    "this",
+    "turn",
+    "with",
+    "work",
+    "your",
+}
+_GAP_KEYWORDS = {
+    "answers_question": ("answer", "question", "scope", "asked", "prompt"),
+    "clear_stance": ("stance", "position", "commit", "support", "oppose", "believe"),
+    "company_specific_fact": ("company", "researched", "specific", "fact", "tailored"),
+    "concrete_evidence": ("concrete", "evidence", "example", "fact", "metric", "data", "instance"),
+    "future_goal": ("goal", "direction", "toward", "next role", "moving toward"),
+    "mitigation_habit": ("habit", "mitigation", "corrective", "manage", "fix", "improving"),
+    "pitch_structure": ("pitch", "present", "proof", "direction", "role", "goal"),
+    "progress_evidence": ("progress", "improving", "evidence", "signal", "result", "outcome"),
+    "real_weakness": ("weakness", "struggle", "honest", "real weakness"),
+    "result": ("result", "impact", "outcome", "changed", "measurable", "metric", "fell", "reduced"),
+    "specific_detail": ("specific", "detail", "concrete", "example", "evidence", "fact"),
+    "star_action": ("action", "personally", "steps", "owned", "did"),
+    "topic_relevance": ("topic", "relevant", "discussion", "motion"),
+}
 _UNRELATED_ROLE_EXAMPLES = (
     "data analyst",
     "marketing manager",
@@ -217,19 +266,124 @@ def _band_index(band: str | None) -> int:
         return 1
 
 
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", str(text or "").lower())
+
+
+def _dedupe(items: list[str]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        clean = str(item or "").strip().lower()
+        if not clean or clean in seen:
+            continue
+        seen.add(clean)
+        out.append(clean)
+    return tuple(out)
+
+
+def _gap_terms_from_text(text: str) -> list[str]:
+    clean = str(text or "").strip().lower()
+    if not clean:
+        return []
+    normalized = re.sub(r"[^a-z0-9]+", "_", clean).strip("_")
+    terms: list[str] = []
+    for key, keywords in _GAP_KEYWORDS.items():
+        key_parts = [part for part in key.split("_") if part]
+        if key in normalized or all(part in normalized for part in key_parts):
+            terms.extend(keywords)
+    for word in _words(clean):
+        if len(word) >= 4 and word not in _GAP_STOPWORDS:
+            terms.append(word)
+    return terms
+
+
+def _bridge_gap_terms(gap_context: dict | None) -> tuple[str, ...]:
+    if not isinstance(gap_context, dict):
+        return ()
+    raw_items: list[str] = []
+    for key in ("required_missing", "blockers"):
+        value = gap_context.get(key) or []
+        if isinstance(value, (list, tuple, set)):
+            raw_items.extend(str(item) for item in value)
+        elif value:
+            raw_items.append(str(value))
+    if gap_context.get("next_focus"):
+        raw_items.append(str(gap_context["next_focus"]))
+    for row in gap_context.get("criteria") or []:
+        if hasattr(row, "model_dump"):
+            row = row.model_dump()
+        if not isinstance(row, dict) or row.get("met") is not False:
+            continue
+        if row.get("id"):
+            raw_items.append(str(row["id"]))
+        if row.get("reason"):
+            raw_items.append(str(row["reason"]))
+    terms: list[str] = []
+    for item in raw_items:
+        terms.extend(_gap_terms_from_text(item))
+    return _dedupe(terms)
+
+
+def _exercise_focus_score(exercise: BridgeExercise, gap_terms: tuple[str, ...]) -> int:
+    if not gap_terms:
+        return 0
+    parts = [
+        exercise.id,
+        exercise.sentence,
+        exercise.hint,
+        exercise.context,
+        exercise.answer_key,
+        *(exercise.accept or []),
+        *(exercise.options or []),
+    ]
+    haystack = " ".join(str(part or "") for part in parts).lower()
+    hay_words = set(_words(haystack))
+    score = 0
+    for term in gap_terms:
+        if " " in term:
+            if term in haystack:
+                score += 3
+        elif term in hay_words:
+            score += 2
+    return score
+
+
+def _bridge_gap_context(state: dict) -> dict:
+    rubric = state.get("last_rubric_result")
+    diagnosis = state.get("last_diagnosis")
+    tutor_plan = state.get("tutor_turn_plan")
+    rubric = rubric if isinstance(rubric, dict) else {}
+    diagnosis = diagnosis if isinstance(diagnosis, dict) else {}
+    tutor_plan = tutor_plan if isinstance(tutor_plan, dict) else {}
+    return {
+        "required_missing": list(rubric.get("required_missing") or []),
+        "blockers": list(rubric.get("blockers") or []),
+        "criteria": list(rubric.get("criteria") or []),
+        "next_focus": (
+            rubric.get("next_focus")
+            or diagnosis.get("next_focus")
+            or tutor_plan.get("focus")
+            or ""
+        ),
+    }
+
+
 def select_bridge_exercise(
     exercises: list[BridgeExercise],
     bridge_attempts: int,
     served_ids: list[str],
     score: float,
+    gap_context: dict | None = None,
 ) -> BridgeExercise:
-    """Pick the next bridge exercise by severity (pure, testable).
+    """Pick the next bridge exercise by failed criterion first, then severity.
 
     Targets a difficulty band that starts at `standard` and steps DOWN one band
     per prior bridge attempt (so a repeatedly-stuck learner is scaffolded harder),
     and clamps to `foundational` immediately for a very weak (<0.2) answer.
     Already-served ids are skipped; once every exercise has been served, repeats
-    are allowed (still preferring the target band)."""
+    are allowed. Within the available pool, exercises that directly match the
+    failed rubric criterion win before generic same-band drills."""
     served = set(served_ids or [])
     target = 1 - bridge_attempts          # 0 attempts -> standard, then step down
     if score < 0.2:
@@ -238,12 +392,16 @@ def select_bridge_exercise(
 
     unserved = [e for e in exercises if e.id not in served]
     pool = unserved or list(exercises)    # all served -> allow repeats
+    gap_terms = _bridge_gap_terms(gap_context)
 
     def sort_key(e: BridgeExercise):
         bi = _band_index(e.band)
+        focus_score = _exercise_focus_score(e, gap_terms)
         # exact target band first, then bands at/under target (easier), then by
-        # absolute distance — never overshoot to a harder band when an easier fits.
-        return (abs(bi - target), bi > target, bi)
+        # absolute distance. A matched failed criterion wins inside the same
+        # difficulty neighborhood, so a STAR Result gap does not receive an Action
+        # drill just because that drill appears earlier in JSON.
+        return (abs(bi - target), bi > target, 0 if focus_score else 1, bi, -focus_score)
 
     return sorted(pool, key=sort_key)[0]
 
@@ -497,6 +655,7 @@ async def bridge_node(state: dict) -> dict:
             state.get("bridge_attempts", 0),
             served,
             state.get("last_eval_score", 0.0),
+            gap_context=_bridge_gap_context(state),
         )
         exercise = personalize_bridge_exercise(
             exercise,
@@ -515,6 +674,7 @@ async def bridge_node(state: dict) -> dict:
         # correct string, so it must fall through to the LLM evaluator as before.
         if exercise.type in ("fill_blank", "multiple_choice"):
             out["pending_answer_key"] = {
+                "exercise_id": exercise.id,
                 "type": exercise.type,
                 "answer_key": exercise.answer_key,
                 "accept": exercise.accept,

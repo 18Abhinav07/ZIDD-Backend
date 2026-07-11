@@ -18,7 +18,7 @@ import time
 import uuid
 import logging
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 logger = logging.getLogger("zidd.session")
 
@@ -137,6 +137,7 @@ class GamePrompt:
     context: str
     answer_key: str     # server-side only — not forwarded to the client
     options: list[str] | None = None
+    turn_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,6 +164,7 @@ class ProgressUpdate:
 
     node_id: str
     mastery: float          # current EMA (0-1)
+    readiness_score: float  # latest enforced rubric readiness (0-1)
     clean_streak: int       # consecutive clean passes on this node
     attempts: int           # total attempts on this node
 
@@ -176,7 +178,10 @@ class SessionRecap:
 
     nodes_completed: list   # list of node_id strings from node_history
     weaknesses: list        # weakness_context rows (skill_id, hit_count, last_raw)
-    avg_score: float        # current_mastery at close
+    score_metric: str       # readiness for career prep; mastery for legacy learning
+    readiness_score: float  # latest enforced rubric readiness at close
+    mastery_score: float    # current EMA mastery at close
+    avg_score: float        # deprecated compatibility alias for mastery_score
 
 
 @dataclass(frozen=True)
@@ -209,7 +214,7 @@ from app.services.selector import (
     validate_decision,
 )
 from app.ai.behaviors import behavior_for_value
-from app.ai.prompts import build_opening_prompt, coach_view
+from app.ai.prompts import build_opening_prompt, coach_view, sanitize_memory_text
 from app.ai.test_gen import generate_test_items
 from app.graph.answer_check import is_blank_nonanswer
 from app.content.registry import (
@@ -233,9 +238,22 @@ from app.content.task_types import (
     test_counterpart,
 )
 from app.graph.build import get_graph
-from app.services.rubric_engine import compute_attempt_credit
+from app.services.rubric_engine import (
+    compute_attempt_credit,
+    gd_topic_family,
+    infer_gd_topic_from_messages,
+    resolve_core_gd_topic,
+    resolve_prompt_gd_topic,
+)
 from app.services.career_context import build_career_context
 from app.services.learning_profile import CareerLearningProfileService
+from app.services.tutor_plan import (
+    int01_decision_for_planned_action,
+    qualified_core_evidence,
+    validated_attempt_type_for_tutor_plan,
+    validated_tutor_next_action,
+)
+from app.services.assessment_plan import ensure_assessment_plan
 from app.services.simulation_config import resolve_simulation_config
 from app.services.simulation_service import score_session, stream_simulation_round
 from app.storage import get_storage
@@ -243,21 +261,38 @@ from app.storage import get_storage
 # Assessment ("test") task types run the multi-persona SIMULATION instead of the
 # coaching graph; the contribution is scored at session end, not coached mid-turn.
 _TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value})
+_EVALUATION_RETRY_TEXT = (
+    "I couldn't review that answer reliably, so I haven't counted it. "
+    "Please send the same answer once more."
+)
 _CELEBRATORY_OPENING_RE = re.compile(
-    r"^\s*(?:great job|great start|good job|nice(?: work| touch)?|well done|"
+    r"^\s*(?:great job|great effort|great start|great progress(?: so far)?|good job|nice(?: work| touch)?|well done|"
+    r"brilliant(?: work)?|outstanding(?: work)?|you(?:'ve| have)?\s+crushed\s+(?:that|this)(?:\s+answer)?|"
     r"excellent(?: work)?|awesome(?: work)?|"
+    r"(?:strong|solid)\s+(?:answer|response)|"
+    r"this\s+is\s+(?:a\s+)?(?:strong|solid)\s+(?:answer|response)|"
     r"you(?:'ve| have)? nailed it|"
-    r"you\s+(?:(?:effectively|clearly|successfully|nicely)\s+)?"
+    r"you(?:'ve|’ve| have)? made good progress|"
+    r"you(?:'ve|’ve| have)?(?:\s+effectively)? outlined|"
+    r"you(?:'ve|’ve| have)? done well(?:\s+(?:by|in))?|"
+    r"you(?:'ve|’ve| have)?\s+(?:(?:effectively|clearly|successfully|nicely)\s+)?"
     r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates)|"
     r"your\s+(?:pitch|answer|response)\s+"
     r"(?:(?:effectively|clearly|successfully|nicely)\s+)?"
     r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates))"
-    r"(?:,\s*[^.!?\n]{1,80})?[.!?]?\s*",
+    r"(?:\s*[,:\-\u2013\u2014]\s*)?(?:[.!?]\s*)?",
+    re.IGNORECASE,
+)
+_ACTIONABLE_COACHING_MARKER_RE = re.compile(
+    r"\b(?:now|next|try|add|rewrite|revise|pressure-test|to\s+strengthen|strengthen|make|cut|answer|give|state|name|show|include|tighten)\b",
     re.IGNORECASE,
 )
 _COPYABLE_EXAMPLE_RE = re.compile(
-    r"\s*(?:for example|you could say something like)[:,-]?\s*"
-    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])",
+    r"\s*(?:"
+    r"for example[:,-]?\s*(?:\"[^\"\n]{1,700}\"|(?:you\s+(?:could|might)\s+|try\s+saying|say\s+)[^.!?\n]{1,700}[.!?])"
+    r"|(?:this could be something like|you could say something like|you could start with(?: a clear position like)?)[:,-]?\s*"
+    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])"
+    r")",
     re.IGNORECASE,
 )
 _COPYABLE_SCENARIO_RE = re.compile(
@@ -265,9 +300,219 @@ _COPYABLE_SCENARIO_RE = re.compile(
     r"(?=(?:Now,\s*)?(?:apply|try|use)\b)",
     re.IGNORECASE,
 )
+_COPYABLE_IMAGINE_RE = re.compile(
+    r"\s*Imagine\s+(?:you're|you are)\s+[^.!?\n]{1,700}[.!?]\s*",
+    re.IGNORECASE,
+)
+_COPYABLE_MODEL_ANSWER_RE = re.compile(
+    r"\s*(?:a\s+(?:better|stronger)\s+version\s+would\s+be|"
+    r"try\s+saying|you\s+can\s+say|say\s+it\s+like\s+this)[:,-]?\s*"
+    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])",
+    re.IGNORECASE,
+)
+_INFLATED_PRAISE_FRAGMENT_RE = re.compile(
+    r"\s*(?:[-\u2013\u2014]\s*)?"
+    r"(?:you(?:'ve|’ve| have)?\s+(?:hit|covered|included)\s+(?:all\s+)?(?:the\s+)?"
+    r"(?:right|key|important)\s+(?:points|areas|elements)|"
+    r"you(?:'ve|’ve| have)?\s+made\s+good\s+progress[^.!?]{0,180}|"
+    r"you(?:'ve|’ve| have)?\s+done\s+well(?:\s+(?:by|in))?[^.!?]{0,180}|"
+    r"you(?:'ve|’ve| have)?\s+hit\s+all\s+the\s+right\s+points|"
+    r"that\s+(?:covers|hits)\s+all\s+the\s+right\s+points)"
+    r"[.!?]?\s*",
+    re.IGNORECASE,
+)
+_UNRELATED_CAREER_SAMPLE_TERMS = (
+    "customer churn",
+    "sales",
+    "marketing",
+    "client deliverable",
+    "client-deliverable",
+    "retention dashboard",
+)
+_UNRELATED_CAREER_SAMPLE_SENTENCE_RE = re.compile(
+    r"[^.!?\n]*(?:customer\s+churn|sales|marketing|client[-\s]deliverable|"
+    r"retention\s+dashboard)[^.!?\n]*[.!?]?",
+    re.IGNORECASE,
+)
+_CAREER_REPEAT_OUTCOME_GAP_RE = (
+    re.compile(
+        r"\bbut\s+there(?:'s|’s| is)\s+still\s+room\s+for\s+including\s+"
+        r"a\s+specific\s+instance\s+where[^.!?]{1,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bTo\s+meet\s+our\s+goal,\s*focus\s+on\s+adding\s+concrete\s+"
+        r"evidence\s+of[^.!?]{1,220}[.!?]?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bfocus\s+on\s+adding\s+(?:a\s+)?specific\s+outcome[^.!?]{0,180}[.!?]?\s*",
+        re.IGNORECASE,
+    ),
+)
+_CAREER_REPEAT_WEAKNESS_GAP_RE = (
+    re.compile(
+        r"\b(?:however|but),?\s+ensure\s+you\s+explicitly\s+state\s+the\s+"
+        r"initial\s+weakness[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+step\s+is\s+to\s+start\s+by\s+naming\s+your\s+"
+        r"original\s+tendency[\s\S]{0,700}?(?:stakeholder\s+communication|these\s+elements)[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bHow\s+will\s+you\s+revise\s+your\s+answer\s+to\s+include\s+these\s+elements\?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:however|but),?\s+ensure\s+you\s+explicitly\s+contrast\s+your\s+"
+        r"initial\s+tendency[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFor\s+your\s+next\s+response,\s+reframe\s+the\s+opening\s+statement\s+"
+        r"to\s+directly\s+name\s+your\s+original\s+behavior[\s\S]{0,420}?"
+        r"(?:evolved|transition|contrast)[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+this\s+transition\s+clear\s+and\s+impactful[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bHow\s+would\s+you\s+revise\s+the\s+opening\s+to\s+highlight\s+this\s+contrast\?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+step\s+is\s+to\s+revise\s+the\s+opening\s+to\s+name\s+"
+        r"your\s+original\s+behavior\s+more\s+directly[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+that\s+transition\s+as\s+clear\s+and\s+"
+        r"impactful\s+as\s+possible[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bRevisit\s+your\s+opening\s+statement\s+to\s+make\s+it\s+sharper\s+"
+        r"and\s+more\s+direct[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:but\s+there(?:'s| is)\s+still\s+room\s+for\s+)?tightening\s+up\s+"
+        r"each\s+segment[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+sure\s+that\s+when\s+you\s+transition\s+from\s+"
+        r"stating\s+your\s+weakness[\s\S]{0,420}?"
+        r"(?:overlaps?|redundanc(?:y|ies))[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+task\s+is\s+to\s+deliver\s+this\s+three-part\s+answer"
+        r"[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:Practise|Practice)\s+delivering\s+the\s+three-part\s+weakness\s+"
+        r"answer[^.!?]{0,180}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:however,\s*)?let(?:'s| us)\s+revisit\s+the\s+original\s+task:?\s*"
+        r"name\s+a\s+real\s+weakness[^.!?]{0,240}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bTry\s+that\s+out\s+now[.!?]\s*",
+        re.IGNORECASE,
+    ),
+)
+_CAREER_REPEAT_WEAKNESS_REQUEST_RE = re.compile(
+    r"\b(?:initial\s+weakness|initial\s+tendency|original\s+behavior|"
+    r"original\s+tendency|opening\s+statement|reframe\s+the\s+opening|"
+    r"revise\s+the\s+opening|name\s+your\s+original|deliver\s+this\s+"
+    r"three-part\s+answer|three-part\s+weakness\s+answer|"
+    r"practi[cs]e\s+delivering|revisit\s+the\s+original\s+task|"
+    r"name\s+a\s+real\s+weakness|overlaps?\s+or\s+redundanc(?:y|ies)|smooth\s+flow)\b",
+    re.IGNORECASE,
+)
+_CAREER_COMPLETED_WEAKNESS_RETRY_DIRECTIVE_RE = re.compile(
+    r"\b(?:revise|refine|retry|restate|repeat|redeliver|"
+    r"try(?:\s+delivering)?(?:\s+the)?(?:\s+revised)?(?:\s+version)?\s+again|"
+    r"give\s+it\s+another\s+shot|deliver[^.!?]{0,100}\b(?:again|under|within)\b)\b",
+    re.IGNORECASE,
+)
+_CAREER_COMPLETED_WEAKNESS_RETRY_TARGET_RE = re.compile(
+    r"\b(?:weakness|mitigation|corrective\s+habit|progress\s+evidence|"
+    r"evidence\s+of\s+progress|measurable\s+result|transition|link(?:ing|age)|"
+    r"flow|overlaps?|redundanc(?:y|ies)|(?:under|within)\s+\d+\s+seconds?)\b",
+    re.IGNORECASE,
+)
+_CAREER_REPEAT_FUTURE_GOAL_GAP_RE = (
+    re.compile(
+        r"\b(?:however|but),?\s+(?:the\s+)?future\s+goal[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:for\s+the\s+revision|task):?\s+[^.!?]{0,180}\b(?:future\s+goal|next\s+career\s+move|next\s+career\s+step)[^.!?]{0,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:focus\s+on|think\s+about|revisit)[^.!?]{0,160}\b(?:future\s+goal|career\s+goal|next\s+goal)[^.!?]{0,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+)
+_OUTCOME_EVIDENCE_TERMS = (
+    "result", "outcome", "found", "avoided", "reduced", "improved", "increased",
+    "decreased", "measured", "metric", "metrics", "rollback", "support risk",
+    "confidence", "expanded", "saved", "faster", "slower rollout",
+)
+_WEAKNESS_SIGNAL_TERMS = (
+    "weakness", "tendency", "struggle", "improving", "under pressure",
+    "jumping straight", "technical details", "business impact",
+)
+_MITIGATION_SIGNAL_TERMS = (
+    "manage", "mitigate", "corrected", "correct", "habit", "strategy",
+    "decision criteria", "first stating", "phased", "compare options",
+)
+_WEAKNESS_CORE_CRITERIA = frozenset({
+    "real_weakness",
+    "mitigation_habit",
+    "progress_evidence",
+})
+_WEAKNESS_EXPLICIT_HISTORY_RE = re.compile(
+    r"\b(?:my\s+weakness|one\s+weakness|weakness\s+(?:is|was)|"
+    r"i\s+(?:used\s+to|tended\s+to|sometimes)\s+(?:lead|explain|jump|over[-\s]?explain|"
+    r"go\s+straight)|earlier[^.!?]{0,120}\bi\s+(?:led|tended|explained|jumped|"
+    r"over[-\s]?explained))\b",
+    re.IGNORECASE,
+)
+_WEAKNESS_CONCRETE_HISTORY_RE = re.compile(
+    r"\b(?:caught|found|avoided|reduced|improved|increased|measured|rollback|"
+    r"retry|latency|reconciliation|support[-\s]?ticket|revenue|product|week\s+one|"
+    r"one\s+meeting|metric|failure\s+rate)\b",
+    re.IGNORECASE,
+)
+_FUTURE_GOAL_TERMS = (
+    "next goal",
+    "next role",
+    "next step",
+    "i want to",
+    "i aim to",
+    "moving toward",
+    "want to own",
+    "grow into",
+    "looking to",
+)
 _GD_GENERIC_TOPIC_PHRASES = (
     "remote work policies",
     "mandatory daily check-ins",
+    "digital payments",
+    "digital payment methods",
+    "mandatory for all businesses",
     "remote work",
     "single-use plastics",
     "social media",
@@ -280,12 +525,18 @@ _GD_GENERIC_TOPIC_PHRASES = (
 _COACHING_STREAM_KINDS = frozenset(
     {"teach", "bridge", "strengthen", "challenge", "redirect", "clarify", "ease"}
 )
+_INCOMPLETE_COACH_END_RE = re.compile(
+    r"\b(?:for\s+instance|for\s+example|such\s+as|including|because|but|however|"
+    r"instead\s+of|while|whereas)\s*[:,;]?$",
+    re.IGNORECASE,
+)
 
 # Precomputed probe banks (Phase 4 Layer B) go stale as the learner's prep
 # weaknesses shift; a bank older than this is treated as a cache miss and the
 # TEST start regenerates. One week is long enough that a normal prep->test gap
 # reuses the precache, short enough that drifted weaknesses don't fossilize.
 TEST_ITEM_TTL = 7 * 24 * 3600  # seconds
+OPENING_STREAM_TIMEOUT_SECONDS = 18.0
 
 MASTERY_COMPLETE = 0.8       # node "mastered" (EMA) — kept for DB clean-flag only
 CLEAN_PASS_MAX_ATTEMPTS = 2  # mastered in <=2 scored answers == "clean"
@@ -356,10 +607,16 @@ def _sanitize_coaching_opening_praise(text: str, state: dict, spec_kind: str) ->
 
     score = _recent_score_for_tone(state)
     scaffolded = bool(state.get("last_graded_bridge"))
-    if spec_kind == "challenge" and not scaffolded and score is not None and score >= 0.85:
-        return text
-
     remainder = text[match.end():].lstrip()
+    if remainder:
+        marker = _ACTIONABLE_COACHING_MARKER_RE.search(remainder)
+        if marker and marker.start() > 0:
+            remainder = remainder[marker.start():].lstrip()
+        for index, character in enumerate(remainder):
+            if character.isalpha():
+                if character.islower():
+                    remainder = remainder[:index] + character.upper() + remainder[index + 1:]
+                break
     if scaffolded:
         opener = "Good, that scaffolded step is in place - not the whole skill yet. "
     elif score is not None and score < PASS_SCORE:
@@ -376,10 +633,7 @@ def _needs_full_coaching_sanitize(state: dict, spec_kind: str) -> bool:
         return False
     if str(state.get("competency_node") or "").startswith("gd_") and _gd_topic_phrase_for_state(state):
         return True
-    score = _recent_score_for_tone(state)
-    return bool(state.get("last_graded_bridge")) or (
-        isinstance(score, (int, float)) and score < 0.85
-    )
+    return True
 
 
 def _gd_topic_phrase_for_state(state: dict) -> str:
@@ -390,8 +644,11 @@ def _gd_topic_phrase_for_state(state: dict) -> str:
         if str(topic).strip()
     ]
     scenario = state.get("scenario_config") or {}
+    active_prompt_topic = str(state.get("active_gd_prompt_topic") or "").strip()
     topic = (
-        topics[0]
+        active_prompt_topic
+        if active_prompt_topic
+        else topics[0]
         if topics
         else str(scenario.get("resolved_topic") or scenario.get("topic") or "").strip()
     )
@@ -451,6 +708,1682 @@ def _sanitize_gd_topic_drift(text: str, state: dict) -> str:
     return cleaned
 
 
+def _sanitize_unrelated_career_sample_domain(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    node_id = str(state.get("competency_node") or "")
+    if not (node_id.startswith("int_") or node_id.startswith("gd_")):
+        return text
+    text_lower = text.lower()
+    found_terms = [term for term in _UNRELATED_CAREER_SAMPLE_TERMS if term in text_lower]
+    if not found_terms:
+        return text
+    context = state.get("career_context") or {}
+    allowed_context = " ".join(
+        [
+            _recent_user_feedback_text(state, limit=1600),
+            str(context.get("primary_role") or ""),
+            str(context.get("role_family") or ""),
+            " ".join(str(item) for item in context.get("resume_facts") or []),
+            " ".join(str(item) for item in context.get("gd_topics") or []),
+        ]
+    ).lower()
+    disallowed = [term for term in found_terms if term not in allowed_context]
+    if not disallowed:
+        return text
+    cleaned = _UNRELATED_CAREER_SAMPLE_SENTENCE_RE.sub(
+        " Keep the revision inside your own answer: make your action and result easier to hear. ",
+        text,
+    )
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+_ANCHOR_STOPWORDS = frozenset({
+    "about", "after", "again", "answer", "because", "before", "being", "could",
+    "their", "there", "these", "thing", "those", "through", "under", "would",
+    "your", "youre", "youve", "with", "without", "what", "when", "where",
+    "which", "while", "this", "that", "from", "into", "more", "need",
+    "needs", "make", "made", "work", "working", "story", "example",
+})
+
+
+def _latest_user_feedback_excerpt(state: dict, limit: int = 140) -> str:
+    current = " ".join(str(state.get("user_input") or "").split())
+    if current:
+        if len(current) <= limit:
+            return current
+        trimmed = current[: max(0, limit - 3)].rstrip()
+        if " " in trimmed:
+            trimmed = trimmed.rsplit(" ", 1)[0].rstrip()
+        return f"{trimmed}..."
+    for message in reversed(state.get("messages") or []):
+        if message.get("role") != "user":
+            continue
+        text = " ".join(str(message.get("content") or "").split())
+        if not text:
+            continue
+        if len(text) <= limit:
+            return text
+        trimmed = text[: max(0, limit - 3)].rstrip()
+        if " " in trimmed:
+            trimmed = trimmed.rsplit(" ", 1)[0].rstrip()
+            return f"{trimmed}..."
+    return ""
+
+
+def _recent_user_feedback_text(state: dict, *, max_messages: int = 4, limit: int = 1200) -> str:
+    parts: list[str] = []
+    current = " ".join(str(state.get("user_input") or "").split())
+    if current:
+        parts.append(current)
+    for message in reversed(state.get("messages") or []):
+        if len(parts) >= max_messages:
+            break
+        if message.get("role") != "user":
+            continue
+        text = " ".join(str(message.get("content") or "").split())
+        if not text or text in parts:
+            continue
+        parts.append(text)
+    combined = " ".join(parts)
+    return combined[:limit]
+
+
+def _meaningful_anchor_tokens(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if len(token) >= 5 and token not in _ANCHOR_STOPWORDS
+    }
+
+
+def _ensure_career_feedback_anchor(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    node_id = str(state.get("competency_node") or "")
+    if not (node_id.startswith("int_") or node_id.startswith("gd_")):
+        return text
+    latest = _latest_user_feedback_excerpt(state)
+    if not latest:
+        return text
+    text_tokens = _meaningful_anchor_tokens(text)
+    latest_tokens = _meaningful_anchor_tokens(latest)
+    topic = _gd_topic_phrase_for_state(state)
+    role = str((state.get("career_context") or {}).get("primary_role") or "").strip()
+    topic_or_role_anchored = bool(
+        (topic and topic.lower() in text.lower()) or
+        (role and role.lower() in text.lower())
+    )
+    if topic_or_role_anchored or len(text_tokens & latest_tokens) >= 2:
+        return text
+    return f"In your answer, you said \"{latest}\". {text}"
+
+
+def _sanitize_repeated_outcome_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    latest = _latest_user_feedback_excerpt(state, limit=260).lower()
+    if not latest:
+        return text
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in latest) >= 2
+    if not has_outcome:
+        return text
+    cleaned = text
+    for pattern in _CAREER_REPEAT_OUTCOME_GAP_RE:
+        cleaned = pattern.sub(
+            "Now tighten that outcome into one compact result sentence. ",
+            cleaned,
+            count=1,
+        )
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _rubric_covers_weakness_core(state: dict) -> bool:
+    result = state.get("last_rubric_result")
+    if not isinstance(result, dict):
+        return False
+    missing = {str(item) for item in (result.get("required_missing") or [])}
+    if missing & _WEAKNESS_CORE_CRITERIA:
+        return False
+    blockers = {str(item).lower() for item in (result.get("blockers") or [])}
+    for criterion_id in _WEAKNESS_CORE_CRITERIA:
+        if any(criterion_id in blocker for blocker in blockers):
+            return False
+    criteria = result.get("criteria") or []
+    met_by_id: dict[str, bool] = {}
+    for row in criteria:
+        if hasattr(row, "model_dump"):
+            row = row.model_dump()
+        if not isinstance(row, dict):
+            continue
+        criterion_id = str(row.get("id") or row.get("criterion_id") or "")
+        if criterion_id:
+            met_by_id[criterion_id] = bool(row.get("met"))
+    criteria_core_met = (
+        bool(met_by_id)
+        and all(met_by_id.get(criterion_id) for criterion_id in _WEAKNESS_CORE_CRITERIA)
+    )
+    return bool(result.get("pass_eligible")) or criteria_core_met
+
+
+def _text_covers_weakness_core(text: str) -> bool:
+    lower = str(text or "").lower()
+    if not lower:
+        return False
+    has_weakness = bool(_WEAKNESS_EXPLICIT_HISTORY_RE.search(lower))
+    has_mitigation = any(term in lower for term in _MITIGATION_SIGNAL_TERMS)
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in lower) >= 2
+    has_concrete_marker = bool(_WEAKNESS_CONCRETE_HISTORY_RE.search(lower))
+    return has_weakness and has_mitigation and has_outcome and has_concrete_marker
+
+
+def _history_covers_weakness_core(state: dict) -> bool:
+    for message in state.get("messages") or []:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        if _text_covers_weakness_core(str(message.get("content") or "")):
+            return True
+    return _text_covers_weakness_core(str(state.get("user_input") or ""))
+
+
+def _looks_like_completed_weakness_retry(text: str) -> bool:
+    return bool(
+        _CAREER_COMPLETED_WEAKNESS_RETRY_DIRECTIVE_RE.search(text)
+        and _CAREER_COMPLETED_WEAKNESS_RETRY_TARGET_RE.search(text)
+    )
+
+
+def _weakness_next_challenge_text(state: dict) -> str:
+    latest = _recent_user_feedback_text(state, max_messages=2, limit=900).lower()
+    pressure_already_answered = any(
+        phrase in latest
+        for phrase in (
+            "if challenged",
+            "pushed back",
+            "pushback",
+            "stakeholder challenge",
+            "defend the",
+        )
+    )
+    if pressure_already_answered:
+        return (
+            "That version already shows the past tendency, corrective habit, measurable "
+            "progress, and a defended tradeoff. Keep it as the interview answer. Next, "
+            "transfer the same improvement to a different setting: give one complete "
+            "weakness answer about a decision that did not work, the habit you used, and "
+            "the measurable change afterward."
+        )
+    return (
+        "That version now has the three-part shape: past tendency, corrective habit, "
+        "and measurable progress. Keep it as the interview answer. Next, pressure-test it "
+        "in a harder context: give one complete weakness answer where an interviewer "
+        "pushes back on your tradeoff and you defend it with a measurable result."
+    )
+
+
+def _weakness_pressure_retry_text() -> str:
+    return (
+        "Your defense has useful evidence, but it still needs to answer the pushback "
+        "directly. Try the same pressure question once: what evidence makes your chosen "
+        "tradeoff safer than the faster alternative, and which metric proves it?"
+    )
+
+
+def _sanitize_repeated_weakness_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    if str(state.get("competency_node") or "") != "int_03_weakness_framing":
+        return text
+    recent = _recent_user_feedback_text(state).lower()
+    if not recent:
+        return text
+    has_weakness = any(term in recent for term in _WEAKNESS_SIGNAL_TERMS)
+    has_mitigation = any(term in recent for term in _MITIGATION_SIGNAL_TERMS)
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in recent) >= 2
+    rubric_core_covered = _rubric_covers_weakness_core(state)
+    history_core_covered = _history_covers_weakness_core(state)
+    has_rubric_result = isinstance(state.get("last_rubric_result"), dict)
+    rubric_result = state.get("last_rubric_result") or {}
+    rubric_attempt_type = str(rubric_result.get("attempt_type") or "independent")
+    missing_core = {
+        str(item) for item in (rubric_result.get("required_missing") or [])
+    } & _WEAKNESS_CORE_CRITERIA
+    if has_rubric_result and missing_core and rubric_attempt_type == "independent":
+        return text
+    if (
+        has_rubric_result
+        and missing_core
+        and rubric_attempt_type in {"transfer", "pressure"}
+        and not _has_valid_core_qualification(state)
+    ):
+        return text
+    heuristic_core_covered = (
+        not has_rubric_result
+        and has_weakness
+        and has_mitigation
+        and has_outcome
+    )
+    if not (rubric_core_covered or history_core_covered or heuristic_core_covered):
+        return text
+
+    replacement = (
+        "You already have the weakness, the corrective habit, and a progress signal; "
+        "now pressure-test it against one realistic follow-up. "
+    )
+    cleaned = text
+    for pattern in _CAREER_REPEAT_WEAKNESS_GAP_RE:
+        cleaned = pattern.sub(replacement, cleaned, count=1)
+    if (
+        cleaned != text
+        or _CAREER_REPEAT_WEAKNESS_REQUEST_RE.search(text)
+        or _looks_like_completed_weakness_retry(text)
+    ):
+        if rubric_attempt_type == "pressure":
+            state["active_prompt_attempt_type"] = "pressure"
+            return _weakness_pressure_retry_text()
+        state["active_prompt_attempt_type"] = "transfer"
+        return _weakness_next_challenge_text(state)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _sanitize_repeated_future_goal_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    if str(state.get("competency_node") or "") != "int_01_elevator_pitch":
+        return text
+    latest = _latest_user_feedback_excerpt(state, limit=360).lower()
+    if not latest or not any(term in latest for term in _FUTURE_GOAL_TERMS):
+        return text
+    cleaned = text
+    replacement = (
+        "Your direction is present; now make the final sentence sharper by naming "
+        "the scope and impact you want next. "
+    )
+    for pattern in _CAREER_REPEAT_FUTURE_GOAL_GAP_RE:
+        cleaned = pattern.sub(replacement, cleaned, count=1)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _clean_star_pass_followup_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "int_04_star_behavioral":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+    if (
+        not result.get("pass_eligible")
+        or result.get("required_missing")
+        or result.get("blockers")
+        or plan.get("verdict") != "independent_pass"
+    ):
+        return None
+
+    requested_action = str(plan.get("next_action") or "")
+    next_action = validated_tutor_next_action(plan, state)
+    if (
+        requested_action in {"request_pressure", "request_consolidation"}
+        and next_action == "request_fresh_independent"
+    ):
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Before I challenge the causal link, give a new STAR story from your own "
+            "experience. Include the situation, your task, your specific actions, and a "
+            "measurable result."
+        )
+    elif next_action == "request_transfer":
+        state["pending_prompt_attempt_type"] = "transfer"
+        task = (
+            "Next task: Give a different STAR story from your own experience about a "
+            "meaningfully different challenge. Keep Situation and Task brief, spend most "
+            "of the answer on your actions, and end with a measurable result."
+        )
+    elif next_action == "request_pressure":
+        core_excerpt = _qualified_core_answer_excerpt(state, "int_04_star_behavioral")
+        if not core_excerpt:
+            state["pending_prompt_attempt_type"] = "independent"
+            task = (
+                "Before I challenge the causal link, give a new STAR story from your own "
+                "experience. Include the situation, your task, your specific actions, and a "
+                "measurable result."
+            )
+        else:
+            state["pending_prompt_attempt_type"] = "pressure"
+            task = (
+                f'Next task: Return to the earlier STAR story that began: "{core_excerpt}". '
+                "A skeptical interviewer asks which of your actions most directly caused the "
+                "result. Defend that causal link with one piece of evidence from that qualified story."
+            )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        core_excerpt = _qualified_core_answer_excerpt(state, "int_04_star_behavioral")
+        core_instruction = (
+            f'Return to the earlier STAR story that began: "{core_excerpt}". '
+            if core_excerpt
+            else "Return to the earlier STAR story you established. "
+        )
+        task = (
+            f"Next task: {core_instruction}Deliver that STAR answer once in under 60 seconds without "
+            "removing the action-to-result link."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Next task: Give a fresh STAR story using a different learner-owned example, "
+            "with brief setup, specific actions, and a measurable result."
+        )
+    latest = _latest_user_feedback_excerpt(state, limit=180)
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    return (
+        f"{anchor}All STAR parts are present: context, responsibility, specific actions, "
+        f"and a measurable result. Keep this version. {task}"
+    )
+
+
+def _early_interview_feedback_text(state: dict) -> str | None:
+    if state.get("task_type") != "interview_prep":
+        return None
+    node_id = str(state.get("competency_node") or "")
+    if node_id not in {"int_02_strength_with_evidence", "int_03_weakness_framing"}:
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+    answer = " ".join(str(state.get("user_input") or "").split())
+    answer_lower = answer.lower()
+    quotes: list[str] = []
+    for row in result.get("criteria") or []:
+        if not isinstance(row, dict) or row.get("met") is not True:
+            continue
+        quote = " ".join(str(row.get("evidence_quote") or "").split())
+        if quote and quote.lower() in answer_lower and quote not in quotes:
+            quotes.append(quote[:220])
+    evidence = quotes[0] if quotes else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    attempt_type = str(result.get("attempt_type") or "independent")
+    if not result.get("pass_eligible") or required_missing or blockers:
+        state["pending_prompt_attempt_type"] = (
+            attempt_type if attempt_type in {"transfer", "pressure"} else "independent"
+        )
+        anchor = f'Your answer already gives this usable evidence: "{evidence}". ' if evidence else ""
+        criterion_focus = {
+            "strength_claim": "state the strength clearly",
+            "specific_evidence": "add one specific learner-owned example",
+            "learner_action": "show the action that proves the strength",
+            "impact_signal": "state the observable result",
+            "real_weakness": "name one genuine past tendency",
+            "mitigation_habit": "state the corrective habit you now use",
+            "progress_evidence": "add one concrete progress signal",
+            "transfer_context": "use the newly assigned context rather than repeating the core answer",
+            "core_consistency": "keep the harder answer consistent with the qualified version",
+        }
+        gaps = [criterion_focus[item] for item in required_missing if item in criterion_focus]
+        focus = "; and ".join(gaps) or "complete the active skill with learner-owned evidence"
+        return f"{anchor}The missing step is to {focus}. Revise only that part using the same story."
+
+    action = validated_tutor_next_action(plan, state)
+    anchor = (
+        f'Your evidence is grounded in your own answer: "{evidence}". '
+        if evidence
+        else "The required structure is present in your own answer. "
+    )
+    if node_id == "int_02_strength_with_evidence":
+        tasks = {
+            "request_transfer": (
+                "Transfer task: show stakeholder communication as a different strength. Prove it "
+                "with one specific action used to align a client, partner, or stakeholder and one observable result."
+            ),
+            "request_pressure": (
+                "Pressure check: the interviewer says the result may belong to the team. "
+                "Name your personal contribution and the evidence that connects it to the outcome."
+            ),
+            "request_consolidation": (
+                "Final delivery: state the strength, one proof example, and the result in two concise sentences."
+            ),
+        }
+        task = tasks.get(action, "Use a different strength and support it with one action and one result.")
+    else:
+        tasks = {
+            "request_transfer": (
+                "Transfer task: use estimation under ambiguity as the context. Name the real weakness, "
+                "the corrective habit you use when requirements are uncertain, and one measurable progress signal."
+            ),
+            "request_pressure": (
+                "Pressure check: defend why your corrective habit works with one concrete result, without disguising a strength as a weakness."
+            ),
+            "request_consolidation": (
+                "Final delivery: give the real weakness, corrective habit, and progress evidence in three concise sentences."
+            ),
+        }
+        task = tasks.get(action, "Use a different real weakness and show the habit and progress evidence.")
+    if action == "request_transfer":
+        state["pending_prompt_attempt_type"] = "transfer"
+    elif action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+    return f"{anchor}{task}"
+
+
+def _int05_opening_text(state: dict) -> str:
+    role = str((state.get("career_context") or {}).get("primary_role") or "the target role").strip()
+    return (
+        f"Today we'll build a specific, researched company-motivation answer for a {role} opportunity. "
+        "Choose a company you are genuinely considering, name one verified product, "
+        "engineering practice, or strategic move, then explain why it matters to you "
+        f"and why your experience fits the {role} role."
+    )
+
+
+def _int05_feedback_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "int_05_why_this_role":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    role = str((state.get("career_context") or {}).get("primary_role") or "the target role").strip()
+    latest = _latest_user_feedback_excerpt(state, limit=180)
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+
+    if result.get("pass_eligible") and not required_missing and not blockers:
+        next_action = validated_tutor_next_action(plan, state)
+        if next_action == "request_transfer":
+            state["pending_prompt_attempt_type"] = "transfer"
+            task = (
+                "Transfer task: keep the company and evidence you chose, but answer for a "
+                f"skeptical engineering manager hiring for the {role} role. Make the link "
+                "between the company fact and the work you would contribute explicit."
+            )
+        elif next_action == "request_pressure":
+            state["pending_prompt_attempt_type"] = "pressure"
+            task = (
+                "Pressure check: an interviewer says, 'You could do this work anywhere; why "
+                "this company specifically?' Defend your choice in two sentences using the "
+                "company fact and your own experience."
+            )
+        elif next_action == "request_consolidation":
+            state["pending_prompt_attempt_type"] = "independent"
+            task = (
+                f"Consolidation task: deliver the same {role} answer in under 30 seconds "
+                "without losing the company fact, personal motivation, or role-fit link."
+            )
+        else:
+            state["pending_prompt_attempt_type"] = "independent"
+            task = (
+                "Next task: choose a different company you would genuinely apply to. Name one "
+                "verified company fact, then connect it to your personal motivation and your "
+                f"fit for a {role} role."
+            )
+        return (
+            f"{anchor}You covered a concrete company fact, personal motivation, and fit "
+            f"for the {role} role. Keep this answer. {task}"
+        )
+
+    missing_labels = {
+        "company_specific_fact": "one verified company-specific fact",
+        "personal_motivation_link": "why that fact matters to you personally",
+        "role_relevance": f"why your experience fits the {role} role",
+    }
+    missing = [missing_labels[item] for item in required_missing if item in missing_labels]
+    if not missing:
+        unmet = {
+            str(row.get("id") or "")
+            for row in (result.get("criteria") or [])
+            if isinstance(row, dict) and not row.get("met")
+        }
+        if "non_generic" in unmet:
+            missing = ["a specific reason beyond reputation, growth, or general admiration"]
+    if not missing:
+        missing = ["one rubric-backed link between the company fact, your motivation, and role fit"]
+    revision = "; and ".join(missing)
+    return (
+        f"{anchor}Keep the company you named and the {role} role fixed. The missing piece is "
+        f"{revision}. One targeted revision: add only that missing link in your own words; "
+        "do not replace your company or story."
+    )
+
+
+def _qualified_core_answer_excerpt(state: dict, node_id: str, limit: int = 150) -> str:
+    evidence = qualified_core_evidence(state, node_id)
+    if evidence is None:
+        return ""
+    answer = " ".join(str(evidence.get("learner_answer") or "").split())
+    if len(answer) <= limit:
+        return answer
+    excerpt = answer[: max(1, limit - 3)].rsplit(" ", 1)[0].rstrip()
+    return f"{excerpt}..."
+
+
+def _int06_core_incident_excerpt(state: dict, limit: int = 150) -> str:
+    return _qualified_core_answer_excerpt(state, "int_06_own_a_failure", limit)
+
+
+def _int06_pressure_feedback_text(state: dict, result: dict, plan: dict) -> str:
+    if not _int06_core_incident_excerpt(state):
+        state["pending_prompt_attempt_type"] = "independent"
+        return (
+            "I cannot fairly continue this challenge because the original incident is not "
+            "available. Give a new failure story from your own experience with ownership, "
+            "impact, your immediate response, and the prevention change."
+        )
+    required_ids = ("pressure_response", "evidence_defense", "core_consistency")
+    rows_by_id: dict[str, list[dict]] = {criterion_id: [] for criterion_id in required_ids}
+    for row in result.get("criteria") or []:
+        if not isinstance(row, dict):
+            continue
+        criterion_id = str(row.get("id") or "")
+        if criterion_id in rows_by_id:
+            rows_by_id[criterion_id].append(row)
+
+    learner_answer = str(state.get("user_input") or "")
+    normalized_answer = " ".join(re.sub(r"[^a-z0-9\s]", " ", learner_answer.lower()).split())
+    evidence: dict[str, str] = {}
+    invalid_required: list[str] = []
+    for criterion_id in required_ids:
+        rows = rows_by_id[criterion_id]
+        row = rows[0] if len(rows) == 1 else None
+        quote = str((row or {}).get("evidence_quote") or "").strip()
+        normalized_quote = " ".join(re.sub(r"[^a-z0-9\s]", " ", quote.lower()).split())
+        if (
+            row is None
+            or row.get("met") is not True
+            or not normalized_quote
+            or normalized_quote not in normalized_answer
+        ):
+            invalid_required.append(criterion_id)
+            continue
+        evidence[criterion_id] = quote
+
+    explicit_missing = [
+        str(item) for item in (result.get("required_missing") or [])
+        if str(item) in required_ids
+    ]
+    missing = list(dict.fromkeys([*explicit_missing, *invalid_required]))
+    labels = {
+        "pressure_response": "a direct answer to the interviewer pushback",
+        "evidence_defense": "a learner-owned reason or concrete defense",
+        "core_consistency": "consistency with the qualified incident",
+    }
+    core_excerpt = _int06_core_incident_excerpt(state)
+    core_instruction = (
+        f'Return to the qualified incident that began: "{core_excerpt}"'
+        if core_excerpt
+        else "Return to the qualified incident from your independent pass"
+    )
+
+    if missing:
+        state["pending_prompt_attempt_type"] = "pressure"
+        proven = "; ".join(
+            f'{labels[criterion_id]}: "{evidence[criterion_id]}"'
+            for criterion_id in required_ids
+            if criterion_id in evidence
+        )
+        proven_text = f"Already proven in this pressure answer: {proven}. " if proven else ""
+        missing_text = "; and ".join(labels[criterion_id] for criterion_id in missing)
+        return (
+            f"{proven_text}The missing pressure proof is {missing_text}. {core_instruction}. "
+            "Answer the same pushback once using only that incident's facts; do not retell a different story."
+        )
+
+    if (
+        result.get("pass_eligible")
+        and not result.get("blockers")
+        and plan.get("verdict") == "independent_pass"
+    ):
+        proof = (
+            f'direct response: "{evidence["pressure_response"]}"; '
+            f'evidence defense: "{evidence["evidence_defense"]}"; '
+            f'core consistency: "{evidence["core_consistency"]}".'
+        )
+        if str(plan.get("next_action") or "") == "request_consolidation":
+            state["pending_prompt_attempt_type"] = "independent"
+            return (
+                f"Your pressure answer provides this proof: {proof} {core_instruction}. "
+                "Final delivery: Retell that qualified incident once without changing any facts, "
+                "in this order: ownership, impact, immediate response, and prevention."
+            )
+
+    state["pending_prompt_attempt_type"] = "pressure"
+    return (
+        f"{core_instruction}. Answer the interviewer pushback once using only that incident's "
+        "facts and the prevention evidence you already established."
+    )
+
+
+def _int06_feedback_text(state: dict) -> str | None:
+    if (
+        state.get("task_type") != "interview_prep"
+        or str(state.get("competency_node") or "") != "int_06_own_a_failure"
+    ):
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    if str(result.get("attempt_type") or "independent") == "pressure":
+        return _int06_pressure_feedback_text(state, result, plan)
+
+    required_ids = ("ownership", "impact", "response_action", "prevention")
+    rows_by_id: dict[str, list[dict]] = {criterion_id: [] for criterion_id in required_ids}
+    for row in result.get("criteria") or []:
+        if not isinstance(row, dict):
+            continue
+        criterion_id = str(row.get("id") or "")
+        if criterion_id in rows_by_id:
+            rows_by_id[criterion_id].append(row)
+
+    learner_answer = str(state.get("user_input") or "")
+    normalized_answer = re.sub(r"[^a-z0-9\s]", " ", learner_answer.lower())
+    normalized_answer = " ".join(normalized_answer.split())
+    evidence: dict[str, str] = {}
+    invalid_required: list[str] = []
+    for criterion_id in required_ids:
+        rows = rows_by_id[criterion_id]
+        row = rows[0] if len(rows) == 1 else None
+        quote = str((row or {}).get("evidence_quote") or "").strip()
+        normalized_quote = re.sub(r"[^a-z0-9\s]", " ", quote.lower())
+        normalized_quote = " ".join(normalized_quote.split())
+        if (
+            row is None
+            or row.get("met") is not True
+            or not normalized_quote
+            or normalized_quote not in normalized_answer
+        ):
+            invalid_required.append(criterion_id)
+            continue
+        evidence[criterion_id] = quote
+
+    explicit_missing = [
+        str(item) for item in (result.get("required_missing") or [])
+        if str(item) in required_ids
+    ]
+    missing = list(dict.fromkeys([*explicit_missing, *invalid_required]))
+    labels = {
+        "ownership": "first-person ownership without blame",
+        "impact": "the user, customer, business, or team impact",
+        "response_action": "the immediate response or repair action",
+        "prevention": "the prevention or process change afterward",
+    }
+    if missing:
+        missing_text = "; and ".join(labels[criterion_id] for criterion_id in missing)
+        proven = "; ".join(
+            f'{labels[criterion_id]}: "{evidence[criterion_id]}"'
+            for criterion_id in required_ids
+            if criterion_id in evidence
+        )
+        proven_text = f"Already proven in your answer: {proven}. " if proven else ""
+        return (
+            f"{proven_text}The missing required part is {missing_text}. Add only that missing part "
+            "to the same incident in your own words; do not replace the incident."
+        )
+
+    if (
+        not result.get("pass_eligible")
+        or result.get("blockers")
+        or plan.get("verdict") != "independent_pass"
+    ):
+        return None
+
+    requested_action = str(plan.get("next_action") or "")
+    next_action = validated_tutor_next_action(plan, state)
+    next_attempt_type = validated_attempt_type_for_tutor_plan(plan, state)
+    if (
+        requested_action in {"request_pressure", "request_consolidation"}
+        and next_action == "request_fresh_independent"
+    ):
+        next_attempt_type = "independent"
+        task = (
+            "Before I challenge your judgment, give a new failure story from your own "
+            "experience. Include ownership, impact, your immediate response, and the "
+            "prevention change."
+        )
+    elif next_action == "request_fresh_independent":
+        task = (
+            "Next task: Give exactly one different incident from your own experience with "
+            "a different cause. Preserve ownership, impact, immediate response, and prevention."
+        )
+    elif next_action == "request_transfer":
+        task = (
+            "Transfer task: Give one different incident from your own experience where one "
+            "meaningful constraint changed what response was possible. Preserve ownership, "
+            "impact, immediate response, and prevention."
+        )
+    elif next_action == "request_pressure":
+        core_excerpt = _int06_core_incident_excerpt(state)
+        if not core_excerpt:
+            next_attempt_type = "independent"
+            task = (
+                "Before I challenge your judgment, give a new failure story from your own "
+                "experience. Include ownership, impact, your immediate response, and the "
+                "prevention change."
+            )
+        else:
+            task = (
+                f'Pressure task: Return to your qualified incident, which began: "{core_excerpt}". '
+                "Answer this interviewer pushback: 'Why should I trust your judgment after that "
+                "failure?' Defend your ownership, response, and prevention using only your own "
+                "evidence; do not invent a new story."
+            )
+    elif next_action == "request_consolidation":
+        task = (
+            "Final delivery: Retell the same proven incident once without changing any facts. "
+            "Keep the order ownership, impact, immediate response, and prevention."
+        )
+    else:
+        next_attempt_type = "independent"
+        task = (
+            "Keep this incident and its facts unchanged. Deliver it once in this order: "
+            "ownership, impact, immediate response, and prevention."
+        )
+
+    state["pending_prompt_attempt_type"] = next_attempt_type or "independent"
+
+    proof = (
+        f'ownership: "{evidence["ownership"]}"; '
+        f'impact: "{evidence["impact"]}"; '
+        f'immediate response: "{evidence["response_action"]}"; '
+        f'prevention: "{evidence["prevention"]}".'
+    )
+    return (
+        f"Your answer provides this proof: {proof} All four required parts are present, "
+        f"so there is no content gap. {task}"
+    )
+
+
+def _int07_feedback_text(state: dict) -> str | None:
+    if (
+        state.get("task_type") != "interview_prep"
+        or str(state.get("competency_node") or "") != "int_07_clarify_before_answering"
+    ):
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    latest = _latest_user_feedback_excerpt(state, limit=190)
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    if str(result.get("attempt_type") or "independent") == "pressure":
+        if not qualified_core_evidence(state, "int_07_clarify_before_answering"):
+            state["pending_prompt_attempt_type"] = "independent"
+            return (
+                f"{anchor}I cannot fairly continue this challenge because the earlier "
+                "clarification is not available. Ask a new scope-narrowing question and answer "
+                "the interpretation you choose."
+            )
+        rows = {
+            str(row.get("id") or ""): row
+            for row in (result.get("criteria") or [])
+            if isinstance(row, dict)
+        }
+        met = {criterion_id for criterion_id, row in rows.items() if row.get("met") is True}
+        if required_missing or blockers or not result.get("pass_eligible"):
+            state["pending_prompt_attempt_type"] = "pressure"
+            if set(required_missing) == {"core_consistency"} and {
+                "pressure_response", "evidence_defense"
+            }.issubset(met):
+                return (
+                    f"{anchor}You already answered the no-clarification pushback and gave a "
+                    "reasoned answer. Connect that assumption to your earlier clarification, "
+                    "then answer once more without changing the scenario."
+                )
+            labels = {
+                "pressure_response": "state the assumption you will use when the interviewer will not clarify",
+                "evidence_defense": "give a focused answer under that assumption",
+                "core_consistency": "keep the assumption connected to the earlier ambiguous prompt",
+            }
+            gaps = [labels[item] for item in required_missing if item in labels]
+            gap = "; and ".join(gaps) or "answer the no-clarification pushback directly"
+            return f"{anchor}The missing pressure step is to {gap}. Retry only that response."
+
+        next_action = validated_tutor_next_action(plan, state)
+        state["pending_prompt_attempt_type"] = (
+            "independent" if next_action == "request_consolidation" else "pressure"
+        )
+        return (
+            f"{anchor}You stated a clear assumption and answered under it without stalling. "
+            "Final delivery: Ask one concise clarifier, handle 'use your judgment' by stating "
+            "your assumption, and give the focused answer."
+        )
+
+    if not result.get("pass_eligible") or required_missing or blockers:
+        if set(required_missing) == {"states_answer_frame"}:
+            return (
+                f"{anchor}Your clarifying question already narrows the scope. Add a focused "
+                "answer to the interpretation you selected; keep the clarifier unchanged."
+            )
+        labels = {
+            "recognizes_ambiguity": "show the two plausible interpretations you need to distinguish",
+            "asks_targeted_question": "ask one concise A-or-B clarifying question",
+            "states_answer_frame": "answer the interpretation you select after the clarification",
+        }
+        missing = [labels[item] for item in required_missing if item in labels]
+        gap = "; and ".join(missing) or "ask one scope-narrowing question, then answer the chosen scope"
+        return (
+            f"{anchor}The missing step is to {gap}. Revise only that part using the same "
+            "question."
+        )
+
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action == "request_transfer":
+        state["pending_prompt_attempt_type"] = "transfer"
+        task = (
+            "Transfer task: An interviewer asks, 'How would you improve our product?' Ask whether "
+            "they want onboarding, reliability, or retention, then answer one scope you choose."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        task = (
+            "Pressure check: The interviewer replies, 'Use your judgment; I will not narrow it.' "
+            "State the assumption you are making, then answer under that assumption without stalling."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Final delivery: Ask one concise A-or-B clarifier, state which interpretation you "
+            "will answer, and give the focused answer without extra setup."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Next interview question: 'Tell me about your leadership.' Ask whether the interviewer "
+            "means people management or technical direction, then answer the interpretation you choose."
+        )
+    return (
+        f"{anchor}You narrowed the ambiguity and answered the scope you selected. Keep that "
+        f"two-step structure. {task}"
+    )
+
+
+def _int08_feedback_text(state: dict) -> str | None:
+    if (
+        state.get("task_type") != "interview_prep"
+        or str(state.get("competency_node") or "") != "int_08_quantify_impact"
+    ):
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+    rows = {
+        str(row.get("id") or ""): row
+        for row in (result.get("criteria") or [])
+        if isinstance(row, dict)
+    }
+
+    def evidence(criterion_id: str) -> str:
+        row = rows.get(criterion_id) or {}
+        if row.get("met") is not True:
+            return ""
+        return " ".join(str(row.get("evidence_quote") or "").split())[:220]
+
+    metric = evidence("quantified_before_after") or evidence("impact_claim")
+    action = evidence("learner_contribution")
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    attempt_type = str(result.get("attempt_type") or "independent")
+    if not result.get("pass_eligible") or required_missing or blockers:
+        state["pending_prompt_attempt_type"] = attempt_type
+        if set(required_missing) == {"learner_contribution"} and metric:
+            return (
+                f'The result is measurable: "{metric}". Add what you changed to cause that result; '
+                "keep the numbers unchanged."
+            )
+        labels = {
+            "impact_claim": "name the outcome that changed",
+            "quantified_before_after": "give a baseline and a measurable result",
+            "learner_contribution": "state what you personally changed",
+            "transfer_context": "use the newly assigned context rather than the earlier example",
+            "pressure_response": "answer the challenge to the metric directly",
+            "evidence_defense": "defend the metric with a concrete reason or source",
+            "core_consistency": "keep the defense consistent with the original achievement",
+        }
+        gaps = [labels[item] for item in required_missing if item in labels]
+        gap = "; and ".join(gaps) or "connect your action to a before-and-after result"
+        anchor = f'The measurable evidence you already gave is "{metric}". ' if metric else ""
+        return f"{anchor}The missing step is to {gap}. Revise only that part."
+
+    proof = (
+        f'Your answer links "{action}" to "{metric}". '
+        if action and metric
+        else f'Your answer gives measurable evidence: "{metric}". '
+        if metric
+        else "Your action and measurable result are both present. "
+    )
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action == "request_transfer":
+        state["pending_prompt_attempt_type"] = "transfer"
+        task = (
+            "Transfer task: Choose a customer, operational, or team outcome outside system "
+            "reliability. Give the baseline, your action, and the measurable result."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        task = (
+            "Pressure check: The interviewer says, 'That improvement may have been the team's, "
+            "not yours.' Identify your contribution and defend why the metric changed because of it."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Final delivery: In two sentences, state the baseline, your action, and the resulting "
+            "metric without adding a new example."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        task = (
+            "Use a different achievement. State the baseline, what you changed, and the measurable "
+            "result in one compact answer."
+        )
+    return f"{proof}{task}"
+
+
+_LATE_INTERVIEW_FEEDBACK = {
+    "int_09_diplomatic_pushback": {
+        "labels": {
+            "acknowledges_view": "acknowledge one fair part of the interviewer's premise",
+            "clear_counterposition": "state a clear counter-position",
+            "requirement_based_reasoning": "tie the disagreement to a requirement or trade-off",
+            "collaborative_tone": "remove combative wording and preserve rapport",
+            "transfer_context": "use the newly assigned premise",
+            "core_consistency": "keep the harder answer consistent with the qualified position",
+        },
+        "fresh": (
+            "Next interview premise: 'Extensive manual testing is always safer than automated "
+            "tests in high-transaction systems.' Acknowledge one fair point, state your counter, "
+            "and ground it in a requirement or trade-off."
+        ),
+        "transfer": (
+            "Transfer task: The interviewer says, 'The strongest engineers should work alone.' "
+            "Acknowledge one fair point, disagree clearly, and connect your view to a team requirement."
+        ),
+        "pressure": (
+            "Pressure check: The interviewer says, 'That sounds indecisive - pick one approach.' "
+            "Acknowledge the concern, preserve rapport, hold your counter-position, and defend it "
+            "with the governing requirement."
+        ),
+        "consolidation": (
+            "Final delivery: In two sentences, acknowledge the concern, state your position, and "
+            "give the requirement or trade-off that decides it."
+        ),
+    },
+    "int_10_close_strong": {
+        "labels": {
+            "specific_closing_question": "ask one substantive question about success, team, role, or priorities",
+            "role_relevance": "make the question specific to the target role",
+            "role_fit_evidence": "name the specific value you would bring",
+            "professional_close": "include one concise confident fit statement",
+            "non_generic": "replace generic feedback or benefits questions with a substantive one",
+            "transfer_context": "close for the newly assigned role context",
+            "core_consistency": "keep the harder close consistent with the qualified version",
+        },
+        "fresh": (
+            "Close a Backend Software Engineer interview with one substantive role or team question "
+            "and one concise sentence naming the value you would bring. Use either natural order."
+        ),
+        "transfer": (
+            "Transfer task: Close a Platform Engineer interview. Ask about the team's first-six-month "
+            "reliability priority and state the specific value you would bring."
+        ),
+        "pressure": (
+            "Pressure check: You have only twenty seconds. Ask one sharp question and give one "
+            "specific fit statement without filler."
+        ),
+        "consolidation": (
+            "Final delivery: Give the substantive question and specific fit statement in two concise sentences."
+        ),
+    },
+    "int_11_salary_negotiation": {
+        "labels": {
+            "clear_anchor": "state one concrete salary number or range",
+            "market_or_value_reason": "justify the anchor with market, scope, or demonstrated value",
+            "collaborative_flexibility": "offer flexibility on package structure without collapsing the anchor",
+            "calm_tone": "remove apology or immediate backpedaling",
+            "transfer_context": "negotiate the newly assigned offer context",
+            "core_consistency": "keep the harder negotiation consistent with the qualified anchor",
+        },
+        "fresh": (
+            "State a salary range for this role, give one market-or-value reason, and name one "
+            "package element you could discuss without lowering the range immediately."
+        ),
+        "transfer": (
+            "Transfer task: The base salary is fixed but the package includes bonus and equity. "
+            "Keep a clear total-value anchor, justify it, and negotiate one flexible component."
+        ),
+        "pressure": (
+            "Pressure check: The recruiter says the budget is below your range. Hold the anchor "
+            "calmly, repeat the evidence, and offer one package trade-off without apologizing."
+        ),
+        "consolidation": (
+            "Final delivery: Give the range, one evidence-based reason, and one flexible package option in three sentences or fewer."
+        ),
+    },
+    "int_12_explain_a_gap": {
+        "labels": {
+            "brief_context": "give the honest reason briefly",
+            "non_blaming_tone": "remove blame, gossip, or defensiveness",
+            "productive_use_or_learning": "state what you did, learned, or recovered during the period",
+            "forward_focus": "connect the explanation to readiness for the next role",
+            "transfer_context": "use the newly assigned gap or departure context",
+            "core_consistency": "keep the harder explanation consistent with the qualified facts",
+        },
+        "fresh": (
+            "Explain a six-month career gap in three parts: the brief reason, what you did or learned, "
+            "and why you are ready for the next role."
+        ),
+        "transfer": (
+            "Transfer task: Explain leaving a role because growth had plateaued. Stay factual, name "
+            "what you learned, and connect the move to what you want next."
+        ),
+        "pressure": (
+            "Pressure check: The interviewer asks, 'Why did the gap last that long?' Answer briefly, "
+            "name one productive thing you did or learned, avoid blame or apology, then return to current readiness."
+        ),
+        "consolidation": (
+            "Final delivery: Give the reason, productive use or learning, and forward intent in three concise sentences."
+        ),
+    },
+}
+
+
+def _late_interview_feedback_text(state: dict) -> str | None:
+    if state.get("task_type") != "interview_prep":
+        return None
+    node_id = str(state.get("competency_node") or "")
+    config = _LATE_INTERVIEW_FEEDBACK.get(node_id)
+    if not config:
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+    answer_norm = re.sub(r"\s+", " ", str(state.get("user_input") or "").strip()).lower()
+    evidence: dict[str, str] = {}
+    for row in result.get("criteria") or []:
+        if not isinstance(row, dict) or row.get("met") is not True:
+            continue
+        quote = " ".join(str(row.get("evidence_quote") or "").split())[:240]
+        if quote and quote.lower() in answer_norm:
+            evidence[str(row.get("id") or "")] = quote
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    attempt_type = str(result.get("attempt_type") or "independent")
+    if not result.get("pass_eligible") or required_missing or blockers:
+        state["pending_prompt_attempt_type"] = attempt_type if attempt_type in {"transfer", "pressure"} else "independent"
+        gaps = [config["labels"].get(item) for item in required_missing]
+        gaps = [gap for gap in gaps if gap]
+        proven = next(iter(evidence.values()), "")
+        anchor = f'You already provided this usable part: "{proven}". ' if proven else ""
+        gap = "; and ".join(gaps) or "complete the active skill using the same facts"
+        return f"{anchor}The missing step is to {gap}. Revise only that part."
+
+    quoted: list[str] = []
+    for quote in evidence.values():
+        lowered = quote.lower()
+        if any(lowered in prior.lower() or prior.lower() in lowered for prior in quoted):
+            continue
+        quoted.append(quote)
+        if len(quoted) == 2:
+            break
+    proof = (
+        "The required parts are present in your own wording: "
+        + "; ".join(f'"{quote}"' for quote in quoted)
+        + ". "
+        if quoted else "The required parts are present. "
+    )
+    action = validated_tutor_next_action(plan, state)
+    if action == "request_transfer":
+        state["pending_prompt_attempt_type"] = "transfer"
+        task = config["transfer"]
+    elif action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        task = config["pressure"]
+    elif action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        task = config["consolidation"]
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        task = config["fresh"]
+    return f"{proof}{task}"
+
+
+_GD_TRANSFER_MOTIONS = (
+    "Should companies use AI in hiring only with human oversight?",
+    "Should four-day workweeks become the standard for knowledge-work teams?",
+    "Should social-media platforms verify every user identity?",
+)
+
+
+def _next_gd_transfer_motion(state: dict, current_topic: str) -> str:
+    context = state.get("career_context") or {}
+    excluded_families = {gd_topic_family(current_topic)}
+    core_topic = resolve_core_gd_topic(
+        state,
+        str(state.get("competency_node") or ""),
+    )
+    if core_topic:
+        excluded_families.add(gd_topic_family(core_topic))
+    configured = [
+        str(topic).strip()
+        for topic in (context.get("gd_topics") or context.get("custom_gd_topics") or [])
+        if str(topic).strip()
+        and gd_topic_family(str(topic).strip()) not in excluded_families
+    ]
+    if configured:
+        return configured[0]
+    fallback = next(
+        (
+            motion for motion in _GD_TRANSFER_MOTIONS
+            if gd_topic_family(motion) not in excluded_families
+        ),
+        "",
+    )
+    if not fallback:
+        raise RuntimeError("no distinct GD transfer topic is available")
+    return fallback
+
+
+def _gd_prompt_topic_for_state(state: dict) -> str:
+    return resolve_prompt_gd_topic(state) or "the active motion"
+
+
+def _gd02_feedback_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "gd_02_support_with_evidence":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    latest = _latest_user_feedback_excerpt(state, limit=170).rstrip(".!?")
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    current_topic = _gd_prompt_topic_for_state(state)
+
+    if not result.get("pass_eligible") or required_missing or blockers:
+        if "concrete_evidence" in required_missing:
+            repair = "Add one concrete fact, number, case, or learner-owned experience"
+        elif "clear_stance" in required_missing:
+            repair = "State the side you are defending before the evidence"
+        elif "topic_relevance" in required_missing:
+            repair = f"Tie the contribution directly to the motion: {current_topic}"
+        else:
+            repair = "Add one sentence explaining why the same evidence supports your stated position"
+        return (
+            f"{anchor}{repair}. Revise only that missing link using the same evidence and motion; "
+            "do not move to a new topic yet."
+        )
+
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action in {"request_pressure", "request_consolidation"}:
+        core = qualified_core_evidence(state, "gd_02_support_with_evidence")
+        current_topic = str((core or {}).get("active_topic") or current_topic).strip()
+    if next_action == "request_transfer":
+        next_topic = _next_gd_transfer_motion(state, current_topic)
+        state["pending_prompt_attempt_type"] = "transfer"
+        state["pending_gd_prompt_topic"] = next_topic
+        task = (
+            f'Transfer task. Motion: "{next_topic}" Take a clear side, add one concrete fact '
+            "or experience, and state why that evidence supports the side you chose."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            f'Pressure check on "{current_topic}": another participant says your example proves '
+            "correlation, not causation. Defend the claim with the same evidence in two or three sentences."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            f'Consolidation task on "{current_topic}": deliver the stance, evidence, and explicit link '
+            "once in no more than three sentences."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            f'Next check on "{current_topic}": keep the same side but use a different learner-owned '
+            "example and explain why it supports the claim."
+        )
+    return f"{anchor}The stance, concrete evidence, and claim link are present. Keep that answer. {task}"
+
+
+def _gd03_feedback_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "gd_03_take_the_floor":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    latest = _latest_user_feedback_excerpt(state, limit=170).rstrip(".!?")
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    if not result.get("pass_eligible") or required_missing or blockers:
+        if "polite_entry_phrase" in required_missing:
+            repair = "Open with a short bridge such as 'Building on that point'"
+        elif "links_prior_point" in required_missing:
+            repair = "Name the specific prior point before adding your view"
+        elif "adds_new_value" in required_missing:
+            repair = "Add one implication, example, or mitigation after the link"
+        else:
+            repair = "Claim the floor in one polite sentence, then add one substantive idea"
+        return f"{anchor}{repair}. Revise only that entry; keep the same discussion context."
+
+    current_topic = _gd_prompt_topic_for_state(state)
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action in {"request_pressure", "request_consolidation"}:
+        core = qualified_core_evidence(state, "gd_03_take_the_floor")
+        current_topic = str((core or {}).get("active_topic") or current_topic).strip()
+    if next_action == "request_transfer":
+        next_topic = _next_gd_transfer_motion(state, current_topic)
+        state["pending_prompt_attempt_type"] = "transfer"
+        state["pending_gd_prompt_topic"] = next_topic
+        task = (
+            f'Transfer task on "{next_topic}": another participant raises a fairness concern. '
+            "Enter by linking to that concern, then add one distinct operational implication."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Pressure check: a dominant participant finishes a long point and immediately tries to continue. "
+            "Claim the floor politely, link to one part of the point, and add your new contribution."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Consolidation task: enter in one bridge phrase, reference the prior point precisely, "
+            "and add one implication in no more than three sentences."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Next mini-discussion: another participant says remote onboarding weakens team culture. "
+            "Enter politely, link directly to that concern, and add one concrete mitigation."
+        )
+    return (
+        f"{anchor}You linked to the prior point and added a substantive idea without sounding aggressive. "
+        f"Keep that entry. {task}"
+    )
+
+
+def _gd04_feedback_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "gd_04_build_on_others":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    latest = _latest_user_feedback_excerpt(state, limit=170).rstrip(".!?")
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    if not result.get("pass_eligible") or required_missing or blockers:
+        if "credits_prior_speaker" in required_missing:
+            repair = "Credit the prior contribution before adding your view"
+        elif "extends_idea" in required_missing:
+            repair = "Add one implication, example, or safeguard that was not already stated"
+        elif "topic_relevance" in required_missing:
+            repair = "Keep the extension tied to the active motion"
+        else:
+            repair = "Name the prior point, then extend it with one distinct idea"
+        return f"{anchor}{repair}. Revise only that link and extension in the same context."
+
+    current_topic = _gd_prompt_topic_for_state(state)
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action in {"request_pressure", "request_consolidation"}:
+        core = qualified_core_evidence(state, "gd_04_build_on_others")
+        current_topic = str((core or {}).get("active_topic") or current_topic).strip()
+    if next_action == "request_transfer":
+        next_topic = _next_gd_transfer_motion(state, current_topic)
+        state["pending_prompt_attempt_type"] = "transfer"
+        state["pending_gd_prompt_topic"] = next_topic
+        lowered_topic = next_topic.lower()
+        if "remote work" in lowered_topic:
+            prior_point = "remote work broadens hiring access"
+        elif "ai" in lowered_topic and "hiring" in lowered_topic:
+            prior_point = "data-driven screening can reduce unconscious bias"
+        elif "four-day" in lowered_topic:
+            prior_point = "a shorter workweek can improve focus and retention"
+        elif "verify" in lowered_topic and "identity" in lowered_topic:
+            prior_point = "identity verification can reduce coordinated abuse"
+        else:
+            prior_point = "the proposal could improve consistency and access"
+        task = (
+            f'Transfer task on "{next_topic}": another participant says {prior_point}. '
+            "Credit that point, then add one limitation or safeguard they missed."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Pressure check: another participant says you merely repeated their idea. Credit the exact "
+            "part you used, then state the new implication your contribution adds."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Consolidation task: credit one prior point and extend it with one clear implication "
+            "in no more than three sentences."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Next mini-discussion: another participant says remote work widens hiring access. "
+            "Credit that point and add one different operational benefit or risk."
+        )
+    return (
+        f"{anchor}You credited the prior point and extended it with a distinct implication. "
+        f"Keep that contribution. {task}"
+    )
+
+
+def _gd05_claim_for_topic(topic: str) -> str:
+    lowered = topic.lower()
+    if "remote work" in lowered:
+        return "remote work improves hiring access, so it should always be the default"
+    if "ai" in lowered and "hiring" in lowered:
+        return "AI screening reduces human bias, so companies should rely on it"
+    if "four-day" in lowered:
+        return "a shorter workweek improves focus and retention, so every team should adopt it"
+    if "verify" in lowered and "identity" in lowered:
+        return "identity verification reduces coordinated abuse, so every user should be verified"
+    return "the proposal's main benefit outweighs every implementation risk"
+
+
+def _gd05_feedback_text(state: dict) -> str | None:
+    if str(state.get("competency_node") or "") != "gd_05_disagree_respectfully":
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+
+    latest = _latest_user_feedback_excerpt(state, limit=170).rstrip(".!?")
+    anchor = f'In your answer, you said "{latest}". ' if latest else ""
+    required_missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    if not result.get("pass_eligible") or required_missing or blockers:
+        if "transfer_context" in required_missing:
+            current_topic = _gd_prompt_topic_for_state(state)
+            next_topic = _next_gd_transfer_motion(state, current_topic)
+            state["pending_prompt_attempt_type"] = "transfer"
+            state["pending_gd_prompt_topic"] = next_topic
+            claim = _gd05_claim_for_topic(next_topic)
+            return (
+                f"{anchor}That response stays in the same topic family, so it does not count as transfer evidence. "
+                f'Transfer task on "{next_topic}": a participant says {claim}. '
+                "Concede one valid benefit, then disagree with a clear topic-based reason."
+            )
+        if "acknowledges_valid_point" in required_missing:
+            repair = "Concede one fair part of the other view before disagreeing"
+        elif "clear_counter" in required_missing:
+            repair = "State the exact claim you reject after the concession"
+        elif "reasoned_basis" in required_missing:
+            repair = "Give one topic-based reason for the counterpoint"
+        else:
+            repair = "Challenge the idea without judging the person"
+        return f"{anchor}{repair}. Revise only that disagreement in the same context."
+
+    current_topic = _gd_prompt_topic_for_state(state)
+    next_action = validated_tutor_next_action(plan, state)
+    if next_action in {"request_pressure", "request_consolidation"}:
+        core = qualified_core_evidence(state, "gd_05_disagree_respectfully")
+        current_topic = str((core or {}).get("active_topic") or current_topic).strip()
+    if next_action == "request_transfer":
+        next_topic = _next_gd_transfer_motion(state, current_topic)
+        state["pending_prompt_attempt_type"] = "transfer"
+        state["pending_gd_prompt_topic"] = next_topic
+        claim = _gd05_claim_for_topic(next_topic)
+        task = (
+            f'Transfer task on "{next_topic}": a participant says {claim}. '
+            "Concede one valid benefit, then disagree with a clear topic-based reason."
+        )
+    elif next_action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Pressure check: the participant says your concession undermines your disagreement. "
+            "Explain why the conceded benefit is real but does not outweigh your counterpoint."
+        )
+    elif next_action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Consolidation task: concede one valid point, state the counter, and give one reason "
+            "in no more than three sentences."
+        )
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        task = (
+            "Next mini-discussion: a participant says human oversight makes AI hiring fully safe. "
+            "Concede what oversight improves, then disagree with one remaining risk."
+        )
+    return (
+        f"{anchor}You conceded a valid point, stated a clear counter, and gave a topic-based reason "
+        f"without attacking the speaker. Keep that structure. {task}"
+    )
+
+
+_LATE_GD_LABELS: dict[str, dict[str, str]] = {
+    "gd_06_balanced_view": {
+        "names_both_sides": "state one valid point on each side",
+        "weighs_tradeoff": "say which trade-off is decisive and why",
+        "returns_to_position": "land on one clear recommendation",
+        "topic_relevance": "keep both sides tied to the stated motion",
+    },
+    "gd_07_steer_back": {
+        "identifies_derailment": "flag the drift neutrally",
+        "redirects_to_topic": "restate the actual motion or decision",
+        "gives_next_step": "offer one useful angle for the group to examine next",
+        "non_controlling_tone": "facilitate without ordering the group around",
+    },
+    "gd_08_include_quiet": {
+        "names_quiet_participant": "address the quieter participant directly",
+        "topic_linked_invite": "connect the invitation to the active motion",
+        "respectful_floor_give": "give them the floor naturally",
+        "non_pressuring_tone": "invite without embarrassing or forcing them",
+    },
+    "gd_09_manage_dominator": {
+        "acknowledges_contribution": "credit the speaker's useful point",
+        "redistributes_floor": "create explicit room for another participant or the group",
+        "topic_link": "tie the boundary to the active motion",
+        "respectful_boundary": "set the limit without sounding personal or rude",
+    },
+    "gd_10_drive_consensus": {
+        "summarizes_key_points": "summarize at least two distinct points raised",
+        "identifies_common_ground": "name the group's shared ground",
+        "proposes_next_step": "propose one concrete recommendation or decision rule",
+        "balanced_credit": "credit the group's contributions, not only your own view",
+    },
+}
+
+_LATE_GD_COMMON_LABELS = {
+    "core_consistency": "keep the harder response consistent with the position you already qualified",
+    "transfer_context": "apply the skill to a genuinely different motion",
+}
+
+
+def _late_gd_task(node_id: str, stage: str, topic: str) -> str:
+    quoted_topic = f'"{topic}"'
+    tasks = {
+        "gd_06_balanced_view": {
+            "fresh": f"Next mini-discussion on {quoted_topic}: use a different trade-off, state the strongest point on each side, then decide which side outweighs the other and why.",
+            "transfer": f"Transfer motion: {quoted_topic} State one fair benefit and one serious risk, weigh the decisive trade-off, and land on a recommendation.",
+            "pressure": f"Pressure check on {quoted_topic}: another participant calls your position fence-sitting. Defend why acknowledging both sides still leads to one clear recommendation.",
+            "consolidation": f"Consolidation on {quoted_topic}: give both sides, the decisive trade-off, and your final position in no more than three sentences.",
+        },
+        "gd_07_steer_back": {
+            "fresh": f"On {quoted_topic}, the group drifts into personal preferences. Flag the drift, restate the motion, and offer one decision-relevant angle to examine next.",
+            "transfer": f"Transfer motion: {quoted_topic} The panel has drifted into an unrelated example. Redirect it neutrally to this motion and propose the next useful question.",
+            "pressure": f"Pressure check on {quoted_topic}: a participant ignores your first redirect. Re-centre the group firmly but respectfully and name the next useful angle.",
+            "consolidation": f"Consolidation on {quoted_topic}: flag the drift, restate the motion, and give the next discussion step in two concise sentences.",
+        },
+        "gd_08_include_quiet": {
+            "fresh": f"On {quoted_topic}, Maya has not spoken after two strong voices. Link her perspective to one unresolved angle and invite her without putting her on the spot.",
+            "transfer": f"Transfer motion: {quoted_topic} Dev has not entered the discussion. Connect a useful lens to the motion and give him the floor naturally.",
+            "pressure": f"Pressure check on {quoted_topic}: Maya says she has nothing new to add. Invite one specific lens while making it safe for her to pass.",
+            "consolidation": f"Consolidation on {quoted_topic}: address the quieter participant, link the invitation to one unresolved point, and yield the floor in two sentences.",
+        },
+        "gd_09_manage_dominator": {
+            "fresh": f"On {quoted_topic}, Rohan interrupts and repeats the same argument. Credit its useful part, set a calm boundary, and open the floor to another perspective.",
+            "transfer": f"Transfer motion: {quoted_topic} A dominant participant takes another long turn. Acknowledge the point, redistribute the floor, and keep the group on the motion.",
+            "pressure": f"Pressure check on {quoted_topic}: the speaker says they need more time to finish. Acknowledge their useful point, hold the boundary respectfully, tie the turn-sharing need to the motion, and name whose perspective the group needs next.",
+            "consolidation": f"Consolidation on {quoted_topic}: acknowledge the contribution, set the boundary, and redistribute the floor in two concise sentences.",
+        },
+        "gd_10_drive_consensus": {
+            "fresh": f"On {quoted_topic}, Maya says the evidence supports the motion; Dev says the evidence is too mixed to accept it without qualification. Summarize both positions, name their shared need for a reliable decision standard, and propose one next step.",
+            "transfer": f"Transfer motion: {quoted_topic} Maya says the evidence supports the motion; Dev says it is too mixed to accept without qualification. Summarize both, identify their shared demand for reliable evidence, and propose a concrete decision rule.",
+            "pressure": f"Pressure check on {quoted_topic}: Dev rejects the emerging consensus because the evidence remains uncertain. Credit that concern, restate Maya's support and Dev's qualification plus their common ground, then refine the decision rule.",
+            "consolidation": f"Final synthesis on {quoted_topic}: credit both sides, state the common ground, and close with one recommendation in three sentences.",
+        },
+    }
+    return tasks[node_id][stage]
+
+
+def _late_gd_feedback_text(state: dict) -> str | None:
+    if state.get("task_type") != "gd_prep":
+        return None
+    node_id = str(state.get("competency_node") or "")
+    labels = _LATE_GD_LABELS.get(node_id)
+    if not labels:
+        return None
+    result = state.get("last_rubric_result")
+    plan = state.get("tutor_turn_plan")
+    if not isinstance(result, dict) or not isinstance(plan, dict):
+        return None
+    learner_answer = " ".join(str(state.get("user_input") or "").split())
+    learner_lower = learner_answer.lower()
+    evidence_quote = ""
+    for row in result.get("criteria") or []:
+        if not isinstance(row, dict) or row.get("met") is not True:
+            continue
+        quote = " ".join(str(row.get("evidence_quote") or "").split()).strip()
+        if quote and quote.lower() in learner_lower:
+            evidence_quote = quote[:220]
+            break
+    anchor = (
+        f'Your contribution includes this evidence: "{evidence_quote}". '
+        if evidence_quote else ""
+    )
+    missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    attempt_type = str(result.get("attempt_type") or "independent")
+    current_topic = _gd_prompt_topic_for_state(state)
+    if not result.get("pass_eligible") or missing or blockers:
+        if "transfer_context" in missing:
+            core_topic = resolve_core_gd_topic(state, node_id) or current_topic
+            known_families = {
+                "ai_hiring",
+                "remote_work",
+                "four_day_workweek",
+                "social_identity",
+                "digital_payments",
+            }
+            if (
+                gd_topic_family(core_topic) not in known_families
+                and gd_topic_family(current_topic) in known_families
+            ):
+                core_topic = current_topic
+            next_topic = _next_gd_transfer_motion(state, core_topic)
+            state["pending_prompt_attempt_type"] = "transfer"
+            state["pending_gd_prompt_topic"] = next_topic
+            return (
+                f"{anchor}That contribution repeats the core topic family, so it does not prove transfer. "
+                f"{_late_gd_task(node_id, 'transfer', next_topic)}"
+            )
+        state["pending_prompt_attempt_type"] = (
+            attempt_type if attempt_type in {"transfer", "pressure"} else "independent"
+        )
+        gap_labels = {**_LATE_GD_COMMON_LABELS, **labels}
+        gaps = [gap_labels[item] for item in missing if item in gap_labels]
+        gap = "; and ".join(gaps) or "complete the active discussion move on the stated motion"
+        return f"{anchor}The missing move is to {gap}. Revise only that part; do not change motions yet."
+
+    action = validated_tutor_next_action(plan, state)
+    if action in {"request_pressure", "request_consolidation"}:
+        core = qualified_core_evidence(state, node_id)
+        current_topic = str((core or {}).get("active_topic") or current_topic).strip()
+    if action == "request_transfer":
+        current_topic = _next_gd_transfer_motion(state, current_topic)
+        state["pending_prompt_attempt_type"] = "transfer"
+        state["pending_gd_prompt_topic"] = current_topic
+        stage = "transfer"
+    elif action == "request_pressure":
+        state["pending_prompt_attempt_type"] = "pressure"
+        state["pending_gd_prompt_topic"] = current_topic
+        stage = "pressure"
+    elif action == "request_consolidation":
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        stage = "consolidation"
+    else:
+        state["pending_prompt_attempt_type"] = "independent"
+        state["pending_gd_prompt_topic"] = current_topic
+        stage = "fresh"
+    return f"{anchor}The required discussion move is present. {_late_gd_task(node_id, stage, current_topic)}"
+
+
+def _looks_incomplete_coach_text(text: str) -> bool:
+    clean = " ".join(str(text or "").split())
+    if not clean:
+        return True
+    if clean.endswith(("...", "…")):
+        return True
+    if _INCOMPLETE_COACH_END_RE.search(clean):
+        return True
+    return clean[-1] not in ".!?)]}\"'"
+
+
+def _deterministic_coach_repair_text(state: dict) -> str:
+    node_id = str(state.get("competency_node") or "")
+    if node_id == "int_03_weakness_framing":
+        return _weakness_next_challenge_text(state)
+    if node_id.startswith("int_"):
+        return (
+            "Use your answer as the base; now make the strongest evidence easier to hear. "
+            "Rewrite it once with a clear situation, your action, and the result in your own words."
+        )
+    if node_id.startswith("gd_"):
+        topic = _gd_topic_phrase_for_state(state)
+        topic_clause = f" on {topic}" if topic else ""
+        return (
+            f"Keep the answer grounded in the motion; now make it sound like a group-discussion contribution{topic_clause}. "
+            "Give one clear stance, one reason, and one bridge to another participant's concern."
+        )
+    return "Use your answer as the base; now tighten it into one clear version in your own words."
+
+
 def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
     """Deterministically clean coaching text for weak/borderline turns.
 
@@ -458,17 +2391,206 @@ def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
     the local model can still emit them. For turns that have not earned a strong
     score, buffer and clean the full response before showing it.
     """
+    if (
+        state.get("task_type") not in _TEST_TASK_TYPES
+        and spec_kind in _COACHING_STREAM_KINDS
+    ):
+        existing_plan = state.get("tutor_turn_plan")
+        int01_decision = int01_decision_for_planned_action(
+            state.get("last_rubric_result"),
+            state,
+            existing_plan if isinstance(existing_plan, dict) else {},
+        )
+        if int01_decision is not None:
+            state["pending_prompt_attempt_type"] = int01_decision.attempt_type
+            return int01_decision.visible_text
+        early_interview_followup = _early_interview_feedback_text(state)
+        if early_interview_followup is not None:
+            return early_interview_followup
+        star_followup = _clean_star_pass_followup_text(state)
+        if star_followup is not None:
+            return star_followup
+        why_company_followup = _int05_feedback_text(state)
+        if why_company_followup is not None:
+            return why_company_followup
+        failure_story_followup = _int06_feedback_text(state)
+        if failure_story_followup is not None:
+            return failure_story_followup
+        clarification_followup = _int07_feedback_text(state)
+        if clarification_followup is not None:
+            return clarification_followup
+        quantified_impact_followup = _int08_feedback_text(state)
+        if quantified_impact_followup is not None:
+            return quantified_impact_followup
+        late_interview_followup = _late_interview_feedback_text(state)
+        if late_interview_followup is not None:
+            return late_interview_followup
+        gd_evidence_followup = _gd02_feedback_text(state)
+        if gd_evidence_followup is not None:
+            return gd_evidence_followup
+        gd_entry_followup = _gd03_feedback_text(state)
+        if gd_entry_followup is not None:
+            return gd_entry_followup
+        gd_build_followup = _gd04_feedback_text(state)
+        if gd_build_followup is not None:
+            return gd_build_followup
+        gd_disagree_followup = _gd05_feedback_text(state)
+        if gd_disagree_followup is not None:
+            return gd_disagree_followup
+        late_gd_followup = _late_gd_feedback_text(state)
+        if late_gd_followup is not None:
+            return late_gd_followup
+
+    if (
+        state.get("task_type") == "interview_prep"
+        and str(state.get("user_input") or "").strip()
+    ):
+        grounded_context = " ".join((
+            str(state.get("user_input") or ""),
+            str(state.get("career_context") or ""),
+        )).lower()
+        grounded_numbers = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", grounded_context))
+        unsupported_numbers = [
+            token for token in re.findall(r"\b\d+(?:\.\d+)?%?\b", text)
+            if token.lower() not in grounded_numbers
+        ]
+        claimed_entities = set(re.findall(
+            r"(?:^|[.!?]\s+)([A-Z][A-Za-z0-9&.-]{2,})\s+"
+            r"(?:reported|lost|cut|reduced|increased|achieved|launched|built|grew|saved|"
+            r"published|redesigned|tracks|uses)\b",
+            text,
+        ))
+        claimed_entities.update(re.findall(
+            r"\b(?:at|for|with|from|inside)\s+([A-Z][A-Za-z0-9&.-]{2,})\b",
+            text,
+        ))
+        unsupported_entities = [
+            entity for entity in claimed_entities
+            if entity.lower() not in grounded_context
+        ]
+        if unsupported_numbers or unsupported_entities:
+            return _deterministic_coach_repair_text(state)
+
     cleaned = _sanitize_coaching_opening_praise(text, state, spec_kind)
     if not _needs_full_coaching_sanitize(state, spec_kind):
-        return _sanitize_gd_topic_drift(cleaned, state)
+        cleaned = _sanitize_repeated_outcome_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_repeated_weakness_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_repeated_future_goal_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_unrelated_career_sample_domain(cleaned, state, spec_kind)
+        return _ensure_career_feedback_anchor(
+            _sanitize_gd_topic_drift(cleaned, state),
+            state,
+            spec_kind,
+        )
     cleaned = _COPYABLE_SCENARIO_RE.sub(" ", cleaned, count=1)
+    if str(state.get("competency_node") or "").startswith("gd_"):
+        cleaned = _COPYABLE_IMAGINE_RE.sub(" ", cleaned, count=1)
+    cleaned = _COPYABLE_MODEL_ANSWER_RE.sub(" Keep it in your own words.", cleaned, count=1)
     cleaned = _COPYABLE_EXAMPLE_RE.sub(
         " Keep it in your own words.",
         cleaned,
         count=1,
     )
+    cleaned = _INFLATED_PRAISE_FRAGMENT_RE.sub(" ", cleaned, count=1)
     cleaned = _sanitize_gd_topic_drift(cleaned, state)
-    return re.sub(r"\s{2,}", " ", cleaned).strip()
+    cleaned = _sanitize_repeated_outcome_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_repeated_weakness_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_repeated_future_goal_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_unrelated_career_sample_domain(cleaned, state, spec_kind)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return _ensure_career_feedback_anchor(cleaned, state, spec_kind)
+
+
+
+def _bridge_full_answer_task(state: dict) -> str:
+    node_id = str(state.get("competency_node") or "")
+    topic = _gd_topic_phrase_for_state(state)
+    gd_tasks = {
+        "gd_06_balanced_view": (
+            "state one valid point on each side, explain the decisive trade-off, "
+            "and land on one clear recommendation"
+        ),
+        "gd_07_steer_back": (
+            "flag the drift neutrally, restate the actual motion, and offer one "
+            "useful angle for the group to examine next"
+        ),
+        "gd_08_include_quiet": (
+            "address the quieter participant, link the invitation to one unresolved "
+            "topic angle, and yield the floor without pressure"
+        ),
+        "gd_09_manage_dominator": (
+            "acknowledge the speaker's useful point, set a respectful boundary, "
+            "and redistribute the floor while staying on topic"
+        ),
+        "gd_10_drive_consensus": (
+            "summarize Maya's view that the evidence supports the motion and Dev's view that it "
+            "remains too mixed, name their shared demand for reliable evidence, and propose one "
+            "concrete decision rule"
+        ),
+    }
+    if node_id in gd_tasks:
+        topic_clause = f" on {topic}" if topic else ""
+        return (
+            f"Now build back to the full skill{topic_clause}: "
+            f"{gd_tasks[node_id]}."
+        )
+    if node_id.startswith("gd_") and topic:
+        return (
+            f"Now build back to the full skill: write one clear GD contribution on "
+            f"{topic} that commits to a side and adds one concrete safeguard or reason."
+        )
+    if node_id == "int_09_diplomatic_pushback":
+        return (
+            "Now build back to the full skill: acknowledge one fair part of the "
+            "interviewer's premise, state your counter-position, tie it to one requirement "
+            "or trade-off, and keep the tone collaborative."
+        )
+    if node_id == "int_10_close_strong":
+        return (
+            "Now build back to the full skill: ask one substantive role or team question "
+            "and add one confident sentence about the specific value you would bring."
+        )
+    if node_id == "int_11_salary_negotiation":
+        return (
+            "Now build back to the full skill: give one salary range, justify it with "
+            "market or role-value evidence, and state one flexible package option without apologizing."
+        )
+    if node_id == "int_12_explain_a_gap":
+        return (
+            "Now build back to the full skill: give the brief reason, what you did or learned, "
+            "and why you are ready for the next role without blaming anyone."
+        )
+    if node_id.startswith("int_"):
+        return (
+            "Now build back to the full skill: answer the interview prompt in your "
+            "own story with a clear action and result."
+        )
+    return "Now build back to the full skill in one clear answer using your own words."
+
+
+def _deterministic_closed_bridge_feedback(state: dict) -> str:
+    """Give fast, bounded feedback after a closed bridge answer.
+
+    Fill-blank and MCQ bridges are already graded by answer key. Calling the model
+    again here adds latency and can reintroduce generic examples, so same-node
+    closed-bridge follow-up text stays deterministic.
+    """
+    if not state.get("last_graded_bridge"):
+        return ""
+    score = _recent_score_for_tone(state)
+    if isinstance(score, (int, float)) and score >= PASS_SCORE:
+        return (
+            "Good, that scaffolded step is in place - not the whole skill yet. "
+            f"{_bridge_full_answer_task(state)}"
+        )
+
+    diagnosis = state.get("last_diagnosis") or {}
+    gap = str(diagnosis.get("next_focus") or "use the target move more clearly").strip()
+    return (
+        "Let's tighten this scaffold. "
+        f"The missing move is: {gap}. "
+        f"{_bridge_full_answer_task(state)}"
+    )
 
 
 async def _stream_coaching_generation(spec: GenSpec, state: dict) -> AsyncIterator[str]:
@@ -481,11 +2603,15 @@ async def _stream_coaching_generation(spec: GenSpec, state: dict) -> AsyncIterat
             yield tok
         return
 
-    if _needs_full_coaching_sanitize(state, spec.kind):
+    node_id = str(state.get("competency_node") or "")
+    professional_prep_node = node_id.startswith("int_") or node_id.startswith("gd_")
+    if professional_prep_node or _needs_full_coaching_sanitize(state, spec.kind):
         full: list[str] = []
         async for tok in stream_generation(spec):
             full.append(tok)
         text = _sanitize_coaching_response("".join(full), state, spec.kind)
+        if _looks_incomplete_coach_text(text):
+            text = _deterministic_coach_repair_text(state)
         if text:
             yield text
         return
@@ -525,7 +2651,36 @@ def _lock_for(session_id: str) -> asyncio.Lock:
 # for scaffold turns — consumed this turn, never written to disk. `last_selection`
 # is the Spec B selector's read of the most recent advance (action/band/rationale),
 # meaningful only for the current turn's adaptation cues — not persisted.
-_TRANSIENT_KEYS = ("pending", "pending_game", "last_selection")
+_TRANSIENT_KEYS = (
+    "pending",
+    "pending_game",
+    "pending_prompt_attempt_type",
+    "pending_gd_prompt_topic",
+    "last_selection",
+    "_prepared_session_record",
+)
+
+
+def _stage_pending_prompt_attempt_type(state: dict, previous_active: str | None) -> None:
+    """Keep the evaluated prompt active until its replacement is committed."""
+    if (
+        state.get("pending_prompt_attempt_type") is None
+        and previous_active in {"independent", "transfer", "pressure"}
+    ):
+        state["pending_prompt_attempt_type"] = previous_active
+    if state.get("pending_prompt_attempt_type") is not None:
+        state["active_prompt_attempt_type"] = previous_active
+
+
+def _commit_pending_prompt_attempt_type(state: dict) -> None:
+    pending = state.get("pending_prompt_attempt_type")
+    if pending is not None:
+        state["active_prompt_attempt_type"] = pending
+    pending_topic = state.get("pending_gd_prompt_topic")
+    if pending_topic:
+        state["active_gd_prompt_topic"] = pending_topic
+    state["pending_prompt_attempt_type"] = None
+    state["pending_gd_prompt_topic"] = None
 
 
 def _store_path() -> str:
@@ -611,6 +2766,92 @@ async def _persist_runtime_state(state: dict) -> None:
     save_sessions()
 
 
+def _prepared_session_record(state: dict) -> dict:
+    prepared = state.get("_prepared_session_record")
+    if isinstance(prepared, dict):
+        return dict(prepared)
+    node_id = state["competency_node"]
+    task_type = str(state.get("task_type") or task_type_of(node_id).value)
+    return {
+        "session_id": state["session_id"],
+        "user_id": state["user_id"],
+        "task_type": task_type,
+        "module_id": str(state.get("module_id") or module_of(node_id)),
+        "node_id": node_id,
+        "test_mode": task_type in _TEST_TASK_TYPES,
+        "career_context": dict(state.get("career_context") or {}),
+        "scenario_config": dict(state.get("scenario_config") or {}),
+        "persona_roster": list(state.get("personas") or []),
+        "context_hash": str(state.get("context_hash") or "default"),
+    }
+
+
+def _prepared_runtime_record(state: dict) -> dict:
+    snapshot = _runtime_snapshot(state)
+    return {
+        "session_id": state["session_id"],
+        "user_id": state["user_id"],
+        "current_node": state["competency_node"],
+        "module_id": str(state.get("module_id") or module_of(state["competency_node"])),
+        "task_type": state.get("task_type"),
+        "test_mode": state.get("task_type") in _TEST_TASK_TYPES,
+        "status": state.get("status", "active"),
+        "state_snapshot": snapshot,
+        "pending_transition": state.get("pending_node_transition"),
+        "session_version": int(state.get("session_version") or 1),
+        "active_turn_id": state.get("active_turn_id"),
+        "active_opening_id": state.get("active_opening_id"),
+        "last_error": state.get("last_error"),
+    }
+
+
+async def commit_prepared_session(state: dict) -> None:
+    """Persist a prepared session for trusted internal callers."""
+    store = get_storage()
+    record = _prepared_session_record(state)
+    await store.create_session(
+        record["session_id"],
+        record["user_id"],
+        record["task_type"],
+        record["module_id"],
+        record["node_id"],
+        test_mode=record["test_mode"],
+        career_context=record["career_context"],
+        scenario_config=record["scenario_config"],
+        persona_roster=record["persona_roster"],
+        context_hash=record["context_hash"],
+    )
+    SessionStore[state["session_id"]] = state
+    await _persist_runtime_state(state)
+
+
+async def commit_claimed_prepared_session(
+    state: dict,
+    *,
+    client_start_id: str,
+    claim_generation: int,
+    response_json: dict,
+) -> bool:
+    """Atomically publish a prepared session only for the current start owner."""
+    store = get_storage()
+    if not hasattr(store, "commit_claimed_session_start"):
+        raise RuntimeError("storage_missing_claimed_session_commit")
+    runtime = _prepared_runtime_record(state)
+    committed = await store.commit_claimed_session_start(
+        user_id=state["user_id"],
+        client_start_id=client_start_id,
+        claim_generation=claim_generation,
+        session_record=_prepared_session_record(state),
+        runtime_record=runtime,
+        messages=list(runtime["state_snapshot"].get("messages") or []),
+        response_json=response_json,
+    )
+    if committed:
+        SessionStore[state["session_id"]] = state
+        save_sessions()
+    return bool(committed)
+
+
 async def _record_opening_attempt(state: dict) -> None:
     """Persist the billing/attempt ledger once the learner can use the session."""
     store = get_storage()
@@ -622,6 +2863,20 @@ async def _record_opening_attempt(state: dict) -> None:
         state["competency_node"],
         float(state.get("current_mastery") or 0.0),
     )
+
+
+async def _mark_committed_opening_replayed(state: dict, opening_key: str) -> None:
+    """Replay a committed opening without leaving the session input-blocked."""
+    await _record_opening_attempt(state)
+    state["opening_streamed"] = True
+    pending_transition = state.get("pending_node_transition")
+    if isinstance(pending_transition, dict) and pending_transition.get("transition_id") == opening_key:
+        pending_transition["status"] = "committed"
+        state["pending_node_transition"] = None
+    if state.get("status", "active") == "active" and not state.get("pending_node_transition"):
+        state["input_allowed"] = True
+        state["block_reason"] = None
+    await _persist_runtime_state(state)
 
 
 def _hydrate_runtime_state(row: dict) -> dict:
@@ -680,24 +2935,115 @@ async def get_session_state(session_id: str) -> dict | None:
     return state
 
 
+def _runtime_freshness(value: object) -> float:
+    if value is None:
+        return 0.0
+    timestamp = getattr(value, "timestamp", None)
+    if callable(timestamp):
+        return float(timestamp())
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+async def get_resumable_active_session_for_start(
+    user_id: str,
+    node_id: str,
+    *,
+    test_mode: bool = False,
+) -> tuple[str, dict] | None:
+    """Return an active same-user/node/mode session for idempotent start/resume."""
+    if node_id not in all_node_ids():
+        return None
+    task_type = task_type_of(node_id, test_mode=test_mode).value
+    candidates: list[tuple[dict, float]] = []
+    for session_id, state in list(SessionStore.items()):
+        if (
+            state.get("user_id") == user_id
+            and state.get("competency_node") == node_id
+            and state.get("task_type") == task_type
+            and state.get("status", "active") == "active"
+            and not state.get("session_over")
+        ):
+            if _expire_state_if_needed(state):
+                await _persist_runtime_state(state)
+                continue
+            candidates.append((state, _runtime_freshness(state.get("last_seen_at"))))
+
+    store = get_storage()
+    if hasattr(store, "get_active_session_runtime_for_node"):
+        row = await store.get_active_session_runtime_for_node(
+            user_id,
+            node_id,
+            task_type,
+            bool(test_mode),
+        )
+        if row:
+            state = _hydrate_runtime_state(row)
+            if not state.get("session_over"):
+                if _expire_state_if_needed(state):
+                    await _persist_runtime_state(state)
+                else:
+                    candidates.append((state, _runtime_freshness(row.get("updated_at"))))
+
+    if not candidates:
+        return None
+    newest_by_session: dict[str, tuple[dict, float]] = {}
+    for state, updated_at in candidates:
+        session_id = str(state.get("session_id") or "")
+        current = newest_by_session.get(session_id)
+        if session_id and (current is None or updated_at >= current[1]):
+            newest_by_session[session_id] = (state, updated_at)
+    state, _updated_at = max(newest_by_session.values(), key=lambda item: item[1])
+    SessionStore[state["session_id"]] = state
+    return state["session_id"], state
+
+
 async def handoff_transition_to_session(
     source_session_id: str,
     source_transition_id: str,
     target_session_id: str,
     target_node_id: str,
     user_id: str,
+    *,
+    same_skill_reattempt: bool = False,
 ) -> None:
-    """Close a completed source session after its next skill starts elsewhere."""
+    """Close a completed source after its next skill or same-skill drill starts."""
     state = await get_session_state(source_session_id)
     if state is None or state.get("user_id") != user_id:
         raise ValueError("source_session_not_found")
+
+    prior_handoff = state.get("last_handed_off_transition")
+    if (
+        isinstance(prior_handoff, dict)
+        and prior_handoff.get("transition_id") == source_transition_id
+        and prior_handoff.get("handoff_session_id") == target_session_id
+        and state.get("handoff_session_id") == target_session_id
+    ):
+        await _persist_runtime_state(state)
+        await get_storage().end_session(
+            source_session_id,
+            final_summary=(
+                f"Practice continued in session {target_session_id}."
+                if same_skill_reattempt
+                else f"Next skill continued in session {target_session_id}."
+            ),
+            avg_score=float(state.get("current_mastery") or 0.0),
+        )
+        return
 
     pending = state.get("pending_node_transition")
     if not isinstance(pending, dict):
         raise ValueError("source_transition_missing")
     if pending.get("transition_id") != source_transition_id:
         raise ValueError("source_transition_mismatch")
-    if pending.get("to_node") != target_node_id:
+    expected_target = (
+        pending.get("from_node")
+        if same_skill_reattempt
+        else pending.get("to_node")
+    )
+    if expected_target != target_node_id:
         raise ValueError("source_transition_target_mismatch")
 
     handed_off = dict(pending)
@@ -716,7 +3062,11 @@ async def handoff_transition_to_session(
     await _persist_runtime_state(state)
     await get_storage().end_session(
         source_session_id,
-        final_summary=f"Next skill continued in session {target_session_id}.",
+        final_summary=(
+            f"Practice continued in session {target_session_id}."
+            if same_skill_reattempt
+            else f"Next skill continued in session {target_session_id}."
+        ),
         avg_score=float(state.get("current_mastery") or 0.0),
     )
 
@@ -773,6 +3123,8 @@ def _new_state(
         # coaching sessions. Hydrated at TEST start from the precache or a
         # synchronous regeneration. Persisted (not a transient key).
         "probe_items": [],
+        "assessment_plan": None,
+        "assessment_events": [],
         "coverage_events": [],
         "pending_coverage_event": None,
         "visible_event_ledger": [],
@@ -780,6 +3132,14 @@ def _new_state(
         "floor_handoff_queue": [],
         "simulation_segments": [],
         "career_context": career_context or {},
+        "session_learning_delta": {
+            "strengths": [],
+            "active_gaps": [],
+            "repeated_issue_counts": {},
+            "growth_signals": [],
+            "resolved_candidates": [],
+            "latest_evidence_quotes": [],
+        },
         "scenario_config": scenario_config or {},
         "context_hash": context_hash or "default",
         "current_mastery": 0.0,
@@ -802,6 +3162,8 @@ def _new_state(
         "last_diagnosis": {},
         "last_rubric_result": None,
         "tutor_turn_plan": None,
+        "evaluation_retry_required": False,
+        "evaluation_integrity_failure": None,
         "last_eval_score": 0.0,
         "bridge_attempts": 0,
         "clarify_attempts": 0,
@@ -825,6 +3187,7 @@ def _new_state(
         "pending_game": None,
         "active_game_prompt": None,
         "active_prompt_attempt_type": None,
+        "pending_prompt_attempt_type": None,
         # Spec B: the selector's read of the most recent advance (transient).
         "last_selection": None,
         "last_route": None,
@@ -847,6 +3210,9 @@ def _new_state(
         "independent_passes": 0,
         "transfer_passes": 0,
         "pressure_passes": 0,
+        "core_qualified": False,
+        "core_qualification_turn_id": None,
+        "core_qualification_evidence": None,
         "scaffold_successes": 0,
         "meaningful_attempts": 0,
         "readiness_score": 0.0,
@@ -904,7 +3270,6 @@ async def touch_session_async(session_id: str, now: float | None = None) -> None
     store = get_storage()
     if hasattr(store, "touch_session_runtime"):
         await store.touch_session_runtime(session_id, state.get("status", "active"))
-    await _persist_runtime_state(state)
 
 
 async def cleanup_sessions(now: float | None = None) -> list[str]:
@@ -955,6 +3320,8 @@ async def start_session(
     test_mode: bool = False,
     reattempt: bool = False,
     simulation_config: dict | None = None,
+    session_id: str | None = None,
+    persist: bool = True,
 ) -> tuple[str, dict]:
     """Create a session, return (session_id, state). Opening msg streamed via
     stream_opening(). Loads prior memory for this node (best-effort).
@@ -974,7 +3341,7 @@ async def start_session(
     # skip these, so a normal flow never lands here; this guards a direct id.
     if is_voice_node(node_id):
         raise ValueError(f"voice practice is coming soon: {node_id}")
-    session_id = uuid.uuid4().hex
+    session_id = session_id or uuid.uuid4().hex
     # task_type is the pedagogy axis (TaskType value) storage keys memory and
     # weaknesses on; module_id is the registry module that owns the node. They
     # diverge for interview/group_discussion (prep vs. test); test_mode picks the
@@ -992,11 +3359,24 @@ async def start_session(
     weakness_context: list = []
     current_mastery = 0.0
     attempts = 0
+    loaded_progress: dict = {}
 
     store = get_storage()
     await store.ensure_profile(user_id, learner_name)
     prof = await store.get_profile(user_id) or {}
     career_context = build_career_context(prof)
+    career_context_private = career_context.private_dict()
+    try:
+        career_context_private["career_memory_context"] = (
+            await CareerLearningProfileService(store).get_career_memory_context(user_id)
+        )
+    except Exception:
+        logger.warning(
+            "career memory context unavailable for user=%s; continuing without feed-forward context",
+            user_id,
+            exc_info=True,
+        )
+        career_context_private["career_memory_context"] = {}
     resolved_sim = resolve_simulation_config(
         task_type_enum,
         node_id,
@@ -1010,6 +3390,7 @@ async def start_session(
         raise ProgressionUnavailableError("progression_unavailable") from e
     for p in progression:
         if p["node_id"] == node_id:
+            loaded_progress = dict(p)
             current_mastery = p["ema"]
             attempts = p["attempts"]
             break
@@ -1047,7 +3428,7 @@ async def start_session(
     if attempts > 0:
         for mem in memory_context:
             if mem.get("node_id") == node_id and mem.get("raw"):
-                last_summary = mem.get("raw")
+                last_summary = sanitize_memory_text(mem.get("raw"))
                 break
 
     # Seed the assessment topic from the node, sharpened by the learner's top
@@ -1068,15 +3449,39 @@ async def start_session(
         task_type,
         module_id,
         sim_topic,
-        career_context=career_context.private_dict(),
+        career_context=career_context_private,
         scenario_config=resolved_sim.public_dict(),
         personas=resolved_sim.persona_roster if is_test else None,
         context_hash=resolved_sim.context_hash,
     )
+    state["session_learning_delta"] = {
+        "strengths": [],
+        "active_gaps": [],
+        "repeated_issue_counts": {},
+        "growth_signals": [],
+        "resolved_candidates": [],
+        "latest_evidence_quotes": [],
+    }
     
     # Apply loaded progress
     state["current_mastery"] = current_mastery
     state["attempts"] = attempts
+    if task_type in {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}:
+        for key in (
+            "node_mastered",
+            "display_status",
+            "best_independent_score",
+            "independent_passes",
+            "transfer_passes",
+            "pressure_passes",
+            "scaffold_successes",
+            "meaningful_attempts",
+            "readiness_score",
+            "last_gap",
+            "mastery_evidence",
+        ):
+            if key in loaded_progress and loaded_progress[key] is not None:
+                state[key] = loaded_progress[key]
     state["reattempt"] = bool(reattempt)
     # Spaced-review skills (school): mastered-but-stale, re-checked in the opening.
     state["review_context"] = review_skills
@@ -1103,24 +3508,25 @@ async def start_session(
         state["probe_items"] = await _load_or_generate_probe_items(
             user_id,
             task_type,
-            career_context=career_context.private_dict(),
+            career_context=career_context_private,
             scenario_config=resolved_sim.private_dict(),
             context_hash=resolved_sim.context_hash,
         )
-    await store.create_session(
-        session_id,
-        user_id,
-        task_type,
-        module_id,
-        node_id,
-        test_mode=is_test,
-        career_context=career_context.private_dict(),
-        scenario_config=resolved_sim.private_dict(),
-        persona_roster=resolved_sim.persona_roster if is_test else [],
-        context_hash=resolved_sim.context_hash,
-    )
-    SessionStore[session_id] = state
-    await _persist_runtime_state(state)
+        ensure_assessment_plan(state)
+    state["_prepared_session_record"] = {
+        "session_id": session_id,
+        "user_id": user_id,
+        "task_type": task_type,
+        "module_id": module_id,
+        "node_id": node_id,
+        "test_mode": is_test,
+        "career_context": career_context_private,
+        "scenario_config": resolved_sim.private_dict(),
+        "persona_roster": resolved_sim.persona_roster if is_test else [],
+        "context_hash": resolved_sim.context_hash,
+    }
+    if persist:
+        await commit_prepared_session(state)
     return session_id, state
 
 
@@ -1131,6 +3537,294 @@ def _gd_sim_topic(state: dict) -> str:
     if state.get("task_type") == TaskType.GD_TEST.value:
         return state.get("sim_topic", "")
     return ""
+
+
+def _opening_fallback_text(state: dict, node) -> str:
+    task_type = state.get("task_type")
+    if task_type == TaskType.GD_TEST.value:
+        topic = _gd_sim_topic(state) or "the assigned motion"
+        return (
+            f"Today's group discussion focuses on the motion: \"{topic}\". "
+            "State your position in one or two sentences, then give one concrete reason."
+        )
+    if task_type == TaskType.INTERVIEW_TEST.value:
+        role = str(
+            (state.get("scenario_config") or {}).get("role")
+            or (state.get("scenario_config") or {}).get("target_role")
+            or state.get("interview_role")
+            or "this role"
+        )
+        title = str(getattr(node, "title", "") or "").lower()
+        if "star" in title:
+            return (
+                f"Let's begin the {role} interview. Tell me about a specific project or situation using STAR: "
+                "what was the situation, what was your task, what actions did you take, and what changed as a result?"
+            )
+        if "weakness" in title:
+            return (
+                f"Let's begin the {role} interview. What is one real weakness you are working on, "
+                "and what evidence shows you are improving it?"
+            )
+        if "strength" in title:
+            return (
+                f"Let's begin the {role} interview. What is one strength you would bring to this role? "
+                "Back it with a specific example and result."
+            )
+        return (
+            f"Let's begin the {role} interview. Answer this as you would in a real interview: "
+            f"{getattr(node, 'title', 'Tell me about your experience')}."
+        )
+    if task_type == TaskType.GD_PREP.value:
+        career_context = state.get("career_context") or {}
+        topics = (
+            career_context.get("gd_topics")
+            or career_context.get("custom_gd_topics")
+            or []
+        )
+        topic = str(
+            state.get("sim_topic")
+            or (state.get("scenario_config") or {}).get("topic")
+            or (topics[0] if isinstance(topics, list) and topics else "")
+            or "Should remote work be the default?"
+        ).strip()
+        node_id = str(getattr(node, "id", "") or "")
+        tasks = {
+            "gd_01_take_a_stance": (
+                "The moderator has opened the floor. State a clear position on the motion "
+                "and give one concrete reason before anyone else responds."
+            ),
+            "gd_02_support_with_evidence": (
+                "A participant has made a broad claim without proof. State your position, "
+                "then support it with one concrete example, metric, or causal reason."
+            ),
+            "gd_03_take_the_floor": (
+                "Two participants have spoken and there is a short pause. Enter naturally by "
+                "linking one prior idea to a new implication of your own."
+            ),
+            "gd_04_build_on_others": (
+                "The Analyst has raised a valid implementation point. Credit that point, then "
+                "extend it with one new consequence or practical proposal."
+            ),
+            "gd_05_disagree_respectfully": (
+                "A participant says the motion's main benefit outweighs every risk. Concede one "
+                "valid benefit, then disagree with a topic-based reason without attacking them."
+            ),
+            "gd_06_balanced_view": (
+                "One participant supports the motion for its potential benefits; another opposes "
+                "it because of implementation risks. State the strongest point on each side, "
+                "weigh the decisive trade-off, and land on a clear recommendation."
+            ),
+            "gd_07_steer_back": (
+                "The panel has drifted into unrelated workplace preferences. Flag the drift "
+                "neutrally, restate the core motion, and offer the next useful angle to examine."
+            ),
+            "gd_08_include_quiet": (
+                "The Analyst and Challenger have spoken twice, but Maya has not entered. "
+                "Address Maya directly, link her invitation to one useful topic lens, and give "
+                "her the floor without pressure."
+            ),
+            "gd_09_manage_dominator": (
+                "A dominant participant interrupts and repeats the same argument. Reclaim the "
+                "floor calmly by acknowledging the useful part, add one topic-linked point, "
+                "and create room for another participant."
+            ),
+            "gd_10_drive_consensus": (
+                "Maya says the evidence supports the motion; Dev says it is too mixed to accept "
+                "without qualification. Summarize both positions, name their shared need for a "
+                "reliable decision standard, and propose a concrete next step that credits both."
+            ),
+        }
+        task = tasks.get(
+            node_id,
+            "Add one substantive contribution to the discussion and move the group forward.",
+        )
+        return f"Group discussion motion: \"{topic}\" {task}"
+    return f"Let's practice {getattr(node, 'title', 'this skill')}. Give your best attempt now."
+
+
+def _assessment_opening_text(state: dict, node) -> str:
+    """Return a deterministic first prompt for scored simulations.
+
+    Test-mode openings must never depend on a slow model stream. The actual
+    assessment turn still uses the structured model boundary after the learner
+    answers; this only makes the first visible prompt reliable and aligned with
+    the backend-owned plan.
+    """
+    task_type = state.get("task_type")
+    if task_type == TaskType.GD_TEST.value:
+        return _opening_fallback_text(state, node)
+    if task_type != TaskType.INTERVIEW_TEST.value:
+        return ""
+
+    plan = state.get("assessment_plan") if isinstance(state.get("assessment_plan"), dict) else {}
+    role = str(
+        plan.get("role")
+        or (state.get("scenario_config") or {}).get("target_role")
+        or "this role"
+    ).strip() or "this role"
+    title = str(getattr(node, "title", "") or "").lower()
+    if "star" in title:
+        prompt = (
+            f"Tell me about one specific {role} project or work situation using STAR. "
+            "What was the situation, what was your task, what action did you personally take, "
+            "and what changed as a result?"
+        )
+        prompt_id = "prompt_initial_star_story"
+        skill_id = "STRUCTURE_STAR_METHOD"
+    else:
+        probes = [probe for probe in (plan.get("probe_plan") or []) if isinstance(probe, dict)]
+        first_probe = next((probe for probe in probes if str(probe.get("prompt") or "").strip()), None)
+        if not first_probe:
+            return _opening_fallback_text(state, node)
+        prompt = str(first_probe.get("prompt") or "").strip()
+        prompt_id = str(first_probe.get("prompt_id") or first_probe.get("probe_id") or "").strip() or f"prompt_{uuid.uuid4().hex[:8]}"
+        skill_id = str(first_probe.get("skill_id") or first_probe.get("probe_id") or prompt_id).strip()
+    state["active_interview_probe_prompt"] = prompt
+    state["active_interview_probe_prompt_id"] = prompt_id
+    state["active_interview_probe_skill_id"] = skill_id
+    state["pending_coverage_event"] = {
+        "event_id": f"opening:{prompt_id}",
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "skill_id": skill_id,
+        "prompt_id": prompt_id,
+        "prompt_text": prompt,
+        "answered": False,
+    }
+    used = list(state.get("used_probe_prompts") or [])
+    used.append(prompt)
+    state["used_probe_prompts"] = used[-12:]
+    state["probe_cursor"] = max(1, int(state.get("probe_cursor") or 0))
+    learner = str(state.get("learner_name") or "").strip()
+    greeting = f"Welcome, {learner}. " if learner else "Welcome. "
+    return f"{greeting}We'll focus on {role}. {prompt}"
+
+
+def _append_opening_message_once(state: dict, message: dict) -> bool:
+    """Append an opening message only if this opening is not already visible.
+
+    Browser bootstrap can race a transcript restore against an opening retry. The
+    session state owns the authoritative transcript, so protect it here too:
+    same message_id wins, and for older persisted rows without message_id the
+    opening kind + node + transition + content tuple is treated as the identity.
+    """
+    messages = state.setdefault("messages", [])
+    message_id = str(message.get("message_id") or "").strip()
+    node_id = message.get("node_id")
+    transition_id = message.get("transition_id")
+    content = str(message.get("content") or "")
+    for existing in messages:
+        if not isinstance(existing, dict):
+            continue
+        if message_id and existing.get("message_id") == message_id:
+            return False
+        if (
+            existing.get("role") == "assistant"
+            and existing.get("message_kind") == "opening"
+            and existing.get("node_id") == node_id
+            and existing.get("transition_id") == transition_id
+            and str(existing.get("content") or "") == content
+        ):
+            if message_id and not existing.get("message_id"):
+                existing["message_id"] = message_id
+            return False
+    messages.append(message)
+    state["turn_count"] = int(state.get("turn_count") or 0) + 1
+    return True
+
+
+def _append_simulation_messages_once(state: dict, speaker_messages: list[dict]) -> int:
+    """Append streamed simulation messages without persisting adjacent duplicates.
+
+    The browser can reconnect or replay a just-completed stream while the same
+    persona text is already visible. Keep the transcript authoritative by
+    collapsing only identical adjacent assistant simulation turns from the same
+    speaker; different speakers or different text remain separate GD segments.
+    """
+    messages = state.setdefault("messages", [])
+    appended = 0
+    for message in speaker_messages:
+        text = " ".join(str(message.get("content") or "").split())
+        speaker_id = str(message.get("speaker_id") or "")
+        previous = messages[-1] if messages and isinstance(messages[-1], dict) else None
+        previous_text = " ".join(str((previous or {}).get("content") or "").split())
+        if (
+            previous
+            and previous.get("role") == "assistant"
+            and previous.get("message_kind") == "simulation_turn"
+            and str(previous.get("speaker_id") or "") == speaker_id
+            and previous_text == text
+        ):
+            continue
+        messages.append(message)
+        appended += 1
+    return appended
+
+
+async def _stream_generation_with_timeout(
+    spec: GenSpec,
+    timeout_seconds: float | None = None,
+) -> AsyncIterator[str]:
+    """Yield model tokens, but never let an opening hang the session shell."""
+    token_timeout = OPENING_STREAM_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    stream = stream_generation(spec).__aiter__()
+    while True:
+        try:
+            yield await asyncio.wait_for(stream.__anext__(), timeout=token_timeout)
+        except StopAsyncIteration:
+            break
+        except asyncio.TimeoutError:
+            aclose = getattr(stream, "aclose", None)
+            if callable(aclose):
+                try:
+                    await aclose()
+                except Exception:
+                    logger.debug("opening stream close after timeout failed", exc_info=True)
+            raise
+
+
+def _int01_reattempt_opening_text(state: dict) -> str | None:
+    if (
+        not state.get("reattempt")
+        or state.get("task_type") != TaskType.INTERVIEW_PREP.value
+        or state.get("competency_node") != "int_01_elevator_pitch"
+    ):
+        return None
+
+    independent_passes = int(state.get("independent_passes") or 0)
+    transfer_passes = int(state.get("transfer_passes") or 0)
+    pressure_passes = int(state.get("pressure_passes") or 0)
+    if (
+        transfer_passes >= 1
+        and pressure_passes < 1
+        and qualified_core_evidence(state, "int_01_elevator_pitch")
+    ):
+        state["pending_prompt_attempt_type"] = "pressure"
+        return (
+            "Your role, proof, and direction are already covered, so do not rewrite the pitch. "
+            "Pressure check: a skeptical interviewer asks, 'How do I know this result would "
+            "repeat or scale beyond one situation?' Answer that one pushback using only "
+            "evidence from your own experience."
+        )
+    if transfer_passes >= 1 and pressure_passes < 1:
+        state["pending_prompt_attempt_type"] = "independent"
+        return (
+            "I need one grounded pitch before I can challenge the evidence. Introduce yourself "
+            "again using a different real achievement from your own experience."
+        )
+    if independent_passes >= 2 and transfer_passes < 1:
+        state["pending_prompt_attempt_type"] = "transfer"
+        return (
+            "Your core pitch is already covered, so do not repeat it. Transfer check: create "
+            "a second 30-second introduction for a non-technical hiring manager using a "
+            "different achievement while preserving role, proof, and direction."
+        )
+    if independent_passes >= 1:
+        state["pending_prompt_attempt_type"] = "independent"
+        return (
+            "Keep your existing pitch unchanged. Introduce yourself again using a different "
+            "real achievement, with role, proof, and direction all present."
+        )
+    return None
 
 
 async def stream_opening(
@@ -1147,7 +3841,7 @@ async def stream_opening(
     pending_transition = state.get("pending_node_transition")
     committed = state.setdefault("committed_openings", {})
     if transition_id and transition_id in committed:
-        await _record_opening_attempt(state)
+        await _mark_committed_opening_replayed(state, transition_id)
         yield committed[transition_id]
         return
     opening_key = (
@@ -1159,8 +3853,83 @@ async def stream_opening(
         raise ValueError("transition_id_mismatch")
 
     if opening_key in committed:
-        await _record_opening_attempt(state)
+        await _mark_committed_opening_replayed(state, opening_key)
         yield committed[opening_key]
+        return
+
+    reattempt_opening = _int01_reattempt_opening_text(state)
+    if reattempt_opening:
+        message_id = f"{session_id}:opening:{opening_key}"
+        message = {
+            "message_id": message_id,
+            "role": "assistant",
+            "content": reattempt_opening,
+            "node_id": state["competency_node"],
+            "transition_id": None,
+            "message_kind": "opening",
+        }
+        _append_opening_message_once(state, message)
+        committed[opening_key] = reattempt_opening
+        state["last_opening_message_id"] = message_id
+        _commit_pending_prompt_attempt_type(state)
+        await _record_opening_attempt(state)
+        state["opening_streamed"] = True
+        await _persist_runtime_state(state)
+        yield reattempt_opening
+        return
+
+    deterministic_prep_opening = (
+        _int05_opening_text(state)
+        if state.get("task_type") == TaskType.INTERVIEW_PREP.value
+        and state.get("competency_node") == "int_05_why_this_role"
+        else ""
+    )
+    if deterministic_prep_opening:
+        message_id = f"{session_id}:opening:{opening_key}"
+        message = {
+            "message_id": message_id,
+            "role": "assistant",
+            "content": deterministic_prep_opening,
+            "node_id": state["competency_node"],
+            "transition_id": pending_transition.get("transition_id") if pending_transition else None,
+            "message_kind": "opening",
+        }
+        _append_opening_message_once(state, message)
+        committed[opening_key] = deterministic_prep_opening
+        state["last_opening_message_id"] = message_id
+        await _record_opening_attempt(state)
+        state["opening_streamed"] = True
+        if pending_transition:
+            pending_transition["status"] = "committed"
+            state["pending_node_transition"] = None
+        await _persist_runtime_state(state)
+        yield deterministic_prep_opening
+        return
+
+    deterministic_test_opening = _assessment_opening_text(state, node)
+    if deterministic_test_opening and not pending_transition:
+        message_id = f"{session_id}:opening:{opening_key}"
+        opening_speaker = (
+            {"speaker_name": "Moderator", "speaker_id": "moderator_timekeeper"}
+            if state.get("task_type") == TaskType.GD_TEST.value
+            else {"speaker_name": "Interviewer", "speaker_id": "interviewer"}
+        )
+        message = {
+            "message_id": message_id,
+            "role": "assistant",
+            "content": deterministic_test_opening,
+            "node_id": state["competency_node"],
+            "transition_id": None,
+            "message_kind": "opening",
+            **opening_speaker,
+        }
+        _append_opening_message_once(state, message)
+        committed[opening_key] = deterministic_test_opening
+        state["last_opening_message_id"] = message_id
+        await _record_opening_attempt(state)
+        state["opening_streamed"] = True
+        await _persist_runtime_state(state)
+        yield deterministic_test_opening
         return
 
     if pending_transition:
@@ -1184,9 +3953,12 @@ async def stream_opening(
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
     try:
-        async for tok in stream_generation(spec):
+        async for tok in _stream_generation_with_timeout(spec):
             full.append(tok)
             yield tok
+    except asyncio.TimeoutError:
+        logger.warning("opening stream timed out; using fallback for session=%s", session_id)
+        full = []
     except Exception:
         if pending_transition and int(pending_transition.get("attempts") or 0) < 2:
             pending_transition["status"] = "opening_failed"
@@ -1196,7 +3968,7 @@ async def stream_opening(
         full = []
     text = "".join(full)
     if not text.strip():
-        text = "This skill is ready. Let's begin."
+        text = _opening_fallback_text(state, node)
         yield text
     message_id = f"{session_id}:opening:{opening_key}"
     message = {
@@ -1207,8 +3979,7 @@ async def stream_opening(
         "transition_id": pending_transition.get("transition_id") if pending_transition else None,
         "message_kind": "opening",
     }
-    state["messages"].append(message)
-    state["turn_count"] += 1
+    _append_opening_message_once(state, message)
     committed[opening_key] = text
     state["last_opening_message_id"] = message_id
     # Mark the opening as streamed so a reload rehydrates instead of replaying it.
@@ -1246,14 +4017,17 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
     try:
-        async for tok in stream_generation(spec):
+        async for tok in _stream_generation_with_timeout(spec):
             full.append(tok)
             yield tok
+    except asyncio.TimeoutError:
+        logger.warning("node opening stream timed out; using fallback for session=%s", state.get("session_id"))
+        full = []
     except Exception:
         full = []
     text = "".join(full).strip()
     if not text:
-        text = "The next skill is ready. Let's begin."
+        text = _opening_fallback_text(state, node)
         yield text
     state["messages"].append({"role": "assistant", "content": text})
     state["turn_count"] += 1
@@ -1285,14 +4059,172 @@ def _append_user_turn_message(
     if client_turn_id:
         message["turn_id"] = client_turn_id
         message["message_id"] = f"{state['session_id']}:turn:{client_turn_id}:user"
+    assessment_action = state.get("client_assessment_action")
+    if isinstance(assessment_action, dict):
+        message["assessment_action"] = dict(assessment_action)
     state["messages"].append(message)
     return True
+
+
+async def _hydrate_core_qualification(state: dict) -> None:
+    if state.get("task_type") not in {
+        TaskType.INTERVIEW_PREP.value,
+        TaskType.GD_PREP.value,
+    }:
+        return
+    if _has_valid_core_qualification(state):
+        return
+    if state.get("core_qualified") or state.get("core_qualification_evidence"):
+        state["core_qualified"] = False
+        state["core_qualification_turn_id"] = None
+        state["core_qualification_evidence"] = None
+    if int(state.get("independent_passes") or 0) < 2:
+        return
+    store = get_storage()
+    loader = getattr(store, "get_latest_passing_turn_evaluation", None)
+    if not callable(loader):
+        return
+    row = await loader(
+        state["user_id"],
+        state["competency_node"],
+        "independent",
+    )
+    evaluation_id = str((row or {}).get("evaluation_id") or "")
+    valid_row = bool(
+        evaluation_id
+        and (row or {}).get("user_id") == state.get("user_id")
+        and (row or {}).get("node_id") == state.get("competency_node")
+        and (row or {}).get("attempt_type") == "independent"
+        and (row or {}).get("pass_eligible") is True
+        and not (row or {}).get("blockers")
+    )
+    if valid_row:
+        context_json = (row or {}).get("context_json") or {}
+        hydrated_topic = str(context_json.get("active_topic") or "").strip()
+        if state.get("task_type") == TaskType.GD_PREP.value and not hydrated_topic:
+            return
+        state["core_qualified"] = True
+        state["core_qualification_turn_id"] = evaluation_id
+        state["core_qualification_evidence"] = {
+            "evaluation_id": evaluation_id,
+            "user_id": (row or {}).get("user_id"),
+            "node_id": (row or {}).get("node_id"),
+            "attempt_type": (row or {}).get("attempt_type"),
+            "pass_eligible": bool((row or {}).get("pass_eligible")),
+            "blockers": list((row or {}).get("blockers") or []),
+            "effective_score": float((row or {}).get("effective_score") or 0.0),
+            "learner_answer": str((row or {}).get("user_answer") or "").strip(),
+            "active_topic": (
+                hydrated_topic
+                if state.get("task_type") == TaskType.GD_PREP.value
+                else ""
+            ),
+        }
+
+
+def _has_valid_core_qualification(state: dict) -> bool:
+    source = str(state.get("core_qualification_turn_id") or "")
+    evidence = state.get("core_qualification_evidence")
+    return bool(
+        state.get("core_qualified")
+        and source
+        and isinstance(evidence, dict)
+        and evidence.get("evaluation_id") == source
+        and evidence.get("user_id") == state.get("user_id")
+        and evidence.get("node_id") == state.get("competency_node")
+        and evidence.get("attempt_type") == "independent"
+        and evidence.get("pass_eligible") is True
+        and bool(str(evidence.get("learner_answer") or "").strip())
+        and (
+            state.get("task_type") != TaskType.GD_PREP.value
+            or bool(str(evidence.get("active_topic") or "").strip())
+        )
+        and not evidence.get("blockers")
+    )
+
+
+async def refresh_session_recap(state: dict) -> dict | None:
+    """Build an honest recap from durable module progress for ended prep sessions."""
+    if not state.get("module_done"):
+        return state.get("session_recap")
+    current_node_id = str(state.get("competency_node") or "")
+    recap_nodes = [
+        get_node(node_id).title
+        for node_id in state.get("node_history", {}).keys()
+    ]
+    recap_weaknesses = list(state.get("weakness_context", []))
+    recap_readiness = round(float(state.get("readiness_score") or 0.0), 4)
+    if state.get("task_type") in {"interview_prep", "gd_prep"}:
+        try:
+            module = get_module(module_of(current_node_id))
+            module_node_ids = {
+                node.id for node in module.nodes if not is_voice_node(node.id)
+            }
+            progression = await get_storage().get_progression(state["user_id"])
+            rows = [
+                row for row in progression
+                if str(row.get("node_id") or "") in module_node_ids
+            ]
+            completed_ids = {
+                str(row.get("node_id") or "")
+                for row in rows
+                if bool(row.get("node_completed"))
+            }
+            durable_titles = [
+                node.title for node in module.nodes
+                if node.id in completed_ids and not is_voice_node(node.id)
+            ]
+            if durable_titles:
+                recap_nodes = durable_titles
+            completed_scores = [
+                float(row.get("readiness_score") or 0.0)
+                for row in rows
+                if str(row.get("node_id") or "") in completed_ids
+                and float(row.get("readiness_score") or 0.0) > 0
+            ]
+            if completed_scores:
+                recap_readiness = round(
+                    sum(completed_scores) / len(completed_scores),
+                    4,
+                )
+            recap_weaknesses = [
+                {
+                    "skill_id": str(row.get("node_id") or ""),
+                    "hit_count": 1,
+                    "last_raw": str(row.get("last_gap") or "").strip(),
+                }
+                for row in rows
+                if str(row.get("last_gap") or "").strip()
+                and not bool(row.get("node_completed"))
+            ]
+        except Exception:
+            logger.exception(
+                "could not aggregate durable career recap for session=%s",
+                state.get("session_id"),
+            )
+            if not state.get("last_gap"):
+                recap_weaknesses = []
+    recap = SessionRecap(
+        nodes_completed=recap_nodes,
+        weaknesses=recap_weaknesses,
+        score_metric=(
+            "readiness"
+            if state.get("task_type") in {"interview_prep", "gd_prep"}
+            else "mastery"
+        ),
+        readiness_score=recap_readiness,
+        mastery_score=round(float(state.get("current_mastery") or 0.0), 4),
+        avg_score=round(float(state.get("current_mastery") or 0.0), 4),
+    )
+    state["session_recap"] = asdict(recap)
+    return state["session_recap"]
 
 
 async def run_turn(
     session_id: str,
     user_input: str,
     client_turn_id: str | None = None,
+    assessment_action: dict | None = None,
 ) -> AsyncIterator[str]:
     """Process one learner answer: evaluate -> route -> stream the response.
 
@@ -1302,7 +4234,7 @@ async def run_turn(
     is held across yields, so concurrent turns on ONE session queue; different
     sessions are unaffected."""
     async with _lock_for(session_id):
-        async for tok in _run_turn_locked(session_id, user_input, client_turn_id):
+        async for tok in _run_turn_locked(session_id, user_input, client_turn_id, assessment_action):
             yield tok
 
 
@@ -1310,6 +4242,7 @@ async def _run_turn_locked(
     session_id: str,
     user_input: str,
     client_turn_id: str | None = None,
+    assessment_action: dict | None = None,
 ) -> AsyncIterator[str]:
     """run_turn body — always invoked under the session lock (see run_turn).
 
@@ -1318,6 +4251,7 @@ async def _run_turn_locked(
     plain message if the stream yields nothing (backend hiccup) so the turn
     never dies silently."""
     state = _require(session_id)
+    await _hydrate_core_qualification(state)
     block_reason = turn_block_reason(state)
     if block_reason == "awaiting_next_skill":
         raise AwaitingNextSkillError("awaiting_next_skill")
@@ -1325,12 +4259,21 @@ async def _run_turn_locked(
         raise SessionNotActiveError(block_reason)
     user_input = (user_input or "")[:MAX_INPUT_CHARS]
     state["user_input"] = user_input
+    if state.get("task_type") in _TEST_TASK_TYPES and assessment_action:
+        state["client_assessment_action"] = dict(assessment_action)
+    else:
+        state.pop("client_assessment_action", None)
+    client_action_kind = (
+        str((state.get("client_assessment_action") or {}).get("kind") or "")
+        if isinstance(state.get("client_assessment_action"), dict)
+        else ""
+    )
     is_test_end_control = state.get("task_type") in _TEST_TASK_TYPES and _is_session_end(user_input)
-    is_test_runtime_control = is_test_end_control
+    is_test_runtime_control = is_test_end_control or client_action_kind in {"clarify", "new_angle", "move_on"}
     if state.get("task_type") in _TEST_TASK_TYPES and not is_test_end_control:
         from app.services.simulation_service import is_simulation_control_input
 
-        is_test_runtime_control = is_simulation_control_input(
+        is_test_runtime_control = is_test_runtime_control or is_simulation_control_input(
             str(state.get("task_type") or ""),
             user_input,
         )
@@ -1350,6 +4293,8 @@ async def _run_turn_locked(
     # farewell instead of being scored as an off-task answer.
     if _is_session_end(user_input):
         if state.get("task_type") in _TEST_TASK_TYPES:
+            from app.services.simulation_service import Speaker
+
             if not state.get("session_over"):
                 state["session_over"] = True
                 state["input_allowed"] = False
@@ -1360,9 +4305,24 @@ async def _run_turn_locked(
                 "That's where we'll close the session. Tap finish to see your "
                 "scored feedback and where to focus next."
             )
-            state["messages"].append({"role": "assistant", "content": closing})
+            closing_speaker = (
+                {"speaker_name": "Moderator", "speaker_id": "moderator_timekeeper"}
+                if state.get("task_type") == TaskType.GD_TEST.value
+                else {"speaker_name": "Interviewer", "speaker_id": "interviewer"}
+            )
+            state["messages"].append({
+                "role": "assistant",
+                "content": closing,
+                "message_kind": "simulation_control",
+                "turn_id": client_turn_id,
+                **closing_speaker,
+            })
             _finish_active_turn(state, client_turn_id, "completed")
             await _persist_runtime_state(state)
+            yield Speaker(
+                speaker_id=closing_speaker["speaker_id"],
+                name=closing_speaker["speaker_name"],
+            )
             yield closing
             return
         _mark_terminal(state, "learner_ended")
@@ -1393,7 +4353,6 @@ async def _run_turn_locked(
         return
 
     state["active_game_prompt"] = None
-    state["active_prompt_attempt_type"] = None
 
     # TEST-mode (assessment) turns run a multi-persona SIMULATION, not the
     # coaching graph: record the learner's contribution, stream the panel's next
@@ -1406,13 +4365,30 @@ async def _run_turn_locked(
         # round cap set session_over). Don't run another round — wind down and
         # point the learner at their scored recap (via /end).
         if state.get("session_over"):
+            from app.services.simulation_service import Speaker
+
             closing = (
                 "That's where we'll close the session. Tap finish to see your "
                 "scored feedback and where to focus next."
             )
-            state["messages"].append({"role": "assistant", "content": closing})
+            closing_speaker = (
+                {"speaker_name": "Moderator", "speaker_id": "moderator_timekeeper"}
+                if state.get("task_type") == TaskType.GD_TEST.value
+                else {"speaker_name": "Interviewer", "speaker_id": "interviewer"}
+            )
+            state["messages"].append({
+                "role": "assistant",
+                "content": closing,
+                "message_kind": "simulation_control",
+                "turn_id": client_turn_id,
+                **closing_speaker,
+            })
             _finish_active_turn(state, client_turn_id, "completed")
             await _persist_runtime_state(state)
+            yield Speaker(
+                speaker_id=closing_speaker["speaker_id"],
+                name=closing_speaker["speaker_name"],
+            )
             yield closing
             return
         speaker_messages: list[dict] = []
@@ -1447,8 +4423,9 @@ async def _run_turn_locked(
             await _persist_runtime_state(state)
             raise
         flush_speaker_message()
-        state["messages"].extend(speaker_messages)
+        _append_simulation_messages_once(state, speaker_messages)
         state["turn_count"] += 1
+        state.pop("client_assessment_action", None)
         if not state.get("session_over"):
             _bump_session_version(state)
         _finish_active_turn(state, client_turn_id, "completed")
@@ -1466,9 +4443,41 @@ async def _run_turn_locked(
 
     # Graph = decision brain: evaluate the answer, pick the pedagogy move,
     # build its prompt. Returns partial-state updates we merge back.
+    if state.get("task_type") == TaskType.GD_PREP.value:
+        state["last_evaluated_gd_topic"] = _gd_prompt_topic_for_state(state)
     graph = get_graph()
     updates = await graph.ainvoke(state)
     state.update(updates)
+    _stage_pending_prompt_attempt_type(
+        state,
+        pre_scored_snapshot.get("active_prompt_attempt_type"),
+    )
+
+    if did_eval and state.get("evaluation_retry_required"):
+        state["active_game_prompt"] = None
+        state["pending"] = None
+        state["pending_game"] = None
+        state["pending_prompt_attempt_type"] = None
+        state["messages"].append({
+            "role": "assistant",
+            "content": _EVALUATION_RETRY_TEXT,
+            "node_id": state.get("competency_node"),
+            "turn_id": client_turn_id,
+            "message_kind": "evaluation_retry",
+        })
+        state["turn_count"] += 1
+        _bump_session_version(state)
+        _finish_active_turn(state, client_turn_id, "completed")
+        await _persist_runtime_state(state)
+        yield _EVALUATION_RETRY_TEXT
+        return
+
+    counted_eval = did_eval and not _is_non_scorable_prep_integrity(state)
+    if did_eval and not counted_eval:
+        state["evaluation_integrity_failure"] = {
+            "code": "invalid_transfer_context",
+            "criterion_ids": ["transfer_context"],
+        }
 
     # Post-graph affect: LLM diagnosis is more reliable than regex. Upgrade
     # needs_support if the eval flagged frustration/confusion this turn.
@@ -1493,13 +4502,14 @@ async def _run_turn_locked(
 
     prev_node = state["competency_node"]
     progress_mastery: float | None = None
+    progress_readiness_score: float | None = None
     progress_clean_streak: int | None = None
     progress_attempts: int | None = None
     suppress_same_node_response = False
     advanced_or_done = False
     same_node_generation_failed = False
     scored_turn_persisted = False
-    if did_eval:
+    if counted_eval:
         _update_progress(state)
         will_attempt_advance = state.get("clean_streak", 0) >= int(
             state.get("advance_streak") or ADVANCE_STREAK
@@ -1509,6 +4519,7 @@ async def _run_turn_locked(
         # Only fires at the threshold (not every fail after it) to avoid repeated DB
         # round-trips.
         progress_mastery = round(state["current_mastery"], 4)
+        progress_readiness_score = float(state.get("readiness_score") or 0.0)
         progress_clean_streak = state.get("clean_streak", 0)
         progress_attempts = state.get("attempts", 0)
         if will_attempt_advance:
@@ -1527,6 +4538,8 @@ async def _run_turn_locked(
             # into the transcript; the frontend transition card owns the break.
             state["pending"] = None
             state["pending_game"] = None
+            state["pending_prompt_attempt_type"] = None
+            state["active_prompt_attempt_type"] = None
             suppress_same_node_response = True
 
     # Gamified path: teach_node produced a FillBlankGame instead of a GenSpec.
@@ -1536,12 +4549,23 @@ async def _run_turn_locked(
     if not suppress_same_node_response:
         game: dict | None = state.get("pending_game")
         if game is not None:
+            bridge_feedback = (
+                _deterministic_closed_bridge_feedback(state)
+                if did_eval and state.get("last_graded_bridge")
+                else ""
+            )
+            game_context = str(game.get("context", "") or "").strip()
+            if bridge_feedback:
+                game_context = " ".join(
+                    part for part in (bridge_feedback, game_context) if part
+                )
             public_game = {
                 "type": game.get("type", "fill_blank"),
                 "sentence": game.get("sentence", ""),
                 "hint": game.get("hint", ""),
-                "context": game.get("context", ""),
+                "context": game_context,
                 "options": game.get("options"),
+                "turn_id": client_turn_id,
             }
             yield GamePrompt(
                 type=public_game["type"],
@@ -1550,24 +4574,38 @@ async def _run_turn_locked(
                 context=public_game["context"],
                 answer_key=game.get("answer_key", ""),
                 options=public_game["options"],
+                turn_id=client_turn_id,
             )
             state["active_game_prompt"] = public_game
             # Record a minimal assistant turn so conversation history stays valid.
             state["messages"].append({
                 "role": "assistant",
-                "content": f"[Fill in the blank] {game.get('sentence', '')}",
+                "content": "\n\n".join(part for part in (
+                    bridge_feedback,
+                    f"[Fill in the blank] {game.get('sentence', '')}",
+                ) if part),
+                "turn_id": client_turn_id,
             })
+            _commit_pending_prompt_attempt_type(state)
             state["turn_count"] += 1
             state["pending_game"] = None
         else:
             spec: GenSpec | None = state.get("pending")
+            bridge_feedback = (
+                _deterministic_closed_bridge_feedback(state)
+                if did_eval and state.get("last_graded_bridge")
+                else ""
+            )
             full = []
             fallback_text = (
                 "Sorry - I lost my train of thought for a second there. "
                 "Could you try that once more for me?"
             )
             fallback_message: dict | None = None
-            if spec is not None:
+            if bridge_feedback:
+                full.append(bridge_feedback)
+                yield bridge_feedback
+            elif spec is not None:
                 try:
                     async for tok in _stream_coaching_generation(spec, state):
                         full.append(tok)
@@ -1598,6 +4636,9 @@ async def _run_turn_locked(
             if not text:
                 text = fallback_text
                 yield text
+            elif _looks_incomplete_coach_text(text):
+                text = _deterministic_coach_repair_text(state)
+                yield text
             assistant_message = {
                 "role": "assistant",
                 "content": text,
@@ -1608,6 +4649,9 @@ async def _run_turn_locked(
             state["messages"].append(assistant_message)
             state["turn_count"] += 1
             state["pending"] = None
+
+            if not same_node_generation_failed:
+                _commit_pending_prompt_attempt_type(state)
 
             if same_node_generation_failed:
                 fallback_message = assistant_message
@@ -1620,7 +4664,7 @@ async def _run_turn_locked(
                 state["messages"].append(fallback_message)
                 state["turn_count"] = int(pre_scored_snapshot.get("turn_count") or 0) + 1
 
-    if did_eval and not advanced_or_done and not same_node_generation_failed:
+    if counted_eval and not advanced_or_done and not same_node_generation_failed:
         # Same-node turns are committed only after the learner-visible assistant
         # response has streamed successfully. If response generation fails, the
         # fallback asks for a retry and the answer is not counted as progress.
@@ -1630,11 +4674,12 @@ async def _run_turn_locked(
         await _persist_mastery(state)
         scored_turn_persisted = True
 
-    if did_eval and scored_turn_persisted:
+    if counted_eval and scored_turn_persisted:
         # Emit per-turn mastery update so the UI progress bar animates mid-stream.
         yield ProgressUpdate(
             node_id=prev_node,
             mastery=progress_mastery or 0.0,
+            readiness_score=progress_readiness_score or 0.0,
             clean_streak=progress_clean_streak or 0,
             attempts=progress_attempts or 0,
         )
@@ -1652,14 +4697,9 @@ async def _run_turn_locked(
             )
 
         if state["module_done"]:
-            yield SessionRecap(
-                nodes_completed=[
-                    get_node(node_id).title
-                    for node_id in state.get("node_history", {}).keys()
-                ],
-                weaknesses=state.get("weakness_context", []),
-                avg_score=round(state["current_mastery"], 4),
-            )
+            recap = await refresh_session_recap(state)
+            if recap:
+                yield SessionRecap(**recap)
         elif state["competency_node"] != prev_node:
             # Desync fix: the answer advanced us to a new node.
             # We yield NodeAdvance to signal the frontend, but we NO LONGER
@@ -1669,7 +4709,7 @@ async def _run_turn_locked(
                 from_node=prev_node, to_node=state["competency_node"]
             )
 
-    if did_eval and scored_turn_persisted and not advanced_or_done:
+    if did_eval and not advanced_or_done:
         _bump_session_version(state)
 
     _finish_active_turn(state, client_turn_id, "completed")
@@ -1698,6 +4738,14 @@ def _project_report_subscores(report: dict, task_type: str) -> dict:
         if k in report:
             report[k] = None
     return report
+
+
+def sanitize_simulation_report_delivery(state: dict, report: dict | None) -> dict | None:
+    if not isinstance(report, dict):
+        return report
+    from app.services.simulation_service import sanitize_report_for_delivery
+
+    return sanitize_report_for_delivery(state, report)
 
 
 async def end_session(session_id: str) -> str:
@@ -1753,15 +4801,14 @@ async def close_session(session_id: str) -> dict:
                 report.model_dump(), state.get("task_type", "")
             )
             state["simulation_report"] = report_dict
-            if report.validity_status == "final":
-                await CareerLearningProfileService(get_storage()).record_session_report(
-                    user_id=state["user_id"],
-                    session_id=session_id,
-                    report_type=state.get("task_type", "test_report"),
-                    task_type=state.get("task_type", ""),
-                    module_id=state.get("module_id", ""),
-                    report=report_dict,
-                )
+            await CareerLearningProfileService(get_storage()).record_session_report(
+                user_id=state["user_id"],
+                session_id=session_id,
+                report_type=state.get("task_type", "test_report"),
+                task_type=state.get("task_type", ""),
+                module_id=state.get("module_id", ""),
+                report=report_dict,
+            )
         except Exception:
             logger.exception("simulation scoring failed for session=%s", session_id)
             state["last_error"] = {"code": "simulation_scoring_unavailable"}
@@ -1772,6 +4819,7 @@ async def close_session(session_id: str) -> dict:
             summary = await summarize_session(node, state["messages"])
         except Exception:
             summary = ""
+        summary = sanitize_memory_text(summary)
 
     # Close + persist long-term memory. This is user history, not a cache; do
     # not silently drop it if storage fails.
@@ -1862,17 +4910,65 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
         except KeyError:
             return None
 
-    # Check active sessions for this module. A reattempt on a completed node
-    # is exposed as metadata but must not downgrade the node's durable
-    # mastered status on the map.
-    active = [
-        s for s in SessionStore.values()
-        if s.get("user_id") == user_id
-        and s.get("status", "active") == "active"
-        and _state_module(s) == module_id
-    ]
+    # Compare process-local candidates with durable state on every map read.
+    # Different workers can hold stale active sessions, so cache presence alone
+    # cannot decide which skill the learner should resume.
+    candidates: list[tuple[dict, float]] = []
+    for state in list(SessionStore.values()):
+        if (
+            state.get("user_id") != user_id
+            or state.get("status", "active") != "active"
+            or _state_module(state) != module_id
+        ):
+            continue
+        if _expire_state_if_needed(state):
+            await _persist_runtime_state(state)
+            continue
+        candidates.append((state, _runtime_freshness(state.get("last_seen_at"))))
+
+    if hasattr(store, "get_latest_active_session_runtime_for_module"):
+        row = await store.get_latest_active_session_runtime_for_module(
+            user_id,
+            module_id,
+            False,
+        )
+        if row:
+            resumed_state = _hydrate_runtime_state(row)
+            if not resumed_state.get("session_over") and _state_module(resumed_state) == module_id:
+                if _expire_state_if_needed(resumed_state):
+                    await _persist_runtime_state(resumed_state)
+                else:
+                    candidates.append((resumed_state, _runtime_freshness(row.get("updated_at"))))
+
+    if not candidates:
+        for node in module.nodes:
+            if is_voice_node(node.id):
+                continue
+            resumed = await get_resumable_active_session_for_start(
+                user_id,
+                node.id,
+                test_mode=False,
+            )
+            if resumed:
+                _session_id, resumed_state = resumed
+                if _state_module(resumed_state) == module_id:
+                    candidates.append((resumed_state, _runtime_freshness(resumed_state.get("last_seen_at"))))
+                    break
+
+    by_session: dict[str, tuple[dict, float]] = {}
+    for state, updated_at in candidates:
+        session_id = str(state.get("session_id") or "")
+        current = by_session.get(session_id)
+        if session_id and (current is None or updated_at >= current[1]):
+            by_session[session_id] = (state, updated_at)
+    ordered = sorted(by_session.values(), key=lambda item: item[1], reverse=True)
+    active = [state for state, _updated_at in ordered]
+    for state in active:
+        SessionStore[state["session_id"]] = state
     primary_active = next((s for s in active if not s.get("reattempt")), None)
     curr_node = primary_active.get("competency_node") if primary_active else None
+    if curr_node and bool((prog_by_node.get(curr_node) or {}).get("node_completed")):
+        curr_node = None
     curr_streak = primary_active.get("clean_streak", 0) if primary_active else 0
     reattempt_by_node = {
         s.get("competency_node"): s.get("session_id")
@@ -1928,12 +5024,12 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
             )
         elif is_complete:
             status = "mastered"
-        elif stored_display_status:
-            status = stored_display_status
         elif is_current:
             status = "active"
             found_active = True
-        elif not found_active:
+        elif stored_display_status == "needs_remediation":
+            status = stored_display_status
+        elif not found_active and not curr_node:
             status = "active"
             found_active = True
         else:
@@ -2072,6 +5168,14 @@ def _require(session_id: str) -> dict:
     return state
 
 
+def _is_non_scorable_prep_integrity(state: dict) -> bool:
+    result = state.get("last_rubric_result")
+    return bool(
+        isinstance(result, dict)
+        and "minimum_gate:transfer_context" in set(result.get("blockers") or [])
+    )
+
+
 def _update_progress(state: dict) -> None:
     """Fold the latest score into the clean-pass streak + down-ladder counters.
 
@@ -2104,6 +5208,8 @@ def _update_progress(state: dict) -> None:
     score = state.get("last_clean_pass_score", state.get("last_eval_score", 0.0))
     rubric_result = state.get("last_rubric_result")
     is_career_prep = state.get("task_type") in {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}
+    if is_career_prep and _is_non_scorable_prep_integrity(state):
+        return
     if is_career_prep and not isinstance(rubric_result, dict):
         # Career prep must be governed by criterion-level rubric evidence. If a
         # model/schema/runtime failure prevents that evidence from reaching the
@@ -2134,6 +5240,32 @@ def _update_progress(state: dict) -> None:
             scaffolded=bool(state.get("last_graded_bridge")),
         )
         state.update(credit)
+        if (
+            int(state.get("independent_passes") or 0) >= 2
+            and not state.get("core_qualified")
+            and str(rubric_result.get("attempt_type") or "independent") == "independent"
+            and bool(rubric_result.get("pass_eligible"))
+        ):
+            state["core_qualified"] = True
+            turn_ref = state.get("active_turn_id") or state.get("attempts") or "unknown"
+            state["core_qualification_turn_id"] = (
+                f"{state.get('session_id')}:{turn_ref}:{state.get('competency_node')}"
+            )
+            state["core_qualification_evidence"] = {
+                "evaluation_id": state["core_qualification_turn_id"],
+                "user_id": state.get("user_id"),
+                "node_id": state.get("competency_node"),
+                "attempt_type": "independent",
+                "pass_eligible": True,
+                "blockers": [],
+                "effective_score": float(rubric_result.get("effective_score") or 0.0),
+                "learner_answer": str(state.get("user_input") or "").strip(),
+                "active_topic": (
+                    _gd_prompt_topic_for_state(state)
+                    if state.get("task_type") == TaskType.GD_PREP.value
+                    else ""
+                ),
+            }
     clean_pass_eligible = score >= PASS_SCORE
     if isinstance(rubric_result, dict):
         clean_pass_eligible = (
@@ -2213,6 +5345,8 @@ async def _maybe_advance(state: dict) -> None:
     if not candidates:
         state["module_done"] = True
         _mark_terminal(state, "module_done")
+        state["active_prompt_attempt_type"] = None
+        state["pending_prompt_attempt_type"] = None
         # Module finished above the clean-rate floor -> surface a review section.
         state["review_level"] = not state["remediation"]
         # Mark the last node as completed in the DB on module finish.
@@ -2314,6 +5448,10 @@ async def _maybe_advance(state: dict) -> None:
         "from_display_status": state.get("display_status", "active"),
         "from_node_mastered": bool(state.get("node_mastered", False)),
         "from_last_gap": state.get("last_gap", ""),
+        "from_readiness_score": float(state.get("readiness_score") or 0.0),
+        "from_mastery": float(state.get("current_mastery") or 0.0),
+        "from_clean_streak": int(state.get("clean_streak") or 0),
+        "from_attempts": int(state.get("attempts") or 0),
         "to_node": decision.next_ref,
         "to_title": get_node(decision.next_ref).title,
         "status": "awaiting_next_opening",
@@ -2346,11 +5484,16 @@ async def _maybe_advance(state: dict) -> None:
     state["independent_passes"] = 0
     state["transfer_passes"] = 0
     state["pressure_passes"] = 0
+    state["core_qualified"] = False
+    state["core_qualification_turn_id"] = None
+    state["core_qualification_evidence"] = None
     state["scaffold_successes"] = 0
     state["meaningful_attempts"] = 0
     state["readiness_score"] = 0.0
     state["last_gap"] = ""
     state["mastery_evidence"] = []
+    state["active_prompt_attempt_type"] = None
+    state["pending_prompt_attempt_type"] = None
     state["opening_streamed"] = False
     state["pending_node_transition"] = transition
     state["input_allowed"] = False
@@ -2364,6 +5507,66 @@ def _passrate_below_floor(state: dict) -> bool:
         return False
     clean = sum(1 for h in history.values() if h["clean"])
     return (clean / len(history)) < PASSRATE_FLOOR
+
+
+def _append_unique_limited(items: list, value: str, *, limit: int = 8) -> None:
+    text = str(value or "").strip()
+    if not text or text in items:
+        return
+    items.append(text)
+    del items[:-limit]
+
+
+def _update_session_learning_delta(state: dict, rubric_result: dict, user_answer: str) -> None:
+    delta = state.setdefault("session_learning_delta", {
+        "strengths": [],
+        "active_gaps": [],
+        "repeated_issue_counts": {},
+        "growth_signals": [],
+        "resolved_candidates": [],
+        "latest_evidence_quotes": [],
+    })
+    delta["module_id"] = state.get("module_id") or _module_id_for_state(str(state.get("competency_node") or ""))
+    delta["task_type"] = state.get("task_type", "")
+    strengths = delta.setdefault("strengths", [])
+    active_gaps = delta.setdefault("active_gaps", [])
+    growth_signals = delta.setdefault("growth_signals", [])
+    resolved_candidates = delta.setdefault("resolved_candidates", [])
+    evidence_quotes = delta.setdefault("latest_evidence_quotes", [])
+    repeated = delta.setdefault("repeated_issue_counts", {})
+
+    for strength in rubric_result.get("strengths") or []:
+        _append_unique_limited(strengths, str(strength), limit=8)
+
+    gap = str(rubric_result.get("next_focus") or "").strip()
+    score = float(rubric_result.get("effective_score", rubric_result.get("score", 0.0)) or 0.0)
+    if gap and score < PASS_SCORE:
+        _append_unique_limited(active_gaps, gap, limit=8)
+        repeated[gap] = int(repeated.get(gap) or 0) + 1
+    elif gap and bool(rubric_result.get("pass_eligible")):
+        _append_unique_limited(growth_signals, gap, limit=8)
+    if gap and bool(rubric_result.get("mastery_eligible")):
+        _append_unique_limited(resolved_candidates, gap, limit=8)
+
+    for criterion_id in rubric_result.get("required_missing") or []:
+        criterion_key = f"criterion:{str(criterion_id or '').strip()}"
+        if criterion_key != "criterion:":
+            repeated[criterion_key] = int(repeated.get(criterion_key) or 0) + 1
+    normalized_answer = re.sub(r"\s+", " ", str(user_answer or "").strip()).lower()
+    for criterion in rubric_result.get("criteria") or []:
+        if not isinstance(criterion, dict):
+            continue
+        criterion_id = str(criterion.get("id") or "").strip()
+        if criterion_id and criterion.get("met") is False:
+            criterion_key = f"criterion:{criterion_id}"
+            repeated[criterion_key] = max(int(repeated.get(criterion_key) or 0), 1)
+        quote = " ".join(str(criterion.get("evidence_quote") or "").split())
+        if (
+            criterion.get("met") is True
+            and quote
+            and quote.lower() in normalized_answer
+        ):
+            _append_unique_limited(evidence_quotes, quote[:260], limit=8)
 
 
 async def _track_turn(state: dict, node_id: str) -> None:
@@ -2403,6 +5606,11 @@ async def _track_turn(state: dict, node_id: str) -> None:
     if rubric_result and hasattr(store, "record_turn_evaluation"):
         turn_id = state.get("active_turn_id") or state.get("last_turn_id")
         attempt_index = int(state.get("attempts") or 0)
+        _update_session_learning_delta(
+            state,
+            dict(rubric_result),
+            str(state.get("user_input") or ""),
+        )
         await store.record_turn_evaluation(
             evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
             session_id=state["session_id"],
@@ -2421,6 +5629,10 @@ async def _track_turn(state: dict, node_id: str) -> None:
             advance_eligible=state.get("display_status") in {"ready_to_advance", "mastered"},
             mastery_eligible=bool(rubric_result.get("mastery_eligible")),
             tutor_plan_json=dict(tutor_plan),
+            context_json={
+                "active_topic": str(state.get("last_evaluated_gd_topic") or ""),
+                "task_type": str(state.get("task_type") or ""),
+            },
             model_name=get_settings().ollama_model if get_settings().ai_backend == "local" else "gemini",
             prompt_version="prep-eval-v1",
         )
@@ -2601,18 +5813,31 @@ def _detect_frustration(user_input: str) -> bool:
 
 
 def _farewell(state: dict) -> str:
-    """Warm sign-off naming the learner and a micro-win, no scoring."""
+    """Evidence-calibrated sign-off naming the learner, no scoring claims."""
     name = (state.get("learner_name") or "").strip()
     who = f", {name}" if name else ""
-    streak = state.get("clean_streak", 0)
-    win = (
-        f" You strung together {streak} clean passes today — that's real progress."
-        if streak >= 1
-        else " You showed up and put in the work today, and that's how it starts."
+    streak = int(state.get("clean_streak") or 0)
+    score = float(state.get("last_eval_score") or state.get("current_mastery") or 0.0)
+    focus = (
+        (state.get("last_diagnosis") or {}).get("next_focus")
+        or state.get("next_focus")
+        or ""
     )
+    if streak >= 2:
+        note = f"You had {streak} clean passes today; keep proving that standard across harder prompts."
+    elif streak == 1:
+        note = "One clean pass landed today; next time we will check whether it holds without help."
+    elif state.get("needs_support") or score < 0.5:
+        note = (
+            f"The next useful focus is {focus.strip()}"
+            if focus
+            else "The next useful focus is one smaller, clearer revision."
+        )
+    else:
+        note = "You put in a real attempt; next time we will keep tightening the same skill."
     return (
-        f"Great session{who}.{win} Come back when you're ready and we'll pick up "
-        "right where we left off. 👋"
+        f"Session saved{who}. {note} Come back when you want to continue and "
+        "we'll pick up from this point."
     )
 
 

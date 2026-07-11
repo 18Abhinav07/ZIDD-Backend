@@ -24,6 +24,7 @@ from app.graph.nodes.challenge import challenge_node
 from app.graph.nodes.clarify import clarify_node
 from app.graph.nodes.ease import ease_node
 from app.graph.nodes.evaluate import evaluate_node
+from app.graph.nodes.evaluation_retry import evaluation_retry_node
 from app.graph.nodes.redirect import redirect_node
 from app.graph.nodes.strengthen import strengthen_node
 from app.graph.nodes.teach import teach_node
@@ -40,6 +41,7 @@ def _build() -> StateGraph:
     g = StateGraph(TutorState)
 
     g.add_node("evaluate", evaluate_node)
+    g.add_node("evaluation_retry", evaluation_retry_node)
     g.add_node("teach", teach_node)
     g.add_node("bridge", bridge_node)
     g.add_node("strengthen", strengthen_node)
@@ -62,10 +64,11 @@ def _build() -> StateGraph:
             "redirect": "redirect",
             "clarify": "clarify",
             "ease": "ease",
+            "evaluation_retry": "evaluation_retry",
         },
     )
     for node in ("evaluate", "teach", "bridge", "strengthen", "challenge",
-                 "redirect", "clarify", "ease"):
+                 "redirect", "clarify", "ease", "evaluation_retry"):
         if node != "evaluate":
             g.add_edge(node, END)
     return g

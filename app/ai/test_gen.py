@@ -26,7 +26,7 @@ from app.storage import get_storage
 __all__ = ["ProbeItem", "ProbeSet", "generate_test_items"]
 
 
-PROBE_GENERATION_TIMEOUT_SECONDS = 120.0
+PROBE_GENERATION_TIMEOUT_SECONDS = 12.0
 
 
 # Deterministic safety net: a TEST session must never open with no items, and an
@@ -232,6 +232,7 @@ async def generate_test_items(
         n_items,
         career_context=career_context or {},
         scenario_config=scenario_config or {},
+        task_type=TaskType(task_type),
     )
 
     try:

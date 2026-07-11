@@ -144,7 +144,7 @@ _RUBRICS: dict[str, PrepRubric] = {
             R("acknowledges_view", "Acknowledges the interviewer's point fairly", True, 0.6),
             R("clear_counterposition", "States a clear alternative position", True, 0.62),
             R("requirement_based_reasoning", "Ties the disagreement to requirements, constraints, or tradeoffs", True, 0.65),
-            R("collaborative_tone", "Leaves room for nuance or hybrid options without sounding combative"),
+            R("collaborative_tone", "Leaves room for nuance or hybrid options without sounding combative", True, 0.65),
         ),
     ),
     "int_10_close_strong": PrepRubric(
@@ -154,8 +154,9 @@ _RUBRICS: dict[str, PrepRubric] = {
         criteria=(
             R("specific_closing_question", "Asks a specific question about success, team, role, or priorities", True, 0.62),
             R("role_relevance", "Makes the question relevant to the target role", True, 0.65),
-            R("professional_close", "Ends with a concise confident close", True, 0.68),
-            R("non_generic", "Avoids generic feedback-only or benefits-only questions"),
+            R("role_fit_evidence", "Connects the close to specific value the learner can bring", True, 0.68),
+            R("professional_close", "Includes a concise confident close in either natural order", True, 0.68),
+            R("non_generic", "Avoids generic feedback-only or benefits-only questions", True, 0.65),
         ),
     ),
     "int_11_salary_negotiation": PrepRubric(
@@ -166,7 +167,7 @@ _RUBRICS: dict[str, PrepRubric] = {
             R("clear_anchor", "Gives a clear compensation range or anchor", True, 0.62),
             R("market_or_value_reason", "Justifies the ask with market data, scope, or value", True, 0.65),
             R("collaborative_flexibility", "Signals flexibility on structure without collapsing the ask", True, 0.68),
-            R("calm_tone", "Keeps tone calm, direct, and non-apologetic"),
+            R("calm_tone", "Keeps tone calm and direct without conceding the anchor; a courteous thank-you is not an apology", True, 0.65),
         ),
     ),
     "int_12_explain_a_gap": PrepRubric(
@@ -253,8 +254,8 @@ _RUBRICS: dict[str, PrepRubric] = {
         criteria=(
             R("names_quiet_participant", "Names or clearly addresses the quiet participant", True, 0.6),
             R("topic_linked_invite", "Connects the invitation to the active topic", True, 0.6),
-            R("respectful_floor_give", "Gives the floor respectfully without sounding performative"),
-            R("non_pressuring_tone", "Invites without embarrassing or forcing the participant"),
+            R("respectful_floor_give", "Gives the floor respectfully without sounding performative", True, 0.65),
+            R("non_pressuring_tone", "Invites without embarrassing or forcing the participant", True, 0.65),
         ),
     ),
     "gd_09_manage_dominator": PrepRubric(
@@ -265,7 +266,7 @@ _RUBRICS: dict[str, PrepRubric] = {
             R("acknowledges_contribution", "Acknowledges the dominant speaker's contribution", True, 0.6),
             R("redistributes_floor", "Redirects speaking space to the group or another participant", True, 0.62),
             R("topic_link", "Keeps the redirection tied to the discussion topic", True, 0.35),
-            R("respectful_boundary", "Sets a boundary without sounding rude"),
+            R("respectful_boundary", "Sets a boundary without sounding rude", True, 0.65),
         ),
     ),
     "gd_10_drive_consensus": PrepRubric(

@@ -192,6 +192,41 @@ def _matches_one(typ: str, key: str, options: list, user_input: str) -> bool:
 
 
 def _is_correct(pending: dict, user_input: str) -> bool:
+    exercise_id = str(pending.get("exercise_id") or "")
+    normalized = _norm(user_input)
+    if exercise_id == "int_09_diplomatic_pushback_bx1":
+        attack = re.search(
+            r"\b(?:you are wrong|you re wrong|stupid|idiot|nonsense|shut up)\b",
+            normalized,
+        )
+        grounded = re.search(
+            r"\b(?:review|reviews|payment|code|quality|rework|risk|bug|defect|test|"
+            r"release|safety|maintainability)\w*\b",
+            normalized,
+        )
+        return bool(not attack and grounded and len(normalized.split()) >= 4)
+    if exercise_id == "int_10_close_strong_bx1":
+        return bool(
+            re.search(r"\b(?:ninety|90)\s+days?\b", normalized)
+            or re.search(r"\b(?:three|3|six|6)\s+months?\b", normalized)
+        )
+    if exercise_id == "int_11_salary_negotiation_bx1":
+        values = [float(value) for value in re.findall(r"\d+(?:\.\d+)?", normalized)]
+        has_range = len(values) >= 2 and 0 < values[0] <= values[1]
+        has_unit = bool(
+            re.search(r"\b(?:lakh|lakhs|lpa|thousand|usd|inr)\b", normalized)
+            or re.search(r"\d+(?:\.\d+)?k\b", normalized)
+            or re.search(r"[$€£₹]\s*\d", str(user_input or ""))
+        )
+        return has_range and has_unit
+    if exercise_id == "int_12_explain_a_gap_bx1":
+        engaged = re.search(
+            r"\b(?:completed|studied|learned|built|worked|contributed|created|"
+            r"practiced|freelanced|volunteered|cared|certification|course|courses|"
+            r"project|projects|open\s+source|kept|current|trained|consulted)\w*\b",
+            normalized,
+        )
+        return bool(engaged and len(normalized.split()) >= 4)
     typ = pending.get("type")
     key = (pending.get("answer_key") or "").strip()
     options = pending.get("options") or []

@@ -12,6 +12,9 @@ from app.content.task_types import TaskType
 _TEST_TASK_TYPES = frozenset(
     {TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value}
 )
+_CAREER_PREP_TASK_TYPES = frozenset(
+    {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}
+)
 
 BRIDGE_ATTEMPT_CAP = 3
 CLARIFY_ATTEMPT_CAP = 3  # consecutive "say it in English" nudges before escaping to teach
@@ -25,6 +28,8 @@ MASTERY_RAISE_FLOOR = 0.6  # below this, an answer never raises EMA mastery
 
 
 def route_node(state: dict) -> str:
+    if state.get("evaluation_retry_required"):
+        return "evaluation_retry"
     score = state["last_eval_score"]
     mastery = state["current_mastery"]
     diag = state.get("last_diagnosis", {})
@@ -77,6 +82,24 @@ def route_node(state: dict) -> str:
                 return "bridge"
             return "teach"
         return "strengthen"
+    rubric = state.get("last_rubric_result")
+    if (
+        state.get("task_type") in _CAREER_PREP_TASK_TYPES
+        and isinstance(rubric, dict)
+        and bool(rubric.get("pass_eligible"))
+        and not rubric.get("required_missing")
+        and not rubric.get("blockers")
+        and str(rubric.get("attempt_type") or "independent") == "independent"
+        and int(state.get("independent_passes") or 0) >= 1
+        and int(state.get("transfer_passes") or 0) == 0
+        and int(state.get("pressure_passes") or 0) == 0
+    ):
+        # This turn is at least the learner's second independent pass. The
+        # readiness contract now needs harder-context evidence, so route into a
+        # real transfer prompt even when the pass arrived late in the session.
+        # Without this gate the clean streak remains zero, route_node returns
+        # teach forever, and transfer/pressure counters can never become nonzero.
+        return "challenge"
     # Strong answer on an established clean streak: stop re-teaching, stretch them.
     # The old `mastery > 0.8` gate was mathematically UNREACHABLE — the EMA
     # (update_mastery, alpha 0.3) asymptotes TO the score, so a learner answering a
