@@ -32,6 +32,12 @@ class GateDecision:
     reason: str          # machine tag surfaced to the quote/UI
 
 
+@dataclass(frozen=True)
+class ChargeOutcome:
+    allowed: bool
+    compensatable: bool
+
+
 async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
     """Decide the price to START a session on `node_id`.
 
@@ -70,11 +76,16 @@ async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
     return GateDecision(True, 0, "", "", False, False, "free_unmetered")
 
 
-async def charge(store, user_id: str, decision: GateDecision) -> bool:
+async def charge(
+    store,
+    user_id: str,
+    decision: GateDecision,
+    idempotency_key: str | None = None,
+) -> ChargeOutcome:
     """Deduct credits for a non-free decision and persist an ACCESS unlock.
 
-    Returns True on success. Both store methods honor demo_unlimited (return True
-    without charging) and return False when the balance is insufficient.
+    `allowed` permits the start. `compensatable` means this request owns (or is
+    reclaiming) a debit that may be reversed if a metered attempt cannot start.
 
     ACCESS unlocks (record_unlock=True) route through the atomic
     charge_and_unlock: the credit debit and the content_unlocks insert land in
@@ -83,7 +94,19 @@ async def charge(store, user_id: str, decision: GateDecision) -> bool:
     pure debit — already atomic — so they stay on deduct_credits.
     """
     if decision.record_unlock:
-        return await store.charge_and_unlock(
+        allowed, charged = await store.charge_and_unlock(
             user_id, decision.cost, decision.reason, decision.scope, decision.ref_id
         )
-    return await store.deduct_credits(user_id, decision.cost, decision.reason)
+        return ChargeOutcome(bool(allowed), bool(charged))
+    if idempotency_key:
+        if not hasattr(store, "deduct_credits_once"):
+            raise RuntimeError("storage_missing_idempotent_credit_debit")
+        allowed = await store.deduct_credits_once(
+            user_id,
+            decision.cost,
+            decision.reason,
+            idempotency_key,
+        )
+        return ChargeOutcome(bool(allowed), bool(allowed))
+    allowed = await store.deduct_credits(user_id, decision.cost, decision.reason)
+    return ChargeOutcome(bool(allowed), bool(allowed))

@@ -15,6 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.content.registry import get_module, get_node, is_voice_node, list_modules, module_of
+from app.content.task_types import TaskType
 from app.graph.route import level_kind, session_phase
 from app.models import (
     PlacementRequest,
@@ -27,7 +28,7 @@ from app.storage import get_storage
 from app.billing.gate import resolve_gate, charge
 from app.billing.pricing import pack_list
 from app.services.session_service import GamePrompt
-from app.services.simulation_service import Speaker, SimulationState
+from app.services.simulation_service import Speaker, SimulationState, assessment_progress_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ router = APIRouter(prefix="/session", tags=["session"])
 onboarding = APIRouter(tags=["onboarding"])
 _SSE_HEARTBEAT_SECONDS = 12.0
 _STREAM_SENTINEL = object()
+_BACKGROUND_STREAM_TASKS: set[asyncio.Task] = set()
+_ORPHANED_TURN_LATCH_GRACE_SECONDS = 5.0
 
 
 @onboarding.get("/modules")
@@ -93,6 +96,12 @@ def _accepted_frame(session_id: str, request_id: str, kind: str) -> str:
     )
 
 
+def _track_stream_task(task: asyncio.Task) -> None:
+    """Keep producer tasks alive after the SSE generator closes."""
+    _BACKGROUND_STREAM_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_STREAM_TASKS.discard)
+
+
 def _heartbeat_frame(session_id: str, request_id: str, kind: str) -> str:
     return _sse(
         json.dumps({
@@ -140,6 +149,11 @@ def _turn_request_hash(req: SessionTurnRequest) -> str:
         "session_id": req.session_id,
         "user_input": req.user_input,
         "expected_session_version": req.expected_session_version,
+        "assessment_action": (
+            req.assessment_action.model_dump()
+            if req.assessment_action is not None
+            else None
+        ),
     }
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -154,9 +168,15 @@ def _start_request_hash(req: SessionStartRequest) -> str:
         "simulation_config": req.simulation_config or {},
         "source_session_id": req.source_session_id,
         "source_transition_id": req.source_transition_id,
+        "source_action": _source_action(req),
     }
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _session_id_for_start(user_id: str, client_start_id: str) -> str:
+    raw = f"career-session\0{user_id}\0{client_start_id}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
 def _session_start_response_payload(response: SessionStartResponse) -> dict:
@@ -182,7 +202,16 @@ def _replayed_start_response(row: dict, request_hash: str) -> SessionStartRespon
     )
 
 
-def _replayed_source_transition_response(row: dict) -> SessionStartResponse:
+def _replayed_source_transition_response(
+    row: dict,
+    request_hash: str,
+    user_id: str,
+) -> SessionStartResponse:
+    if row.get("user_id") != user_id or row.get("request_hash") != request_hash:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "source_transition_already_consumed"},
+        )
     if row.get("status") == "completed" and isinstance(row.get("response_json"), dict):
         payload = dict(row["response_json"])
         payload["resumed"] = True
@@ -199,6 +228,54 @@ def _replayed_source_transition_response(row: dict) -> SessionStartResponse:
             or row.get("accepted_client_start_id"),
         },
     )
+
+
+async def _reconcile_replayed_start_handoff(
+    req: SessionStartRequest,
+    response: SessionStartResponse,
+    user_id: str,
+) -> SessionStartResponse:
+    if not req.source_session_id or not req.source_transition_id:
+        return response
+    try:
+        await svc.handoff_transition_to_session(
+            req.source_session_id,
+            req.source_transition_id,
+            response.session_id,
+            req.competency_node,
+            user_id,
+            same_skill_reattempt=_source_action(req) == "reattempt",
+        )
+    except ValueError as exc:
+        if str(exc) != "source_session_not_found":
+            raise
+        logger.info(
+            "replayed completed start after source cleanup user=%s source=%s target=%s",
+            user_id,
+            req.source_session_id,
+            response.session_id,
+        )
+    return response
+
+
+async def _reconcile_consumed_source_transition(
+    row: dict,
+    req: SessionStartRequest,
+    request_hash: str,
+    user_id: str,
+) -> SessionStartResponse:
+    consumed = dict(row)
+    consumed["status"] = consumed.get("consumed_status") or "in_progress"
+    response = _replayed_source_transition_response(consumed, request_hash, user_id)
+    return await _reconcile_replayed_start_handoff(req, response, user_id)
+
+
+def _source_action(req: SessionStartRequest) -> str | None:
+    if req.source_action:
+        return req.source_action
+    if req.source_session_id and req.source_transition_id and not req.reattempt_confirmed:
+        return "advance"
+    return None
 
 
 def _active_node_for_progress(module_id: str, progress: list[dict]) -> str | None:
@@ -243,7 +320,11 @@ def _enforce_start_node_unlocked(
         )
 
 
-async def _validate_source_transition(req: SessionStartRequest, user_id: str) -> None:
+async def _validate_source_transition(
+    req: SessionStartRequest,
+    user_id: str,
+    existing: dict | None,
+) -> None:
     has_source = bool(req.source_session_id or req.source_transition_id)
     if not has_source:
         return
@@ -252,18 +333,49 @@ async def _validate_source_transition(req: SessionStartRequest, user_id: str) ->
             status_code=400,
             detail={"code": "source_transition_incomplete"},
         )
+    action = _source_action(req)
+    if action is None:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "source_action_required"},
+        )
+    if req.test_mode or bool(req.simulation_config):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "source_transition_prep_only"},
+        )
     source = await svc.get_session_state(req.source_session_id)
     pending = (source or {}).get("pending_node_transition")
+    expected_target = (
+        pending.get("from_node")
+        if action == "reattempt"
+        else pending.get("to_node")
+    ) if isinstance(pending, dict) else None
     if (
         source is None
         or source.get("user_id") != user_id
+        or source.get("status", "active") != "active"
+        or bool(source.get("session_over"))
+        or source.get("task_type") not in {"interview_prep", "gd_prep"}
         or not isinstance(pending, dict)
         or pending.get("transition_id") != req.source_transition_id
-        or pending.get("to_node") != req.competency_node
+        or pending.get("status") != "awaiting_next_opening"
+        or expected_target != req.competency_node
     ):
         raise HTTPException(
             status_code=409,
             detail={"code": "invalid_source_transition"},
+        )
+    if action == "reattempt":
+        if not req.reattempt_confirmed or not existing or not bool(existing.get("node_completed")):
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "invalid_source_reattempt"},
+            )
+    elif req.reattempt_confirmed:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "invalid_source_advance"},
         )
 
 
@@ -313,6 +425,7 @@ def _public_game_prompt(prompt: object) -> dict | None:
         "hint": prompt.get("hint", ""),
         "context": prompt.get("context", ""),
         "options": prompt.get("options"),
+        "turn_id": prompt.get("turn_id"),
     }
 
 
@@ -346,8 +459,11 @@ def _state_snapshot(state: dict) -> dict:
     return {
         "session_id": state["session_id"],
         "competency_node": state["competency_node"],
+        "task_type": state.get("task_type", ""),
+        "module_id": state.get("module_id") or module_of(str(state.get("competency_node") or "")),
         "node_title": get_node(state["competency_node"]).title,
         "current_mastery": round(state["current_mastery"], 4),
+        "readiness_score": round(float(state.get("readiness_score") or 0.0), 4),
         "turn_count": state["turn_count"],
         "last_route": state.get("last_route"),
         "last_eval_score": disp_score,
@@ -394,7 +510,21 @@ def _state_snapshot(state: dict) -> dict:
         ),
         "simulation_tension": float((state.get("blackboard") or {}).get("tension") or 0.0),
         "simulation_score": state.get("simulation_score"),
-        "simulation_report": state.get("simulation_report"),
+        "simulation_report": svc.sanitize_simulation_report_delivery(
+            state,
+            state.get("simulation_report"),
+        ),
+        "assessment_state": (
+            {
+                "plan": state.get("assessment_plan"),
+                "validity_flags": list(state.get("assessment_validity_flags") or []),
+                "coverage_events": list(state.get("coverage_events") or [])[-12:],
+                "assessment_events": list(state.get("assessment_events") or [])[-12:],
+                "progress": assessment_progress_snapshot(state),
+            }
+            if state.get("task_type") in {"interview_test", "gd_test"}
+            else None
+        ),
         "session_version": int(state.get("session_version") or 1),
         "pending_transition": state.get("pending_node_transition"),
         "active_turn": (
@@ -403,6 +533,14 @@ def _state_snapshot(state: dict) -> dict:
                 "status": state.get("active_turn_status") or "processing",
             }
             if state.get("active_turn_id")
+            else None
+        ),
+        "last_turn": (
+            {
+                "client_turn_id": state.get("last_turn_id"),
+                "status": state.get("last_turn_status") or "completed",
+            }
+            if state.get("last_turn_id")
             else None
         ),
         "handoff_session_id": state.get("handoff_session_id"),
@@ -442,6 +580,7 @@ def _turn_frame(tok: object) -> str:
                 "hint": tok.hint,
                 "context": tok.context,
                 "options": tok.options,
+                "turn_id": tok.turn_id,
             }),
             event="game_prompt",
         )
@@ -457,6 +596,7 @@ def _turn_frame(tok: object) -> str:
             json.dumps({
                 "node_id": tok.node_id,
                 "mastery": tok.mastery,
+                "readiness_score": tok.readiness_score,
                 "clean_streak": tok.clean_streak,
                 "attempts": tok.attempts,
             }),
@@ -478,6 +618,9 @@ def _turn_frame(tok: object) -> str:
             json.dumps({
                 "nodes_completed": tok.nodes_completed,
                 "weaknesses": tok.weaknesses,
+                "score_metric": tok.score_metric,
+                "readiness_score": tok.readiness_score,
+                "mastery_score": tok.mastery_score,
                 "avg_score": tok.avg_score,
             }),
             event="session_recap",
@@ -569,6 +712,9 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
         if existing_start:
             if existing_start.get("request_hash") != start_hash:
                 return _replayed_start_response(existing_start, start_hash)
+            if existing_start.get("status") == "completed":
+                response = _replayed_start_response(existing_start, start_hash)
+                return await _reconcile_replayed_start_handoff(req, response, user_id)
             if existing_start.get("status") == "failed" and hasattr(store, "reset_start_request"):
                 start_latch = await store.reset_start_request(
                     user_id,
@@ -577,21 +723,19 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
                     source_session_id=req.source_session_id,
                     source_transition_id=req.source_transition_id,
                 )
+                if not start_latch.get("accepted"):
+                    if start_latch.get("status") == "source_transition_consumed":
+                        return await _reconcile_consumed_source_transition(
+                            start_latch,
+                            req,
+                            start_hash,
+                            user_id,
+                        )
+                    return _replayed_start_response(start_latch, start_hash)
             else:
                 return _replayed_start_response(existing_start, start_hash)
 
-    if (
-        req.source_session_id
-        and req.source_transition_id
-        and hasattr(store, "get_start_request_for_source_transition")
-    ):
-        source_start = await store.get_start_request_for_source_transition(
-            req.source_session_id,
-            req.source_transition_id,
-        )
-        if source_start:
-            return _replayed_source_transition_response(source_start)
-
+    start_committed = False
     try:
         progress = await store.get_progression(user_id)
     except Exception as e:
@@ -612,8 +756,55 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
                 },
             )
 
+    if (
+        not req.source_session_id
+        and not req.source_transition_id
+        and not req.reattempt_confirmed
+        and not (req.simulation_config or {})
+    ):
+        resumed = await svc.get_resumable_active_session_for_start(
+            user_id,
+            req.competency_node,
+            test_mode=req.test_mode,
+        )
+        if resumed:
+            session_id, state = resumed
+            node = get_node(state["competency_node"])
+            response = SessionStartResponse(
+                session_id=session_id,
+                node_title=node.title,
+                first_message="",
+                current_mastery=float(state.get("current_mastery") or 0.0),
+                resumed=True,
+                display_status=str(state.get("display_status") or "active"),
+                node_mastered=bool(state.get("node_mastered", False)),
+                readiness_score=float(state.get("readiness_score") or 0.0),
+                best_independent_score=float(state.get("best_independent_score") or 0.0),
+            )
+            if start_latch is None and hasattr(store, "begin_start_request"):
+                start_latch = await store.begin_start_request(
+                    user_id,
+                    req.client_start_id,
+                    start_hash,
+                )
+            if start_latch and not start_latch.get("accepted"):
+                return _replayed_start_response(start_latch, start_hash)
+            if start_latch and hasattr(store, "complete_start_request"):
+                completed = await store.complete_start_request(
+                    user_id,
+                    req.client_start_id,
+                    "completed",
+                    session_id=session_id,
+                    response_json=_session_start_response_payload(response),
+                    claim_generation=int(start_latch.get("claim_generation") or 1),
+                )
+                if not completed:
+                    current = await store.get_start_request(user_id, req.client_start_id)
+                    return _replayed_start_response(current or start_latch, start_hash)
+            return response
+
     _enforce_start_node_unlocked(req, progress, existing)
-    await _validate_source_transition(req, user_id)
+    await _validate_source_transition(req, user_id, existing)
 
     # Gate BEFORE the brain runs. The brain stays credit-blind.
     try:
@@ -650,22 +841,33 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
             )
         if not start_latch.get("accepted"):
             if start_latch.get("status") == "source_transition_consumed":
-                consumed = dict(start_latch)
-                consumed["status"] = consumed.get("consumed_status") or "in_progress"
-                return _replayed_source_transition_response(consumed)
+                return await _reconcile_consumed_source_transition(
+                    start_latch,
+                    req,
+                    start_hash,
+                    user_id,
+                )
             return _replayed_start_response(start_latch, start_hash)
 
     charged_ok = False
+    charge_key = f"session_start:{req.client_start_id}"
     if not decision.free:
         balance = await store.get_credits(user_id)
-        charged_ok = await charge(store, user_id, decision)
-        if not charged_ok:
+        charge_outcome = await charge(
+            store,
+            user_id,
+            decision,
+            idempotency_key=charge_key,
+        )
+        charged_ok = charge_outcome.compensatable
+        if not charge_outcome.allowed:
             if req.client_start_id and hasattr(store, "complete_start_request") and start_latch:
                 await store.complete_start_request(
                     user_id,
                     req.client_start_id,
                     "failed",
                     error_code="insufficient_credits",
+                    claim_generation=int(start_latch.get("claim_generation") or 1),
                 )
             raise HTTPException(
                 status_code=402,
@@ -680,15 +882,40 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
     try:
         start_kwargs = {
             "test_mode": req.test_mode,
-            "reattempt": req.reattempt_confirmed and bool(existing),
+            "reattempt": bool(req.reattempt_confirmed and existing),
+            "session_id": _session_id_for_start(user_id, req.client_start_id),
         }
         if req.simulation_config:
             start_kwargs["simulation_config"] = req.simulation_config
         session_id, state = await svc.start_session(
             user_id,
             req.competency_node,
+            persist=False,
             **start_kwargs,
         )
+        node = get_node(state["competency_node"])
+        response = SessionStartResponse(
+            session_id=session_id,
+            node_title=node.title,
+            first_message="",
+            current_mastery=state["current_mastery"],
+            display_status=str(state.get("display_status") or "active"),
+            node_mastered=bool(state.get("node_mastered", False)),
+            readiness_score=float(state.get("readiness_score") or 0.0),
+            best_independent_score=float(state.get("best_independent_score") or 0.0),
+        )
+        if not start_latch:
+            raise RuntimeError("session_start_claim_missing")
+        committed = await svc.commit_claimed_prepared_session(
+            state,
+            client_start_id=req.client_start_id,
+            claim_generation=int(start_latch["claim_generation"]),
+            response_json=_session_start_response_payload(response),
+        )
+        if not committed:
+            current = await store.get_start_request(user_id, req.client_start_id)
+            return _replayed_start_response(current or start_latch, start_hash)
+        start_committed = True
         if req.source_session_id and req.source_transition_id:
             await svc.handoff_transition_to_session(
                 req.source_session_id,
@@ -696,38 +923,56 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
                 session_id,
                 req.competency_node,
                 user_id,
+                same_skill_reattempt=_source_action(req) == "reattempt",
             )
     except Exception as e:
-        # We already charged for a session that never started. Refund on ANY
-        # failure, not just ValueError: a downstream KeyError / storage / TypeError
-        # must NOT silently burn the learner's wallet. Free decisions were never
-        # charged, so they get no refund. The compensation is best-effort and
-        # logged so it never masks the original error.
-        if charged_ok:
+        if start_committed:
+            if isinstance(e, ValueError):
+                raise HTTPException(status_code=400, detail=str(e)) from e
+            raise
+        claim_generation = int((start_latch or {}).get("claim_generation") or 1)
+        error_code = (
+            "progression_unavailable"
+            if isinstance(e, svc.ProgressionUnavailableError)
+            else "session_start_failed"
+        )
+        # A paid start's refund and failed latch are one claim-fenced transaction.
+        # If ownership changed, the old worker must not touch credits or state.
+        if charged_ok and not decision.record_unlock:
             try:
-                await store.grant_credits(user_id, decision.cost, "refund")
-                # ACCESS decisions also persisted a content_unlocks row in
-                # charge(); without removing it the learner would keep permanent
-                # free (owned) access AND get the credits back. Undo the unlock.
-                if decision.record_unlock:
-                    await store.remove_unlock(user_id, decision.scope, decision.ref_id)
+                compensated = await store.compensate_claimed_attempt_charge(
+                    user_id=user_id,
+                    client_start_id=req.client_start_id,
+                    claim_generation=claim_generation,
+                    amount=decision.cost,
+                    charge_key=charge_key,
+                    debit_reason=decision.reason,
+                    refund_reason="refund",
+                    error_code=error_code,
+                )
             except Exception:
                 logger.exception(
                     "refund after failed start did not complete for user=%s node=%s",
                     user_id,
                     req.competency_node,
                 )
-        if req.client_start_id and hasattr(store, "complete_start_request") and start_latch:
-            await store.complete_start_request(
+                raise
+            if not compensated:
+                current = await store.get_start_request(user_id, req.client_start_id)
+                return _replayed_start_response(current or start_latch, start_hash)
+        elif req.client_start_id and hasattr(store, "complete_start_request") and start_latch:
+            # ACCESS purchases are durable value, not metered attempts. If opening
+            # generation fails, keep the unlock and let the learner retry for free.
+            failed = await store.complete_start_request(
                 user_id,
                 req.client_start_id,
                 "failed",
-                error_code=(
-                    "progression_unavailable"
-                    if isinstance(e, svc.ProgressionUnavailableError)
-                    else "session_start_failed"
-                ),
+                error_code=error_code,
+                claim_generation=claim_generation,
             )
+            if not failed:
+                current = await store.get_start_request(user_id, req.client_start_id)
+                return _replayed_start_response(current or start_latch, start_hash)
         # A brain-side rejection is a 400 (bad request); anything else is a real
         # server fault — re-raise it unchanged so it surfaces as a 500.
         if isinstance(e, svc.ProgressionUnavailableError):
@@ -738,21 +983,6 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
         if isinstance(e, ValueError):
             raise HTTPException(status_code=400, detail=str(e)) from e
         raise
-    node = get_node(state["competency_node"])
-    response = SessionStartResponse(
-        session_id=session_id,
-        node_title=node.title,
-        first_message="",  # opening is streamed via GET /session/{id}/opening
-        current_mastery=state["current_mastery"],
-    )
-    if req.client_start_id and hasattr(store, "complete_start_request") and start_latch:
-        await store.complete_start_request(
-            user_id,
-            req.client_start_id,
-            "completed",
-            session_id=session_id,
-            response_json=_session_start_response_payload(response),
-        )
     return response
 
 
@@ -784,6 +1014,11 @@ async def opening(
         pending.get("transition_id") if isinstance(pending, dict) else None
     )
     opening_key = resolved_transition_id or f"initial:{st.get('competency_node')}"
+    opening_speaker = None
+    if st.get("task_type") == TaskType.GD_TEST.value:
+        opening_speaker = {"speaker_id": "moderator_timekeeper", "name": "Moderator"}
+    elif st.get("task_type") == TaskType.INTERVIEW_TEST.value:
+        opening_speaker = {"speaker_id": "interviewer", "name": "Interviewer"}
     store = get_storage()
     opening_latch = None
     if hasattr(store, "begin_opening_request"):
@@ -806,6 +1041,8 @@ async def opening(
                     )
 
                 async def replay_completed() -> AsyncIterator[str]:
+                    if opening_speaker:
+                        yield _sse(json.dumps(opening_speaker), event="speaker")
                     yield _sse(json.dumps(replay_text))
                     yield _done_frame(session_id)
 
@@ -885,6 +1122,8 @@ async def opening(
 
         task.add_done_callback(_consume_task_result)
         yield accepted
+        if opening_speaker:
+            yield _sse(json.dumps(opening_speaker), event="speaker")
         while True:
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=_SSE_HEARTBEAT_SECONDS)
@@ -896,6 +1135,68 @@ async def opening(
             yield item  # type: ignore[misc]
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+def _runtime_can_release_orphaned_turn_latch(
+    state: dict, expected_session_version: int | None
+) -> bool:
+    if expected_session_version is None:
+        return False
+    if int(state.get("session_version") or 1) != expected_session_version:
+        return False
+    if state.get("status", "active") != "active":
+        return False
+    if state.get("active_turn_id"):
+        return False
+    if state.get("input_allowed") is False:
+        return False
+    if state.get("block_reason"):
+        return False
+    if state.get("pending_node_transition") or state.get("module_done") or state.get("session_over"):
+        return False
+    return True
+
+
+async def _release_orphaned_version_latch(
+    store: object,
+    req: SessionTurnRequest,
+    state: dict,
+    turn_latch: dict,
+) -> dict | None:
+    """Fail an abandoned in-progress version latch when runtime is ready.
+
+    Duplicate turns remain blocked while a turn is genuinely processing. This
+    repair only handles the orphaned case: the durable idempotency row still
+    says an older client turn owns this rendered version, but canonical runtime
+    state has no active turn and accepts learner input.
+    """
+    accepted_turn_id = turn_latch.get("accepted_client_turn_id")
+    accepted_age_seconds = float(turn_latch.get("accepted_age_seconds") or 0.0)
+    if (
+        turn_latch.get("status") != "version_consumed"
+        or turn_latch.get("accepted_status") != "in_progress"
+        or not accepted_turn_id
+        or accepted_age_seconds < _ORPHANED_TURN_LATCH_GRACE_SECONDS
+        or not _runtime_can_release_orphaned_turn_latch(state, req.expected_session_version)
+        or not hasattr(store, "complete_turn_request")
+        or not hasattr(store, "begin_turn_request")
+    ):
+        return None
+
+    await store.complete_turn_request(
+        req.session_id,
+        str(accepted_turn_id),
+        "failed",
+        [],
+        _state_snapshot(state),
+        "orphaned_in_progress",
+    )
+    return await store.begin_turn_request(
+        req.session_id,
+        req.client_turn_id,
+        _turn_request_hash(req),
+        req.expected_session_version,
+    )
 
 
 @router.post("/turn")
@@ -928,6 +1229,11 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                 status_code=409,
                 detail={"code": "client_turn_id_reused_with_different_payload"},
             )
+        if not turn_latch.get("accepted"):
+            released_latch = await _release_orphaned_version_latch(store, req, st, turn_latch)
+            if released_latch is not None:
+                turn_latch = released_latch
+
         if not turn_latch.get("accepted"):
             status = turn_latch.get("status")
             if status == "completed":
@@ -1011,6 +1317,11 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                     req.session_id,
                     req.user_input,
                     client_turn_id=req.client_turn_id,
+                    assessment_action=(
+                        req.assessment_action.model_dump()
+                        if req.assessment_action is not None
+                        else None
+                    ),
                 ):
                     frame = _turn_frame(tok)
                     frames.append(frame)
@@ -1050,6 +1361,8 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                     )
             done = _done_frame(req.session_id)
             frames.append(done)
+            await queue.put(done)
+            await queue.put(_STREAM_SENTINEL)
             if hasattr(store, "complete_turn_request"):
                 try:
                     await store.complete_turn_request(
@@ -1066,10 +1379,9 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                         req.session_id,
                         req.client_turn_id,
                     )
-            await queue.put(done)
-            await queue.put(_STREAM_SENTINEL)
 
         task = asyncio.create_task(producer())
+        _track_stream_task(task)
 
         def _consume_task_result(done_task: asyncio.Task) -> None:
             try:
@@ -1113,9 +1425,13 @@ async def transcript(session_id: str, request: Request) -> dict:
     `opening_streamed` lets the client decide whether to replay the streamed
     opening (a fresh session) or just restore what's already there (a reload)."""
     st = await _owned_state(session_id, request)
+    if st.get("module_done"):
+        await svc.refresh_session_recap(st)
     messages = [
         {
-            "id": f"{session_id}-{i}",
+            "id": m.get("message_id") or f"{session_id}-{i}",
+            "message_id": m.get("message_id"),
+            "turn_id": m.get("turn_id"),
             "role": m.get("role", "assistant"),
             "content": m.get("content", ""),
             "speaker_name": m.get("speaker_name"),
@@ -1130,6 +1446,7 @@ async def transcript(session_id: str, request: Request) -> dict:
     return {
         "messages": messages,
         "state": _state_snapshot(st),
+        "session_recap": st.get("session_recap"),
         "pending_transition": st.get("pending_node_transition"),
         "active_turn": (
             {
@@ -1196,6 +1513,16 @@ def _closing_payload(session_id: str, result: dict, status: str = "completed") -
     }
 
 
+def _sanitize_closing_payload(st: dict, payload: dict) -> dict:
+    cleaned = dict(payload)
+    report = svc.sanitize_simulation_report_delivery(st, cleaned.get("report"))
+    if report is not None:
+        cleaned["report"] = report
+        cleaned["summary"] = str(report.get("summary") or cleaned.get("summary") or "")
+        cleaned["score"] = float(report.get("score") or cleaned.get("score") or 0.0)
+    return cleaned
+
+
 async def _score_session_end_request(session_id: str) -> None:
     store = get_storage()
     try:
@@ -1214,6 +1541,14 @@ async def _score_session_end_request(session_id: str) -> None:
             )
 
 
+async def _mark_test_session_scoring(st: dict) -> None:
+    st["session_over"] = True
+    st["input_allowed"] = False
+    st["block_reason"] = "scoring"
+    st["session_version"] = int(st.get("session_version") or 1) + 1
+    await svc._persist_runtime_state(st)
+
+
 @router.post("/{session_id}/end")
 async def end(session_id: str, request: Request, background_tasks: BackgroundTasks):
     # Ownership gate before terminating — otherwise an authenticated attacker
@@ -1226,14 +1561,14 @@ async def end(session_id: str, request: Request, background_tasks: BackgroundTas
     # scored report the engine computed never reached the learner.
     is_test = st.get("task_type") in svc._TEST_TASK_TYPES
     if is_test and st.get("status") == "ended" and st.get("simulation_report"):
-        return _closing_payload(
+        return _sanitize_closing_payload(st, _closing_payload(
             session_id,
             {
                 "summary": st.get("session_summary") or "",
                 "report": st.get("simulation_report"),
                 "score": float(st.get("simulation_score") or 0.0),
             },
-        )
+        ))
     if is_test:
         store = get_storage()
         if hasattr(store, "begin_end_request"):
@@ -1241,7 +1576,7 @@ async def end(session_id: str, request: Request, background_tasks: BackgroundTas
             if not end_latch.get("accepted"):
                 status = end_latch.get("status")
                 if status == "completed" and end_latch.get("response_json"):
-                    return end_latch["response_json"]
+                    return _sanitize_closing_payload(st, end_latch["response_json"])
                 if status == "failed":
                     raise HTTPException(
                         status_code=503,
@@ -1254,6 +1589,7 @@ async def end(session_id: str, request: Request, background_tasks: BackgroundTas
                     {"status": "processing", "session_id": session_id},
                     status_code=202,
                 )
+        await _mark_test_session_scoring(st)
         background_tasks.add_task(_score_session_end_request, session_id)
         return JSONResponse(
             {"status": "processing", "session_id": session_id},
@@ -1274,21 +1610,21 @@ async def end(session_id: str, request: Request, background_tasks: BackgroundTas
 async def report(session_id: str, request: Request):
     st = await _owned_state(session_id, request)
     if st.get("status") == "ended" and st.get("simulation_report"):
-        return _closing_payload(
+        return _sanitize_closing_payload(st, _closing_payload(
             session_id,
             {
                 "summary": st.get("session_summary") or "",
                 "report": st.get("simulation_report"),
                 "score": float(st.get("simulation_score") or 0.0),
             },
-        )
+        ))
     store = get_storage()
     if hasattr(store, "get_end_request"):
         end_latch = await store.get_end_request(session_id)
         if end_latch:
             status = end_latch.get("status")
             if status == "completed" and end_latch.get("response_json"):
-                return end_latch["response_json"]
+                return _sanitize_closing_payload(st, end_latch["response_json"])
             if status == "failed":
                 raise HTTPException(
                     status_code=503,
