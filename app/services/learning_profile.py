@@ -11,51 +11,43 @@ from app.content.registry import module_of
 CAREER_DOMAIN = "career"
 SCHOOL_ADAPTER_DOMAIN = "school_adapter"
 
-_MODE_INAPPROPRIATE_GAP_TERMS = {
-    "interview_test": (
-        "group discussion",
-        "other participants",
-        "other speakers",
-        "synthesizing others",
-        "multiple viewpoints",
-        "panelist",
-        "consensus",
-        "claiming the floor",
-        "dominant speaker",
-        "quiet participant",
-        "rebuttal",
-        "steer discussion",
-        "steering discussion",
-        "build on others",
-    ),
-    "gd_test": (
-        "star answer",
-        "star structure",
-        "interviewer",
-        "candidate",
-        "hiring manager",
-        "behavioral answer",
-        "role fit",
-        "resume",
-        "job interview",
-    ),
+_CAREER_TASK_TYPES_BY_MODULE = {
+    "interview": {"interview_prep", "interview_test"},
+    "group_discussion": {"gd_prep", "gd_test"},
 }
 
 
-def _mode_inappropriate_gap(task_type: str, gap: str) -> bool:
-    normalized = " ".join(str(gap or "").lower().split())
-    return any(
-        term in normalized
-        for term in _MODE_INAPPROPRIATE_GAP_TERMS.get(task_type, ())
-    )
+def _module_for_task_type(task_type: str) -> str:
+    for module_id, task_types in _CAREER_TASK_TYPES_BY_MODULE.items():
+        if task_type in task_types:
+            return module_id
+    return ""
 
 
-def _sanitize_report_gaps(task_type: str, values: Any) -> list[str]:
-    return [
-        gap
-        for gap in _clean_string_list(values, limit=8, item_limit=180)
-        if not _mode_inappropriate_gap(task_type, gap)
-    ]
+def _row_matches_career_module(row: dict[str, Any], module_id: str) -> bool:
+    """Match only explicit registry/module/task relationships.
+
+    A scoped prompt must fail closed when a row has no structural ownership.
+    Text inside a gap, report, or skill label is never used to infer its mode.
+    """
+    if not module_id:
+        return True
+    owners: list[str] = []
+    explicit_module = str(row.get("module_id") or "").strip()
+    if explicit_module:
+        owners.append(explicit_module)
+    task_module = _module_for_task_type(str(row.get("task_type") or "").strip())
+    if task_module:
+        owners.append(task_module)
+    node_id = str(row.get("node_id") or row.get("competency_node") or "").strip()
+    node_module = _career_module_for_node(node_id) if node_id else ""
+    if node_module:
+        owners.append(node_module)
+    return bool(owners) and all(owner == module_id for owner in owners)
+
+
+def _sanitize_report_gaps(_task_type: str, values: Any) -> list[str]:
+    return _clean_string_list(values, limit=8, item_limit=180)
 
 
 def _canonical_report_skill_id(task_type: str, gap: str) -> str:
@@ -87,9 +79,6 @@ def _current_profile_rows(
         if not skill_id or skill_id == "insufficient_assessment_evidence":
             continue
         gap_values = profile.get("gaps_json") if isinstance(profile.get("gaps_json"), list) else []
-        display_gap = _first([*gap_values, skill_id])
-        if _mode_inappropriate_gap(task_type, display_gap):
-            continue
         if task_type.endswith("_test"):
             evidence = profile.get("evidence_json") if isinstance(profile.get("evidence_json"), dict) else {}
             profile_report_id = str(evidence.get("latest_report") or "").strip()
@@ -235,8 +224,6 @@ def _memory_item_from_profile(
     if not skill_id:
         return None
     task_type = str(profile.get("task_type") or "").strip()
-    if _mode_inappropriate_gap(task_type, skill_id):
-        return None
     readiness = _safe_score(profile.get("readiness"))
     mastery = _safe_score(profile.get("mastery"))
     confidence = _safe_score(profile.get("confidence"))
@@ -304,24 +291,76 @@ def _memory_item_from_progression(
     }
 
 
-def build_career_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
+def scope_career_memory_context(
+    memory: dict[str, Any],
+    module_id: str,
+) -> dict[str, Any]:
+    """Project an existing memory payload onto one career module.
+
+    This is also used at the prompt boundary as defense in depth for callers
+    that still hold an older, broad memory payload.
+    """
+    scoped_buckets: dict[str, list[dict[str, Any]]] = {}
+    retained_issue_keys: set[str] = set()
+    for key in ("active_gaps", "improving_gaps", "resolved_gaps", "mastered_skills"):
+        rows = memory.get(key) if isinstance(memory.get(key), list) else []
+        scoped_rows = [
+            dict(row)
+            for row in rows
+            if isinstance(row, dict) and _row_matches_career_module(row, module_id)
+        ]
+        scoped_buckets[key] = scoped_rows
+        for row in scoped_rows:
+            # Repeat counts are safe to retain only when keyed by a structurally
+            # owned identity. Free-form gap prose can be identical across modes
+            # ("Add evidence") and a broad legacy aggregate cannot be split later.
+            for identity_key in ("skill_id", "focus_id"):
+                identity = str(row.get(identity_key) or "").strip()
+                if identity:
+                    retained_issue_keys.add(identity)
+
+    repeated = memory.get("repeated_issue_counts")
+    scoped_repeated = {
+        str(key): value
+        for key, value in (repeated.items() if isinstance(repeated, dict) else [])
+        if str(key) in retained_issue_keys
+    }
+    reports = memory.get("recent_reports") if isinstance(memory.get("recent_reports"), list) else []
+    scoped_reports = [
+        dict(report)
+        for report in reports
+        if isinstance(report, dict) and _row_matches_career_module(report, module_id)
+    ]
+    return {
+        **scoped_buckets,
+        "repeated_issue_counts": scoped_repeated,
+        "recent_reports": scoped_reports,
+    }
+
+
+def build_career_memory_context(
+    graph: dict[str, Any],
+    module_id: str = "",
+) -> dict[str, Any]:
     """Compress durable career evidence into prompt-safe adaptive memory."""
     raw_profiles = [
         row for row in graph.get("profiles") or []
         if isinstance(row, dict) and str(row.get("domain") or "") == CAREER_DOMAIN
+        and _row_matches_career_module(row, module_id)
     ]
     reports = [
         row for row in graph.get("reports") or []
-        if isinstance(row, dict)
+        if isinstance(row, dict) and _row_matches_career_module(row, module_id)
     ]
     profiles = _current_profile_rows(raw_profiles, reports)
     events = [
         row for row in graph.get("events") or []
         if isinstance(row, dict) and str(row.get("domain") or "") == CAREER_DOMAIN
+        and _row_matches_career_module(row, module_id)
     ]
     progression = [
         row for row in graph.get("progression") or []
-        if isinstance(row, dict)
+        if isinstance(row, dict) and _row_matches_career_module(row, module_id)
     ]
 
     repeated_issue_counts: dict[str, int] = {}
@@ -696,6 +735,10 @@ class CareerLearningProfileService:
         }
         return graph
 
-    async def get_career_memory_context(self, user_id: str) -> dict[str, Any]:
+    async def get_career_memory_context(
+        self,
+        user_id: str,
+        module_id: str = "",
+    ) -> dict[str, Any]:
         graph = await self.get_learning_graph(user_id)
-        return build_career_memory_context(graph)
+        return build_career_memory_context(graph, module_id=module_id)

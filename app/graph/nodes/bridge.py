@@ -325,6 +325,24 @@ def _bridge_gap_terms(gap_context: dict | None) -> tuple[str, ...]:
     return _dedupe(terms)
 
 
+def _failed_criterion_ids(gap_context: dict | None) -> tuple[str, ...]:
+    """Return exact failed rubric IDs without treating diagnostic prose as IDs."""
+    if not isinstance(gap_context, dict):
+        return ()
+    ids: list[str] = []
+    required = gap_context.get("required_missing") or []
+    if isinstance(required, (list, tuple, set)):
+        ids.extend(str(item) for item in required)
+    elif required:
+        ids.append(str(required))
+    for row in gap_context.get("criteria") or []:
+        if hasattr(row, "model_dump"):
+            row = row.model_dump()
+        if isinstance(row, dict) and row.get("met") is False and row.get("id"):
+            ids.append(str(row["id"]))
+    return _dedupe(ids)
+
+
 def _exercise_focus_score(exercise: BridgeExercise, gap_terms: tuple[str, ...]) -> int:
     if not gap_terms:
         return 0
@@ -375,15 +393,15 @@ def select_bridge_exercise(
     served_ids: list[str],
     score: float,
     gap_context: dict | None = None,
-) -> BridgeExercise:
+) -> BridgeExercise | None:
     """Pick the next bridge exercise by failed criterion first, then severity.
 
     Targets a difficulty band that starts at `standard` and steps DOWN one band
     per prior bridge attempt (so a repeatedly-stuck learner is scaffolded harder),
     and clamps to `foundational` immediately for a very weak (<0.2) answer.
-    Already-served ids are skipped; once every exercise has been served, repeats
-    are allowed. Within the available pool, exercises that directly match the
-    failed rubric criterion win before generic same-band drills."""
+    Already-served ids are skipped. If no authored exercise remains, or none is
+    safe for the learner's current difficulty band, the caller generates a fresh
+    scaffold instead of repeating or overloading the learner."""
     served = set(served_ids or [])
     target = 1 - bridge_attempts          # 0 attempts -> standard, then step down
     if score < 0.2:
@@ -391,19 +409,52 @@ def select_bridge_exercise(
     target = max(0, min(len(_BAND_ORDER) - 1, target))
 
     unserved = [e for e in exercises if e.id not in served]
-    pool = unserved or list(exercises)    # all served -> allow repeats
+    if not unserved:
+        return None
+    pool = unserved
     gap_terms = _bridge_gap_terms(gap_context)
+    failed_criteria = set(_failed_criterion_ids(gap_context))
+
+    # Do not jump a repeatedly-stuck learner by more than one band, but allow a
+    # first standard bridge to choose a stretch drill when that is the only
+    # authored exercise which repairs the exact missing criterion.
+    max_band = target if score < 0.2 else min(len(_BAND_ORDER) - 1, target + 1)
+    bounded_pool = [
+        exercise
+        for exercise in pool
+        if _band_index(exercise.band) <= max_band
+    ]
+    if not bounded_pool:
+        return None
 
     def sort_key(e: BridgeExercise):
         bi = _band_index(e.band)
         focus_score = _exercise_focus_score(e, gap_terms)
-        # exact target band first, then bands at/under target (easier), then by
-        # absolute distance. A matched failed criterion wins inside the same
-        # difficulty neighborhood, so a STAR Result gap does not receive an Action
-        # drill just because that drill appears earlier in JSON.
-        return (abs(bi - target), bi > target, 0 if focus_score else 1, bi, -focus_score)
+        explicit_matches = len(failed_criteria.intersection(e.criterion_ids))
+        # Exact failed-criterion metadata is authoritative. Fuzzy focus remains a
+        # compatibility fallback for older content, followed by the closest safe
+        # difficulty band.
+        if explicit_matches:
+            return (
+                0,
+                -explicit_matches,
+                len(e.criterion_ids),
+                abs(bi - target),
+                bi > target,
+                0,
+                bi,
+            )
+        return (
+            1,
+            0,
+            0 if focus_score else 1,
+            -focus_score,
+            abs(bi - target),
+            bi > target,
+            bi,
+        )
 
-    return sorted(pool, key=sort_key)[0]
+    return sorted(bounded_pool, key=sort_key)[0]
 
 
 def _career_label(career_context: dict | None) -> str:
@@ -657,30 +708,31 @@ async def bridge_node(state: dict) -> dict:
             state.get("last_eval_score", 0.0),
             gap_context=_bridge_gap_context(state),
         )
-        exercise = personalize_bridge_exercise(
-            exercise,
-            state.get("career_context") or {},
-            module_of(state["competency_node"]),
-        )
-        out = {
-            "pending_game": exercise.model_dump(),
-            "served_bridge_ids": list(served) + [exercise.id],
-            "last_route": "bridge",
-            "bridge_attempts": state.get("bridge_attempts", 0) + 1,
-            "active_prompt_attempt_type": "scaffolded",
-        }
-        # Stash the key so the NEXT turn grades the fill against it — but ONLY for
-        # closed items. A `spoken` bridge is an open production task with no single
-        # correct string, so it must fall through to the LLM evaluator as before.
-        if exercise.type in ("fill_blank", "multiple_choice"):
-            out["pending_answer_key"] = {
-                "exercise_id": exercise.id,
-                "type": exercise.type,
-                "answer_key": exercise.answer_key,
-                "accept": exercise.accept,
-                "options": exercise.options,
+        if exercise is not None:
+            exercise = personalize_bridge_exercise(
+                exercise,
+                state.get("career_context") or {},
+                module_of(state["competency_node"]),
+            )
+            out = {
+                "pending_game": exercise.model_dump(),
+                "served_bridge_ids": list(served) + [exercise.id],
+                "last_route": "bridge",
+                "bridge_attempts": state.get("bridge_attempts", 0) + 1,
+                "active_prompt_attempt_type": "scaffolded",
             }
-        return out
+            # Stash the key so the NEXT turn grades the fill against it — but ONLY for
+            # closed items. A `spoken` bridge is an open production task with no single
+            # correct string, so it must fall through to the LLM evaluator as before.
+            if exercise.type in ("fill_blank", "multiple_choice"):
+                out["pending_answer_key"] = {
+                    "exercise_id": exercise.id,
+                    "type": exercise.type,
+                    "answer_key": exercise.answer_key,
+                    "accept": exercise.accept,
+                    "options": exercise.options,
+                }
+            return out
 
     # Fallback: prompt the LLM to generate a bridge step on the fly.
     prompt = build_bridge_prompt(

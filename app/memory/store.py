@@ -11,22 +11,41 @@ from app.memory.embed import embed
 
 # Cosine distance (<=>) over pgvector; lower = closer. No IVFFlat index until
 # >10K rows (architecture-v3 §408) — exact scan is fine at launch scale.
-# Return competency_node alongside content so the caller can match a summary to a
-# specific node (the 'welcome back' recap). We deliberately do NOT filter on an
-# exact competency_node here: writes store the FINE node (e.g. int_05_why_this_role)
-# while PgStore.load_context queries with the COARSE task_type (interview_prep), so
-# an equality filter matched zero rows and silently returned nothing. We rank the
-# user's summaries by embedding distance to a task-biased query instead, and let
-# the caller pick the row whose node matches.
 _SEARCH_SQL = text(
     """
-    SELECT competency_node, content
-    FROM memory_entries
-    WHERE user_id = :user_id
-    ORDER BY embedding <=> CAST(:qvec AS vector)
+    SELECT m.session_id, m.competency_node AS node_id, m.content,
+           s.task_type, s.module_id
+    FROM memory_entries AS m
+    LEFT JOIN sessions AS s ON s.session_id = m.session_id
+    WHERE m.user_id = :user_id
+    ORDER BY m.embedding <=> CAST(:qvec AS vector)
     LIMIT :k
     """
 )
+
+_CAREER_SEARCH_SQL = text(
+    """
+    SELECT m.session_id, m.competency_node AS node_id, m.content,
+           s.task_type, s.module_id
+    FROM memory_entries AS m
+    LEFT JOIN sessions AS s ON s.session_id = m.session_id
+    WHERE m.user_id = :user_id
+      AND (
+        s.task_type = :task_type
+        OR (
+          s.task_type IS NULL
+          AND :legacy_prefix <> ''
+          AND m.competency_node LIKE :legacy_prefix ESCAPE '\\'
+        )
+      )
+    ORDER BY CASE WHEN s.task_type = :task_type THEN 0 ELSE 1 END,
+             m.embedding <=> CAST(:qvec AS vector)
+    LIMIT :k
+    """
+)
+
+_CAREER_TASK_TYPES = {"interview_prep", "interview_test", "gd_prep", "gd_test"}
+_LEGACY_PREP_PREFIX = {"interview_prep": "int\\_%", "gd_prep": "gd\\_%"}
 
 _INSERT_SQL = text(
     """
@@ -76,19 +95,24 @@ async def load_context(
     or [] on any failure (no embeddings, no table, cold start) — the tutor simply
     runs without memory rather than erroring.
 
-    `node_id` is the COARSE retrieval key (PgStore passes the task_type) used only
-    to BIAS the semantic query; each returned row carries its TRUE competency_node
-    so the caller can match a summary to a specific node (the welcome-back recap).
+    Career task types are filtered through the durable sessions row. Legacy Career
+    memories without a session task type may supplement Prep only by node prefix;
+    they never masquerade as exact Test history.
     """
     qvec = await embed(f"{node_id} progress and recurring issues")
     if qvec is None:
         return []
     try:
-        result = await session.execute(
-            _SEARCH_SQL,
-            {"user_id": user_id, "qvec": str(qvec), "k": k},
-        )
-        rows = result.all()
+        params = {"user_id": user_id, "qvec": str(qvec), "k": k}
+        statement = _SEARCH_SQL
+        if node_id in _CAREER_TASK_TYPES:
+            statement = _CAREER_SEARCH_SQL
+            params.update({
+                "task_type": node_id,
+                "legacy_prefix": _LEGACY_PREP_PREFIX.get(node_id, ""),
+            })
+        result = await session.execute(statement, params)
+        rows = result.mappings().all()
     except Exception:
         return []
-    return [{"node_id": r[0], "content": r[1]} for r in rows]
+    return [dict(row) for row in rows]

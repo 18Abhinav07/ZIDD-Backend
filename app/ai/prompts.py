@@ -14,8 +14,10 @@ import json
 import re
 
 from app.ai.behaviors import BehaviorPack, behavior_for
+from app.content.registry import module_of
 from app.content.schema import Concept
-from app.content.task_types import TaskType
+from app.content.task_types import TaskType, prep_counterpart
+from app.services.learning_profile import scope_career_memory_context
 
 TUTOR_PERSONA = (
     "You are Zidd, a warm, sharp personal communication coach — the kind of "
@@ -177,15 +179,83 @@ def _career_context_for_node(node: "Concept", career_context: dict | None) -> di
         return {}
     scoped = dict(career_context)
     node_id = str(getattr(node, "id", "") or "")
-    if node_id.startswith("int_"):
+    try:
+        module_id = module_of(node_id)
+    except KeyError:
+        module_id = ""
+    memory = scoped.get("career_memory_context")
+    if module_id in {"interview", "group_discussion"} and isinstance(memory, dict):
+        scoped["career_memory_context"] = scope_career_memory_context(memory, module_id)
+    if module_id == "interview":
         scoped.pop("gd_topics", None)
         scoped.pop("custom_gd_topics", None)
         primary_role = str(scoped.get("primary_role") or "").strip()
         if primary_role:
             scoped["target_roles"] = [primary_role]
-    elif node_id.startswith("gd_"):
+    elif module_id == "group_discussion":
         scoped.pop("interview_goals", None)
     return scoped
+
+
+def _test_generation_hot_delta_block(
+    career_context: dict | None,
+    task_type: TaskType | str | None,
+) -> str:
+    context = career_context if isinstance(career_context, dict) else {}
+    delta = context.get("session_learning_delta")
+    if not isinstance(delta, dict):
+        return ""
+    task_value = getattr(task_type, "value", str(task_type or ""))
+    expected_module = {
+        TaskType.INTERVIEW_TEST.value: "interview",
+        TaskType.GD_TEST.value: "group_discussion",
+    }.get(task_value, "")
+    if not expected_module:
+        return ""
+    if str(delta.get("module_id") or "").strip() != expected_module:
+        return ""
+    if str(delta.get("task_type") or "").strip() != prep_counterpart(task_value):
+        return ""
+
+    repeated_raw = delta.get("repeated_issue_counts")
+    repeated: dict[str, int] = {}
+    if isinstance(repeated_raw, dict):
+        for raw_key, raw_value in repeated_raw.items():
+            raw_criterion = str(raw_key or "").strip()
+            if not raw_criterion.startswith("criterion:"):
+                continue
+            criterion_id = raw_criterion.split(":", 1)[1].strip().lower()
+            if not re.fullmatch(r"[a-z0-9_]{1,80}", criterion_id):
+                continue
+            key = criterion_id.replace("_", " ")
+            try:
+                count = int(raw_value)
+            except (TypeError, ValueError):
+                continue
+            if count > 0:
+                repeated[key] = count
+            if len(repeated) >= 6:
+                break
+    gaps = list(repeated)[:4]
+    if not gaps and not repeated:
+        return ""
+
+    lines = [
+        "Current prep-session gaps (private; use these to target the generated assessment):"
+    ]
+    rendered_gap_keys: set[str] = set()
+    for gap in gaps:
+        rendered_gap_keys.add(gap.lower())
+        count = repeated.get(gap, 0)
+        suffix = f" (seen {count}x)" if count else ""
+        lines.append(f"- {gap}{suffix}")
+    for issue, count in repeated.items():
+        if issue.lower() not in rendered_gap_keys:
+            lines.append(f"- {issue} (seen {count}x)")
+    lines.append(
+        "Probe these gaps without coaching or revealing an answer. Keep the test in the active mode."
+    )
+    return "\n".join(lines) + "\n\n"
 
 
 def _memory_block(
@@ -1561,6 +1631,7 @@ def build_test_gen_prompt(
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
         f"{_simulation_context_block(task_type, scenario_config, career_context)}"
+        f"{_test_generation_hot_delta_block(career_context, task_type)}"
         f"{weakness_block}"
         f"Produce exactly {n_items} assessment probe items for this task. Each "
         "item must make the learner produce real spoken/written English under "

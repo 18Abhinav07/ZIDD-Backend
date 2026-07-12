@@ -22,7 +22,8 @@
           "hint": "an action verb that shows your strength",
           "context": "Drills the core pitch stem 'I'm a ___ who ___' by supplying the role and asking for the strength.",
           "answer_key": "builds",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["specific_detail", "pitch_structure"]
         },
         {
           "id": "int_01_elevator_pitch_bx2",
@@ -36,7 +37,8 @@
             "I'm a data analyst who turns messy spreadsheets into dashboards leadership actually uses.",
             "There's a lot to say about me, so let me start from the beginning."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["specific_detail", "pitch_structure"]
         },
         {
           "id": "int_01_elevator_pitch_bx3",
@@ -45,7 +47,8 @@
           "hint": "present -> proof -> direction; stop after the goal",
         "context": "Stretches the learner to deliver the full present->proof->direction structure aloud.",
         "answer_key": "Expected elements: present role, one concrete proof point, and a forward goal in no more than three sentences; no biography.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["answers_question", "specific_detail", "pitch_structure", "future_goal"]
       },
       {
         "id": "int_01_elevator_pitch_bx4",
@@ -54,7 +57,8 @@
         "hint": "a concrete achievement, not a personality adjective",
         "context": "Helps the learner add proof to a pitch instead of only naming a role.",
         "answer_key": "improved checkout reliability",
-        "band": "standard"
+        "band": "standard",
+        "criterion_ids": ["specific_detail"]
       },
       {
         "id": "int_01_elevator_pitch_bx5",
@@ -63,7 +67,8 @@
         "hint": "role -> proof -> direction; no biography",
         "context": "Pressure variant for keeping the pitch concise when time is limited.",
         "answer_key": "Expected elements: role, one measurable proof point, and next-role direction; concise enough for a rushed interviewer.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["answers_question", "specific_detail", "pitch_structure", "future_goal"]
       }
     ],
       "exemplars": [
@@ -92,7 +97,8 @@
           "hint": "describe a specific thing you did",
           "context": "Practices the claim->proof stem by attaching one concrete situation to a stated strength.",
           "answer_key": "led the rollback and kept the team focused",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["specific_evidence", "learner_action"]
         },
         {
           "id": "int_02_strength_with_evidence_bx2",
@@ -106,7 +112,8 @@
             "I'm detail-oriented — last quarter I caught a billing error that would have overcharged 200 customers.",
             "People always tell me I'm hardworking and reliable."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["strength_claim", "specific_evidence", "learner_action", "impact_signal"]
         },
         {
           "id": "int_02_strength_with_evidence_bx3",
@@ -115,7 +122,8 @@
           "hint": "say the strength, then 'for example, once I...' with a real situation",
           "context": "Stretches the learner to generate and deliver a claim->proof pair aloud, unscripted.",
           "answer_key": "Expected elements: one genuine strength, one specific action or situation proving it, and an observable outcome or change.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["strength_claim", "specific_evidence", "learner_action", "impact_signal"]
         }
       ],
       "exemplars": [
@@ -144,7 +152,8 @@
           "hint": "a concrete corrective habit",
           "context": "Drills the weakness->mitigation stem by pairing a real weakness with a specific fix.",
           "answer_key": "assign clear owners to each task",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["mitigation_habit"]
         },
         {
           "id": "int_03_weakness_framing_bx2",
@@ -158,7 +167,8 @@
             "I used to over-explain in writing, so I started limiting updates to three bullet points — now my emails actually get read.",
             "Honestly, I don't really have any weaknesses that affect my work."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["real_weakness", "mitigation_habit", "progress_evidence", "non_self_sabotage"]
         },
         {
           "id": "int_03_weakness_framing_bx3",
@@ -167,7 +177,8 @@
           "hint": "weakness -> the fix you put in place -> evidence of progress",
         "context": "Stretches the learner to deliver the full honesty-plus-mitigation arc aloud without sounding rehearsed.",
         "answer_key": "Expected elements: real weakness, concrete corrective habit, and recent evidence that the habit is improving performance; no humble-brag.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["real_weakness", "mitigation_habit", "progress_evidence", "non_self_sabotage"]
       },
       {
         "id": "int_03_weakness_framing_bx4",
@@ -176,7 +187,8 @@
         "hint": "evidence of progress",
         "context": "Forces the progress evidence that weak answers often skip.",
         "answer_key": "send shorter updates that get decisions faster",
-        "band": "standard"
+        "band": "standard",
+        "criterion_ids": ["progress_evidence"]
       },
       {
         "id": "int_03_weakness_framing_bx5",
@@ -185,7 +197,8 @@
         "hint": "real weakness -> habit -> progress signal",
         "context": "Transfer variant that requires the full improvement loop in the learner's own words.",
         "answer_key": "Expected elements: weakness, habit, and progress signal delivered conversationally rather than as a rehearsed script.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["real_weakness", "mitigation_habit", "progress_evidence", "non_self_sabotage"]
       }
     ],
       "exemplars": [
@@ -214,7 +227,8 @@
           "hint": "the specific Action of STAR — what you personally did",
           "context": "Anchors the Result beat first, then forces the learner to name the Action that caused it.",
           "answer_key": "reorganized the testing schedule and unblocked the team",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["actions"]
         },
         {
           "id": "int_04_star_behavioral_bx2",
@@ -228,7 +242,8 @@
             "I split the project into milestones and ran a daily ten-minute standup to catch blockers early.",
             "We delivered on time and the client renewed their contract."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["actions"]
         },
         {
           "id": "int_04_star_behavioral_bx3",
@@ -237,7 +252,8 @@
           "hint": "S/T brief -> expand A (what YOU did) -> measurable R",
         "context": "Stretches the learner to deliver all four beats in order with correct weighting toward Action and Result.",
         "answer_key": "Expected elements: brief Situation and Task, learner-owned Actions with more detail than setup, and a clear Result.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["situation", "task", "actions", "result"]
       },
       {
         "id": "int_04_star_behavioral_bx4",
@@ -251,7 +267,8 @@
           "I added retry alerts and a support dashboard, so triage time fell from forty minutes to under ten.",
           "I worked hard with the team and handled many issues."
         ],
-        "band": "standard"
+        "band": "standard",
+        "criterion_ids": ["result"]
       },
       {
         "id": "int_04_star_behavioral_bx5",
@@ -260,7 +277,8 @@
         "hint": "short S/T, detailed A, measurable R",
         "context": "Pressure variant that forces correct STAR weighting rather than a vague project summary.",
         "answer_key": "Expected elements: one sentence each for Situation and Task, two learner-owned Action sentences, and one measurable Result sentence.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["situation", "task", "actions", "result"]
       }
     ],
       "exemplars": [
@@ -289,7 +307,8 @@
           "hint": "link the specific company fact to your own goal or value",
           "context": "Practices the stem 'That matters to me because ___' so a concrete fact connects to personal motivation.",
           "answer_key": "I care about building tools other developers actually rely on",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["personal_motivation_link"]
         },
         {
           "id": "int_05_why_this_role_bx2",
@@ -303,7 +322,8 @@
             "Your move to usage-based pricing last year is exactly the billing problem I want to work on — I've built metering systems and want to go deeper.",
             "I'm looking for a stable job with good pay and your company seems like a good fit."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["company_specific_fact", "personal_motivation_link", "role_relevance", "non_generic"]
         },
         {
           "id": "int_05_why_this_role_bx3",
@@ -312,7 +332,8 @@
           "hint": "one concrete fact -> 'that matters to me because...' tied to your direction",
           "context": "Stretches the learner to build a researched, non-generic motivation aloud from a real company fact.",
           "answer_key": "Expected elements: a specific company fact, why it genuinely matters to the learner, and a link to role fit or career direction.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["company_specific_fact", "personal_motivation_link", "role_relevance", "non_generic"]
         }
       ],
       "exemplars": [
@@ -341,7 +362,8 @@
           "hint": "name your own mistake, not someone else's",
           "context": "Drills first-person ownership by forcing the learner to complete the cause in their own voice.",
           "answer_key": "I skipped testing to hit the deadline and shipped a bug to customers",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["ownership"]
         },
         {
           "id": "int_06_own_a_failure_bx2",
@@ -355,16 +377,18 @@
             "I underestimated the timeline and didn't flag the risk early enough, so we missed the deadline. That's on me.",
             "Honestly, the requirements kept changing, so there was no way to hit it."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["ownership", "non_defensive_tone"]
         },
         {
           "id": "int_06_own_a_failure_bx3",
           "type": "spoken",
-          "sentence": "Tell me about a real failure of yours. Own it fully in the first person, then say the specific lesson you applied afterward.",
-          "hint": "your call -> what went wrong -> the concrete change you made next time",
-          "context": "Stretches the learner to deliver ownership plus an applied lesson aloud, with no blame and no deflection.",
-          "answer_key": "Expected elements: full ownership of the failure, what went wrong, and a concrete behavior change applied afterward; no blame-shifting.",
-          "band": "stretch"
+          "sentence": "Tell me about a real failure of yours. Own your decision, name its impact, explain what you did next, and finish with the prevention step you now use.",
+          "hint": "your call -> impact -> response -> prevention; no blame",
+          "context": "Free production of a complete ownership story that moves from consequence to corrective action without deflection.",
+          "answer_key": "Expected elements: first-person ownership, specific impact, response action, and a concrete prevention step; calm, non-defensive tone.",
+          "band": "stretch",
+          "criterion_ids": ["ownership", "impact", "response_action", "prevention", "non_defensive_tone"]
         }
       ],
       "exemplars": [
@@ -393,7 +417,8 @@
           "hint": "offer a second clear interpretation to narrow the scope",
           "context": "Practices the 'do you mean A or B' clarifier stem to narrow a vague prompt before answering.",
           "answer_key": "one who keeps changing the requirements",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["recognizes_ambiguity", "asks_targeted_question"]
         },
         {
           "id": "int_07_clarify_before_answering_bx2",
@@ -407,7 +432,8 @@
             "Happy to — are you more interested in onboarding for new users, or retention for existing ones?",
             "I'd need to see all your data before I could possibly answer that."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["asks_targeted_question", "professional_tone"]
         },
         {
           "id": "int_07_clarify_before_answering_bx3",
@@ -416,7 +442,8 @@
           "hint": "clarify scope first ('do you mean ___ or ___?'), then answer that narrowed version",
           "context": "Stretches the learner to clarify a loaded prompt and then deliver a focused answer in one smooth turn.",
           "answer_key": "Expected elements: one sharp clarifying question, an explicit narrowed scope, and a focused answer to that chosen scope.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["recognizes_ambiguity", "asks_targeted_question", "states_answer_frame", "professional_tone"]
         }
       ],
       "exemplars": [
@@ -445,7 +472,8 @@
           "hint": "any number (e.g. 40)",
           "context": "Forces a measurable result into a vague achievement.",
           "answer_key": "<number>",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["quantified_before_after"]
         },
         {
           "id": "int_08_quantify_impact_bx2",
@@ -459,7 +487,8 @@
             "I grew sign-ups 30% in two quarters, adding ~1,200 users.",
             "Growth went up a lot under me."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["impact_claim", "quantified_before_after", "learner_contribution"]
         },
         {
           "id": "int_08_quantify_impact_bx3",
@@ -468,7 +497,8 @@
           "hint": "swap 'I helped/improved' for a metric: 'I ___, which changed ___ by ___'",
           "context": "Stretches the learner to quantify their own contribution aloud rather than recognizing a number in a prompt.",
           "answer_key": "Expected elements: a vague win converted into a number, percentage, scale, or before-after contrast tied to the learner's action.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["impact_claim", "quantified_before_after", "learner_contribution"]
         }
       ],
       "exemplars": [
@@ -497,7 +527,8 @@
           "hint": "state your counter-position clearly, but stay warm",
           "context": "Drills the acknowledge->assert stem so the learner concedes first, then holds a clear counter-position.",
           "answer_key": "skipping reviews on payment code usually costs us more time later",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["clear_counterposition", "collaborative_tone"]
         },
         {
           "id": "int_09_diplomatic_pushback_bx2",
@@ -511,7 +542,8 @@
             "I get why it feels that way when it goes stale — though I'd argue a short, living doc actually saves onboarding time. I've seen it cut ramp-up in half.",
             "Yeah, you're probably right, documentation usually isn't worth the effort."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["acknowledges_view", "clear_counterposition", "requirement_based_reasoning", "collaborative_tone"]
         },
         {
           "id": "int_09_diplomatic_pushback_bx3",
@@ -520,7 +552,8 @@
           "hint": "acknowledge -> reframe -> assert; keep rapport, don't concede your view",
           "context": "Stretches the learner to run the full acknowledge->reframe->assert arc aloud while protecting the relationship.",
           "answer_key": "Expected elements: acknowledge a valid part of the premise, reframe the issue, and state a respectful counter-position without attacking.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["acknowledges_view", "clear_counterposition", "requirement_based_reasoning", "collaborative_tone"]
         }
       ],
       "exemplars": [
@@ -550,7 +583,8 @@
           "context": "Practices turning a generic closing question into a specific, research-signaling one.",
           "answer_key": "ninety days",
           "accept": ["90 days", "three months", "six months"],
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["specific_closing_question"]
         },
         {
           "id": "int_10_close_strong_bx2",
@@ -564,7 +598,8 @@
             "What's the biggest challenge the person in this role will need to solve in the first six months?",
             "So, do you think I did okay in this interview?"
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["specific_closing_question", "non_generic"]
         },
         {
           "id": "int_10_close_strong_bx3",
@@ -573,7 +608,8 @@
           "hint": "one real question -> a confident, specific close that reaffirms value without arrogance",
           "context": "Stretches the learner to combine a sharp question and a confident, non-arrogant close in one smooth ending.",
           "answer_key": "Expected elements: one substantive role or team question plus a specific fit close that is confident without sounding arrogant.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["specific_closing_question", "role_relevance", "role_fit_evidence", "professional_close", "non_generic"]
         }
       ],
       "exemplars": [
@@ -602,7 +638,8 @@
           "hint": "a concrete number or range, not a vague word like 'competitive'",
           "context": "Drills the anchor: a specific researched figure replaces a soft, negotiable non-number.",
           "answer_key": "18 to 22 lakhs",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["clear_anchor"]
         },
         {
           "id": "int_11_salary_negotiation_bx2",
@@ -616,16 +653,18 @@
             "I'm looking for 20 to 24 lakhs, based on the market rate for this scope and the metering systems I've shipped before.",
             "I'm flexible, so we can just go with whatever the standard band is for the role."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["clear_anchor", "market_or_value_reason"]
         },
         {
           "id": "int_11_salary_negotiation_bx3",
           "type": "spoken",
-          "sentence": "I'll ask your salary expectation. Give me a specific number or range, justify it in one line, and hold it without apologizing or immediately offering to go lower.",
-          "hint": "anchor with a number -> one line of justification (market + your value) -> stop, don't backpedal",
-          "context": "Stretches the learner to deliver a confident, justified anchor aloud and resist the urge to pre-discount it.",
-          "answer_key": "Expected elements: a specific number or range, one market-or-value justification, and no apology, backpedal, or immediate discount.",
-          "band": "stretch"
+          "sentence": "I'll ask your salary expectation. Give a specific number or range, justify it in one line, then name one bounded package lever you could discuss without lowering your anchor.",
+          "hint": "anchor -> value reason -> one bounded lever such as bonus, equity, or review timing; no apology",
+          "context": "Free production of a calm anchor that stays firm while showing controlled flexibility across the wider package.",
+          "answer_key": "Expected elements: one explicit number or range, one market-or-value justification, one bounded package option, calm tone, and no apology or immediate concession.",
+          "band": "stretch",
+          "criterion_ids": ["clear_anchor", "market_or_value_reason", "collaborative_flexibility", "calm_tone"]
         }
       ],
       "exemplars": [
@@ -654,7 +693,8 @@
           "hint": "one concrete thing that shows you stayed engaged or current",
           "context": "Drills the forward pivot: a gap becomes a sentence about what you kept doing, not an apology.",
           "answer_key": "completed two online courses to keep my skills current",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["productive_use_or_learning"]
         },
         {
           "id": "int_12_explain_a_gap_bx2",
@@ -668,7 +708,8 @@
             "I'd grown as far as the role allowed and wanted ownership of delivery end to end, which wasn't on the table there, so I decided to look for it elsewhere.",
             "Honestly I just got bored and didn't really feel like staying any longer."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["brief_context", "non_blaming_tone", "forward_focus"]
         },
         {
           "id": "int_12_explain_a_gap_bx3",
@@ -677,7 +718,8 @@
           "hint": "brief honest reason -> what you gained or did -> the forward intent; no blame",
           "context": "Stretches the learner to deliver the full honest-but-forward arc aloud without slipping into resentment.",
           "answer_key": "Expected elements: brief honest reason, what was gained or done during the transition, and a forward-looking intent; no badmouthing.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["brief_context", "non_blaming_tone", "productive_use_or_learning", "forward_focus"]
         }
       ],
       "exemplars": [

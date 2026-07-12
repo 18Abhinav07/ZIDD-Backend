@@ -22,7 +22,8 @@
           "hint": "a verb that commits you to a side",
           "context": "Drills the opening verb that signals a committed stance rather than a hedge.",
           "answer_key": "believe",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["clear_stance", "low_hedging"]
         },
         {
           "id": "gd_01_stake_position_bx2",
@@ -36,7 +37,8 @@
             "Well, it's hard to say, there are points on both sides.",
             "Maybe plastics are an issue, I suppose, sort of."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["clear_stance", "low_hedging", "concise_opening"]
         },
         {
           "id": "gd_01_stake_position_bx3",
@@ -45,7 +47,8 @@
           "hint": "lead with your stance, not a question or a hedge",
         "context": "Free production of a committed, position-first opening under a live topic.",
         "answer_key": "Expected elements: position-first opening, clear commitment to one side, and no hedging or question opener.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["clear_stance", "topic_relevance", "low_hedging", "concise_opening"]
       },
       {
         "id": "gd_01_stake_position_bx4",
@@ -59,7 +62,8 @@
           "Remote work has advantages and disadvantages, so it depends.",
           "I am not sure because both sides have points."
         ],
-        "band": "standard"
+        "band": "standard",
+        "criterion_ids": ["clear_stance", "low_hedging"]
       },
       {
         "id": "gd_01_stake_position_bx5",
@@ -68,7 +72,8 @@
         "hint": "position first, condition second",
         "context": "Pressure variant for a clear opening that is decisive without becoming simplistic.",
         "answer_key": "Expected elements: clear position plus one guardrail or condition that makes the stance more mature without fence-sitting.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["clear_stance", "topic_relevance", "low_hedging", "concise_opening"]
       }
     ],
       "exemplars": [
@@ -98,7 +103,8 @@
           "context": "Practises the signal phrase that turns a bare claim into supported reasoning.",
           "answer_key": "For instance",
           "accept": ["For example"],
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["concrete_evidence", "evidence_link"]
         },
         {
           "id": "gd_02_support_with_evidence_bx2",
@@ -112,7 +118,8 @@
             "Online courses widen access because they are genuinely very good at widening access.",
             "Online courses widen access, and I really do feel strongly about that."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["concrete_evidence", "evidence_link"]
         },
         {
           "id": "gd_02_support_with_evidence_bx3",
@@ -121,7 +128,8 @@
           "hint": "say your stance, then 'because' or 'for instance' and one specific detail",
           "context": "Free production of the position-then-concrete-support pattern.",
           "answer_key": "Expected elements: stance followed by one concrete fact, example, or analogy; avoid repeating the opinion as evidence.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["clear_stance", "concrete_evidence", "topic_relevance", "evidence_link"]
         }
       ],
       "exemplars": [
@@ -150,7 +158,8 @@
           "hint": "a verb meaning to contribute something extra",
           "context": "Drills the polite entry stem used to claim the floor.",
           "answer_key": "add",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["polite_entry_phrase", "adds_new_value"]
         },
         {
           "id": "gd_03_take_the_floor_bx2",
@@ -164,7 +173,8 @@
             "Stop — let me talk now, I've been waiting.",
             "Anyway, forget all that, here's a completely different topic."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["polite_entry_phrase", "links_prior_point", "assertive_not_rude"]
         },
         {
           "id": "gd_03_take_the_floor_bx3",
@@ -173,7 +183,8 @@
           "hint": "use an entry phrase, acknowledge them, then add your point",
           "context": "Free production of a well-timed, linked entry into a live discussion.",
           "answer_key": "Expected elements: polite entry phrase, link to the prior speaker's point, and one new relevant contribution.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["polite_entry_phrase", "links_prior_point", "adds_new_value", "assertive_not_rude"]
         }
       ],
       "exemplars": [
@@ -202,7 +213,8 @@
           "hint": "the preposition that goes after 'building'",
           "context": "Fixes the acknowledge-then-extend frame at the connector level.",
           "answer_key": "on",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["credits_prior_speaker"]
         },
         {
           "id": "gd_04_build_on_others_bx2",
@@ -216,7 +228,8 @@
             "Yeah, I agree, totally agree, good point.",
             "Forget emissions, my real concern is parking."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["credits_prior_speaker", "extends_idea", "collaborative_tone"]
         },
         {
           "id": "gd_04_build_on_others_bx3",
@@ -225,7 +238,8 @@
           "hint": "acknowledge, then add a fresh angle they didn't mention",
           "context": "Free production of the credit-then-extend collaborative move.",
           "answer_key": "Expected elements: credit the prior speaker, extend their idea, and add new value rather than merely agreeing.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["credits_prior_speaker", "extends_idea", "topic_relevance", "collaborative_tone"]
         }
       ],
       "exemplars": [
@@ -254,7 +268,8 @@
           "hint": "a soft contrast connector",
           "context": "Gives a ready frame for conceding then disagreeing without attacking.",
           "answer_key": "but",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["acknowledges_valid_point", "civil_tone"]
         },
         {
           "id": "gd_05_disagree_respectfully_bx2",
@@ -268,7 +283,8 @@
             "That's just wrong and you clearly haven't thought it through.",
             "No. That makes no sense at all."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["acknowledges_valid_point", "clear_counter", "reasoned_basis", "civil_tone"]
         },
         {
           "id": "gd_05_disagree_respectfully_bx3",
@@ -277,7 +293,8 @@
           "hint": "validate something true, then push back on the idea, not the person",
         "context": "Free production of the concede-then-counter civil disagreement.",
         "answer_key": "Expected elements: concede one fair point, counter the idea rather than the person, and keep a civil GD tone.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["acknowledges_valid_point", "clear_counter", "reasoned_basis", "civil_tone"]
       },
       {
         "id": "gd_05_disagree_respectfully_bx4",
@@ -290,7 +307,8 @@
           "though",
           "however"
         ],
-        "band": "foundational"
+        "band": "foundational",
+        "criterion_ids": ["clear_counter", "reasoned_basis", "civil_tone"]
       },
       {
         "id": "gd_05_disagree_respectfully_bx5",
@@ -299,7 +317,8 @@
         "hint": "concede speed, then counter with risk",
         "context": "Pressure variant for challenging an overconfident participant without sounding hostile.",
         "answer_key": "Expected elements: concede speed or another valid benefit, then name the safeguard risk as the counter-point.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["acknowledges_valid_point", "clear_counter", "reasoned_basis", "civil_tone"]
       }
     ],
       "exemplars": [
@@ -328,7 +347,8 @@
           "hint": "a two-word phrase meaning 'considering everything'",
           "context": "Practises the connector that pivots from weighing sides to a verdict.",
           "answer_key": "on balance",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["names_both_sides", "weighs_tradeoff", "returns_to_position"]
         },
         {
           "id": "gd_06_balanced_view_bx2",
@@ -342,7 +362,8 @@
             "Stricter rules are simply good and there's no real argument against them.",
             "Honestly both sides are equally right, so I can't really choose."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["names_both_sides", "weighs_tradeoff", "returns_to_position", "topic_relevance"]
         },
         {
           "id": "gd_06_balanced_view_bx3",
@@ -351,7 +372,8 @@
           "hint": "grant the opposing side honestly before you land your conclusion",
           "context": "Free production of weigh-both-sides-then-conclude reasoning.",
           "answer_key": "Expected elements: one fair point for each side, a clear final verdict, and the reason that side is stronger.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["names_both_sides", "weighs_tradeoff", "returns_to_position", "topic_relevance"]
         }
       ],
       "exemplars": [
@@ -380,7 +402,8 @@
           "hint": "a verb meaning to wander off the topic",
           "context": "Drills the neutral phrase that names the drift before refocusing.",
           "answer_key": "drifted",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["identifies_derailment"]
         },
         {
           "id": "gd_07_steer_back_bx2",
@@ -394,7 +417,8 @@
             "Why does everyone keep going off-topic? Focus, people.",
             "Sure, let's keep talking about snacks, that's fine."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["identifies_derailment", "redirects_to_topic", "non_controlling_tone"]
         },
         {
           "id": "gd_07_steer_back_bx3",
@@ -403,7 +427,8 @@
           "hint": "name the drift gently, restate the real question, offer a refocusing point",
           "context": "Free production of a neutral, well-judged redirect.",
           "answer_key": "Expected elements: neutral drift marker, restatement of the real topic, and one concrete refocusing point.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["identifies_derailment", "redirects_to_topic", "gives_next_step", "non_controlling_tone"]
         }
       ],
       "exemplars": [
@@ -432,7 +457,8 @@
           "hint": "a verb meaning to listen to someone's opinion",
           "context": "Practises the warm invitation stem for drawing in a quiet member.",
           "answer_key": "hear",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["names_quiet_participant", "topic_linked_invite", "non_pressuring_tone"]
         },
         {
           "id": "gd_08_include_quiet_bx2",
@@ -446,7 +472,8 @@
             "Sara, you haven't said anything, so go ahead, say something now.",
             "Does anyone else want to talk, anyone at all?"
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["names_quiet_participant", "topic_linked_invite", "respectful_floor_give", "non_pressuring_tone"]
         },
         {
           "id": "gd_08_include_quiet_bx3",
@@ -455,7 +482,8 @@
           "hint": "name them, tie it to the topic, leave room to decline",
         "context": "Free production of a specific, low-pressure invitation.",
         "answer_key": "Expected elements: name the quiet participant, connect the invitation to the topic or their experience, and leave room to decline.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["names_quiet_participant", "topic_linked_invite", "respectful_floor_give", "non_pressuring_tone"]
       },
       {
         "id": "gd_08_include_quiet_bx4",
@@ -464,7 +492,8 @@
         "hint": "invite without pressure",
         "context": "Practises a specific invitation that leaves room to decline.",
         "answer_key": "hear",
-        "band": "foundational"
+        "band": "foundational",
+        "criterion_ids": ["names_quiet_participant", "topic_linked_invite"]
       },
       {
         "id": "gd_08_include_quiet_bx5",
@@ -473,7 +502,8 @@
         "hint": "name them, connect to their angle, leave space",
         "context": "Pressure variant for facilitation without spotlight pressure.",
         "answer_key": "Expected elements: low-pressure invitation that connects the quiet participant's angle to the active discussion.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["names_quiet_participant", "topic_linked_invite", "respectful_floor_give", "non_pressuring_tone"]
       }
     ],
       "exemplars": [
@@ -502,7 +532,8 @@
           "hint": "a verb meaning to listen to / find out",
           "context": "Drills the validate-then-redistribute phrase for pausing a dominator.",
           "answer_key": "hear",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["acknowledges_contribution", "redistributes_floor", "respectful_boundary"]
         },
         {
           "id": "gd_09_manage_dominator_bx2",
@@ -516,7 +547,8 @@
             "Vik, you talk way too much, give it a rest.",
             "(say nothing and let him keep going)"
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["acknowledges_contribution", "redistributes_floor", "topic_link", "respectful_boundary"]
         },
         {
           "id": "gd_09_manage_dominator_bx3",
@@ -525,7 +557,8 @@
           "hint": "acknowledge their point, interrupt cleanly, then pass it on",
         "context": "Free production of an assertive, non-hostile floor-reclaiming move.",
         "answer_key": "Expected elements: brief validation, clean pause or interruption, and redistribution of the floor without hostility.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["acknowledges_contribution", "redistributes_floor", "respectful_boundary"]
       },
       {
         "id": "gd_09_manage_dominator_bx4",
@@ -534,7 +567,8 @@
         "hint": "a polite interrupt verb",
         "context": "Practises pausing a dominant speaker without attacking them.",
         "answer_key": "pause",
-        "band": "foundational"
+        "band": "foundational",
+        "criterion_ids": ["redistributes_floor", "respectful_boundary"]
       },
       {
         "id": "gd_09_manage_dominator_bx5",
@@ -543,7 +577,8 @@
         "hint": "validate -> pause -> redistribute",
         "context": "Pressure variant for assertive facilitation under a tense GD moment.",
         "answer_key": "Expected elements: validate the dominant speaker's point, pause them firmly, and hand the floor to another voice or the group.",
-        "band": "stretch"
+        "band": "stretch",
+        "criterion_ids": ["acknowledges_contribution", "redistributes_floor", "respectful_boundary"]
       }
     ],
       "exemplars": [
@@ -572,7 +607,8 @@
           "hint": "a two-word verb meaning to give a brief summary",
           "context": "Practises the closing stem that signals a synthesis is coming.",
           "answer_key": "sum up",
-          "band": "foundational"
+          "band": "foundational",
+          "criterion_ids": ["summarizes_key_points"]
         },
         {
           "id": "gd_10_drive_consensus_bx2",
@@ -586,7 +622,8 @@
             "Anyway, I was right all along, so let's just go with my idea.",
             "We talked about a lot of stuff, so let's stop here."
           ],
-          "band": "standard"
+          "band": "standard",
+          "criterion_ids": ["summarizes_key_points", "identifies_common_ground", "proposes_next_step", "balanced_credit"]
         },
         {
           "id": "gd_10_drive_consensus_bx3",
@@ -595,7 +632,8 @@
           "hint": "fairly capture both threads, name common ground, propose a conclusion",
           "context": "Free production of a fair synthesis that drives toward consensus.",
           "answer_key": "Expected elements: fair summary of two main threads, named common ground, and a proposed consensus the group can accept.",
-          "band": "stretch"
+          "band": "stretch",
+          "criterion_ids": ["summarizes_key_points", "identifies_common_ground", "proposes_next_step", "balanced_credit"]
         }
       ],
       "exemplars": [

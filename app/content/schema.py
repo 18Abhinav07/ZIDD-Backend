@@ -25,6 +25,10 @@ class BridgeExercise(BaseModel):
     accept: Optional[List[str]] = None
     options: Optional[List[str]] = None
     band: Optional[Literal["foundational", "standard", "stretch"]] = None
+    # Stable rubric criteria this drill repairs. Career bridge routing uses these
+    # IDs before fuzzy text matching, so a missing Result cannot be routed to an
+    # unrelated Action drill merely because both happen to share a difficulty.
+    criterion_ids: List[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _well_formed(self) -> "BridgeExercise":
@@ -55,6 +59,11 @@ class BridgeExercise(BaseModel):
                 raise ValueError(
                     f"BridgeExercise {self.id!r}: multiple_choice answer_key must be one of options"
                 )
+        self.criterion_ids = list(dict.fromkeys(
+            criterion.strip()
+            for criterion in self.criterion_ids
+            if str(criterion).strip()
+        ))
         # 'spoken' has no single keyed answer to grade against — answer_key is
         # evaluator guidance, not a learner-visible model answer.
         return self

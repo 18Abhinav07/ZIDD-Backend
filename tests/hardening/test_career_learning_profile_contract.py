@@ -1,7 +1,8 @@
 import asyncio
 
-from app.ai.schemas import CriterionEval, PrepRubricEval, SimulationReport
-from app.content.registry import get_module
+from app.ai.schemas import CriterionEval, PrepRubricEval, ProbeItem, SimulationReport
+from app.content.registry import get_module, get_node
+from app.content.task_types import TaskType
 from app.services import session_service as svc
 from app.services.rubric_engine import apply_caps, build_evaluation_packet, compute_attempt_credit
 from app.services.rubrics import get_rubric
@@ -70,6 +71,15 @@ def test_eighty_percent_readiness_creates_advance_state_without_mastery():
         progress = compute_attempt_credit(progress, independent_result)
     for _ in range(3):
         progress = compute_attempt_credit(progress, ready_result, transfer=True)
+
+    assert progress["display_status"] == "in_progress"
+
+    progress = compute_attempt_credit(
+        progress,
+        {**ready_result, "attempt_type": "pressure"},
+        pressure=True,
+    )
+    progress = compute_attempt_credit(progress, independent_result)
 
     assert progress["display_status"] == "ready_to_advance"
     assert progress["readiness_score"] >= 0.8
@@ -187,7 +197,10 @@ def test_prep_turn_evaluation_updates_global_learning_profile(store):
         task_type="gd_prep",
         career_context={"gd_topics": ["AI in campus placements"]},
     )
-    answer = "I support AI in campus placements because a pilot can compare shortlist accuracy before rollout."
+    answer = (
+        "I support AI in campus placements. As a hypothetical, a pilot could compare "
+        "shortlist accuracy before rollout."
+    )
     packet = build_evaluation_packet(state, svc.get_node("gd_02_support_with_evidence"), answer)
     result = apply_caps(
         packet,
@@ -199,7 +212,7 @@ def test_prep_turn_evaluation_updates_global_learning_profile(store):
                     id="concrete_evidence",
                     met=True,
                     quality=0.84,
-                    evidence_quote="a pilot can compare shortlist accuracy",
+                    evidence_quote="a pilot could compare shortlist accuracy",
                 ),
                 CriterionEval(id="topic_relevance", met=True, quality=0.9, evidence_quote="AI in campus placements"),
             ],
@@ -229,11 +242,11 @@ def test_prep_turn_evaluation_updates_global_learning_profile(store):
     assert event["source_event_key"] == "turn_evaluation:eval-1"
     assert event["task_type"] == "gd_prep"
     assert event["skill_id"] == "gd_02_support_with_evidence"
-    assert event["evidence_json"]["criteria"][1]["evidence_quote"] == "a pilot can compare shortlist accuracy"
+    assert "a pilot could compare shortlist accuracy" in event["evidence_json"]["criteria"][1]["evidence_quote"]
 
     profile = store.learner_skill_profiles[("user-1", "career", "gd_02_support_with_evidence")]
     assert profile["readiness"] == result.effective_score
-    assert profile["recommended_next_action"] == "Pressure-test this with a counterargument."
+    assert profile["recommended_next_action"] == ""
 
 
 def test_prep_turn_evaluation_feeds_exact_missing_criteria_and_quote_to_memory(store):
@@ -700,3 +713,304 @@ def test_hot_session_learning_delta_is_idempotent_by_evaluation_id():
     assert delta["repeated_issue_counts"]["Add quantified impact."] == 1
     assert delta["repeated_issue_counts"]["criterion:impact"] == 1
     assert delta["applied_evaluation_ids"] == ["eval-1"]
+
+
+def test_career_memory_context_scopes_all_structural_rows_to_interview():
+    from app.services.learning_profile import build_career_memory_context
+
+    context = build_career_memory_context(
+        {
+            "profiles": [
+                {
+                    "domain": "career",
+                    "skill_id": "interview_feedback_integration",
+                    "module_id": "interview",
+                    "task_type": "interview_prep",
+                    "readiness": 0.4,
+                    "confidence": 0.7,
+                    "gaps_json": ["Build on others' feedback in an interview answer."],
+                },
+                {
+                    "domain": "career",
+                    "skill_id": "gd_stance",
+                    "module_id": "group_discussion",
+                    "task_type": "gd_prep",
+                    "readiness": 0.4,
+                    "confidence": 0.7,
+                    "gaps_json": ["State a clear position."],
+                },
+            ],
+            "events": [
+                {
+                    "domain": "career",
+                    "skill_id": "interview_feedback_integration",
+                    "module_id": "interview",
+                    "task_type": "interview_prep",
+                    "gap": "interview-gap",
+                    "score": 0.3,
+                },
+                {
+                    "domain": "career",
+                    "skill_id": "gd_stance",
+                    "module_id": "group_discussion",
+                    "task_type": "gd_prep",
+                    "gap": "gd-gap",
+                    "score": 0.3,
+                },
+            ],
+            "progression": [
+                {"node_id": "int_04_star_behavioral", "ema": 0.35, "last_gap": "Add a result."},
+                {"node_id": "gd_01_stake_position", "ema": 0.35, "last_gap": "Commit early."},
+            ],
+            "reports": [
+                {"task_type": "interview_test", "status": "final", "summary": "Interview report."},
+                {"task_type": "gd_test", "status": "final", "summary": "GD report."},
+            ],
+        },
+        module_id="interview",
+    )
+
+    items = [
+        item
+        for key in ("active_gaps", "improving_gaps", "resolved_gaps", "mastered_skills")
+        for item in context[key]
+    ]
+    assert {item["skill_id"] for item in items} == {
+        "interview_feedback_integration",
+        "int_04_star_behavioral",
+    }
+    assert all(item["module_id"] == "interview" for item in items)
+    assert "Build on others' feedback" in items[0]["gap"]
+    assert set(context["repeated_issue_counts"]) == {
+        "interview_feedback_integration",
+        "interview-gap",
+    }
+    assert [report["task_type"] for report in context["recent_reports"]] == ["interview_test"]
+
+
+def test_career_context_for_node_scopes_nested_memory_without_mutating_source():
+    from app.ai.prompts import _career_context_for_node
+
+    source = {
+        "primary_role": "Backend Engineer",
+        "gd_topics": ["Remote work"],
+        "career_memory_context": {
+            "active_gaps": [
+                {
+                    "skill_id": "interview_gap",
+                    "module_id": "interview",
+                    "task_type": "interview_prep",
+                    "gap": "Add impact.",
+                },
+                {
+                    "skill_id": "gd_gap",
+                    "module_id": "group_discussion",
+                    "task_type": "gd_prep",
+                    "gap": "State a position.",
+                },
+            ],
+            "improving_gaps": [],
+            "resolved_gaps": [],
+            "mastered_skills": [],
+            "repeated_issue_counts": {
+                "interview_gap": 2,
+                "gd_gap": 3,
+                "Add evidence.": 9,
+            },
+            "recent_reports": [
+                {"task_type": "interview_test", "summary": "Interview report."},
+                {"task_type": "gd_test", "summary": "GD report."},
+            ],
+        },
+    }
+
+    scoped = _career_context_for_node(get_node("int_01_elevator_pitch"), source)
+
+    memory = scoped["career_memory_context"]
+    assert [item["skill_id"] for item in memory["active_gaps"]] == ["interview_gap"]
+    assert memory["repeated_issue_counts"] == {"interview_gap": 2}
+    assert [report["task_type"] for report in memory["recent_reports"]] == ["interview_test"]
+    assert len(source["career_memory_context"]["active_gaps"]) == 2
+
+
+def test_interview_test_history_combines_exact_test_and_matching_prep_only(monkeypatch, store):
+    calls: list[tuple[str, int]] = []
+    histories = {
+        "interview_test": [
+            {"session_id": "test-1", "node_id": "int_01_elevator_pitch", "raw": "test one"},
+            {"session_id": "shared", "node_id": "int_02_strength_with_evidence", "raw": "shared"},
+            {"session_id": "wrong-mode", "node_id": "gd_01_stake_position", "raw": "gd"},
+        ],
+        "interview_prep": [
+            {"session_id": "shared", "node_id": "int_02_strength_with_evidence", "raw": "shared"},
+            {"session_id": "prep-1", "node_id": "int_04_star_behavioral", "raw": "prep one"},
+            {"session_id": "prep-2", "node_id": "int_05_why_this_role", "raw": "prep two"},
+        ],
+        "gd_prep": [{"session_id": "gd-1", "node_id": "gd_01_stake_position", "raw": "gd"}],
+    }
+
+    async def load_context(_user_id: str, task_type: str, k: int = 3):
+        calls.append((task_type, k))
+        return histories.get(task_type, [])[:k]
+
+    async def no_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(store, "load_context", load_context)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", no_probe_items)
+
+    _session_id, state = _run(
+        svc.start_session(
+            "user-1",
+            "int_01_elevator_pitch",
+            test_mode=True,
+            persist=False,
+        )
+    )
+
+    assert calls == [("interview_test", 3), ("interview_prep", 3)]
+    assert [row["session_id"] for row in state["memory_context"]] == [
+        "test-1",
+        "shared",
+        "prep-1",
+        "prep-2",
+    ]
+    assert len(state["memory_context"]) <= 6
+
+
+def test_prep_precache_carries_hot_delta_without_mutating_session_context(monkeypatch):
+    generated: dict = {}
+    cached: dict = {}
+
+    async def fake_generate_test_items(user_id, task_type, **kwargs):
+        generated.update({"user_id": user_id, "task_type": task_type, **kwargs})
+        return [ProbeItem(skill_id="impact", prompt="Show the result.", aim="Specific impact")]
+
+    class CacheStore:
+        async def cache_test_items(self, user_id, task_type, items, context_hash="default"):
+            cached.update(
+                user_id=user_id,
+                task_type=task_type,
+                items=items,
+                context_hash=context_hash,
+            )
+
+    state = svc._new_state(
+        "user-1",
+        "prep-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+        career_context={"primary_role": "Backend Engineer"},
+        context_hash="role-context",
+    )
+    state["session_learning_delta"] = {
+        "module_id": "interview",
+        "task_type": "interview_prep",
+        "active_gaps": ["Add quantified impact."],
+        "repeated_issue_counts": {
+            "Add quantified impact.": 2,
+            "criterion:result": 2,
+        },
+        "latest_evidence_quotes": ["I fixed it but did not measure the result."],
+    }
+    monkeypatch.setattr(svc, "generate_test_items", fake_generate_test_items)
+    monkeypatch.setattr(svc, "get_storage", lambda: CacheStore())
+
+    _run(svc._precache_test_items(state))
+
+    assert generated["task_type"] == "interview_test"
+    assert generated["career_context"]["session_learning_delta"] == state["session_learning_delta"]
+    assert generated["career_context"]["session_learning_delta"] is not state["session_learning_delta"]
+    assert "session_learning_delta" not in state["career_context"]
+    assert cached["items"][0]["prompt"] == "Show the result."
+
+
+def test_test_generation_prompt_uses_only_matching_prep_hot_delta():
+    from app.ai.prompts import build_test_gen_prompt
+
+    career_context = {
+        "session_learning_delta": {
+            "module_id": "interview",
+            "task_type": "interview_prep",
+            "active_gaps": ["Add quantified impact."],
+            "repeated_issue_counts": {
+                "Add quantified impact.": 2,
+                "criterion:result": 2,
+            },
+            "latest_evidence_quotes": ["I fixed it but did not measure the result."],
+        }
+    }
+
+    interview_prompt = build_test_gen_prompt(
+        None,
+        [],
+        career_context=career_context,
+        task_type=TaskType.INTERVIEW_TEST,
+    )
+    gd_prompt = build_test_gen_prompt(
+        None,
+        [],
+        career_context=career_context,
+        task_type=TaskType.GD_TEST,
+    )
+
+    assert "result" in interview_prompt
+    assert "seen 2x" in interview_prompt
+    assert "Add quantified impact." not in interview_prompt
+    assert "I fixed it but did not measure the result." not in interview_prompt
+    assert "Add quantified impact." not in gd_prompt
+
+
+def test_pgvector_career_history_uses_durable_task_scope(monkeypatch):
+    from app.memory import store as memory_store
+
+    seen: dict = {}
+
+    class MappingResult:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return [{
+                "session_id": "session-1",
+                "node_id": "int_04_star_behavioral",
+                "content": "Strengths: clear action",
+                "task_type": "interview_test",
+                "module_id": "interview",
+            }]
+
+    class FakeSession:
+        async def execute(self, statement, params):
+            seen["sql"] = str(statement)
+            seen["params"] = dict(params)
+            return MappingResult()
+
+    async def fake_embed(_text):
+        return [0.0, 1.0]
+
+    monkeypatch.setattr(memory_store, "embed", fake_embed)
+
+    rows = _run(memory_store.load_context(
+        FakeSession(),
+        "user-1",
+        "interview_test",
+        3,
+    ))
+
+    assert "LEFT JOIN sessions" in seen["sql"]
+    assert "s.task_type = :task_type" in seen["sql"]
+    assert "CASE WHEN s.task_type = :task_type THEN 0 ELSE 1 END" in seen["sql"]
+    assert seen["params"]["task_type"] == "interview_test"
+    assert seen["params"]["legacy_prefix"] == ""
+    assert rows[0]["task_type"] == "interview_test"
+
+    _run(memory_store.load_context(
+        FakeSession(),
+        "user-1",
+        "interview_prep",
+        3,
+    ))
+    assert seen["params"]["legacy_prefix"] == "int\\_%"
+    assert "ESCAPE '\\'" in seen["sql"]

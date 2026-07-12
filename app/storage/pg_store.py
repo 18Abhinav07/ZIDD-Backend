@@ -47,6 +47,9 @@ def _parse_context_rows(rows: list[dict]) -> list[dict]:
                 parsed["next_focus"] = line[len("Next focus:"):].strip()
         result.append({
             "node_id": node_id, "score": 0.0,
+            "session_id": str(row.get("session_id") or "") if isinstance(row, dict) else "",
+            "task_type": str(row.get("task_type") or "") if isinstance(row, dict) else "",
+            "module_id": str(row.get("module_id") or "") if isinstance(row, dict) else "",
             "strengths": parsed.get("strengths", ""),
             "watch": parsed.get("watch", ""),
             "next_focus": parsed.get("next_focus", ""),

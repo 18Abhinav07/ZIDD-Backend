@@ -841,7 +841,8 @@ def test_pass_eligible_rubric_attempt_can_raise_mastery_and_readiness():
     )
     state.update({"current_mastery": 0.2, "readiness_score": 0.25})
     answer = (
-        "I support AI in hiring because our screening pilot reduced review time by 20 percent, "
+        "I support AI in hiring because, in a screening pilot I ran, I measured review time "
+        "falling by 20 percent, "
         "which shows automated ranking can help when people retain final oversight."
     )
     result = apply_caps(
@@ -850,7 +851,7 @@ def test_pass_eligible_rubric_attempt_can_raise_mastery_and_readiness():
             raw_score=0.9,
             criteria=[
                 CriterionEval(id="clear_stance", met=True, quality=0.9, evidence_quote="I support AI in hiring"),
-                CriterionEval(id="concrete_evidence", met=True, quality=0.9, evidence_quote="our screening pilot reduced review time by 20 percent"),
+                CriterionEval(id="concrete_evidence", met=True, quality=0.9, evidence_quote="in a screening pilot I ran, I measured review time falling by 20 percent"),
                 CriterionEval(id="topic_relevance", met=True, quality=0.9, evidence_quote="AI in hiring"),
                 CriterionEval(id="evidence_link", met=True, quality=0.9, evidence_quote="which shows automated ranking can help"),
             ],
@@ -3432,6 +3433,43 @@ def test_bridge_selector_skips_served_targeted_exercise_before_fallback():
     assert selected.id == "evidence-standard-b"
 
 
+def test_bridge_selector_prefers_explicit_failed_criterion_before_band_distance():
+    from app.content.schema import BridgeExercise
+
+    exercises = [
+        BridgeExercise(
+            id="generic-standard",
+            type="fill_blank",
+            sentence="I ___ the project plan.",
+            hint="name an action",
+            context="A generic action drill.",
+            answer_key="updated",
+            band="standard",
+            criterion_ids=["actions"],
+        ),
+        BridgeExercise(
+            id="result-stretch",
+            type="spoken",
+            sentence="State what changed because of your action.",
+            hint="give the observable outcome",
+            context="Repairs the missing STAR result.",
+            answer_key="Expected element: one observable result caused by the learner's action.",
+            band="stretch",
+            criterion_ids=["result"],
+        ),
+    ]
+
+    selected = select_bridge_exercise(
+        exercises,
+        bridge_attempts=0,
+        served_ids=[],
+        score=0.55,
+        gap_context={"required_missing": ["result"]},
+    )
+
+    assert selected.id == "result-stretch"
+
+
 def test_bridge_selector_without_gap_context_preserves_severity_order():
     from app.content.schema import BridgeExercise
 
@@ -3499,6 +3537,104 @@ def test_bridge_selector_preserves_foundational_scaffold_for_very_weak_answer():
     )
 
     assert selected.id == "foundation-stem"
+
+
+def test_bridge_selector_returns_none_instead_of_reusing_served_exercises():
+    from app.content.schema import BridgeExercise
+
+    exercise = BridgeExercise(
+        id="already-served",
+        type="fill_blank",
+        sentence="I ___ this policy.",
+        hint="commit to a side",
+        context="Foundational stance stem.",
+        answer_key="support",
+        band="foundational",
+        criterion_ids=["clear_stance"],
+    )
+
+    assert select_bridge_exercise(
+        [exercise],
+        bridge_attempts=1,
+        served_ids=[exercise.id],
+        score=0.3,
+        gap_context={"required_missing": ["clear_stance"]},
+    ) is None
+
+
+def test_bridge_selector_returns_none_when_only_unsafe_band_remains():
+    from app.content.schema import BridgeExercise
+
+    stretch = BridgeExercise(
+        id="result-stretch-only",
+        type="spoken",
+        sentence="Give the complete STAR story under pressure.",
+        hint="include all four beats",
+        context="A stretch production task.",
+        answer_key="Expected elements: situation, task, action, result.",
+        band="stretch",
+        criterion_ids=["result"],
+    )
+
+    assert select_bridge_exercise(
+        [stretch],
+        bridge_attempts=0,
+        served_ids=[],
+        score=0.1,
+        gap_context={"required_missing": ["result"]},
+    ) is None
+
+
+def test_bridge_node_exhausted_authored_pool_generates_fresh_scaffold():
+    from app.graph.nodes.bridge import bridge_node
+
+    state = svc._new_state(
+        "user-1",
+        "session-exhausted-bridges",
+        "int_02_strength_with_evidence",
+        [{"role": "user", "content": "I stay calm under pressure."}],
+        task_type="interview_prep",
+        career_context={"primary_role": "Backend Software Engineer"},
+    )
+    node = svc.get_node("int_02_strength_with_evidence")
+    state["served_bridge_ids"] = [exercise.id for exercise in node.bridge_exercises]
+    state["bridge_attempts"] = 1
+    state["last_diagnosis"] = {"next_focus": "Add learner-owned evidence."}
+
+    update = _run(bridge_node(state))
+
+    assert update["pending"].kind == "bridge"
+    assert "pending_game" not in update
+    assert update["last_route"] == "bridge"
+    assert update["bridge_attempts"] == 2
+    assert update["active_prompt_attempt_type"] == "scaffolded"
+
+
+@pytest.mark.parametrize(
+    ("node_id", "criterion_id", "expected_exercise"),
+    [
+        ("int_06_own_a_failure", "impact", "int_06_own_a_failure_bx3"),
+        ("int_06_own_a_failure", "response_action", "int_06_own_a_failure_bx3"),
+        ("int_11_salary_negotiation", "collaborative_flexibility", "int_11_salary_negotiation_bx3"),
+    ],
+)
+def test_authored_bridge_pool_covers_each_specialized_interview_gap(
+    node_id,
+    criterion_id,
+    expected_exercise,
+):
+    node = svc.get_node(node_id)
+
+    selected = select_bridge_exercise(
+        node.bridge_exercises,
+        bridge_attempts=0,
+        served_ids=[],
+        score=0.55,
+        gap_context={"required_missing": [criterion_id]},
+    )
+
+    assert selected is not None
+    assert selected.id == expected_exercise
 
 
 def test_interview_pitch_complete_evidence_repairs_omitted_evaluator_rows_without_deficit_focus():
@@ -6453,7 +6589,7 @@ def test_tutor_plan_for_partial_answer_disallows_mastery_praise():
     packet = build_evaluation_packet(
         state,
         svc.get_node("gd_02_support_with_evidence"),
-        "I think AI is useful because it helps.",
+        "I think AI is useful.",
     )
     result = apply_caps(
         packet,
@@ -6482,7 +6618,7 @@ def test_tutor_plan_for_partial_answer_disallows_mastery_praise():
     assert plan.next_action == "rewrite"
     assert plan.allowed_praise is False
     assert plan.tone_policy == "direct_no_praise"
-    assert plan.focus == "Add one concrete example."
+    assert "learner-owned evidence" in plan.focus
 
 
 def test_tutor_plan_escalates_repeated_hot_gap_without_mastery_praise():

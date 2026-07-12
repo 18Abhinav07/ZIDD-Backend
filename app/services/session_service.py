@@ -264,6 +264,8 @@ from app.storage import get_storage
 # coaching graph; the contribution is scored at session end, not coached mid-turn.
 _TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value})
 _CAREER_PREP_TASK_TYPES = frozenset({TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value})
+_CAREER_HISTORY_PER_MODE_LIMIT = 3
+_TEST_HISTORY_TOTAL_LIMIT = 2 * _CAREER_HISTORY_PER_MODE_LIMIT
 _EVALUATION_RETRY_TEXT = (
     "I couldn't review that answer reliably, so I haven't counted it. "
     "Please send the same answer once more."
@@ -3582,6 +3584,62 @@ def _seed_sim_topic(node_id: str, weaknesses: list) -> str:
     return get_node(node_id).teach_focus
 
 
+def _memory_context_identity(row: dict) -> tuple[str, ...]:
+    session_id = str(row.get("session_id") or "").strip()
+    if session_id:
+        return ("session", session_id)
+    node_id = str(row.get("node_id") or "").strip()
+    raw = " ".join(str(row.get("raw") or row.get("content") or "").split()).lower()
+    if raw:
+        return ("content", node_id, raw)
+    return ("row", json.dumps(row, sort_keys=True, default=str))
+
+
+def _memory_context_matches_module(row: dict, module_id: str) -> bool:
+    owners: list[str] = []
+    explicit_module = str(row.get("module_id") or "").strip()
+    if explicit_module:
+        owners.append(explicit_module)
+    node_id = str(row.get("node_id") or "").strip()
+    if node_id:
+        try:
+            owners.append(module_of(node_id))
+        except KeyError:
+            pass
+    task_module = {
+        TaskType.INTERVIEW_PREP.value: "interview",
+        TaskType.INTERVIEW_TEST.value: "interview",
+        TaskType.GD_PREP.value: "group_discussion",
+        TaskType.GD_TEST.value: "group_discussion",
+    }.get(str(row.get("task_type") or "").strip())
+    if task_module:
+        owners.append(task_module)
+    return bool(owners) and all(owner == module_id for owner in owners)
+
+
+def _merge_test_memory_context(
+    test_history: list,
+    prep_history: list,
+    module_id: str,
+) -> list[dict]:
+    merged: list[dict] = []
+    seen: set[tuple[str, ...]] = set()
+    for raw_row in [*test_history, *prep_history]:
+        if (
+            not isinstance(raw_row, dict)
+            or not _memory_context_matches_module(raw_row, module_id)
+        ):
+            continue
+        identity = _memory_context_identity(raw_row)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        merged.append(copy.deepcopy(raw_row))
+        if len(merged) >= _TEST_HISTORY_TOTAL_LIMIT:
+            break
+    return merged
+
+
 # ---------- public API ----------
 
 async def start_session(
@@ -3639,7 +3697,10 @@ async def start_session(
     career_context_private = career_context.private_dict()
     try:
         career_context_private["career_memory_context"] = (
-            await CareerLearningProfileService(store).get_career_memory_context(user_id)
+            await CareerLearningProfileService(store).get_career_memory_context(
+                user_id,
+                module_id=module_id,
+            )
         )
     except Exception:
         logger.warning(
@@ -3666,7 +3727,25 @@ async def start_session(
             attempts = p["attempts"]
             break
 
-    memory_context = await store.load_context(user_id, task_type)
+    exact_memory_context = await store.load_context(
+        user_id,
+        task_type,
+        k=_CAREER_HISTORY_PER_MODE_LIMIT,
+    )
+    if is_test:
+        prep_task_type = prep_counterpart(task_type)
+        prep_memory_context = await store.load_context(
+            user_id,
+            prep_task_type,
+            k=_CAREER_HISTORY_PER_MODE_LIMIT,
+        )
+        memory_context = _merge_test_memory_context(
+            exact_memory_context,
+            prep_memory_context,
+            module_id,
+        )
+    else:
+        memory_context = exact_memory_context
     weakness_context = await store.get_weaknesses(user_id, weakness_key)
 
     # School 'Learn' sessions: the meaningful weak-spot signal lives in the
@@ -6104,10 +6183,19 @@ async def _precache_test_items(state: dict) -> None:
     test_tt = test_counterpart(prep_tt)
     if test_tt == prep_tt:
         return  # no distinct TEST sibling -> nothing to precache
+    generation_context = copy.deepcopy(state.get("career_context") or {})
+    hot_delta = state.get("session_learning_delta")
+    if (
+        isinstance(hot_delta, dict)
+        and str(hot_delta.get("task_type") or "").strip() == prep_tt
+        and str(hot_delta.get("module_id") or "").strip()
+        == str(state.get("module_id") or "").strip()
+    ):
+        generation_context["session_learning_delta"] = copy.deepcopy(hot_delta)
     items = await generate_test_items(
         state["user_id"],
         test_tt,
-        career_context=state.get("career_context") or {},
+        career_context=generation_context,
         scenario_config=state.get("scenario_config") or {},
     )
     await get_storage().cache_test_items(
