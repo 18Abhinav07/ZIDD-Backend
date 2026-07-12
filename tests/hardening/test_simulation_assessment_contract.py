@@ -1,6 +1,6 @@
 import pytest
 
-from app.ai.schemas import SimulationReport
+from app.ai.schemas import SimulationReport, SimulationSkillGap
 from app.content.task_types import TaskType
 
 
@@ -18,6 +18,47 @@ def _answered_interview_messages(count: int) -> list[dict]:
             "message_kind": "learner_answer",
         })
     return messages
+
+
+def test_simulation_report_typed_gaps_remain_backward_compatible():
+    report = SimulationReport(
+        score=0.64,
+        summary="The answer needed a measurable result.",
+        strengths=[],
+        improvements=["Add a number."],
+        skill_gaps=[
+            SimulationSkillGap(
+                skill_id="int_08_quantify_impact",
+                label="Quantify your impact",
+                evidence_quote="I improved reliability.",
+                recommended_action="Add a before-and-after metric.",
+                recommended_node_id="int_08_quantify_impact",
+                status="active_gap",
+            )
+        ],
+        observed_skill_gaps=["measurable result"],
+        recommended_next_nodes=["int_08_quantify_impact"],
+    )
+
+    assert report.skill_gaps[0].skill_id == "int_08_quantify_impact"
+    assert report.observed_skill_gaps == ["measurable result"]
+    assert report.recommended_next_nodes == ["int_08_quantify_impact"]
+
+
+def test_simulation_score_prompt_lists_only_active_mode_canonical_gap_ids():
+    from app.ai.prompts import build_simulation_score_prompt
+
+    prompt = build_simulation_score_prompt(
+        None,
+        "Backend interview",
+        _answered_interview_messages(1),
+        task_type=TaskType.INTERVIEW_TEST,
+    )
+
+    assert "int_08_quantify_impact" in prompt
+    assert "int_00_general_communication" in prompt
+    assert "gd_02_support_with_evidence" not in prompt
+    assert "skill_gaps" in prompt
 
 
 def test_gd_test_director_prompt_uses_active_topic_without_profile_leakage():
@@ -250,6 +291,26 @@ def test_safe_gd_turn_invalidates_handoff_that_claims_unseen_prior_speech():
     assert "what you said earlier" not in text
     assert state["assessment_validity_flags"][0]["code"] == "hidden_speaker_reference"
     assert not state.get("floor_handoff_queue")
+
+
+def test_gd_moderator_commentary_does_not_force_a_handoff():
+    from app.services import simulation_service as sim
+
+    personas = [
+        {"speaker_id": "moderator", "name": "Moderator", "role_type": "moderator"},
+        {"speaker_id": "aarav", "name": "Aarav", "role_type": "debater"},
+    ]
+
+    assert sim._detect_handoff_target(
+        "Aarav's view captures the cost risk, while the group still needs evidence.",
+        personas,
+        "moderator",
+    ) is None
+    assert sim._detect_handoff_target(
+        "Aarav, could you take the opposite view here?",
+        personas,
+        "moderator",
+    )["speaker_id"] == "aarav"
 
 
 @pytest.mark.asyncio

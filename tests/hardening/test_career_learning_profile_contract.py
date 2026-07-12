@@ -393,12 +393,296 @@ def test_simulation_report_updates_global_learning_profile_before_next_session(s
     ]
     assert len(store.learning_events) == 1
     assert store.learning_events[0]["source"] == "test_report"
-    assert store.learning_events[0]["gap"] == "evidence_under_pressure"
+    assert store.learning_events[0]["gap"] == "Back a strength with evidence"
     assert store.learning_events[0]["evidence_json"]["strengths"] == []
     skill_id = store.learning_events[0]["skill_id"]
+    assert skill_id == "int_02_strength_with_evidence"
     profile = store.learner_skill_profiles[("user-1", "career", skill_id)]
     assert profile["recommended_next_action"] == "Add evidence under pressure"
     assert profile["strengths_json"] == []
+
+
+def test_career_taxonomy_canonicalizes_paraphrases_and_separates_mode_fallbacks():
+    from app.services.career_skill_taxonomy import canonical_skill_id, fallback_skill_id
+
+    assert canonical_skill_id("interview_test", "quantify impact") == "int_08_quantify_impact"
+    assert canonical_skill_id("interview_test", "measurable result") == "int_08_quantify_impact"
+    assert canonical_skill_id("interview_test", "add a number") == "int_08_quantify_impact"
+    assert canonical_skill_id("gd_test", "add a number") == "gd_02_support_with_evidence"
+    assert canonical_skill_id("interview_test", "gd_10_drive_consensus") == "int_00_general_communication"
+    assert fallback_skill_id("interview_test") != fallback_skill_id("gd_test")
+
+
+def test_typed_report_gaps_keep_own_recommendation_and_reconcile_history(store):
+    from app.ai.schemas import SimulationSkillGap
+    from app.services.learning_profile import CareerLearningProfileService
+
+    service = CareerLearningProfileService(store)
+    first = SimulationReport(
+        score=0.58,
+        summary="Two interview gaps were observed.",
+        strengths=[],
+        improvements=["Add a metric.", "Ask a sharper closing question."],
+        skill_gaps=[
+            SimulationSkillGap(
+                skill_id="int_08_quantify_impact",
+                label="Quantify your impact",
+                evidence_quote="I made the system better.",
+                recommended_action="Add a before-and-after metric.",
+                recommended_node_id="int_08_quantify_impact",
+                status="active_gap",
+            ),
+            SimulationSkillGap(
+                skill_id="int_10_close_strong",
+                label="Close with sharp questions",
+                evidence_quote="I do not have any questions.",
+                recommended_action="Ask one role-specific closing question.",
+                recommended_node_id="int_10_close_strong",
+                status="active_gap",
+            ),
+        ],
+    )
+    _run(service.record_session_report(
+        user_id="user-1",
+        session_id="typed-1",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=first.model_dump(),
+    ))
+
+    second = SimulationReport(
+        score=0.76,
+        summary="Impact evidence improved.",
+        strengths=["Used a concrete metric"],
+        improvements=["State the baseline too."],
+        skill_gaps=[
+            SimulationSkillGap(
+                skill_id="int_08_quantify_impact",
+                label="Quantify your impact",
+                evidence_quote="I reduced latency by 30 percent.",
+                recommended_action="State the baseline with the result.",
+                recommended_node_id="int_08_quantify_impact",
+                status="improving",
+            )
+        ],
+    )
+    _run(service.record_session_report(
+        user_id="user-1",
+        session_id="typed-2",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=second.model_dump(),
+    ))
+    _run(service.record_session_report(
+        user_id="user-1",
+        session_id="typed-2",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=second.model_dump(),
+    ))
+
+    impact = store.learner_skill_profiles[("user-1", "career", "int_08_quantify_impact")]
+    closing = store.learner_skill_profiles[("user-1", "career", "int_10_close_strong")]
+    assert impact["attempts"] == 2
+    assert impact["recommended_next_action"] == "State the baseline with the result."
+    assert impact["evidence_json"]["latest_quote"] == "I reduced latency by 30 percent."
+    assert len(impact["evidence_json"]["report_history"]) == 2
+    assert closing["attempts"] == 1
+    assert closing["recommended_next_action"] == "Ask one role-specific closing question."
+    assert closing["evidence_json"]["gap_status"] == "active_gap"
+
+
+def test_legacy_report_pairs_each_gap_with_corresponding_recommendation(store):
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.55,
+        summary="The interview exposed two gaps.",
+        strengths=[],
+        improvements=["Add a number.", "Ask a role-specific question."],
+        observed_skill_gaps=["measurable result", "weak closing question"],
+        recommended_next_nodes=["int_08_quantify_impact", "int_10_close_strong"],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="legacy-pairs",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    impact = store.learner_skill_profiles[("user-1", "career", "int_08_quantify_impact")]
+    closing = store.learner_skill_profiles[("user-1", "career", "int_10_close_strong")]
+    assert impact["recommended_next_action"] == "Add a number."
+    assert closing["recommended_next_action"] == "Ask a role-specific question."
+
+
+def test_ambiguous_legacy_gap_uses_its_explicit_recommended_node(store):
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.55,
+        summary="Role relevance needs work.",
+        strengths=[],
+        improvements=["Connect the role to a company-specific reason."],
+        observed_skill_gaps=["role relevance"],
+        recommended_next_nodes=["int_05_why_this_role"],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="ambiguous-legacy-gap",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    assert ("user-1", "career", "int_05_why_this_role") in store.learner_skill_profiles
+    assert ("user-1", "career", "int_10_close_strong") not in store.learner_skill_profiles
+
+
+def test_resolved_report_gap_requires_gap_specific_evidence(store):
+    from app.ai.schemas import SimulationSkillGap
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.9,
+        summary="The answer improved.",
+        strengths=[],
+        improvements=[],
+        skill_gaps=[SimulationSkillGap(
+            skill_id="int_08_quantify_impact",
+            label="Quantify your impact",
+            evidence_quote="",
+            recommended_action="Keep using metrics.",
+            recommended_node_id="int_08_quantify_impact",
+            status="resolved",
+        )],
+        evidence_quotes=["I reduced latency by 30 percent on a different competency."],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="unsupported-resolution",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    profile = store.learner_skill_profiles[("user-1", "career", "int_08_quantify_impact")]
+    assert profile["evidence_json"]["gap_status"] == "improving"
+
+
+def test_legacy_profile_ids_are_projected_to_canonical_memory_without_duplicates():
+    from app.services.learning_profile import build_career_memory_context
+
+    context = build_career_memory_context({
+        "profiles": [
+            {
+                "domain": "career",
+                "skill_id": "interview_test:missing_metrics:deadbeef",
+                "module_id": "interview",
+                "task_type": "interview_test",
+                "readiness": 0.4,
+                "mastery": 0.0,
+                "confidence": 0.7,
+                "attempts": 2,
+                "gaps_json": ["missing metrics"],
+                "evidence_json": {},
+            },
+            {
+                "domain": "career",
+                "skill_id": "int_08_quantify_impact",
+                "module_id": "interview",
+                "task_type": "interview_test",
+                "readiness": 0.7,
+                "mastery": 0.0,
+                "confidence": 0.8,
+                "attempts": 3,
+                "gaps_json": ["Quantify your impact"],
+                "evidence_json": {"gap_status": "improving"},
+            },
+        ],
+        "reports": [],
+        "events": [],
+        "progression": [],
+    })
+
+    rows = [
+        row for bucket in ("active_gaps", "improving_gaps", "resolved_gaps", "mastered_skills")
+        for row in context[bucket]
+        if row["skill_id"] == "int_08_quantify_impact"
+    ]
+    assert len(rows) == 1
+    assert rows[0]["readiness"] == 0.7
+
+
+def test_cross_mode_typed_gap_cannot_enter_interview_memory(store):
+    from app.ai.schemas import SimulationSkillGap
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.5,
+        summary="An unknown interview gap was observed.",
+        strengths=[],
+        improvements=[],
+        skill_gaps=[SimulationSkillGap(
+            skill_id="gd_10_drive_consensus",
+            label="Unknown interview behavior",
+            evidence_quote="I finished my answer.",
+            recommended_action="Practice a concise interview answer.",
+            recommended_node_id="gd_10_drive_consensus",
+            status="active_gap",
+        )],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="cross-mode-gap",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    keys = set(store.learner_skill_profiles)
+    assert ("user-1", "career", "int_00_general_communication") in keys
+    assert not any(skill_id.startswith("gd_") for _, _, skill_id in keys)
+
+
+def test_mastered_progression_overrides_profile_for_same_canonical_node():
+    from app.services.learning_profile import build_career_memory_context
+
+    context = build_career_memory_context({
+        "profiles": [{
+            "domain": "career",
+            "skill_id": "int_08_quantify_impact",
+            "module_id": "interview",
+            "task_type": "interview_test",
+            "readiness": 0.45,
+            "mastery": 0.0,
+            "confidence": 0.8,
+            "attempts": 2,
+            "gaps_json": ["Add a number."],
+            "evidence_json": {"gap_status": "active_gap"},
+        }],
+        "progression": [{
+            "node_id": "int_08_quantify_impact",
+            "node_mastered": True,
+            "node_completed": True,
+            "best_independent_score": 0.93,
+            "attempts": 5,
+            "mastery_evidence": ["I reduced latency from 400ms to 250ms."],
+        }],
+        "reports": [],
+        "events": [],
+    }, module_id="interview")
+
+    assert context["active_gaps"] == []
+    assert context["mastered_skills"][0]["skill_id"] == "int_08_quantify_impact"
 
 
 def test_simulation_report_validity_status_is_preserved_in_learning_profile(store):
@@ -1014,3 +1298,59 @@ def test_pgvector_career_history_uses_durable_task_scope(monkeypatch):
     ))
     assert seen["params"]["legacy_prefix"] == "int\\_%"
     assert "ESCAPE '\\'" in seen["sql"]
+
+
+def test_postgres_report_reconciliation_cleans_legacy_ids_and_is_idempotent():
+    from app.db import repo
+
+    class LatestReportResult:
+        def scalar_one_or_none(self):
+            return "report:session-1"
+
+    class EmptyResult:
+        pass
+
+    class FakeSession:
+        def __init__(self):
+            self.calls = []
+            self.committed = False
+
+        async def execute(self, statement, params):
+            sql = str(statement)
+            self.calls.append((sql, params))
+            return LatestReportResult() if "SELECT report_id" in sql else EmptyResult()
+
+        async def commit(self):
+            self.committed = True
+
+        async def rollback(self):
+            raise AssertionError("latest report should reconcile, not roll back")
+
+    session = FakeSession()
+    kwargs = {
+        "user_id": "user-1",
+        "domain": "career",
+        "task_type": "interview_test",
+        "report_id": "report:session-1",
+        "profiles": [{
+            "skill_id": "int_08_quantify_impact",
+            "module_id": "interview",
+            "readiness": 0.7,
+            "confidence": 0.8,
+            "attempts": 2,
+            "gaps_json": ["Quantify your impact"],
+            "evidence_json": {"latest_report": "report:session-1"},
+        }],
+    }
+    _run(repo.reconcile_learner_skill_profiles_for_report(session, **kwargs))
+    _run(repo.reconcile_learner_skill_profiles_for_report(session, **kwargs))
+
+    delete_sql, delete_params = next(call for call in session.calls if "DELETE FROM learner_skill_profiles" in call[0])
+    insert_calls = [call for call in session.calls if "INSERT INTO learner_skill_profiles" in call[0]]
+    insert_sql, insert_params = insert_calls[0]
+    assert "LEFT(skill_id, char_length(:legacy_prefix)) = :legacy_prefix" in delete_sql
+    assert delete_params["legacy_prefix"] == "interview_test:"
+    assert "ON CONFLICT (user_id, domain, skill_id)" in insert_sql
+    assert insert_params[0]["report_id"] == "report:session-1"
+    assert len(insert_calls) == 2
+    assert session.committed is True

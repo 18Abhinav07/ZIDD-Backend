@@ -5448,6 +5448,7 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
             "mastered": node_mastered,
             "node_mastered": node_mastered,
             "display_status": status,
+            "attempts": int(p.get("attempts") or 0) if p else 0,
             "best_independent_score": best_independent_score,
             "independent_passes": int(p.get("independent_passes") or 0) if p else 0,
             "transfer_passes": int(p.get("transfer_passes") or 0) if p else 0,

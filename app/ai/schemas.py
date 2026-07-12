@@ -120,6 +120,17 @@ class PrepRubricEval(BaseModel):
         return self.required_missing
 
 
+class SimulationSkillGap(BaseModel):
+    """One durable Career report gap with its own evidence and next step."""
+
+    skill_id: str
+    label: str
+    evidence_quote: str
+    recommended_action: str
+    recommended_node_id: str
+    status: Literal["active_gap", "improving", "resolved"]
+
+
 class SimulationReport(BaseModel):
     """End-of-session score for a TEST-mode simulation (interview_test / gd_test).
 
@@ -148,6 +159,8 @@ class SimulationReport(BaseModel):
     scenario_label: str = ""
     role_focus: str = ""
     topic: str = ""
+    skill_gaps: list[SimulationSkillGap] = Field(default_factory=list)
+    # Legacy lists remain accepted while older model outputs and callers migrate.
     observed_skill_gaps: list[str] = Field(default_factory=list)
     recommended_next_nodes: list[str] = Field(default_factory=list)
     assessment_caveats: list[str] = Field(default_factory=list)

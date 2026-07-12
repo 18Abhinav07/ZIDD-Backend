@@ -22,8 +22,9 @@ from dataclasses import dataclass
 
 from app.ai.calls import evaluate_simulation
 from app.ai.prompts import sanitize_memory_text
-from app.ai.schemas import DirectorDecision, SimulationReport
+from app.ai.schemas import DirectorDecision, SimulationReport, SimulationSkillGap
 from app.content.task_types import TaskType
+from app.services.career_skill_taxonomy import canonicalize_report_gaps
 from app.services.simulation.blackboard import apply_decision, new_blackboard, note_turn
 from app.services.simulation.director import _next_in_rotation, decide_round
 from app.services.simulation.persona import stream_persona_turn
@@ -883,20 +884,11 @@ def _fresh_interview_fallback_probe(state: dict, recent: list[set[str]] | None =
     return fallback
 
 
-_HANDOFF_TERMS = (
-    "respond",
-    "reply",
-    "take",
-    "view",
-    "opposite",
-    "weigh in",
-    "jump in",
-    "come in",
-    "contribute",
-    "what do you think",
-    "could you",
-    "can you",
-    "please",
+_HANDOFF_AFTER_NAME_RE = re.compile(
+    r"(?:respond|reply|take\s+(?:the\s+)?(?:floor|opposite\s+view)|weigh\s+in|"
+    r"jump\s+in|come\s+in|contribute|what\s+do\s+you\s+think|"
+    r"(?:could|can|would)\s+you)",
+    re.IGNORECASE,
 )
 
 _PRIOR_SPEAKER_REFERENCE_PATTERNS = (
@@ -1004,17 +996,26 @@ def _persona_is_visible(state: dict, persona: dict) -> bool:
 
 
 def _detect_handoff_target(text: str, personas: list[dict], current_speaker_id: str) -> dict | None:
-    lower = (text or "").lower()
-    if not any(term in lower for term in _HANDOFF_TERMS):
-        return None
+    value = " ".join(str(text or "").split())
     for persona in personas:
         speaker_id = str(persona.get("speaker_id") or "").strip()
         if not speaker_id or speaker_id == current_speaker_id:
             continue
         name = str(persona.get("name") or "").strip()
-        candidates = [name.lower(), speaker_id.replace("_", " ").lower()]
-        if any(candidate and re.search(rf"\b{re.escape(candidate)}\b", lower) for candidate in candidates):
-            return persona
+        candidates = [name, speaker_id.replace("_", " ")]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            escaped = re.escape(candidate)
+            vocative = re.search(rf"\b{escaped}\b\s*[,/:;-]\s*(?P<after>.{{0,100}})", value, re.I)
+            if vocative and _HANDOFF_AFTER_NAME_RE.search(vocative.group("after")):
+                return persona
+            if re.search(
+                rf"\b(?:over\s+to|hear\s+from|invite)\s+{escaped}\b",
+                value,
+                re.I,
+            ):
+                return persona
     return None
 
 
@@ -1180,6 +1181,11 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
             _assessment_repair_text(state, TaskType.GD_TEST, persona),
         )
     personas = state.get("personas") or []
+    handoff_target = (
+        _detect_handoff_target(text, personas, current_speaker_id)
+        if _is_moderator_persona(persona)
+        else None
+    )
     unseen = _detect_unseen_prior_speaker_reference(
         state,
         text,
@@ -1213,7 +1219,7 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
             persona,
             _assessment_repair_text(state, TaskType.GD_TEST, persona),
         )
-    if gd_moderator_interview_question_text(text, persona):
+    if gd_moderator_interview_question_text(text, persona) and not handoff_target:
         _append_validity_flag(
             state,
             "gd_moderator_interview_prompt_repaired",
@@ -1239,11 +1245,6 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
             persona,
             _assessment_repair_text(state, TaskType.GD_TEST, persona),
         )
-    handoff_target = (
-        _detect_handoff_target(text, personas, current_speaker_id)
-        if _is_moderator_persona(persona) and not isinstance(state.get("assessment_plan"), dict)
-        else None
-    )
     if handoff_target:
         _queue_floor_handoff(
             state,
@@ -2631,10 +2632,21 @@ def sanitize_report_for_delivery(state: dict, report: dict) -> dict:
         *_grounded_evidence_quotes(state, list(sanitized.get("evidence_quotes") or [])),
         *_assessment_evidence_quotes(state),
     ]))[:8]
+    canonical_gaps = _ground_report_gap_evidence(
+        state,
+        canonicalize_report_gaps(
+            task_type,
+            skill_gaps=sanitized.get("skill_gaps") or [],
+            observed_skill_gaps=observed,
+            recommended_next_nodes=recommendations,
+            improvements=improvements,
+        ),
+    )
     sanitized.update({
         "improvements": improvements,
-        "recommended_next_nodes": recommendations,
-        "observed_skill_gaps": observed or improvements[:4],
+        "skill_gaps": canonical_gaps,
+        "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
+        "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
         "evidence_quotes": evidence_quotes,
         "summary": _sanitize_report_summary(
             task_type,
@@ -2834,6 +2846,18 @@ def _grounded_evidence_quotes(state: dict, candidates: list[str]) -> list[str]:
         seen.add(key)
         grounded.append(display)
     return grounded[:8]
+
+
+def _ground_report_gap_evidence(
+    state: dict,
+    gaps: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    grounded: list[dict[str, str]] = []
+    for gap in gaps:
+        candidate = str(gap.get("evidence_quote") or "").strip()
+        quotes = _grounded_evidence_quotes(state, [candidate]) if candidate else []
+        grounded.append({**gap, "evidence_quote": quotes[0] if quotes else ""})
+    return grounded
 
 
 def _assessment_evidence_quotes(state: dict) -> list[str]:
@@ -3372,19 +3396,31 @@ async def score_session(state: dict) -> SimulationReport:
         if report.recommended_next_nodes
         else []
     )
-    report = report.model_copy(update={
-        "improvements": _sanitize_report_improvements(task_type, list(report.improvements)),
-        "recommended_next_nodes": sanitized_recommendations,
-        "observed_skill_gaps": _sanitize_report_improvements(
+    sanitized_improvements = _sanitize_report_improvements(
+        task_type,
+        list(report.improvements),
+    )
+    canonical_gaps = _ground_report_gap_evidence(
+        state,
+        canonicalize_report_gaps(
             task_type,
-            list(report.observed_skill_gaps or []),
+            skill_gaps=report.skill_gaps,
+            observed_skill_gaps=report.observed_skill_gaps,
+            recommended_next_nodes=sanitized_recommendations,
+            improvements=sanitized_improvements,
         ),
+    )
+    report = report.model_copy(update={
+        "improvements": sanitized_improvements,
+        "skill_gaps": [SimulationSkillGap.model_validate(gap) for gap in canonical_gaps],
+        "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
+        "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
     })
     report = report.model_copy(update={
         "scenario_label": report.scenario_label or _context_fields(state)["scenario_label"],
         "role_focus": report.role_focus or _context_fields(state)["role_focus"],
         "topic": report.topic or _context_fields(state)["topic"],
-        "observed_skill_gaps": report.observed_skill_gaps or list(report.improvements[:4]),
+        "observed_skill_gaps": report.observed_skill_gaps,
         "scorable_turn_count": scorable_turn_count,
         "coverage_map": coverage_map,
         "evidence_quotes": list(dict.fromkeys([

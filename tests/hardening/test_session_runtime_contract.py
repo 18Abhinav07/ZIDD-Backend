@@ -7012,3 +7012,4 @@ async def test_progression_map_returns_display_safe_completed_career_ready_state
     assert first["mastered"] is False
     assert first["raw_mastery"] == 0.0
     assert first["display_mastery"] == 0.0
+    assert first["attempts"] == 3

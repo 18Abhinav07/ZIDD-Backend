@@ -1656,7 +1656,7 @@ async def upsert_learner_skill_profile(
     await session.commit()
 
 
-async def replace_learner_skill_profiles_for_task(
+async def reconcile_learner_skill_profiles_for_report(
     session: AsyncSession,
     *,
     user_id: str,
@@ -1686,10 +1686,18 @@ async def replace_learner_skill_profiles_for_task(
         text(
             """
             DELETE FROM learner_skill_profiles
-            WHERE user_id = :uid AND domain = :domain AND task_type = :task_type
+            WHERE user_id = :uid
+              AND domain = :domain
+              AND task_type = :task_type
+              AND LEFT(skill_id, char_length(:legacy_prefix)) = :legacy_prefix
             """
         ),
-        {"uid": user_id, "domain": domain, "task_type": task_type},
+        {
+            "uid": user_id,
+            "domain": domain,
+            "task_type": task_type,
+            "legacy_prefix": f"{task_type}:",
+        },
     )
     if profiles:
         statement = text(
@@ -1704,6 +1712,24 @@ async def replace_learner_skill_profiles_for_task(
                  CAST(:strengths_json AS jsonb), CAST(:gaps_json AS jsonb),
                  CAST(:evidence_json AS jsonb), :recommended_next_action,
                  :source_summary)
+            ON CONFLICT (user_id, domain, skill_id) DO UPDATE SET
+                module_id = EXCLUDED.module_id,
+                task_type = EXCLUDED.task_type,
+                mastery = GREATEST(learner_skill_profiles.mastery, EXCLUDED.mastery),
+                readiness = EXCLUDED.readiness,
+                confidence = EXCLUDED.confidence,
+                attempts = CASE
+                    WHEN learner_skill_profiles.evidence_json->>'latest_report' = :report_id
+                    THEN learner_skill_profiles.attempts
+                    ELSE GREATEST(learner_skill_profiles.attempts + 1, EXCLUDED.attempts)
+                END,
+                last_seen_at = now(),
+                strengths_json = EXCLUDED.strengths_json,
+                gaps_json = EXCLUDED.gaps_json,
+                evidence_json = EXCLUDED.evidence_json,
+                recommended_next_action = EXCLUDED.recommended_next_action,
+                source_summary = EXCLUDED.source_summary,
+                updated_at = now()
             """
         )
         params = [
@@ -1713,6 +1739,7 @@ async def replace_learner_skill_profiles_for_task(
                 "skill_id": str(profile.get("skill_id") or ""),
                 "module_id": str(profile.get("module_id") or ""),
                 "task_type": task_type,
+                "report_id": report_id,
                 "mastery": float(profile.get("mastery") or 0.0),
                 "readiness": float(profile.get("readiness") or 0.0),
                 "confidence": float(profile.get("confidence") or 0.0),
@@ -1727,6 +1754,14 @@ async def replace_learner_skill_profiles_for_task(
         ]
         await session.execute(statement, params)
     await session.commit()
+
+
+async def replace_learner_skill_profiles_for_task(
+    session: AsyncSession,
+    **kwargs,
+) -> None:
+    """Backward-compatible alias for report reconciliation."""
+    await reconcile_learner_skill_profiles_for_report(session, **kwargs)
 
 
 async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:

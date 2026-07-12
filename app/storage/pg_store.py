@@ -413,6 +413,12 @@ class PgStore:
         async with _session() as s:
             await repo.replace_learner_skill_profiles_for_task(s, **kwargs)
 
+    async def reconcile_learner_skill_profiles_for_report(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.reconcile_learner_skill_profiles_for_report(s, **kwargs)
+
     async def get_learning_graph(self, user_id: str) -> dict:
         from app.db import repo
 

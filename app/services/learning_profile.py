@@ -1,11 +1,14 @@
 """Canonical learning-profile projection for career prep/test evidence."""
 from __future__ import annotations
 
-import hashlib
-import re
 from typing import Any
 
 from app.content.registry import module_of
+from app.services.career_skill_taxonomy import (
+    canonical_skill_id,
+    canonicalize_report_gaps,
+    skill_for_id,
+)
 
 
 CAREER_DOMAIN = "career"
@@ -46,47 +49,32 @@ def _row_matches_career_module(row: dict[str, Any], module_id: str) -> bool:
     return bool(owners) and all(owner == module_id for owner in owners)
 
 
-def _sanitize_report_gaps(_task_type: str, values: Any) -> list[str]:
-    return _clean_string_list(values, limit=8, item_limit=180)
-
-
-def _canonical_report_skill_id(task_type: str, gap: str) -> str:
-    normalized = " ".join(str(gap or "").lower().split())
-    slug = re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")[:64] or "focus"
-    digest = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:8]
-    return f"{task_type}:{slug}:{digest}"
-
-
 def _current_profile_rows(
     profiles: list[dict[str, Any]],
     reports: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    latest_usable_report_by_task: dict[str, str] = {}
-    for report in reports:
-        task_type = str(report.get("task_type") or "").strip()
-        status = str(report.get("status") or "").strip()
-        if (
-            task_type
-            and task_type not in latest_usable_report_by_task
-            and status not in {"insufficient_evidence", "invalid_simulation"}
-        ):
-            latest_usable_report_by_task[task_type] = str(report.get("report_id") or "").strip()
-
-    current: list[dict[str, Any]] = []
+    _ = reports
+    current_by_skill: dict[tuple[str, str], tuple[bool, dict[str, Any]]] = {}
     for profile in profiles:
-        task_type = str(profile.get("task_type") or "").strip()
         skill_id = str(profile.get("skill_id") or "").strip()
         if not skill_id or skill_id == "insufficient_assessment_evidence":
             continue
-        gap_values = profile.get("gaps_json") if isinstance(profile.get("gaps_json"), list) else []
-        if task_type.endswith("_test"):
-            evidence = profile.get("evidence_json") if isinstance(profile.get("evidence_json"), dict) else {}
-            profile_report_id = str(evidence.get("latest_report") or "").strip()
-            latest_report_id = latest_usable_report_by_task.get(task_type, "")
-            if latest_report_id and profile_report_id != latest_report_id:
-                continue
-        current.append(profile)
-    return current
+        row = dict(profile)
+        domain = str(row.get("domain") or "").strip()
+        task_type = str(row.get("task_type") or "").strip()
+        exact_canonical = skill_for_id(skill_id) is not None
+        legacy_report_skill = bool(task_type and skill_id.startswith(f"{task_type}:"))
+        if domain == CAREER_DOMAIN and legacy_report_skill and not exact_canonical:
+            gaps = row.get("gaps_json") if isinstance(row.get("gaps_json"), list) else []
+            candidate = _first(gaps) or str(row.get("recommended_next_action") or skill_id)
+            row["skill_id"] = canonical_skill_id(task_type, candidate)
+            evidence = row.get("evidence_json") if isinstance(row.get("evidence_json"), dict) else {}
+            row["evidence_json"] = {**evidence, "legacy_skill_id": skill_id}
+        key = (domain, str(row.get("skill_id") or ""))
+        previous = current_by_skill.get(key)
+        if previous is None or (exact_canonical and not previous[0]):
+            current_by_skill[key] = (exact_canonical, row)
+    return [row for _exact, row in current_by_skill.values()]
 
 
 def _safe_score(value: Any) -> float:
@@ -227,9 +215,14 @@ def _memory_item_from_profile(
     readiness = _safe_score(profile.get("readiness"))
     mastery = _safe_score(profile.get("mastery"))
     confidence = _safe_score(profile.get("confidence"))
-    status = _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
     gaps = [str(item).strip() for item in profile.get("gaps_json") or [] if str(item).strip()]
     evidence_json = profile.get("evidence_json") if isinstance(profile.get("evidence_json"), dict) else {}
+    explicit_status = str(evidence_json.get("gap_status") or "").strip()
+    status = (
+        explicit_status
+        if explicit_status in {"active_gap", "improving", "resolved"}
+        else _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
+    )
     missing_criteria = _clean_string_list(
         evidence_json.get("required_missing") or evidence_json.get("missing_criteria"),
         limit=5,
@@ -408,8 +401,12 @@ def build_career_memory_context(
         if not built:
             continue
         status, item = built
-        if str(item["skill_id"]) in profile_skill_ids:
+        skill_id = str(item["skill_id"])
+        if skill_id in profile_skill_ids and not row.get("node_mastered"):
             continue
+        if row.get("node_mastered"):
+            for items in buckets.values():
+                items[:] = [existing for existing in items if str(existing.get("skill_id")) != skill_id]
         buckets[status].append(item)
 
     for items in buckets.values():
@@ -584,13 +581,17 @@ class CareerLearningProfileService:
             status = explicit_validity
         else:
             status = "partial" if learner_caveats else str(report.get("status") or "final")
-        gaps = _sanitize_report_gaps(
+        canonical_gaps = canonicalize_report_gaps(
             task_type,
-            report.get("observed_skill_gaps") or report.get("improvements") or [],
+            skill_gaps=report.get("skill_gaps") or [],
+            observed_skill_gaps=report.get("observed_skill_gaps") or [],
+            recommended_next_nodes=report.get("recommended_next_nodes") or [],
+            improvements=report.get("improvements") or [],
         )
+        gaps = [gap["label"] for gap in canonical_gaps]
         strengths = list(report.get("strengths") or [])
         durable_strengths = strengths if status == "final" and not learner_caveats else []
-        recommendations = list(report.get("recommended_next_nodes") or report.get("improvements") or [])
+        recommendations = [gap["recommended_action"] for gap in canonical_gaps]
 
         await self.store.upsert_session_report(
             report_id=f"report:{session_id}",
@@ -622,6 +623,7 @@ class CareerLearningProfileService:
                     if report.get(key) is not None
                 },
                 "evidence_quotes": list(report.get("evidence_quotes") or []),
+                "skill_gaps": canonical_gaps,
             },
             recommended_actions_json=recommendations,
             validity_json={
@@ -642,11 +644,53 @@ class CareerLearningProfileService:
         if status in {"insufficient_evidence", "invalid_simulation"}:
             return
 
-        tracked_gaps = [str(gap).strip() for gap in gaps if str(gap).strip()]
         profile_confidence = 0.85 if status == "final" and not learner_caveats else 0.65
+        existing_profiles: dict[str, dict[str, Any]] = {}
+        if hasattr(self.store, "get_learning_graph"):
+            graph = await self.store.get_learning_graph(user_id)
+            existing_profiles = {
+                str(row.get("skill_id") or ""): row
+                for row in graph.get("profiles") or []
+                if isinstance(row, dict)
+                and str(row.get("domain") or "") == CAREER_DOMAIN
+            }
         profile_rows: list[dict[str, Any]] = []
-        for gap in tracked_gaps:
-            skill_id = _canonical_report_skill_id(task_type, gap)
+        for gap in canonical_gaps:
+            skill_id = gap["skill_id"]
+            gap_status = gap["status"]
+            if gap_status == "resolved" and not gap["evidence_quote"]:
+                gap_status = "improving"
+            previous = existing_profiles.get(skill_id, {})
+            previous_evidence = (
+                previous.get("evidence_json")
+                if isinstance(previous.get("evidence_json"), dict)
+                else {}
+            )
+            report_history = [
+                dict(item)
+                for item in previous_evidence.get("report_history") or []
+                if isinstance(item, dict)
+            ]
+            previous_report_id = str(previous_evidence.get("latest_report") or "").strip()
+            if not report_history and previous_report_id:
+                report_history.append({
+                    "report_id": previous_report_id,
+                    "status": str(previous_evidence.get("gap_status") or "active_gap"),
+                    "evidence_quote": str(previous_evidence.get("latest_quote") or ""),
+                    "score": _safe_score(previous.get("readiness")),
+                })
+            history_item = {
+                "report_id": f"report:{session_id}",
+                "status": gap_status,
+                "evidence_quote": gap["evidence_quote"],
+                "score": score,
+            }
+            report_already_seen = any(
+                item.get("report_id") == history_item["report_id"]
+                for item in report_history
+            )
+            if not report_already_seen:
+                report_history.append(history_item)
             event_key = f"session_report:{session_id}:{skill_id}"
             await self.store.record_learning_event(
                 source_event_key=event_key,
@@ -655,7 +699,7 @@ class CareerLearningProfileService:
                 task_type=task_type,
                 module_id=module_id,
                 session_id=session_id,
-                node_id="",
+                node_id=skill_id,
                 skill_id=skill_id,
                 source="test_report" if task_type.endswith("_test") else "prep_report",
                 attempt_type="report",
@@ -669,9 +713,13 @@ class CareerLearningProfileService:
                     "evidence_quotes": list(report.get("evidence_quotes") or []),
                     "scorable_turn_count": report.get("scorable_turn_count") or 0,
                     "coverage_map": report.get("coverage_map") or {},
+                    "evidence_quote": gap["evidence_quote"],
+                    "gap_status": gap_status,
+                    "recommended_action": gap["recommended_action"],
+                    "recommended_node_id": gap["recommended_node_id"],
                 },
                 blockers=[],
-                gap=gap,
+                gap=gap["label"],
                 scenario_json={
                     "role_focus": report.get("role_focus") or "",
                     "topic": report.get("topic") or "",
@@ -687,11 +735,15 @@ class CareerLearningProfileService:
                 "readiness": score,
                 "mastery": 0.0,
                 "confidence": profile_confidence,
-                "attempts": 1,
+                "attempts": int(previous.get("attempts") or 0) + (0 if report_already_seen else 1),
                 "strengths_json": durable_strengths,
-                "gaps_json": [gap],
+                "gaps_json": [gap["label"]],
                 "evidence_json": {
                     "latest_report": f"report:{session_id}",
+                    "latest_quote": gap["evidence_quote"],
+                    "gap_status": gap_status,
+                    "recommended_node_id": gap["recommended_node_id"],
+                    "report_history": report_history[-20:],
                     "caveats": caveats,
                     "learner_assessment_caveats": learner_caveats,
                     "simulator_integrity_notes": simulator_notes,
@@ -699,12 +751,12 @@ class CareerLearningProfileService:
                     "scorable_turn_count": report.get("scorable_turn_count") or 0,
                     "coverage_map": report.get("coverage_map") or {},
                 },
-                "recommended_next_action": _first(list(report.get("improvements") or []), gap),
+                "recommended_next_action": gap["recommended_action"],
                 "source_summary": str(report.get("summary") or ""),
             })
 
-        if hasattr(self.store, "replace_learner_skill_profiles_for_task"):
-            await self.store.replace_learner_skill_profiles_for_task(
+        if hasattr(self.store, "reconcile_learner_skill_profiles_for_report"):
+            await self.store.reconcile_learner_skill_profiles_for_report(
                 user_id=user_id,
                 domain=CAREER_DOMAIN,
                 task_type=task_type,
