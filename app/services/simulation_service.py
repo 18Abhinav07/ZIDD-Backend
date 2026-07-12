@@ -24,7 +24,10 @@ from app.ai.calls import evaluate_simulation
 from app.ai.prompts import sanitize_memory_text
 from app.ai.schemas import DirectorDecision, SimulationReport, SimulationSkillGap
 from app.content.task_types import TaskType
-from app.services.career_skill_taxonomy import canonicalize_report_gaps
+from app.services.career_skill_taxonomy import (
+    canonicalize_report_gaps,
+    unmapped_report_observations,
+)
 from app.services.simulation.blackboard import apply_decision, new_blackboard, note_turn
 from app.services.simulation.director import _next_in_rotation, decide_round
 from app.services.simulation.persona import stream_persona_turn
@@ -2632,6 +2635,19 @@ def sanitize_report_for_delivery(state: dict, report: dict) -> dict:
         *_grounded_evidence_quotes(state, list(sanitized.get("evidence_quotes") or [])),
         *_assessment_evidence_quotes(state),
     ]))[:8]
+    unmapped = _ground_report_gap_evidence(
+        state,
+        [
+            *list(sanitized.get("unmapped_report_observations") or []),
+            *unmapped_report_observations(
+                task_type,
+                skill_gaps=sanitized.get("skill_gaps") or [],
+                observed_skill_gaps=observed,
+                recommended_next_nodes=recommendations,
+                improvements=improvements,
+            ),
+        ],
+    )
     canonical_gaps = _ground_report_gap_evidence(
         state,
         canonicalize_report_gaps(
@@ -2647,6 +2663,7 @@ def sanitize_report_for_delivery(state: dict, report: dict) -> dict:
         "skill_gaps": canonical_gaps,
         "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
         "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
+        "unmapped_report_observations": unmapped,
         "evidence_quotes": evidence_quotes,
         "summary": _sanitize_report_summary(
             task_type,
@@ -3400,6 +3417,19 @@ async def score_session(state: dict) -> SimulationReport:
         task_type,
         list(report.improvements),
     )
+    unmapped = _ground_report_gap_evidence(
+        state,
+        [
+            *list(report.unmapped_report_observations or []),
+            *unmapped_report_observations(
+                task_type,
+                skill_gaps=report.skill_gaps,
+                observed_skill_gaps=report.observed_skill_gaps,
+                recommended_next_nodes=sanitized_recommendations,
+                improvements=sanitized_improvements,
+            ),
+        ],
+    )
     canonical_gaps = _ground_report_gap_evidence(
         state,
         canonicalize_report_gaps(
@@ -3415,6 +3445,7 @@ async def score_session(state: dict) -> SimulationReport:
         "skill_gaps": [SimulationSkillGap.model_validate(gap) for gap in canonical_gaps],
         "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
         "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
+        "unmapped_report_observations": unmapped,
     })
     report = report.model_copy(update={
         "scenario_label": report.scenario_label or _context_fields(state)["scenario_label"],

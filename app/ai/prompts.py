@@ -1147,7 +1147,7 @@ def build_simulation_score_prompt(
         "- scenario_label: short label for the tested role/topic\n"
         "- role_focus: target role if this was an interview, otherwise empty\n"
         "- topic: GD topic if this was a GD, otherwise the interview focus\n"
-        "- skill_gaps: list of typed gap objects. Every object must contain skill_id, label, evidence_quote, recommended_action, recommended_node_id, and status (active_gap, improving, or resolved). Use only IDs from the active-mode taxonomy below for both skill_id and recommended_node_id. Copy evidence_quote from a learner message; use an empty string only when no exact quote exists.\n"
+        "- skill_gaps: list of typed gap objects. Every object must contain skill_id, label, evidence_quote, recommended_action, recommended_node_id, status (active_gap, improving, or resolved), skill_score (0.0-1.0 for that skill only), and attempt_type (independent, pressure, or transfer). Use only IDs from the active-mode taxonomy below for both skill_id and recommended_node_id. Copy evidence_quote from a learner message; use an empty string only when no exact quote exists. Never copy the overall report score into each skill_score.\n"
         f"Allowed active-mode Career skill IDs:\n{allowed_gap_ids}\n"
         "- observed_skill_gaps: list of concrete weak skills observed\n"
         "- recommended_next_nodes: list of short next practice labels\n"

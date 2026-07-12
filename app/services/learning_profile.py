@@ -1,13 +1,14 @@
 """Canonical learning-profile projection for career prep/test evidence."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.content.registry import module_of
 from app.services.career_skill_taxonomy import (
-    canonical_skill_id,
     canonicalize_report_gaps,
     skill_for_id,
+    unmapped_report_observations,
 )
 
 
@@ -18,6 +19,12 @@ _CAREER_TASK_TYPES_BY_MODULE = {
     "interview": {"interview_prep", "interview_test"},
     "group_discussion": {"gd_prep", "gd_test"},
 }
+
+_LEGACY_HASHED_REPORT_SKILL_RE = re.compile(
+    r"^(?:interview_test|gd_test):.+:[0-9a-f]{8,64}$",
+    re.I,
+)
+_GROUNDING_ATTEMPT_TYPES = {"independent", "pressure", "transfer"}
 
 
 def _module_for_task_type(task_type: str) -> str:
@@ -57,19 +64,15 @@ def _current_profile_rows(
     current_by_skill: dict[tuple[str, str], tuple[bool, dict[str, Any]]] = {}
     for profile in profiles:
         skill_id = str(profile.get("skill_id") or "").strip()
-        if not skill_id or skill_id == "insufficient_assessment_evidence":
+        if (
+            not skill_id
+            or skill_id == "insufficient_assessment_evidence"
+            or _LEGACY_HASHED_REPORT_SKILL_RE.fullmatch(skill_id)
+        ):
             continue
         row = dict(profile)
         domain = str(row.get("domain") or "").strip()
-        task_type = str(row.get("task_type") or "").strip()
         exact_canonical = skill_for_id(skill_id) is not None
-        legacy_report_skill = bool(task_type and skill_id.startswith(f"{task_type}:"))
-        if domain == CAREER_DOMAIN and legacy_report_skill and not exact_canonical:
-            gaps = row.get("gaps_json") if isinstance(row.get("gaps_json"), list) else []
-            candidate = _first(gaps) or str(row.get("recommended_next_action") or skill_id)
-            row["skill_id"] = canonical_skill_id(task_type, candidate)
-            evidence = row.get("evidence_json") if isinstance(row.get("evidence_json"), dict) else {}
-            row["evidence_json"] = {**evidence, "legacy_skill_id": skill_id}
         key = (domain, str(row.get("skill_id") or ""))
         previous = current_by_skill.get(key)
         if previous is None or (exact_canonical and not previous[0]):
@@ -82,6 +85,14 @@ def _safe_score(value: Any) -> float:
         return round(max(0.0, min(1.0, float(value or 0.0))), 4)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _report_skill_score(overall_score: float, gap: dict[str, Any]) -> float:
+    status = str(gap.get("status") or "active_gap")
+    caps = {"active_gap": 0.49, "improving": 0.79, "resolved": 0.95}
+    explicit = gap.get("skill_score")
+    score = _safe_score(explicit) if explicit is not None else overall_score
+    return min(score, caps.get(status, 0.49))
 
 
 def _first(items: list[Any], default: str = "") -> str:
@@ -132,19 +143,25 @@ def _first_criterion_quote(criteria: list[Any], fallback: str = "") -> str:
     return ""
 
 
-def _latest_evidence(evidence: Any) -> str:
+def _quote(value: Any) -> str:
+    return " ".join(str(value or "").split())[:320]
+
+
+def _latest_evidence(evidence: Any, *, allow_answer_excerpt: bool = False) -> str:
+    """Return only row-owned learner quotes.
+
+    Report-wide quote lists, summaries, labels, gaps, and recommendations are
+    intentionally excluded. A prep event owns its answer excerpt because it is
+    already scoped to one assessed skill.
+    """
     if not isinstance(evidence, dict):
         return ""
-    direct = str(evidence.get("latest_quote") or evidence.get("answer_excerpt") or "").strip()
-    if direct:
-        return direct[:320]
-    for key in ("evidence_quotes", "quotes"):
-        values = evidence.get(key)
-        if isinstance(values, list):
-            for item in values:
-                text = str(item or "").strip()
-                if text:
-                    return text[:320]
+    for key in ("evidence_quote", "latest_quote"):
+        direct = _quote(evidence.get(key))
+        if direct:
+            return direct
+    if allow_answer_excerpt:
+        return _quote(evidence.get("answer_excerpt"))
     return ""
 
 
@@ -178,11 +195,6 @@ def _progression_evidence(row: dict[str, Any]) -> str:
     evidence = row.get("mastery_evidence")
     if isinstance(evidence, list):
         for item in reversed(evidence):
-            if isinstance(item, str):
-                text = item.strip()
-                if text:
-                    return text[:320]
-                continue
             if not isinstance(item, dict):
                 continue
             for criterion in reversed(item.get("criteria") or []):
@@ -191,7 +203,7 @@ def _progression_evidence(row: dict[str, Any]) -> str:
                 quote = " ".join(str(criterion.get("evidence_quote") or "").split())
                 if quote:
                     return quote[:320]
-    return str(row.get("last_gap") or "").strip()[:320]
+    return ""
 
 
 def _progression_readiness(row: dict[str, Any]) -> float:
@@ -202,12 +214,7 @@ def _progression_readiness(row: dict[str, Any]) -> float:
     return 0.0
 
 
-def _memory_item_from_profile(
-    profile: dict[str, Any],
-    *,
-    repeated_issue_counts: dict[str, int],
-    latest_event_quote_by_gap: dict[str, str],
-) -> tuple[str, dict[str, Any]] | None:
+def _base_item_from_profile(profile: dict[str, Any]) -> dict[str, Any] | None:
     skill_id = str(profile.get("skill_id") or "").strip()
     if not skill_id:
         return None
@@ -223,17 +230,14 @@ def _memory_item_from_profile(
         if explicit_status in {"active_gap", "improving", "resolved"}
         else _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
     )
+    if status == "resolved" and mastery < 0.95:
+        status = "improving"
     missing_criteria = _clean_string_list(
         evidence_json.get("required_missing") or evidence_json.get("missing_criteria"),
         limit=5,
     )
     blockers = _clean_string_list(evidence_json.get("blockers"), limit=5)
-    latest_evidence = (
-        _latest_evidence(evidence_json)
-        or latest_event_quote_by_gap.get(skill_id, "")
-        or _first(gaps)
-    )
-    return status, {
+    return {
         "skill_id": skill_id,
         "module_id": str(profile.get("module_id") or ""),
         "task_type": task_type,
@@ -242,19 +246,19 @@ def _memory_item_from_profile(
         "confidence": confidence,
         "attempts": int(profile.get("attempts") or 0),
         "gap": _first(gaps, skill_id),
-        "latest_evidence": latest_evidence,
+        "latest_evidence": _latest_evidence(
+            evidence_json,
+            allow_answer_excerpt=task_type.endswith("_prep"),
+        ),
         "recommended_next_action": str(profile.get("recommended_next_action") or "").strip(),
         "missing_criteria": missing_criteria,
         "blockers": blockers,
-        "repeat_count": repeated_issue_counts.get(skill_id, 0),
+        "milestone_mastered": mastery >= 0.95,
+        "provenance": ["profile"],
     }
 
 
-def _memory_item_from_progression(
-    row: dict[str, Any],
-    *,
-    repeated_issue_counts: dict[str, int],
-) -> tuple[str, dict[str, Any]] | None:
+def _base_item_from_progression(row: dict[str, Any]) -> dict[str, Any] | None:
     skill_id = str(row.get("node_id") or row.get("competency_node") or "").strip()
     if not skill_id:
         return None
@@ -265,9 +269,11 @@ def _memory_item_from_progression(
     mastery = 1.0 if row.get("node_mastered") else _safe_score(row.get("ema") or row.get("mastery"))
     confidence = 0.85 if row.get("node_mastered") else 0.7 if row.get("node_completed") else 0.55
     status = _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
+    if status == "resolved" and not row.get("node_mastered"):
+        status = "improving"
     latest_evidence = _progression_evidence(row)
     gap = str(row.get("last_gap") or "").strip() or skill_id
-    return status, {
+    return {
         "skill_id": skill_id,
         "module_id": module_id,
         "task_type": _prep_task_type_for_module(module_id),
@@ -276,12 +282,204 @@ def _memory_item_from_progression(
         "confidence": confidence,
         "attempts": int(row.get("attempts") or 0),
         "gap": gap,
-        "latest_evidence": latest_evidence or gap,
+        "latest_evidence": latest_evidence,
         "recommended_next_action": gap,
         "missing_criteria": [],
         "blockers": [],
-        "repeat_count": repeated_issue_counts.get(skill_id, 0),
+        "milestone_mastered": bool(row.get("node_mastered")),
+        "provenance": ["progression"],
     }
+
+
+def _durable_event_skill_id(event: dict[str, Any]) -> str:
+    skill_id = str(event.get("skill_id") or event.get("node_id") or "").strip()
+    if not skill_id or _LEGACY_HASHED_REPORT_SKILL_RE.fullmatch(skill_id):
+        return ""
+    source = str(event.get("source") or "").strip()
+    task_type = str(event.get("task_type") or "").strip()
+    if source in {"test_report", "prep_report"} or task_type.endswith("_test"):
+        return skill_id if skill_for_id(skill_id) is not None else ""
+    return skill_id
+
+
+def _chronological_events(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Order durable rows for reduction without changing the graph API contract."""
+    if not any(row.get("occurred_at") is not None for row in rows):
+        return rows
+
+    def occurred_at_key(indexed: tuple[int, dict[str, Any]]) -> tuple[str, int]:
+        index, row = indexed
+        value = row.get("occurred_at")
+        if hasattr(value, "isoformat"):
+            value = value.isoformat()
+        return str(value or ""), index
+
+    return [
+        row
+        for _index, row in sorted(enumerate(rows), key=occurred_at_key)
+    ]
+
+
+def _event_observation(event: dict[str, Any]) -> dict[str, Any] | None:
+    skill_id = _durable_event_skill_id(event)
+    if not skill_id:
+        return None
+    evidence = event.get("evidence_json") if isinstance(event.get("evidence_json"), dict) else {}
+    source = str(event.get("source") or "").strip()
+    task_type = str(event.get("task_type") or "").strip()
+    quote = _latest_evidence(
+        evidence,
+        allow_answer_excerpt=source == "prep_turn" and task_type.endswith("_prep"),
+    )
+    proof = evidence.get("proof") if isinstance(evidence.get("proof"), dict) else {}
+    grounded = bool(quote) and proof.get("grounded") is not False
+    if not grounded:
+        return None
+
+    status = str(evidence.get("gap_status") or "").strip()
+    required_missing = _clean_string_list(evidence.get("required_missing"), limit=5)
+    blockers = _clean_string_list(evidence.get("blockers") or event.get("blockers"), limit=5)
+    pass_eligible = evidence.get("pass_eligible")
+    if source in {"test_report", "prep_report"}:
+        kind = "failure" if status == "active_gap" else "positive" if status in {"improving", "resolved"} else ""
+    elif source == "prep_turn":
+        if pass_eligible is True and not required_missing and not blockers:
+            kind = "positive"
+        elif pass_eligible is False or required_missing or blockers:
+            kind = "failure"
+        else:
+            kind = "positive" if _safe_score(event.get("score")) >= 0.8 else "failure"
+    else:
+        kind = (
+            "failure"
+            if status == "active_gap" or _safe_score(event.get("score")) < 0.65
+            else "positive"
+            if status in {"improving", "resolved"} or _safe_score(event.get("score")) >= 0.8
+            else ""
+        )
+    if not kind:
+        return None
+    return {
+        "skill_id": skill_id,
+        "kind": kind,
+        "quote": quote,
+        "score": _safe_score(event.get("score")),
+        "confidence": _safe_score(event.get("confidence")),
+        "session_id": str(event.get("session_id") or event.get("source_event_key") or ""),
+        "source_event_key": str(event.get("source_event_key") or ""),
+        "source": source or "legacy_event",
+        "attempt_type": str(event.get("attempt_type") or "").strip(),
+        "task_type": task_type,
+        "module_id": str(event.get("module_id") or "").strip(),
+        "gap": str(event.get("gap") or "").strip(),
+        "missing_criteria": required_missing,
+        "blockers": blockers,
+    }
+
+
+def _distinct_observations(observations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    distinct: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for observation in observations:
+        identity = (
+            str(observation.get("session_id") or ""),
+            str(observation.get("quote") or "").lower(),
+        )
+        if identity in seen:
+            continue
+        seen.add(identity)
+        distinct.append(observation)
+    return distinct
+
+
+def _reduce_skill_item(
+    skill_id: str,
+    *,
+    base: dict[str, Any] | None,
+    events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    item = dict(base or {"skill_id": skill_id})
+    observations = [obs for event in events if (obs := _event_observation(event)) is not None]
+    latest = observations[-1] if observations else None
+    milestone_mastered = bool(item.get("milestone_mastered"))
+
+    latest_failure_index = max(
+        (index for index, obs in enumerate(observations) if obs["kind"] == "failure"),
+        default=-1,
+    )
+    recoveries = _distinct_observations([
+        obs
+        for obs in observations[latest_failure_index + 1:]
+        if obs["kind"] == "positive" and obs.get("attempt_type") in _GROUNDING_ATTEMPT_TYPES
+    ])
+    current_failures: list[dict[str, Any]] = []
+    for observation in reversed(observations):
+        if observation["kind"] == "positive":
+            break
+        if observation["kind"] == "failure":
+            current_failures.append(observation)
+    current_failures = _distinct_observations(list(reversed(current_failures)))
+    review_failures = [
+        observation
+        for observation in current_failures
+        if observation.get("attempt_type") in _GROUNDING_ATTEMPT_TYPES
+    ]
+
+    if milestone_mastered and len(review_failures) >= 2:
+        status = "needs_review"
+    elif milestone_mastered:
+        status = "mastered"
+    elif latest and latest["kind"] == "failure":
+        status = "active_gap"
+    elif latest_failure_index >= 0 and len(recoveries) >= 2:
+        status = "resolved"
+    elif latest and latest["kind"] == "positive":
+        status = "improving"
+    else:
+        status = str(item.get("status") or "active_gap")
+        if status in {"resolved", "mastered"}:
+            status = "improving"
+
+    if latest:
+        item.update({
+            "module_id": latest.get("module_id") or item.get("module_id", ""),
+            "task_type": latest.get("task_type") or item.get("task_type", ""),
+            "readiness": latest["score"],
+            "confidence": latest["confidence"] or item.get("confidence", 0.0),
+            "gap": latest.get("gap") or item.get("gap") or skill_id,
+            "latest_evidence": latest["quote"],
+            "missing_criteria": latest["missing_criteria"],
+            "blockers": latest["blockers"],
+        })
+    item.setdefault("module_id", "")
+    item.setdefault("task_type", "")
+    item.setdefault("readiness", 0.0)
+    item.setdefault("confidence", 0.0)
+    item.setdefault("gap", skill_id)
+    item.setdefault("latest_evidence", "")
+    item.setdefault("recommended_next_action", "")
+    item.setdefault("missing_criteria", [])
+    item.setdefault("blockers", [])
+    item["attempts"] = max(
+        int(item.get("attempts") or 0),
+        len({str(event.get("source_event_key") or index) for index, event in enumerate(events)}),
+    )
+    item.update({
+        "status": status,
+        "current_competence_status": status,
+        "milestone_mastered": milestone_mastered,
+        "repeat_count": len(current_failures),
+        "historical_failure_count": sum(obs["kind"] == "failure" for obs in observations),
+        "growth": {
+            "grounded_recovery_count": sum(obs["kind"] == "positive" for obs in observations),
+            "recoveries_since_latest_failure": len(recoveries),
+        },
+        "provenance": list(dict.fromkeys([
+            *list(item.get("provenance") or []),
+            *(obs["source"] for obs in observations),
+        ])),
+    })
+    return item
 
 
 def scope_career_memory_context(
@@ -346,36 +544,51 @@ def build_career_memory_context(
         if isinstance(row, dict) and _row_matches_career_module(row, module_id)
     ]
     profiles = _current_profile_rows(raw_profiles, reports)
-    events = [
+    events = _chronological_events([
         row for row in graph.get("events") or []
         if isinstance(row, dict) and str(row.get("domain") or "") == CAREER_DOMAIN
         and _row_matches_career_module(row, module_id)
-    ]
+    ])
     progression = [
         row for row in graph.get("progression") or []
         if isinstance(row, dict) and _row_matches_career_module(row, module_id)
     ]
 
-    repeated_issue_counts: dict[str, int] = {}
-    latest_event_quote_by_gap: dict[str, str] = {}
-    resolved_issue_streaks: set[str] = set()
-    for event in events:
-        skill_id = str(event.get("skill_id") or "").strip()
-        gap = str(event.get("gap") or "").strip()
-        issue_keys = list(dict.fromkeys(key for key in (skill_id, gap) if key))
-        if not issue_keys:
+    base_by_skill: dict[str, dict[str, Any]] = {}
+    for profile in profiles:
+        item = _base_item_from_profile(profile)
+        if not item:
             continue
-        quote = _latest_evidence(event.get("evidence_json"))
-        for issue_key in issue_keys:
-            if quote and issue_key not in latest_event_quote_by_gap:
-                latest_event_quote_by_gap[issue_key] = quote
-            if issue_key in resolved_issue_streaks:
-                continue
-            if _safe_score(event.get("score")) >= 0.8:
-                repeated_issue_counts.setdefault(issue_key, 0)
-                resolved_issue_streaks.add(issue_key)
-                continue
-            repeated_issue_counts[issue_key] = repeated_issue_counts.get(issue_key, 0) + 1
+        base_by_skill[str(item["skill_id"])] = item
+
+    for row in progression:
+        progression_item = _base_item_from_progression(row)
+        if not progression_item:
+            continue
+        skill_id = str(progression_item["skill_id"])
+        existing = base_by_skill.get(skill_id)
+        if existing is None:
+            base_by_skill[skill_id] = progression_item
+            continue
+        existing["attempts"] = max(
+            int(existing.get("attempts") or 0),
+            int(progression_item.get("attempts") or 0),
+        )
+        existing["milestone_mastered"] = bool(
+            existing.get("milestone_mastered") or progression_item.get("milestone_mastered")
+        )
+        if not existing.get("latest_evidence"):
+            existing["latest_evidence"] = progression_item.get("latest_evidence", "")
+        existing["provenance"] = list(dict.fromkeys([
+            *list(existing.get("provenance") or []),
+            "progression",
+        ]))
+
+    events_by_skill: dict[str, list[dict[str, Any]]] = {}
+    for event in events:
+        skill_id = _durable_event_skill_id(event)
+        if skill_id:
+            events_by_skill.setdefault(skill_id, []).append(event)
 
     buckets: dict[str, list[dict[str, Any]]] = {
         "active_gap": [],
@@ -383,31 +596,19 @@ def build_career_memory_context(
         "resolved": [],
         "mastered": [],
     }
-    profile_skill_ids: set[str] = set()
-    for profile in profiles:
-        built = _memory_item_from_profile(
-            profile,
-            repeated_issue_counts=repeated_issue_counts,
-            latest_event_quote_by_gap=latest_event_quote_by_gap,
+    repeated_issue_counts: dict[str, int] = {}
+    for skill_id in dict.fromkeys([*base_by_skill, *events_by_skill]):
+        item = _reduce_skill_item(
+            skill_id,
+            base=base_by_skill.get(skill_id),
+            events=events_by_skill.get(skill_id, []),
         )
-        if not built:
-            continue
-        status, item = built
-        profile_skill_ids.add(str(item["skill_id"]))
-        buckets[status].append(item)
-
-    for row in progression:
-        built = _memory_item_from_progression(row, repeated_issue_counts=repeated_issue_counts)
-        if not built:
-            continue
-        status, item = built
-        skill_id = str(item["skill_id"])
-        if skill_id in profile_skill_ids and not row.get("node_mastered"):
-            continue
-        if row.get("node_mastered"):
-            for items in buckets.values():
-                items[:] = [existing for existing in items if str(existing.get("skill_id")) != skill_id]
-        buckets[status].append(item)
+        repeat_count = int(item.get("repeat_count") or 0)
+        if repeat_count:
+            repeated_issue_counts[skill_id] = repeat_count
+        status = str(item.get("status") or "active_gap")
+        bucket = "active_gap" if status == "needs_review" else status
+        buckets[bucket].append(item)
 
     for items in buckets.values():
         items.sort(
@@ -514,8 +715,17 @@ class CareerLearningProfileService:
                 "criteria": criteria,
                 "answer_excerpt": str(user_answer or "")[:500],
                 "latest_quote": latest_quote,
+                "pass_eligible": bool(rubric_result.get("pass_eligible")),
+                "mastery_eligible": bool(rubric_result.get("mastery_eligible")),
                 "required_missing": required_missing,
                 "blockers": _clean_string_list(blockers, limit=5),
+                "proof": {
+                    "grounded": bool(latest_quote or str(user_answer or "").strip()),
+                    "criterion_quote_count": sum(
+                        bool(_quote(_row_dict(criterion).get("evidence_quote")))
+                        for criterion in criteria
+                    ),
+                },
                 "tutor_plan": dict(tutor_plan or {}),
             },
             "blockers": blockers,
@@ -544,7 +754,12 @@ class CareerLearningProfileService:
                 "blockers": blockers,
                 "caveats": errors,
                 "latest_quote": latest_quote,
+                "pass_eligible": bool(rubric_result.get("pass_eligible")),
+                "mastery_eligible": bool(rubric_result.get("mastery_eligible")),
                 "required_missing": required_missing,
+                "proof": {
+                    "grounded": bool(latest_quote or str(user_answer or "").strip()),
+                },
             },
             recommended_next_action=gap,
             source_summary=_first(profile_strengths, gap),
@@ -588,6 +803,24 @@ class CareerLearningProfileService:
             recommended_next_nodes=report.get("recommended_next_nodes") or [],
             improvements=report.get("improvements") or [],
         )
+        unmapped = [
+            *[
+                dict(item)
+                for item in report.get("unmapped_report_observations") or []
+                if isinstance(item, dict)
+            ],
+            *unmapped_report_observations(
+                task_type,
+                skill_gaps=report.get("skill_gaps") or [],
+                observed_skill_gaps=report.get("observed_skill_gaps") or [],
+                recommended_next_nodes=report.get("recommended_next_nodes") or [],
+                improvements=report.get("improvements") or [],
+            ),
+        ]
+        unmapped = list({
+            (str(item.get("raw_skill_id") or ""), str(item.get("label") or "")): item
+            for item in unmapped
+        }.values())
         gaps = [gap["label"] for gap in canonical_gaps]
         strengths = list(report.get("strengths") or [])
         durable_strengths = strengths if status == "final" and not learner_caveats else []
@@ -624,6 +857,7 @@ class CareerLearningProfileService:
                 },
                 "evidence_quotes": list(report.get("evidence_quotes") or []),
                 "skill_gaps": canonical_gaps,
+                "unmapped_report_observations": unmapped,
             },
             recommended_actions_json=recommendations,
             validity_json={
@@ -660,6 +894,7 @@ class CareerLearningProfileService:
             gap_status = gap["status"]
             if gap_status == "resolved" and not gap["evidence_quote"]:
                 gap_status = "improving"
+            per_skill_score = _report_skill_score(score, {**gap, "status": gap_status})
             previous = existing_profiles.get(skill_id, {})
             previous_evidence = (
                 previous.get("evidence_json")
@@ -683,7 +918,7 @@ class CareerLearningProfileService:
                 "report_id": f"report:{session_id}",
                 "status": gap_status,
                 "evidence_quote": gap["evidence_quote"],
-                "score": score,
+                "score": per_skill_score,
             }
             report_already_seen = any(
                 item.get("report_id") == history_item["report_id"]
@@ -702,19 +937,23 @@ class CareerLearningProfileService:
                 node_id=skill_id,
                 skill_id=skill_id,
                 source="test_report" if task_type.endswith("_test") else "prep_report",
-                attempt_type="report",
-                score=score,
+                attempt_type=str(gap.get("attempt_type") or "pressure"),
+                score=per_skill_score,
                 confidence=profile_confidence,
                 criteria_json=[],
                 evidence_json={
-                    "summary": report.get("summary") or "",
                     "strengths": durable_strengths,
-                    "improvements": list(report.get("improvements") or []),
-                    "evidence_quotes": list(report.get("evidence_quotes") or []),
                     "scorable_turn_count": report.get("scorable_turn_count") or 0,
                     "coverage_map": report.get("coverage_map") or {},
                     "evidence_quote": gap["evidence_quote"],
                     "gap_status": gap_status,
+                    "pass_eligible": bool(gap["evidence_quote"]) and gap_status != "active_gap",
+                    "mastery_eligible": False,
+                    "required_missing": [],
+                    "proof": {
+                        "grounded": bool(gap["evidence_quote"]),
+                        "scope": "gap_specific",
+                    },
                     "recommended_action": gap["recommended_action"],
                     "recommended_node_id": gap["recommended_node_id"],
                 },
@@ -732,7 +971,7 @@ class CareerLearningProfileService:
                 "skill_id": skill_id,
                 "module_id": module_id,
                 "task_type": task_type,
-                "readiness": score,
+                "readiness": per_skill_score,
                 "mastery": 0.0,
                 "confidence": profile_confidence,
                 "attempts": int(previous.get("attempts") or 0) + (0 if report_already_seen else 1),
@@ -742,6 +981,13 @@ class CareerLearningProfileService:
                     "latest_report": f"report:{session_id}",
                     "latest_quote": gap["evidence_quote"],
                     "gap_status": gap_status,
+                    "pass_eligible": bool(gap["evidence_quote"]) and gap_status != "active_gap",
+                    "mastery_eligible": False,
+                    "required_missing": [],
+                    "proof": {
+                        "grounded": bool(gap["evidence_quote"]),
+                        "scope": "gap_specific",
+                    },
                     "recommended_node_id": gap["recommended_node_id"],
                     "report_history": report_history[-20:],
                     "caveats": caveats,

@@ -129,6 +129,8 @@ class SimulationSkillGap(BaseModel):
     recommended_action: str
     recommended_node_id: str
     status: Literal["active_gap", "improving", "resolved"]
+    skill_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    attempt_type: Literal["independent", "pressure", "transfer"] = "pressure"
 
 
 class SimulationReport(BaseModel):
@@ -160,6 +162,7 @@ class SimulationReport(BaseModel):
     role_focus: str = ""
     topic: str = ""
     skill_gaps: list[SimulationSkillGap] = Field(default_factory=list)
+    unmapped_report_observations: list[dict[str, str]] = Field(default_factory=list)
     # Legacy lists remain accepted while older model outputs and callers migrate.
     observed_skill_gaps: list[str] = Field(default_factory=list)
     recommended_next_nodes: list[str] = Field(default_factory=list)

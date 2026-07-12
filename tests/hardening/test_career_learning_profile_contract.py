@@ -168,7 +168,7 @@ def test_private_credit_ids_do_not_enter_prompt_or_public_mastery_evidence():
     assert _progression_evidence({
         "mastery_evidence": private,
         "last_gap": "Add a clearer result.",
-    }) == "Add a clearer result."
+    }) == ""
     assert svc.public_mastery_evidence({
         "node_mastered": False,
         "mastery_evidence": private,
@@ -243,6 +243,10 @@ def test_prep_turn_evaluation_updates_global_learning_profile(store):
     assert event["task_type"] == "gd_prep"
     assert event["skill_id"] == "gd_02_support_with_evidence"
     assert "a pilot could compare shortlist accuracy" in event["evidence_json"]["criteria"][1]["evidence_quote"]
+    assert event["evidence_json"]["pass_eligible"] is result.pass_eligible
+    assert event["evidence_json"]["mastery_eligible"] is False
+    assert event["evidence_json"]["required_missing"] == []
+    assert event["evidence_json"]["proof"]["grounded"] is True
 
     profile = store.learner_skill_profiles[("user-1", "career", "gd_02_support_with_evidence")]
     assert profile["readiness"] == result.effective_score
@@ -648,9 +652,42 @@ def test_cross_mode_typed_gap_cannot_enter_interview_memory(store):
         report=report.model_dump(),
     ))
 
-    keys = set(store.learner_skill_profiles)
-    assert ("user-1", "career", "int_00_general_communication") in keys
-    assert not any(skill_id.startswith("gd_") for _, _, skill_id in keys)
+    stored = store.session_reports[("user-1", "cross-mode-gap")]
+    unmapped = stored["evidence_json"]["unmapped_report_observations"]
+    assert unmapped[0]["raw_skill_id"] == "gd_10_drive_consensus"
+    assert unmapped[0]["label"] == "Unknown interview behavior"
+    assert store.learning_events == []
+    assert store.learner_skill_profiles == {}
+
+
+def test_explicit_generic_fallback_id_remains_durable(store):
+    from app.ai.schemas import SimulationSkillGap
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.45,
+        summary="General communication needs work.",
+        strengths=[],
+        improvements=[],
+        skill_gaps=[SimulationSkillGap(
+            skill_id="int_00_general_communication",
+            label="General interview communication",
+            evidence_quote="I am not sure how to answer that.",
+            recommended_action="Practice a direct response.",
+            recommended_node_id="int_01_elevator_pitch",
+            status="active_gap",
+        )],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="explicit-fallback",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    assert store.learning_events[0]["skill_id"] == "int_00_general_communication"
 
 
 def test_mastered_progression_overrides_profile_for_same_canonical_node():
@@ -675,7 +712,13 @@ def test_mastered_progression_overrides_profile_for_same_canonical_node():
             "node_completed": True,
             "best_independent_score": 0.93,
             "attempts": 5,
-            "mastery_evidence": ["I reduced latency from 400ms to 250ms."],
+            "mastery_evidence": [{
+                "criteria": [{
+                    "id": "impact",
+                    "met": True,
+                    "evidence_quote": "I reduced latency from 400ms to 250ms.",
+                }],
+            }],
         }],
         "reports": [],
         "events": [],
@@ -783,7 +826,7 @@ def test_career_memory_context_groups_active_improving_and_repeated_gaps(store):
     _run(store.upsert_learner_skill_profile(
         user_id="user-1",
         domain="career",
-        skill_id="evidence_under_pressure",
+        skill_id="int_02_strength_with_evidence",
         module_id="interview",
         task_type="interview_test",
         readiness=0.42,
@@ -819,20 +862,23 @@ def test_career_memory_context_groups_active_improving_and_repeated_gaps(store):
             domain="career",
             task_type="interview_test",
             module_id="interview",
-            skill_id="evidence_under_pressure",
+            skill_id="int_02_strength_with_evidence",
             source="test_report",
             score=0.4,
             confidence=0.7,
-            evidence_json={"evidence_quotes": ["I improved reliability."]},
+            evidence_json={
+                "evidence_quote": "I improved reliability.",
+                "gap_status": "active_gap",
+            },
             gap="evidence_under_pressure",
             caveats=[],
         ))
 
     context = _run(CareerLearningProfileService(store).get_career_memory_context("user-1"))
 
-    assert context["active_gaps"][0]["skill_id"] == "evidence_under_pressure"
+    assert context["active_gaps"][0]["skill_id"] == "int_02_strength_with_evidence"
     assert context["improving_gaps"][0]["skill_id"] == "clear_stance"
-    assert context["repeated_issue_counts"]["evidence_under_pressure"] == 2
+    assert context["repeated_issue_counts"]["int_02_strength_with_evidence"] == 2
     assert "reliability" in context["active_gaps"][0]["latest_evidence"]
 
 
@@ -862,6 +908,274 @@ def test_high_readiness_without_mastery_stays_improving_not_resolved(store):
     assert context["mastered_skills"] == []
     assert context["improving_gaps"][0]["skill_id"] == "star_result_evidence"
     assert context["improving_gaps"][0]["status"] == "improving"
+
+
+def _career_observation(
+    *,
+    skill_id: str = "int_08_quantify_impact",
+    session_id: str,
+    status: str,
+    quote: str,
+    score: float,
+    source: str = "prep_turn",
+    attempt_type: str = "independent",
+) -> dict:
+    evidence_key = "evidence_quote" if source.endswith("report") else "latest_quote"
+    return {
+        "source_event_key": f"{source}:{session_id}:{skill_id}",
+        "domain": "career",
+        "task_type": "interview_test" if source.endswith("report") else "interview_prep",
+        "module_id": "interview",
+        "session_id": session_id,
+        "node_id": skill_id,
+        "skill_id": skill_id,
+        "source": source,
+        "attempt_type": attempt_type,
+        "score": score,
+        "confidence": 0.8,
+        "gap": "Quantify your impact",
+        "evidence_json": {
+            evidence_key: quote,
+            "gap_status": status,
+            "pass_eligible": status != "active_gap",
+            "mastery_eligible": False,
+            "required_missing": ["impact"] if status == "active_gap" else [],
+            "proof": {"grounded": bool(quote)},
+        },
+    }
+
+
+def test_durable_latest_evidence_is_quote_only_and_gap_specific():
+    from app.services.learning_profile import build_career_memory_context
+
+    base = {
+        "domain": "career",
+        "module_id": "interview",
+        "task_type": "interview_test",
+        "readiness": 0.4,
+        "mastery": 0.0,
+        "confidence": 0.8,
+        "attempts": 1,
+    }
+    context = build_career_memory_context({
+        "profiles": [
+            {
+                **base,
+                "skill_id": "custom_recommendation_only",
+                "gaps_json": ["Add metrics."],
+                "evidence_json": {},
+                "recommended_next_action": "Mention a measured result.",
+            },
+            {
+                **base,
+                "skill_id": "custom_reportwide_only",
+                "gaps_json": ["Structure the answer."],
+                "evidence_json": {"evidence_quotes": ["Unrelated report-wide quote."]},
+            },
+            {
+                **base,
+                "skill_id": "custom_gap_quote",
+                "gaps_json": ["Use a concrete result."],
+                "evidence_json": {"latest_quote": "I reduced retries by 30 percent."},
+            },
+        ],
+        "reports": [],
+        "events": [],
+        "progression": [],
+    })
+
+    by_skill = {
+        item["skill_id"]: item
+        for bucket in ("active_gaps", "improving_gaps", "resolved_gaps", "mastered_skills")
+        for item in context[bucket]
+    }
+    assert by_skill["custom_recommendation_only"]["latest_evidence"] == ""
+    assert by_skill["custom_reportwide_only"]["latest_evidence"] == ""
+    assert by_skill["custom_gap_quote"]["latest_evidence"] == "I reduced retries by 30 percent."
+
+
+def test_active_report_gap_uses_conservative_per_skill_readiness(store):
+    from app.ai.schemas import SimulationSkillGap
+    from app.services.learning_profile import CareerLearningProfileService
+
+    report = SimulationReport(
+        score=0.9,
+        summary="Overall performance was high, but one skill failed.",
+        strengths=[],
+        improvements=[],
+        skill_gaps=[SimulationSkillGap(
+            skill_id="int_08_quantify_impact",
+            label="Quantify your impact",
+            evidence_quote="I made it faster.",
+            recommended_action="Add the before and after metric.",
+            recommended_node_id="int_08_quantify_impact",
+            status="active_gap",
+        )],
+    )
+    _run(CareerLearningProfileService(store).record_session_report(
+        user_id="user-1",
+        session_id="high-overall-active-gap",
+        report_type="interview_test",
+        task_type="interview_test",
+        module_id="interview",
+        report=report.model_dump(),
+    ))
+
+    event = store.learning_events[0]
+    profile = store.learner_skill_profiles[("user-1", "career", "int_08_quantify_impact")]
+    context = _run(CareerLearningProfileService(store).get_career_memory_context("user-1"))
+    assert event["score"] <= 0.49
+    assert profile["readiness"] <= 0.49
+    assert context["active_gaps"][0]["readiness"] <= 0.49
+    assert event["evidence_json"]["evidence_quote"] == "I made it faster."
+    assert event["evidence_json"]["proof"]["grounded"] is True
+
+
+def test_source_aware_reducer_deduplicates_prep_test_and_requires_two_recoveries():
+    from app.services.learning_profile import build_career_memory_context
+
+    failure = _career_observation(
+        session_id="failure",
+        status="active_gap",
+        quote="I made the service faster.",
+        score=0.45,
+    )
+    recovery_one = _career_observation(
+        session_id="recovery-1",
+        status="improving",
+        quote="I reduced latency from 400ms to 300ms.",
+        score=0.82,
+        source="test_report",
+        attempt_type="pressure",
+    )
+    recovery_two = _career_observation(
+        session_id="recovery-2",
+        status="resolved",
+        quote="I reduced checkout latency by 35 percent.",
+        score=0.88,
+        attempt_type="transfer",
+    )
+    graph = {
+        "profiles": [{
+            "domain": "career",
+            "skill_id": "int_08_quantify_impact",
+            "module_id": "interview",
+            "task_type": "interview_test",
+            "readiness": 0.95,
+            "confidence": 0.9,
+            "attempts": 9,
+            "gaps_json": ["Stale profile gap"],
+            "evidence_json": {"latest_quote": "Stale profile quote."},
+        }],
+        "progression": [{
+            "node_id": "int_08_quantify_impact",
+            "ema": 0.93,
+            "attempts": 8,
+            "last_gap": "Stale progression gap",
+        }],
+        "reports": [],
+        "events": [failure, recovery_one],
+    }
+
+    improving = build_career_memory_context(graph, module_id="interview")
+    all_items = [
+        item
+        for bucket in ("active_gaps", "improving_gaps", "resolved_gaps", "mastered_skills")
+        for item in improving[bucket]
+    ]
+    assert len(all_items) == 1
+    assert improving["improving_gaps"][0]["readiness"] == 0.82
+    assert improving["improving_gaps"][0]["latest_evidence"] == recovery_one["evidence_json"]["evidence_quote"]
+
+    resolved = build_career_memory_context(
+        {**graph, "events": [failure, recovery_one, recovery_two]},
+        module_id="interview",
+    )
+    assert resolved["resolved_gaps"][0]["status"] == "resolved"
+
+
+def test_mastered_skill_with_two_current_failures_needs_review_without_losing_milestone():
+    from app.services.learning_profile import build_career_memory_context
+
+    progression = {
+        "node_id": "int_08_quantify_impact",
+        "node_mastered": True,
+        "node_completed": True,
+        "attempts": 12,
+        "mastery_evidence": [{
+            "criteria": [{
+                "id": "impact",
+                "met": True,
+                "evidence_quote": "I reduced latency by 40 percent.",
+            }],
+        }],
+    }
+    events = [
+        _career_observation(
+            session_id="regression-1",
+            status="active_gap",
+            quote="I improved the system.",
+            score=0.45,
+        ),
+        _career_observation(
+            session_id="regression-2",
+            status="active_gap",
+            quote="I made the API better.",
+            score=0.4,
+            source="test_report",
+            attempt_type="pressure",
+        ),
+    ]
+    context = build_career_memory_context({
+        "profiles": [],
+        "progression": [progression],
+        "reports": [],
+        "events": events,
+    })
+
+    item = context["active_gaps"][0]
+    assert item["status"] == "needs_review"
+    assert item["current_competence_status"] == "needs_review"
+    assert item["milestone_mastered"] is True
+    assert context["mastered_skills"] == []
+
+
+def test_repetition_is_canonical_current_failure_streak_and_uses_full_event_window():
+    from app.db import repo
+    from app.services.learning_profile import build_career_memory_context
+
+    old_failures = [
+        _career_observation(
+            session_id=f"old-{index}",
+            status="active_gap",
+            quote=f"I improved system {index}.",
+            score=0.4,
+        )
+        for index in range(59)
+    ]
+    recovery = _career_observation(
+        session_id="recovery",
+        status="improving",
+        quote="I reduced latency by 25 percent.",
+        score=0.82,
+    )
+    latest_failure = _career_observation(
+        session_id="latest-failure",
+        status="active_gap",
+        quote="I made the next service faster.",
+        score=0.42,
+    )
+    context = build_career_memory_context({
+        "profiles": [],
+        "progression": [],
+        "reports": [],
+        "events": [*old_failures, recovery, latest_failure],
+    })
+
+    assert repo.CAREER_LEARNING_EVENT_LIMIT >= 200
+    assert context["repeated_issue_counts"] == {"int_08_quantify_impact": 1}
+    assert context["active_gaps"][0]["historical_failure_count"] == 60
+    assert context["active_gaps"][0]["growth"]["grounded_recovery_count"] == 1
 
 
 def test_new_career_prep_session_receives_career_memory_context(store):
@@ -903,7 +1217,13 @@ def test_career_memory_context_uses_progression_rows_when_profile_row_missing(st
             attempts=4,
             node_completed=False,
             last_gap="Add a measurable result to the STAR answer.",
-            mastery_evidence=["I handled the outage but did not show the result."],
+            mastery_evidence=[{
+                "criteria": [{
+                    "id": "result",
+                    "met": False,
+                    "evidence_quote": "I handled the outage but did not show the result.",
+                }],
+            }],
         )
     )
     _run(
@@ -920,7 +1240,13 @@ def test_career_memory_context_uses_progression_rows_when_profile_row_missing(st
             transfer_passes=2,
             pressure_passes=2,
             last_gap="Keep stance direct under pressure.",
-            mastery_evidence=["Remote should be default with explicit guardrails."],
+            mastery_evidence=[{
+                "criteria": [{
+                    "id": "clear_stance",
+                    "met": True,
+                    "evidence_quote": "Remote should be default with explicit guardrails.",
+                }],
+            }],
         )
     )
 
@@ -1064,11 +1390,9 @@ def test_career_memory_context_scopes_all_structural_rows_to_interview():
         "int_04_star_behavioral",
     }
     assert all(item["module_id"] == "interview" for item in items)
-    assert "Build on others' feedback" in items[0]["gap"]
-    assert set(context["repeated_issue_counts"]) == {
-        "interview_feedback_integration",
-        "interview-gap",
-    }
+    by_skill = {item["skill_id"]: item for item in items}
+    assert "Build on others' feedback" in by_skill["interview_feedback_integration"]["gap"]
+    assert context["repeated_issue_counts"] == {}
     assert [report["task_type"] for report in context["recent_reports"]] == ["interview_test"]
 
 

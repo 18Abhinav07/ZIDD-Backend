@@ -22,6 +22,8 @@ _SCHOOL_WEAK_SURFACE_CAP = 5
 _SCHOOL_MASTERED_THRESHOLD = 0.8
 _SCHOOL_REVIEW_STALE_SECONDS = 5 * 24 * 60 * 60
 _REQUEST_STALE_SECONDS = 120
+CAREER_LEARNING_EVENT_LIMIT = 200
+_NON_CAREER_LEARNING_EVENT_LIMIT = 50
 
 # ---------- profiles ----------
 
@@ -1795,14 +1797,34 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
     )
     events = await session.execute(
         text(
-            """
+            f"""
+            WITH recent_career_events AS (
+                SELECT source_event_key, domain, task_type, module_id, session_id,
+                       node_id, skill_id, source, attempt_type, score, confidence,
+                       evidence_json, gap, caveats, occurred_at
+                FROM learning_events
+                WHERE user_id = :uid AND domain = 'career'
+                ORDER BY occurred_at DESC
+                LIMIT {CAREER_LEARNING_EVENT_LIMIT}
+            ),
+            recent_other_events AS (
+                SELECT source_event_key, domain, task_type, module_id, session_id,
+                       node_id, skill_id, source, attempt_type, score, confidence,
+                       evidence_json, gap, caveats, occurred_at
+                FROM learning_events
+                WHERE user_id = :uid AND domain <> 'career'
+                ORDER BY occurred_at DESC
+                LIMIT {_NON_CAREER_LEARNING_EVENT_LIMIT}
+            )
             SELECT source_event_key, domain, task_type, module_id, session_id,
                    node_id, skill_id, source, attempt_type, score, confidence,
                    evidence_json, gap, caveats, occurred_at
-            FROM learning_events
-            WHERE user_id = :uid
+            FROM (
+                SELECT * FROM recent_career_events
+                UNION ALL
+                SELECT * FROM recent_other_events
+            ) AS recent_learning_events
             ORDER BY occurred_at DESC
-            LIMIT 50
             """
         ),
         {"uid": user_id},

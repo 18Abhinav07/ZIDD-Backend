@@ -129,6 +129,95 @@ def _at(values: Iterable[Any] | None, index: int) -> str:
     return _clean(items[index]) if index < len(items) else ""
 
 
+def _report_gap_rows(
+    *,
+    skill_gaps: Iterable[Any] | None = None,
+    observed_skill_gaps: Iterable[Any] | None = None,
+    recommended_next_nodes: Iterable[Any] | None = None,
+    improvements: Iterable[Any] | None = None,
+) -> list[dict[str, Any]]:
+    typed = list(skill_gaps or [])
+    if typed:
+        rows: list[dict[str, Any]] = []
+        for item in typed:
+            if hasattr(item, "model_dump"):
+                item = item.model_dump()
+            if isinstance(item, dict):
+                rows.append(dict(item))
+        return rows
+
+    legacy_gaps = list(observed_skill_gaps or [])
+    legacy_recommendations = list(recommended_next_nodes or [])
+    improvement_list = list(improvements or [])
+    rows = []
+    for index, gap in enumerate(legacy_gaps or improvement_list):
+        recommendation = _at(legacy_recommendations, index)
+        action = _at(improvement_list, index)
+        if not action and recommendation not in _BY_ID:
+            action = recommendation
+        rows.append({
+            "skill_id": gap,
+            "label": gap,
+            "evidence_quote": "",
+            "recommended_action": action,
+            "recommended_node_id": recommendation,
+            "status": "active_gap",
+        })
+    return rows
+
+
+def _report_row_skill_id(mode: Any, row: dict[str, Any]) -> str:
+    """Resolve only a row-owned skill identity.
+
+    A recommendation is an action target, not evidence that an unknown observed
+    behavior belongs to that target. Exact fallback IDs remain valid because the
+    model explicitly selected them; unknown and cross-mode rows remain unmapped.
+    """
+    candidate = row.get("skill_id") or row.get("label")
+    matches = _matching_skill_ids(mode, candidate)
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        requested_matches = _matching_skill_ids(mode, row.get("recommended_node_id"))
+        if len(requested_matches) == 1 and requested_matches[0] in matches:
+            return requested_matches[0]
+    if row.get("label") and row.get("label") != candidate:
+        label_matches = _matching_skill_ids(mode, row.get("label"))
+        if len(label_matches) == 1:
+            return label_matches[0]
+    return ""
+
+
+def unmapped_report_observations(
+    mode: Any,
+    *,
+    skill_gaps: Iterable[Any] | None = None,
+    observed_skill_gaps: Iterable[Any] | None = None,
+    recommended_next_nodes: Iterable[Any] | None = None,
+    improvements: Iterable[Any] | None = None,
+) -> list[dict[str, str]]:
+    """Preserve raw report observations that cannot own a durable skill card."""
+    rows = _report_gap_rows(
+        skill_gaps=skill_gaps,
+        observed_skill_gaps=observed_skill_gaps,
+        recommended_next_nodes=recommended_next_nodes,
+        improvements=improvements,
+    )
+    unmapped: list[dict[str, str]] = []
+    for row in rows:
+        if _report_row_skill_id(mode, row):
+            continue
+        unmapped.append({
+            "raw_skill_id": _clean(row.get("skill_id")),
+            "label": _clean(row.get("label") or row.get("skill_id")),
+            "evidence_quote": _clean(row.get("evidence_quote")),
+            "recommended_action": _clean(row.get("recommended_action")),
+            "recommended_node_id": _clean(row.get("recommended_node_id")),
+            "status": _clean(row.get("status")) or "active_gap",
+        })
+    return unmapped
+
+
 def canonicalize_report_gaps(
     mode: Any,
     *,
@@ -138,51 +227,20 @@ def canonicalize_report_gaps(
     improvements: Iterable[Any] | None = None,
 ) -> list[dict[str, str]]:
     """Canonicalize typed or legacy report gaps without losing row ownership."""
-    typed = list(skill_gaps or [])
-    legacy_gaps = list(observed_skill_gaps or [])
-    legacy_recommendations = list(recommended_next_nodes or [])
-    improvement_list = list(improvements or [])
-    rows: list[dict[str, Any]] = []
-    if typed:
-        for item in typed:
-            if hasattr(item, "model_dump"):
-                item = item.model_dump()
-            if isinstance(item, dict):
-                rows.append(dict(item))
-    else:
-        source_gaps = legacy_gaps or improvement_list
-        for index, gap in enumerate(source_gaps):
-            recommendation = _at(legacy_recommendations, index)
-            action = _at(improvement_list, index)
-            if not action and recommendation not in _BY_ID:
-                action = recommendation
-            rows.append({
-                "skill_id": gap,
-                "label": gap,
-                "evidence_quote": "",
-                "recommended_action": action,
-                "recommended_node_id": recommendation,
-                "status": "active_gap",
-            })
+    rows = _report_gap_rows(
+        skill_gaps=skill_gaps,
+        observed_skill_gaps=observed_skill_gaps,
+        recommended_next_nodes=recommended_next_nodes,
+        improvements=improvements,
+    )
 
     canonical: list[dict[str, str]] = []
     seen: set[str] = set()
     for row in rows:
-        candidate = row.get("skill_id") or row.get("label")
-        candidate_matches = _matching_skill_ids(mode, candidate)
-        if not candidate_matches and row.get("label"):
-            candidate_matches = _matching_skill_ids(mode, row.get("label"))
+        skill_id = _report_row_skill_id(mode, row)
+        if not skill_id:
+            continue
         raw_requested_node = str(row.get("recommended_node_id") or "").strip()
-        requested_matches = _matching_skill_ids(mode, raw_requested_node)
-        requested_exact = requested_matches[0] if len(requested_matches) == 1 else ""
-        if len(candidate_matches) == 1:
-            skill_id = candidate_matches[0]
-        elif requested_exact and requested_exact in candidate_matches:
-            skill_id = requested_exact
-        elif requested_exact and not candidate_matches:
-            skill_id = requested_exact
-        else:
-            skill_id = fallback_skill_id(mode)
         if skill_id in seen:
             continue
         seen.add(skill_id)
@@ -193,12 +251,17 @@ def canonicalize_report_gaps(
         status = str(row.get("status") or "active_gap").strip()
         if status not in {"active_gap", "improving", "resolved"}:
             status = "active_gap"
-        canonical.append({
+        canonical_row: dict[str, Any] = {
             "skill_id": skill_id,
             "label": skill.label,
             "evidence_quote": _clean(row.get("evidence_quote")),
             "recommended_action": _clean(row.get("recommended_action")) or f"Practice {skill.label.lower()}.",
             "recommended_node_id": requested_node,
             "status": status,
-        })
+        }
+        if row.get("skill_score") is not None:
+            canonical_row["skill_score"] = row.get("skill_score")
+        if row.get("attempt_type") is not None:
+            canonical_row["attempt_type"] = str(row.get("attempt_type") or "")
+        canonical.append(canonical_row)
     return canonical
