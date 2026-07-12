@@ -37,7 +37,7 @@ def test_auth_limiter_counts_only_google_auth(monkeypatch):
 
 
 def test_turn_limiter_counts_only_session_turn(monkeypatch, store):
-    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False):
+    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
         return "session-for-rate-test", {
             "session_id": "session-for-rate-test",
             "user_id": user_id,

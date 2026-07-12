@@ -122,6 +122,18 @@ def test_session_start_idempotency_migration_is_registered_and_locked_down():
     assert "revoke all on table public.session_start_requests from public" in sql
 
 
+def test_attempt_charge_idempotency_migration_is_registered_and_unique():
+    migration = MIGRATIONS / "2026-07-11-attempt-charge-idempotency.sql"
+    assert migration.exists()
+    assert migration.resolve() in {path.resolve() for path in DEFAULT_MIGRATIONS}
+
+    sql = _sql(migration)
+    assert "add column if not exists idempotency_key text" in sql
+    assert "create unique index if not exists idx_credit_transactions_idempotency_key" in sql
+    assert "on public.credit_transactions(user_id, idempotency_key)" in sql
+    assert "where idempotency_key is not null" in sql
+
+
 def test_career_learning_profile_migration_is_registered_and_locked_down():
     migration = MIGRATIONS / "2026-07-09-career-learning-profile.sql"
     assert migration.exists()

@@ -48,6 +48,8 @@ class InMemoryStore:
         self.session_reports: dict[tuple[str, str], dict[str, Any]] = {}
         self.learner_skill_profiles: dict[tuple[str, str, str], dict[str, Any]] = {}
         self.unlocks: set[tuple[str, str, str]] = set()
+        self.idempotent_charges: dict[tuple[str, str], dict[str, Any]] = {}
+        self.credit_transactions: list[dict[str, Any]] = []
         self.google_login_resolutions = 0
         self.activity_snapshot_calls = 0
 
@@ -307,6 +309,7 @@ class InMemoryStore:
             "error_code": None,
             "source_session_id": source_session_id,
             "source_transition_id": source_transition_id,
+            "claim_generation": 1,
             "accepted": True,
             "request_mismatch": False,
             "created_at": now,
@@ -351,6 +354,29 @@ class InMemoryStore:
         source_transition_id: str | None = None,
     ) -> dict[str, Any]:
         now = time.time()
+        if source_session_id and source_transition_id:
+            for (_uid, existing_client_start_id), candidate in self.start_requests.items():
+                if self._is_stale_request(candidate):
+                    self._mark_stale_failed(candidate)
+                if (
+                    existing_client_start_id != client_start_id
+                    and candidate.get("source_session_id") == source_session_id
+                    and candidate.get("source_transition_id") == source_transition_id
+                    and candidate.get("status") in {"in_progress", "completed"}
+                ):
+                    consumed = dict(candidate)
+                    consumed["accepted"] = False
+                    consumed["request_mismatch"] = False
+                    consumed["consumed_status"] = consumed.get("status")
+                    consumed["status"] = "source_transition_consumed"
+                    consumed["accepted_client_start_id"] = existing_client_start_id
+                    return consumed
+        existing = self.start_requests.get((user_id, client_start_id))
+        if existing and existing.get("status") != "failed":
+            row = dict(existing)
+            row["accepted"] = False
+            row["request_mismatch"] = row.get("request_hash") != request_hash
+            return row
         row = {
             "user_id": user_id,
             "client_start_id": client_start_id,
@@ -361,6 +387,7 @@ class InMemoryStore:
             "error_code": None,
             "source_session_id": source_session_id,
             "source_transition_id": source_transition_id,
+            "claim_generation": int((existing or {}).get("claim_generation") or 0) + 1,
             "accepted": True,
             "request_mismatch": False,
             "created_at": self.start_requests.get((user_id, client_start_id), {}).get("created_at", now),
@@ -377,21 +404,128 @@ class InMemoryStore:
         session_id: str | None = None,
         response_json: dict[str, Any] | None = None,
         error_code: str | None = None,
-    ) -> None:
+        claim_generation: int = 1,
+    ) -> bool:
         key = (user_id, client_start_id)
-        row = self.start_requests.setdefault(
-            key,
-            {
-                "user_id": user_id,
-                "client_start_id": client_start_id,
-                "request_hash": "",
-            },
-        )
+        row = self.start_requests.get(key)
+        if (
+            row is None
+            or int(row.get("claim_generation") or 1) != int(claim_generation)
+            or row.get("status") != "in_progress"
+        ):
+            return False
         row["status"] = status
         row["session_id"] = session_id
         row["response_json"] = dict(response_json or {})
         row["error_code"] = error_code
         row["updated_at"] = time.time()
+        return True
+
+    async def renew_start_request_claim(
+        self,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+    ) -> bool:
+        row = self.start_requests.get((user_id, client_start_id))
+        if (
+            row is None
+            or int(row.get("claim_generation") or 1) != int(claim_generation)
+            or row.get("status") != "in_progress"
+        ):
+            return False
+        row["updated_at"] = time.time()
+        return True
+
+    async def commit_claimed_session_start(
+        self,
+        *,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+        session_record: dict[str, Any],
+        runtime_record: dict[str, Any],
+        messages: list[dict[str, Any]],
+        response_json: dict[str, Any],
+    ) -> bool:
+        row = self.start_requests.get((user_id, client_start_id))
+        if (
+            row is None
+            or row.get("status") != "in_progress"
+            or int(row.get("claim_generation") or 1) != int(claim_generation)
+        ):
+            return False
+        session_id = str(session_record["session_id"])
+        self.sessions[session_id] = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "task_type": session_record["task_type"],
+            "module_id": session_record["module_id"],
+            "competency_node": session_record["node_id"],
+            "test_mode": bool(session_record.get("test_mode")),
+            "career_context": dict(session_record.get("career_context") or {}),
+            "scenario_config": dict(session_record.get("scenario_config") or {}),
+            "persona_roster": list(session_record.get("persona_roster") or []),
+            "context_hash": session_record.get("context_hash") or "default",
+            "status": "active",
+        }
+        runtime = dict(runtime_record)
+        runtime["state_snapshot"] = dict(runtime_record.get("state_snapshot") or {})
+        runtime["pending_transition"] = (
+            dict(runtime_record["pending_transition"])
+            if runtime_record.get("pending_transition")
+            else None
+        )
+        self.session_runtime[session_id] = runtime
+        self.session_messages[session_id] = [dict(message) for message in messages]
+        row["status"] = "completed"
+        row["session_id"] = session_id
+        row["response_json"] = dict(response_json or {})
+        row["error_code"] = None
+        row["updated_at"] = time.time()
+        return True
+
+    async def compensate_claimed_attempt_charge(
+        self,
+        *,
+        user_id: str,
+        client_start_id: str,
+        claim_generation: int,
+        amount: int,
+        charge_key: str,
+        debit_reason: str,
+        refund_reason: str,
+        error_code: str,
+    ) -> bool:
+        row = self.start_requests.get((user_id, client_start_id))
+        if (
+            row is None
+            or row.get("status") != "in_progress"
+            or int(row.get("claim_generation") or 1) != int(claim_generation)
+        ):
+            return False
+        charge = self.idempotent_charges.get((user_id, charge_key))
+        if (
+            charge is None
+            or int(charge.get("amount") or 0) != int(amount)
+            or str(charge.get("reason") or "") != debit_reason
+        ):
+            raise RuntimeError("claimed_start_charge_missing")
+        self.idempotent_charges.pop((user_id, charge_key), None)
+        profile = self._profile(user_id)
+        profile["credits"] = int(profile.get("credits") or 0) + amount
+        self.credit_transactions.append({
+            "user_id": user_id,
+            "delta": amount,
+            "reason": refund_reason,
+            "idempotency_key": None,
+        })
+        row["status"] = "failed"
+        row["session_id"] = None
+        row["response_json"] = None
+        row["error_code"] = error_code
+        row["updated_at"] = time.time()
+        return True
 
     async def end_session(
         self,
@@ -504,6 +638,46 @@ class InMemoryStore:
         copy["state_snapshot"] = snapshot
         return copy
 
+    async def get_active_session_runtime_for_node(
+        self,
+        user_id: str,
+        node_id: str,
+        task_type: str,
+        test_mode: bool,
+    ) -> dict[str, Any] | None:
+        matches = [
+            row
+            for row in self.session_runtime.values()
+            if row.get("user_id") == user_id
+            and row.get("current_node") == node_id
+            and row.get("task_type") == task_type
+            and bool(row.get("test_mode")) == bool(test_mode)
+            and row.get("status") == "active"
+        ]
+        if not matches:
+            return None
+        latest = matches[-1]
+        return await self.get_session_runtime(str(latest.get("session_id") or ""))
+
+    async def get_latest_active_session_runtime_for_module(
+        self,
+        user_id: str,
+        module_id: str,
+        test_mode: bool,
+    ) -> dict[str, Any] | None:
+        matches = [
+            row
+            for row in self.session_runtime.values()
+            if row.get("user_id") == user_id
+            and row.get("module_id") == module_id
+            and bool(row.get("test_mode")) == bool(test_mode)
+            and row.get("status") == "active"
+        ]
+        if not matches:
+            return None
+        matches.sort(key=lambda row: float(row.get("updated_at") or 0.0), reverse=True)
+        return await self.get_session_runtime(str(matches[0].get("session_id") or ""))
+
     async def touch_session_runtime(
         self,
         session_id: str,
@@ -546,6 +720,11 @@ class InMemoryStore:
                                 "accepted": False,
                                 "status": "version_consumed",
                                 "accepted_client_turn_id": existing_turn_id,
+                                "accepted_status": existing_row.get("status"),
+                                "accepted_age_seconds": max(
+                                    0.0,
+                                    time.time() - float(existing_row.get("updated_at") or time.time()),
+                                ),
                                 "transcript_delta": list(existing_row.get("transcript_delta") or []),
                                 "done_snapshot": existing_row.get("done_snapshot"),
                                 "error_code": existing_row.get("error_code"),
@@ -576,6 +755,11 @@ class InMemoryStore:
                         "accepted": False,
                         "status": "version_consumed",
                         "accepted_client_turn_id": existing_turn_id,
+                        "accepted_status": existing_row.get("status"),
+                        "accepted_age_seconds": max(
+                            0.0,
+                            time.time() - float(existing_row.get("updated_at") or time.time()),
+                        ),
                         "transcript_delta": list(existing_row.get("transcript_delta") or []),
                         "done_snapshot": existing_row.get("done_snapshot"),
                         "error_code": existing_row.get("error_code"),
@@ -772,13 +956,63 @@ class InMemoryStore:
         profile["credits"] = credits - amount
         return True
 
-    async def charge_and_unlock(
-        self, user_id: str, amount: int, reason: str, scope: str, ref_id: str
+    async def deduct_credits_once(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str,
+        idempotency_key: str,
     ) -> bool:
+        key = (user_id, idempotency_key)
+        if key in self.idempotent_charges:
+            return True
         if not await self.deduct_credits(user_id, amount, reason):
             return False
-        self.unlocks.add((user_id, scope, ref_id))
+        self.idempotent_charges[key] = {"amount": amount, "reason": reason}
+        self.credit_transactions.append({
+            "user_id": user_id,
+            "delta": -amount,
+            "reason": reason,
+            "idempotency_key": idempotency_key,
+        })
         return True
+
+    async def refund_idempotent_charge(
+        self,
+        user_id: str,
+        amount: int,
+        idempotency_key: str,
+        reason: str = "refund",
+    ) -> bool:
+        row = self.idempotent_charges.pop((user_id, idempotency_key), None)
+        if row is None:
+            return False
+        profile = self._profile(user_id)
+        profile["credits"] = int(profile.get("credits") or 0) + amount
+        self.credit_transactions.append({
+            "user_id": user_id,
+            "delta": amount,
+            "reason": reason,
+            "idempotency_key": None,
+        })
+        return True
+
+    async def charge_and_unlock(
+        self, user_id: str, amount: int, reason: str, scope: str, ref_id: str
+    ) -> tuple[bool, bool]:
+        unlock_key = (user_id, scope, ref_id)
+        if unlock_key in self.unlocks:
+            return True, False
+        if not await self.deduct_credits(user_id, amount, reason):
+            return False, False
+        self.unlocks.add(unlock_key)
+        self.credit_transactions.append({
+            "user_id": user_id,
+            "delta": -amount,
+            "reason": reason,
+            "idempotency_key": None,
+        })
+        return True, True
 
     async def get_progression(self, user_id: str) -> list[dict[str, Any]]:
         rows = [
@@ -788,6 +1022,23 @@ class InMemoryStore:
         ]
         rows.sort(key=lambda row: row["node_id"])
         return rows
+
+    async def get_latest_passing_turn_evaluation(
+        self,
+        user_id: str,
+        node_id: str,
+        attempt_type: str = "independent",
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.turn_evaluations
+            if row.get("user_id") == user_id
+            and row.get("node_id") == node_id
+            and row.get("attempt_type") == attempt_type
+            and row.get("pass_eligible") is True
+            and not row.get("blockers")
+        ]
+        return dict(rows[-1]) if rows else None
 
     async def upsert_mastery(
         self,

@@ -187,6 +187,46 @@ def test_gd_prep_support_requires_concrete_support_marker():
     assert any("concrete support" in error for error in gated.errors)
 
 
+def test_simulation_message_append_collapses_adjacent_duplicate_persona_turns():
+    from app.services import session_service as svc
+
+    state = {
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "I would prioritize safeguards before speed.",
+                "speaker_id": "consensus_builder",
+                "speaker_name": "Consensus Builder",
+                "message_kind": "simulation_turn",
+            }
+        ]
+    }
+
+    appended = svc._append_simulation_messages_once(
+        state,
+        [
+            {
+                "role": "assistant",
+                "content": "I would prioritize safeguards before speed.",
+                "speaker_id": "consensus_builder",
+                "speaker_name": "Consensus Builder",
+                "message_kind": "simulation_turn",
+            },
+            {
+                "role": "assistant",
+                "content": "The metric should be decision latency.",
+                "speaker_id": "data_driven_analyst",
+                "speaker_name": "Data-Driven Analyst",
+                "message_kind": "simulation_turn",
+            },
+        ],
+    )
+
+    assert appended == 1
+    assert len(state["messages"]) == 2
+    assert state["messages"][-1]["speaker_id"] == "data_driven_analyst"
+
+
 def test_interview_star_complete_answer_gets_clean_pass_floor():
     from app.ai.schemas import DiagnosisEval
     from app.graph.nodes import evaluate as eval_node
@@ -419,6 +459,36 @@ def test_coaching_sanitizer_removes_effectively_highlighted_praise_on_weak_turn(
     assert demonstrates_sanitized.startswith("Let's tighten this.")
 
 
+def test_interview_pitch_sanitizer_does_not_repeat_future_goal_gap_when_present():
+    from app.services.session_service import _sanitize_coaching_response
+
+    state = {
+        "task_type": "interview_prep",
+        "competency_node": "int_01_elevator_pitch",
+        "last_eval_score": 0.43,
+        "last_clean_pass_score": 0.43,
+        "last_graded_bridge": False,
+        "user_input": (
+            "I'm a backend engineer focused on reliable APIs. My next goal is to "
+            "own larger distributed systems and mentor engineers on operational discipline."
+        ),
+    }
+
+    sanitized = _sanitize_coaching_response(
+        "Your pitch clearly outlines your current role. However, the future goal "
+        "you mentioned needs to be more clearly defined and specific. Task: Revisit "
+        "your pitch and refine it so that your future goal is explicitly stated "
+        "with a clear description of the role or project you wish to take on next "
+        "in your career.",
+        state,
+        "teach",
+    )
+
+    assert "future goal you mentioned needs" not in sanitized.lower()
+    assert "revisit your pitch" not in sanitized.lower()
+    assert "your direction is present" in sanitized.lower()
+
+
 def test_coaching_stream_removes_imagine_sample_after_scaffolded_recovery():
     from app.services.session_service import _sanitize_coaching_response
 
@@ -484,7 +554,7 @@ def test_gd_topic_with_profile_forces_full_response_sanitizer():
     )
 
 
-def test_coaching_stream_keeps_earned_challenge_praise_for_high_score():
+def test_coaching_stream_keeps_challenge_praise_measured_even_for_high_score():
     from app.services.session_service import _sanitize_coaching_opening_praise
 
     text = "Great job, Raptor! Now let's make this harder."
@@ -495,7 +565,11 @@ def test_coaching_stream_keeps_earned_challenge_praise_for_high_score():
         "last_graded_bridge": False,
     }
 
-    assert _sanitize_coaching_opening_praise(text, state, "challenge") == text
+    sanitized = _sanitize_coaching_opening_praise(text, state, "challenge")
+
+    assert "Great job" not in sanitized
+    assert sanitized.startswith("That answer is on the right track.")
+    assert "make this harder" in sanitized
 
 
 def test_coach_block_treats_borderline_pass_as_refinement_not_celebration():
@@ -591,7 +665,144 @@ async def test_opening_fallback_does_not_praise_without_model_text(monkeypatch):
 
     assert "nice work" not in text
     assert "great job" not in text
-    assert "ready" in text or "begin" in text
+    assert "practice" in text
+
+
+@pytest.mark.asyncio
+async def test_opening_stream_times_out_to_fallback_when_model_hangs(monkeypatch):
+    from app.services import session_service as svc
+
+    async def hung_stream_generation(_spec):
+        await asyncio.sleep(1)
+        if False:
+            yield "never"
+
+    monkeypatch.setattr(svc, "OPENING_STREAM_TIMEOUT_SECONDS", 0.01, raising=False)
+    monkeypatch.setattr(svc, "stream_generation", hung_stream_generation)
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    chunks = await asyncio.wait_for(
+        _collect_stream(svc.stream_opening(session_id)),
+        timeout=0.2,
+    )
+    text = "".join(chunks).lower()
+
+    assert "practice" in text
+    assert state["opening_streamed"] is True
+
+
+@pytest.mark.asyncio
+async def test_interview_test_opening_fallback_asks_real_first_question(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def no_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", no_probe_items)
+
+    session_id, _state = await svc.start_session(
+        "user-1",
+        "int_04_star_behavioral",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "technical_project",
+            "pressure": "standard",
+        },
+    )
+    chunks = await _collect_stream(svc.stream_opening(session_id))
+    text = "".join(chunks).lower()
+
+    assert "backend software engineer" in text
+    assert "star" in text
+    assert "what was the situation" in text
+    assert "what changed as a result" in text
+
+
+@pytest.mark.asyncio
+async def test_interview_test_tell_me_about_yourself_opening_uses_scenario_probe(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def technical_probe_items(*_args, **_kwargs):
+        return [
+            {
+                "skill_id": "SPECIFICITY_EXAMPLES",
+                "prompt": (
+                    "Walk me through one technical project relevant to Backend Software Engineer. "
+                    "What was the problem, what did you own, and what changed because of your work?"
+                ),
+                "aim": "Generic technical fallback.",
+            }
+        ]
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", technical_probe_items)
+
+    session_id, _state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "hr",
+            "pressure": "standard",
+        },
+    )
+    chunks = await _collect_stream(svc.stream_opening(session_id))
+    text = "".join(chunks)
+
+    assert "Tell me about yourself" in text
+    assert "current role" in text
+    assert "direction you want next" in text
+    assert "technical project" not in text
+
+
+@pytest.mark.asyncio
+async def test_initial_opening_replay_without_committed_cache_does_not_append_duplicate(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def no_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", no_probe_items)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "hr",
+            "pressure": "standard",
+        },
+    )
+
+    first = await _collect_stream(svc.stream_opening(session_id))
+    state["committed_openings"] = {}
+    state["opening_streamed"] = False
+    second = await _collect_stream(svc.stream_opening(session_id))
+
+    opening_messages = [
+        message
+        for message in state["messages"]
+        if message.get("role") == "assistant" and message.get("message_kind") == "opening"
+    ]
+    assert first == second
+    assert len(opening_messages) == 1
 
 
 @pytest.mark.asyncio
@@ -620,8 +831,10 @@ async def test_advancing_turn_progress_update_uses_completed_node_values(monkeyp
     state["turn_count"] = 1
     state["clean_streak"] = 1
     state["meaningful_attempts"] = 4
-    state["independent_passes"] = 1
+    state["independent_passes"] = 2
     state["best_independent_score"] = 0.82
+    state["core_qualified"] = True
+    state["core_qualification_turn_id"] = "turn-core-2"
 
     chunks = await _collect_stream(svc.run_turn(session_id, "A strong answer."))
     progress = [item for item in chunks if isinstance(item, svc.ProgressUpdate)]
@@ -629,9 +842,54 @@ async def test_advancing_turn_progress_update_uses_completed_node_values(monkeyp
     assert len(progress) == 1
     assert progress[0].node_id == "int_01_elevator_pitch"
     assert progress[0].mastery == 0.8
+    assert progress[0].readiness_score == 0.86
     assert progress[0].clean_streak == 2
     assert progress[0].attempts == 5
     assert state["competency_node"] == "int_02_strength_with_evidence"
+    transition = state["pending_node_transition"]
+    assert transition["from_readiness_score"] == 0.86
+    assert transition["from_mastery"] == 0.8
+    assert transition["from_clean_streak"] == 2
+    assert transition["from_attempts"] == 5
+
+
+@pytest.mark.asyncio
+async def test_new_prep_session_restores_durable_career_progress_counters(store):
+    from app.services import session_service as svc
+
+    await store.ensure_profile("user-1")
+    store.mastery[("user-1", "int_03_weakness_framing")] = {
+        "user_id": "user-1",
+        "node_id": "int_03_weakness_framing",
+        "ema": 0.78,
+        "best_ema": 0.82,
+        "attempts": 12,
+        "node_completed": False,
+        "node_mastered": False,
+        "display_status": "in_progress",
+        "best_independent_score": 0.86,
+        "independent_passes": 4,
+        "transfer_passes": 1,
+        "pressure_passes": 0,
+        "scaffold_successes": 2,
+        "meaningful_attempts": 12,
+        "readiness_score": 0.84,
+        "last_gap": "Defend the tradeoff under pressure.",
+        "mastery_evidence": [{"attempt_type": "transfer", "score": 0.84}],
+    }
+
+    _session_id, state = await svc.start_session(
+        "user-1", "int_03_weakness_framing", reattempt=True
+    )
+
+    assert state["attempts"] == 12
+    assert state["independent_passes"] == 4
+    assert state["transfer_passes"] == 1
+    assert state["pressure_passes"] == 0
+    assert state["scaffold_successes"] == 2
+    assert state["meaningful_attempts"] == 12
+    assert state["readiness_score"] == 0.84
+    assert state["last_gap"] == "Defend the tradeoff under pressure."
 
 
 @pytest.mark.asyncio
@@ -685,6 +943,258 @@ async def test_same_node_generation_failure_persists_fallback_without_progress(m
         for m in state["messages"]
     )
     assert ("user-1", "int_01_elevator_pitch") not in store.mastery
+
+
+@pytest.mark.asyncio
+async def test_int01_visible_task_commits_marker_once_and_drives_next_evaluation(monkeypatch, store):
+    from app.services import session_service as svc
+    from app.services.rubric_engine import build_evaluation_packet
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.86,
+                "last_clean_pass_score": 0.86,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                    "last_rubric_result": _passing_prep_rubric_result("independent"),
+                    "tutor_turn_plan": {
+                        "verdict": "independent_pass",
+                        "next_action": "request_transfer",
+                        "tone_policy": "measured_forward",
+                        "allowed_praise": False,
+                        "focus": "use a different achievement for a different audience",
+                        "stage": "challenge",
+                    },
+                    "current_mastery": 0.3,
+                "attempts": 1,
+                "session_attempts": 1,
+                "active_prompt_attempt_type": None,
+                "pending_prompt_attempt_type": "transfer",
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="ask the transfer task",
+                    kind="challenge",
+                ),
+            }
+
+    marker_during_generation = []
+
+    async def generated_response(_spec):
+        marker_during_generation.append((
+            state.get("active_prompt_attempt_type"),
+            state.get("pending_prompt_attempt_type"),
+        ))
+        yield "You need to clarify the impact and refine your pitch."
+
+    calls = {"progress": 0, "mastery": 0}
+    original_update_progress = svc._update_progress
+    original_persist_mastery = svc._persist_mastery
+
+    def counted_update_progress(current_state):
+        calls["progress"] += 1
+        original_update_progress(current_state)
+
+    async def counted_persist_mastery(current_state):
+        calls["mastery"] += 1
+        await original_persist_mastery(current_state)
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", generated_response)
+    monkeypatch.setattr(svc, "_update_progress", counted_update_progress)
+    monkeypatch.setattr(svc, "_persist_mastery", counted_persist_mastery)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state.update({
+        "opening_streamed": True,
+        "turn_count": 1,
+        "active_prompt_attempt_type": "independent",
+        "independent_passes": 1,
+    })
+
+    chunks = await _collect_stream(
+        svc.run_turn(session_id, "A complete role, proof, and direction pitch.", "turn-int01")
+    )
+    packet = build_evaluation_packet(
+        state,
+        svc.get_node("int_01_elevator_pitch"),
+        "My transfer answer.",
+    )
+
+    assert marker_during_generation == [("independent", "transfer")]
+    assert state["pending_prompt_attempt_type"] is None
+    assert state["active_prompt_attempt_type"] == "transfer"
+    assert packet.attempt_type == "transfer"
+    assert state["independent_passes"] == 2
+    assert state["readiness_score"] == 0.86
+    assert calls == {"progress": 1, "mastery": 1}
+    assert len([item for item in chunks if isinstance(item, svc.ProgressUpdate)]) == 1
+
+
+@pytest.mark.asyncio
+async def test_committed_prompt_marker_persists_reload_but_pending_marker_is_transient(store):
+    from app.services import session_service as svc
+
+    session_id = "int01-marker-reload"
+    state = svc._new_state(
+        "user-1",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["active_prompt_attempt_type"] = "pressure"
+    state["pending_prompt_attempt_type"] = "transfer"
+    svc.SessionStore[session_id] = state
+
+    await svc._persist_runtime_state(state)
+    svc.SessionStore.pop(session_id, None)
+    restored = await svc.get_session_state(session_id)
+
+    assert restored is not None
+    assert restored["active_prompt_attempt_type"] == "pressure"
+    assert restored["pending_prompt_attempt_type"] is None
+
+
+@pytest.mark.asyncio
+async def test_int01_generation_failure_preserves_previous_marker_for_uncounted_resubmit(
+    monkeypatch, store
+):
+    from app.services import session_service as svc
+    from app.services.rubric_engine import build_evaluation_packet
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.86,
+                "last_clean_pass_score": 0.86,
+                "last_diagnosis": {"english": True, "on_task": True, "affect": "confident"},
+                "last_rubric_result": _passing_prep_rubric_result("independent"),
+                "current_mastery": 0.3,
+                "attempts": 1,
+                "session_attempts": 1,
+                "active_prompt_attempt_type": None,
+                "pending_prompt_attempt_type": "transfer",
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="ask the transfer task",
+                    kind="challenge",
+                ),
+            }
+
+    marker_during_generation = []
+
+    async def failing_generation(_spec):
+        marker_during_generation.append((
+            state.get("active_prompt_attempt_type"),
+            state.get("pending_prompt_attempt_type"),
+        ))
+        raise RuntimeError("model unavailable")
+        yield "never"
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", failing_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    state.update({
+        "opening_streamed": True,
+        "turn_count": 1,
+        "active_prompt_attempt_type": "independent",
+        "independent_passes": 1,
+    })
+
+    chunks = await _collect_stream(
+        svc.run_turn(session_id, "A complete role, proof, and direction pitch.", "turn-fail")
+    )
+    packet = build_evaluation_packet(
+        state,
+        svc.get_node("int_01_elevator_pitch"),
+        "Resubmitted answer.",
+    )
+
+    assert any("try that once more" in item for item in chunks if isinstance(item, str))
+    assert marker_during_generation == [("independent", "transfer")]
+    assert state["active_prompt_attempt_type"] == "independent"
+    assert state["pending_prompt_attempt_type"] is None
+    assert packet.attempt_type == "independent"
+    assert state["independent_passes"] == 1
+    assert state["readiness_score"] == 0.0
+    assert ("user-1", "int_01_elevator_pitch") not in store.mastery
+
+
+@pytest.mark.asyncio
+async def test_incomplete_career_coach_text_is_repaired_before_persist(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.82,
+                "last_clean_pass_score": 0.82,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "last_rubric_result": _passing_prep_rubric_result("independent"),
+                "current_mastery": 0.72,
+                "attempts": 5,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="coach the learner",
+                    kind="teach",
+                ),
+            }
+
+    async def incomplete_generation(_spec):
+        yield "Your approach is solid. For instance,"
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", incomplete_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_03_weakness_framing")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["messages"].append({
+        "role": "user",
+        "content": (
+            "My weakness is leading with technical detail before business impact. "
+            "I now use decision criteria first."
+        ),
+    })
+
+    chunks = await _collect_stream(
+        svc.run_turn(
+            session_id,
+            "A phased payment rollout caught two retry edge cases and avoided a full rollback.",
+            client_turn_id="turn-1",
+        )
+    )
+    text_chunks = [chunk for chunk in chunks if isinstance(chunk, str)]
+
+    assert not any("For instance," in chunk for chunk in text_chunks)
+    assert any("three-part shape" in chunk for chunk in text_chunks)
+    assert any("pressure-test" in chunk for chunk in text_chunks)
+    assert not any("under 45 seconds" in chunk for chunk in text_chunks)
+    assert state["active_turn_id"] is None
+    assert state["block_reason"] is None
+    assert state["input_allowed"] is True
+    assert any(
+        m.get("role") == "assistant"
+        and "three-part shape" in m.get("content", "")
+        and "pressure-test" in m.get("content", "")
+        and "under 45 seconds" not in m.get("content", "")
+        for m in state["messages"]
+    )
 
 
 @pytest.mark.asyncio
@@ -797,6 +1307,8 @@ async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
                 "last_rubric_result": _passing_prep_rubric_result("transfer"),
                 "current_mastery": 0.8,
                 "attempts": 5,
+                "active_prompt_attempt_type": None,
+                "pending_prompt_attempt_type": "pressure",
                 "pending": svc.GenSpec(
                     provider="gemini",
                     model="test",
@@ -816,8 +1328,11 @@ async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
     state["turn_count"] = 1
     state["clean_streak"] = 1
     state["meaningful_attempts"] = 4
-    state["independent_passes"] = 1
+    state["independent_passes"] = 2
     state["best_independent_score"] = 0.82
+    state["core_qualified"] = True
+    state["core_qualification_turn_id"] = "turn-core-2"
+    state["active_prompt_attempt_type"] = "transfer"
 
     chunks = await _collect_stream(svc.run_turn(session_id, "A strong answer."))
 
@@ -828,6 +1343,8 @@ async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
     )
     assert any(isinstance(item, svc.NodeAdvance) for item in chunks)
     assert state["pending_node_transition"] is not None
+    assert state["pending_prompt_attempt_type"] is None
+    assert state["active_prompt_attempt_type"] is None
 
 
 @pytest.mark.asyncio
@@ -930,7 +1447,17 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
     )
     state["opening_streamed"] = True
     state["messages"] = [
-        {"role": "assistant", "content": "[Fill in the blank] I owned ___."}
+        {
+            "role": "user",
+            "content": "I explain the weakness with a concrete example.",
+            "turn_id": "game-producing-turn",
+            "message_id": f"{session_id}:turn:game-producing-turn:user",
+        },
+        {
+            "role": "assistant",
+            "content": "[Fill in the blank] I owned ___.",
+            "turn_id": "game-producing-turn",
+        },
     ]
     state["active_game_prompt"] = {
         "type": "fill_blank",
@@ -938,6 +1465,7 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
         "hint": "ownership",
         "context": "Practice specific ownership language.",
         "options": None,
+        "turn_id": "game-producing-turn",
         "answer_key": "the mistake",
     }
     svc.SessionStore[session_id] = state
@@ -947,6 +1475,10 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
     response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
 
     assert response.status_code == 200
+    assert response.json()["state"]["task_type"] == "interview_prep"
+    assert response.json()["state"]["module_id"] == "interview"
+    assert response.json()["messages"][0]["turn_id"] == "game-producing-turn"
+    assert response.json()["messages"][1]["turn_id"] == "game-producing-turn"
     prompt = response.json()["game_prompt"]
     assert prompt == {
         "type": "fill_blank",
@@ -954,8 +1486,29 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
         "hint": "ownership",
         "context": "Practice specific ownership language.",
         "options": None,
+        "turn_id": "game-producing-turn",
     }
     assert "answer_key" not in prompt
+
+
+def test_game_prompt_sse_frame_carries_producing_turn_id():
+    from app.api.routes import _turn_frame
+    from app.services.session_service import GamePrompt
+
+    frame = _turn_frame(
+        GamePrompt(
+            type="fill_blank",
+            sentence="I owned ___.",
+            hint="ownership",
+            context="Practice specific ownership language.",
+            answer_key="the mistake",
+            turn_id="game-producing-turn",
+        )
+    )
+
+    assert "event: game_prompt" in frame
+    assert '"turn_id": "game-producing-turn"' in frame
+    assert "answer_key" not in frame
 
 
 def test_state_snapshot_includes_opening_streamed_for_retry_ui():
@@ -974,6 +1527,65 @@ def test_state_snapshot_includes_opening_streamed_for_retry_ui():
     snapshot = _state_snapshot(state)
 
     assert snapshot["opening_streamed"] is False
+
+
+def test_state_snapshot_preserves_latest_readiness_across_transcript_reload():
+    from app.api.routes import _state_snapshot
+    from app.services import session_service as svc
+
+    state = svc._new_state(
+        "test_user",
+        "readiness-reload-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["current_mastery"] = 0.51
+    state["readiness_score"] = 0.55
+
+    snapshot = _state_snapshot(state)
+
+    assert snapshot["current_mastery"] == 0.51
+    assert snapshot["readiness_score"] == 0.55
+
+
+def test_state_snapshot_exposes_backend_owned_assessment_progress_counts():
+    from app.api.routes import _state_snapshot
+    from app.services import session_service as svc
+    from app.services.assessment_plan import ensure_assessment_plan
+
+    state = svc._new_state(
+        "test_user",
+        "assessment-progress-state-session",
+        "gd_01_stake_position",
+        [],
+        task_type="gd_test",
+        personas=[
+            {"speaker_id": "moderator_timekeeper", "name": "Moderator", "role_type": "moderator"},
+            {"speaker_id": "data_driven_analyst", "name": "Data-Driven Analyst", "role_type": "debater"},
+        ],
+    )
+    state["assessment_plan"] = ensure_assessment_plan(state)
+    state["messages"] = [
+        item
+        for idx in range(6)
+        for item in (
+            {"role": "assistant", "content": f"Prompt {idx}", "speaker_name": "Data-Driven Analyst"},
+            {"role": "user", "content": f"Answer {idx}", "message_kind": "learner_answer"},
+        )
+    ]
+    state["assessment_events"] = [
+        {"event_type": "analysis", "task_type": "gd_test", "scorable": True}
+        for _idx in range(3)
+    ]
+
+    snapshot = _state_snapshot(state)
+
+    progress = snapshot["assessment_state"]["progress"]
+    assert progress["scorable_turn_count"] == 6
+    assert progress["min_scorable_turns"] == 5
+    assert progress["coverage_map"]["event_count"] == 6
+    assert progress["coverage_map"]["source"] == "typed_events_with_transcript_fallback"
 
 
 def test_test_mode_turn_persists_each_speaker_for_reload(monkeypatch, store):
@@ -1041,6 +1653,45 @@ def test_test_mode_turn_persists_each_speaker_for_reload(monkeypatch, store):
             "I would add one careful example.",
         ),
     ]
+
+
+def test_gd_ask_panelist_action_persists_user_turn_as_scorable_answer(monkeypatch, store):
+    from app.services import session_service as svc
+    from app.services.simulation_service import Speaker
+    import asyncio
+
+    async def fake_simulation_round(_state):
+        yield Speaker(speaker_id="aggressive_challenger", name="Aggressive Challenger")
+        yield "The strongest risk is weaker mentorship and visibility for new hires."
+
+    monkeypatch.setattr(svc, "stream_simulation_round", fake_simulation_round)
+
+    session_id = "ask-panelist-scorable-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "gd_01_stake_position",
+        [],
+        task_type="gd_test",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    asyncio.run(_collect_stream(svc.run_turn(
+        session_id,
+        "Aggressive Challenger, what is the strongest risk here?",
+        assessment_action={
+            "kind": "ask_panelist",
+            "speaker_id": "aggressive_challenger",
+            "speaker_name": "Aggressive Challenger",
+            "source": "quick_action",
+        },
+    )))
+
+    user_message = next(message for message in state["messages"] if message.get("role") == "user")
+    assert user_message["message_kind"] == "learner_answer"
+    assert user_message["assessment_action"]["kind"] == "ask_panelist"
 
 
 @pytest.mark.asyncio
@@ -1407,7 +2058,15 @@ async def test_gd_stream_replaces_repeated_panel_demand_before_delivery(monkeypa
     chunks = await _collect_stream(sim.stream_simulation_round(state))
     visible_text = "".join(item for item in chunks if isinstance(item, str)).lower()
 
-    assert "new angle" in visible_text or "trade-off" in visible_text
+    assert any(
+        marker in visible_text
+        for marker in ("rollout risk", "exception path", "adoption and harm", "promise")
+    )
+    assert "ai in hiring" in visible_text
+    assert "new angle" not in visible_text
+    assert not visible_text.strip().endswith("?")
+    assert "give " not in visible_text
+    assert "provide " not in visible_text
     assert "give indian pilot evidence" not in visible_text
     assert "case study before moving forward" not in visible_text
 
@@ -1563,6 +2222,50 @@ def test_transcript_exposes_active_turn_recovery_state(store):
     assert body["block_reason"] == "turn_processing"
 
 
+@pytest.mark.parametrize("route_suffix", ["state", "transcript"])
+def test_read_recovery_routes_do_not_replace_runtime_messages(monkeypatch, store, route_suffix):
+    from app.services import session_service as svc
+    import asyncio
+
+    session_id = f"read-only-{route_suffix}-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["messages"].append({
+        "role": "assistant",
+        "content": "Opening prompt",
+        "message_kind": "opening",
+    })
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    calls = {"upsert": 0, "replace": 0, "touch": 0}
+
+    async def spy_upsert(*_args, **_kwargs):
+        calls["upsert"] += 1
+
+    async def spy_replace(*_args, **_kwargs):
+        calls["replace"] += 1
+
+    async def spy_touch(*_args, **_kwargs):
+        calls["touch"] += 1
+
+    monkeypatch.setattr(store, "upsert_session_runtime", spy_upsert)
+    monkeypatch.setattr(store, "replace_session_messages", spy_replace)
+    monkeypatch.setattr(store, "touch_session_runtime", spy_touch)
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/{route_suffix}", headers=AUTH)
+
+    assert response.status_code == 200
+    assert calls == {"upsert": 0, "replace": 0, "touch": 1}
+
+
 def test_turn_route_rejects_different_client_turn_id_for_same_session_version(monkeypatch, store):
     from app.services import session_service as svc
     import asyncio
@@ -1618,6 +2321,131 @@ def test_turn_route_rejects_different_client_turn_id_for_same_session_version(mo
     assert second.json()["detail"]["code"] == "turn_version_consumed"
     assert second.json()["detail"]["accepted_client_turn_id"] == "client-turn-a"
     assert calls["count"] == 1
+
+
+def test_turn_route_releases_orphaned_in_progress_version_latch(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(session_id, user_input, **_kwargs):
+        calls["count"] += 1
+        state = svc.get_state(session_id)
+        assert state is not None
+        state["messages"].append({"role": "user", "content": user_input})
+        state["messages"].append({"role": "assistant", "content": "Recovered coach response."})
+        state["turn_count"] += 1
+        svc._bump_session_version(state)
+        yield "Recovered coach response."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-orphaned-version-latch-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+    state["active_turn_id"] = None
+    state["active_turn_status"] = "completed"
+    svc.SessionStore[session_id] = state
+    store.turn_requests[(session_id, "abandoned-turn")] = {
+        "session_id": session_id,
+        "client_turn_id": "abandoned-turn",
+        "request_hash": "old-hash",
+        "expected_version": 1,
+        "status": "in_progress",
+        "transcript_delta": [],
+        "done_snapshot": None,
+        "error_code": None,
+        "created_at": time.time() - 10,
+        "updated_at": time.time() - 10,
+    }
+    asyncio.run(store.ensure_profile("test_user"))
+
+    response = TestClient(app).post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "The weakness is leading with technical detail before business impact.",
+            "client_turn_id": "fresh-turn-after-orphan",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert "Recovered coach response." in response.text
+    assert calls["count"] == 1
+    assert store.turn_requests[(session_id, "abandoned-turn")]["status"] == "failed"
+    assert (
+        store.turn_requests[(session_id, "abandoned-turn")]["error_code"]
+        == "orphaned_in_progress"
+    )
+    assert store.turn_requests[(session_id, "fresh-turn-after-orphan")]["status"] == "completed"
+
+
+def test_turn_route_does_not_release_fresh_in_progress_version_latch(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(*_args, **_kwargs):
+        calls["count"] += 1
+        yield "This producer must not run."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-fresh-version-latch-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+    state["active_turn_id"] = None
+    svc.SessionStore[session_id] = state
+    now = time.time()
+    store.turn_requests[(session_id, "accepted-but-not-started")] = {
+        "session_id": session_id,
+        "client_turn_id": "accepted-but-not-started",
+        "request_hash": "first-hash",
+        "expected_version": 1,
+        "status": "in_progress",
+        "transcript_delta": [],
+        "done_snapshot": None,
+        "error_code": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    asyncio.run(store.ensure_profile("test_user"))
+
+    response = TestClient(app).post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "A duplicate request from the same rendered version.",
+            "client_turn_id": "concurrent-second-turn",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "turn_version_consumed"
+    assert calls["count"] == 0
+    assert store.turn_requests[(session_id, "accepted-but-not-started")]["status"] == "in_progress"
 
 
 def test_turn_route_accepts_next_turn_only_after_session_version_advances(monkeypatch, store):
@@ -1898,6 +2726,544 @@ def test_stale_start_request_can_retry_same_client_start_id(monkeypatch, store):
     assert store.start_requests[("test_user", "stale-start-id")]["status"] == "completed"
 
 
+def test_only_one_retry_can_reclaim_a_failed_start_request(store):
+    import asyncio
+    import time
+
+    key = ("test_user", "failed-start-id")
+    store.start_requests[key] = {
+        "user_id": "test_user",
+        "client_start_id": "failed-start-id",
+        "request_hash": "same-hash",
+        "status": "failed",
+        "session_id": None,
+        "response_json": None,
+        "error_code": "stale_in_progress",
+        "source_session_id": None,
+        "source_transition_id": None,
+        "created_at": time.time() - 100,
+        "updated_at": time.time() - 100,
+    }
+
+    first = asyncio.run(store.reset_start_request(
+        "test_user",
+        "failed-start-id",
+        "same-hash",
+    ))
+    second = asyncio.run(store.reset_start_request(
+        "test_user",
+        "failed-start-id",
+        "same-hash",
+    ))
+
+    assert first["accepted"] is True
+    assert second["accepted"] is False
+    assert second["status"] == "in_progress"
+
+
+def test_reclaimed_start_rejects_completion_from_old_claim(store):
+    import asyncio
+    import time
+
+    first = asyncio.run(store.begin_start_request(
+        "test_user",
+        "fenced-start-id",
+        "same-hash",
+    ))
+    store.start_requests[("test_user", "fenced-start-id")]["updated_at"] = time.time() - 10_000
+    stale = asyncio.run(store.get_start_request("test_user", "fenced-start-id"))
+    second = asyncio.run(store.reset_start_request(
+        "test_user",
+        "fenced-start-id",
+        "same-hash",
+    ))
+
+    old_completed = asyncio.run(store.complete_start_request(
+        "test_user",
+        "fenced-start-id",
+        "completed",
+        session_id="old-worker-session",
+        response_json={"session_id": "old-worker-session"},
+        claim_generation=first["claim_generation"],
+    ))
+    current = asyncio.run(store.get_start_request("test_user", "fenced-start-id"))
+
+    assert stale["status"] == "failed"
+    assert second["claim_generation"] > first["claim_generation"]
+    assert old_completed is False
+    assert current["status"] == "in_progress"
+    assert current["claim_generation"] == second["claim_generation"]
+
+
+def test_stale_retry_after_process_loss_does_not_charge_attempt_twice(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+    import time
+
+    asyncio.run(store.ensure_profile("test_user"))
+    store.profiles["test_user"]["credits"] = 500
+
+    async def paid_gate(*_args, **_kwargs):
+        return GateDecision(False, 50, "attempt", "int_01_elevator_pitch", False, False, "attempt_meter")
+
+    calls = {"count": 0}
+
+    target_session_ids = []
+
+    async def crash_then_start(user_id, node_id, session_id=None, **_kwargs):
+        assert session_id
+        target_session_ids.append(session_id)
+        store.sessions.setdefault(session_id, {
+            "session_id": session_id,
+            "user_id": user_id,
+            "competency_node": node_id,
+            "status": "active",
+        })
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise SystemExit("simulated process loss after target persistence")
+        return session_id, {
+            "session_id": session_id,
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(routes, "resolve_gate", paid_gate)
+    monkeypatch.setattr(svc, "start_session", crash_then_start)
+    req = SessionStartRequest(
+        competency_node="int_01_elevator_pitch",
+        client_start_id="crash-safe-paid-start",
+        confirm=True,
+    )
+    request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+
+    with pytest.raises(SystemExit):
+        asyncio.run(routes.start(req, request))
+    assert store.profiles["test_user"]["credits"] == 450
+
+    store.start_requests[("test_user", req.client_start_id)]["updated_at"] = time.time() - 10_000
+    response = asyncio.run(routes.start(req, request))
+
+    assert response.session_id == target_session_ids[0]
+    assert target_session_ids == [target_session_ids[0], target_session_ids[0]]
+    assert list(store.sessions) == [target_session_ids[0]]
+    assert store.profiles["test_user"]["credits"] == 450
+    assert ("test_user", "session_start:crash-safe-paid-start") in store.idempotent_charges
+
+
+def test_live_old_start_cannot_refund_or_overwrite_reclaimed_retry(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+    import time
+
+    async def scenario():
+        await store.ensure_profile("test_user")
+        store.profiles["test_user"]["credits"] = 500
+
+        async def paid_gate(*_args, **_kwargs):
+            return GateDecision(False, 50, "attempt", "int_01_elevator_pitch", False, False, "attempt_meter")
+
+        first_started = asyncio.Event()
+        release_first = asyncio.Event()
+        calls = {"count": 0}
+
+        async def slow_then_fast_start(user_id, node_id, session_id=None, **_kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                first_started.set()
+                await release_first.wait()
+                return session_id, {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "competency_node": node_id,
+                    "task_type": "interview_prep",
+                    "module_id": "interview",
+                    "current_mastery": 0.0,
+                    "session_version": 1,
+                    "status": "active",
+                    "messages": [{"role": "assistant", "content": "old candidate"}],
+                    "candidate_marker": "old",
+                }
+            return session_id, {
+                "session_id": session_id,
+                "user_id": user_id,
+                "competency_node": node_id,
+                "task_type": "interview_prep",
+                "module_id": "interview",
+                "current_mastery": 0.0,
+                "session_version": 1,
+                "status": "active",
+                "messages": [{"role": "assistant", "content": "new candidate"}],
+                "candidate_marker": "new",
+            }
+
+        monkeypatch.setattr(routes, "resolve_gate", paid_gate)
+        monkeypatch.setattr(svc, "start_session", slow_then_fast_start)
+        req = SessionStartRequest(
+            competency_node="int_01_elevator_pitch",
+            client_start_id="live-reclaim-start",
+            confirm=True,
+        )
+        request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+
+        old_task = asyncio.create_task(routes.start(req, request))
+        await first_started.wait()
+        store.start_requests[("test_user", req.client_start_id)]["updated_at"] = time.time() - 10_000
+        retry_response = await routes.start(req, request)
+        release_first.set()
+        old_result = await asyncio.gather(old_task, return_exceptions=True)
+
+        return retry_response, old_result[0]
+
+    retry_response, old_result = asyncio.run(scenario())
+    row = store.start_requests[("test_user", "live-reclaim-start")]
+
+    assert retry_response.session_id
+    assert old_result.session_id == retry_response.session_id
+    assert row["status"] == "completed"
+    assert row["session_id"] == retry_response.session_id
+    runtime = store.session_runtime[retry_response.session_id]
+    assert runtime["state_snapshot"]["candidate_marker"] == "new"
+    assert store.session_messages[retry_response.session_id][0]["content"] == "new candidate"
+    assert store.profiles["test_user"]["credits"] == 450
+    assert [tx["delta"] for tx in store.credit_transactions] == [-50]
+
+
+def test_claimed_session_commit_rejects_old_generation_before_any_write(store):
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    first = asyncio.run(
+        store.begin_start_request("test_user", "claimed-commit", "request-hash")
+    )
+    store.start_requests[("test_user", "claimed-commit")]["status"] = "failed"
+    current = asyncio.run(
+        store.reset_start_request("test_user", "claimed-commit", "request-hash")
+    )
+    assert current["claim_generation"] > first["claim_generation"]
+
+    committed = asyncio.run(
+        store.commit_claimed_session_start(
+            user_id="test_user",
+            client_start_id="claimed-commit",
+            claim_generation=first["claim_generation"],
+            session_record={
+                "session_id": "old-session",
+                "user_id": "test_user",
+                "task_type": "interview_prep",
+                "module_id": "interview",
+                "node_id": "int_01_elevator_pitch",
+                "test_mode": False,
+                "career_context": {},
+                "scenario_config": {},
+                "persona_roster": [],
+                "context_hash": "default",
+            },
+            runtime_record={
+                "session_id": "old-session",
+                "user_id": "test_user",
+                "current_node": "int_01_elevator_pitch",
+                "module_id": "interview",
+                "task_type": "interview_prep",
+                "test_mode": False,
+                "status": "active",
+                "state_snapshot": {"candidate_marker": "old"},
+                "pending_transition": None,
+                "session_version": 1,
+            },
+            messages=[{"role": "assistant", "content": "old candidate"}],
+            response_json={"session_id": "old-session"},
+        )
+    )
+
+    assert committed is False
+    assert "old-session" not in store.sessions
+    assert "old-session" not in store.session_runtime
+    assert "old-session" not in store.session_messages
+
+
+def test_stale_generation_cannot_mutate_credit_ledger(store):
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    store.profiles["test_user"]["credits"] = 500
+    first = asyncio.run(
+        store.begin_start_request("test_user", "claimed-refund", "request-hash")
+    )
+    charged = asyncio.run(
+        store.deduct_credits_once(
+            "test_user",
+            50,
+            "attempt_meter",
+            "session_start:claimed-refund",
+        )
+    )
+    assert charged is True
+    store.start_requests[("test_user", "claimed-refund")]["status"] = "failed"
+    current = asyncio.run(
+        store.reset_start_request("test_user", "claimed-refund", "request-hash")
+    )
+    assert current["claim_generation"] > first["claim_generation"]
+
+    compensated = asyncio.run(
+        store.compensate_claimed_attempt_charge(
+            user_id="test_user",
+            client_start_id="claimed-refund",
+            claim_generation=first["claim_generation"],
+            amount=50,
+            charge_key="session_start:claimed-refund",
+            debit_reason="attempt_meter",
+            refund_reason="refund",
+            error_code="session_start_failed",
+        )
+    )
+
+    assert compensated is False
+    assert store.profiles["test_user"]["credits"] == 450
+    assert [tx["delta"] for tx in store.credit_transactions] == [-50]
+    assert ("test_user", "session_start:claimed-refund") in store.idempotent_charges
+    assert store.start_requests[("test_user", "claimed-refund")]["status"] == "in_progress"
+
+
+def test_failed_access_start_cannot_refund_an_unlock_owned_by_another_start(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    store.profiles["test_user"]["credits"] = 500
+    calls = {"count": 0}
+
+    async def access_gate(*_args, **_kwargs):
+        return GateDecision(False, 40, "feature", "communication", True, False, "access_unlock")
+
+    async def succeed_then_fail(user_id, node_id, session_id=None, **_kwargs):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise RuntimeError("second start failed")
+        return session_id, {
+            "session_id": session_id,
+            "user_id": user_id,
+            "competency_node": node_id,
+            "task_type": "interview_prep",
+            "module_id": "interview",
+            "current_mastery": 0.0,
+            "session_version": 1,
+            "status": "active",
+            "messages": [],
+        }
+
+    monkeypatch.setattr(routes, "resolve_gate", access_gate)
+    monkeypatch.setattr(svc, "start_session", succeed_then_fail)
+    request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+    first = SessionStartRequest(
+        competency_node="int_01_elevator_pitch",
+        client_start_id="unlock-winner",
+        confirm=True,
+    )
+    second = SessionStartRequest(
+        competency_node="int_01_elevator_pitch",
+        client_start_id="unlock-loser",
+        confirm=True,
+        reattempt_confirmed=True,
+    )
+
+    asyncio.run(routes.start(first, request))
+    with pytest.raises(RuntimeError, match="second start failed"):
+        asyncio.run(routes.start(second, request))
+
+    assert store.profiles["test_user"]["credits"] == 460
+    assert ("test_user", "feature", "communication") in store.unlocks
+    assert [tx["delta"] for tx in store.credit_transactions] == [-40]
+
+
+def test_failed_access_purchaser_keeps_unlock_after_an_uncharged_retry_succeeds(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+
+    async def scenario():
+        await store.ensure_profile("test_user")
+        store.profiles["test_user"]["credits"] = 500
+        winner_started = asyncio.Event()
+        release_winner = asyncio.Event()
+        calls = {"count": 0}
+
+        async def access_gate(*_args, **_kwargs):
+            return GateDecision(False, 40, "feature", "communication", True, False, "access_unlock")
+
+        async def fail_winner_then_succeed_retry(user_id, node_id, session_id=None, **_kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                winner_started.set()
+                await release_winner.wait()
+                raise RuntimeError("purchasing start failed")
+            return session_id, {
+                "session_id": session_id,
+                "user_id": user_id,
+                "competency_node": node_id,
+                "task_type": "interview_prep",
+                "module_id": "interview",
+                "current_mastery": 0.0,
+                "session_version": 1,
+                "status": "active",
+                "messages": [],
+            }
+
+        monkeypatch.setattr(routes, "resolve_gate", access_gate)
+        monkeypatch.setattr(svc, "start_session", fail_winner_then_succeed_retry)
+        request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+        winner = SessionStartRequest(
+            competency_node="int_01_elevator_pitch",
+            client_start_id="unlock-purchaser",
+            confirm=True,
+            reattempt_confirmed=True,
+        )
+        retry = SessionStartRequest(
+            competency_node="int_01_elevator_pitch",
+            client_start_id="unlock-consumer",
+            confirm=True,
+            reattempt_confirmed=True,
+        )
+
+        winner_task = asyncio.create_task(routes.start(winner, request))
+        await winner_started.wait()
+        retry_response = await routes.start(retry, request)
+        release_winner.set()
+        winner_result = (await asyncio.gather(winner_task, return_exceptions=True))[0]
+        return retry_response, winner_result
+
+    retry_response, winner_result = asyncio.run(scenario())
+
+    assert retry_response.session_id in store.sessions
+    assert isinstance(winner_result, RuntimeError)
+    assert store.profiles["test_user"]["credits"] == 460
+    assert ("test_user", "feature", "communication") in store.unlocks
+    assert [tx["delta"] for tx in store.credit_transactions] == [-40]
+
+
+def test_start_retry_recovers_after_process_loss_during_refund(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+    import time
+
+    asyncio.run(store.ensure_profile("test_user"))
+    store.profiles["test_user"]["credits"] = 500
+
+    async def paid_gate(*_args, **_kwargs):
+        return GateDecision(False, 50, "attempt", "int_01_elevator_pitch", False, False, "attempt_meter")
+
+    calls = {"start": 0}
+
+    async def fail_then_start(user_id, node_id, session_id=None, **_kwargs):
+        calls["start"] += 1
+        if calls["start"] == 1:
+            raise RuntimeError("start failed before compensation")
+        return session_id, {
+            "session_id": session_id,
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    async def crash_before_refund(*_args, **_kwargs):
+        raise SystemExit("process lost during refund")
+
+    monkeypatch.setattr(routes, "resolve_gate", paid_gate)
+    monkeypatch.setattr(svc, "start_session", fail_then_start)
+    monkeypatch.setattr(store, "compensate_claimed_attempt_charge", crash_before_refund)
+    req = SessionStartRequest(
+        competency_node="int_01_elevator_pitch",
+        client_start_id="refund-crash-start",
+        confirm=True,
+    )
+    request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+
+    with pytest.raises(SystemExit, match="process lost during refund"):
+        asyncio.run(routes.start(req, request))
+
+    row = store.start_requests[("test_user", req.client_start_id)]
+    assert row["status"] == "in_progress"
+    row["updated_at"] = time.time() - 10_000
+    response = asyncio.run(routes.start(req, request))
+
+    assert response.session_id
+    assert store.start_requests[("test_user", req.client_start_id)]["status"] == "completed"
+    assert store.profiles["test_user"]["credits"] == 450
+    assert [tx["delta"] for tx in store.credit_transactions] == [-50]
+
+
+def test_graceful_failed_paid_start_refunds_and_rearms_idempotency_key(monkeypatch, store):
+    from app.api import routes
+    from app.billing.gate import GateDecision
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    store.profiles["test_user"]["credits"] = 500
+
+    async def paid_gate(*_args, **_kwargs):
+        return GateDecision(False, 50, "attempt", "int_01_elevator_pitch", False, False, "attempt_meter")
+
+    calls = {"count": 0}
+
+    async def fail_then_start(user_id, node_id, **_kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("simulated start failure")
+        return "retried-paid-start", {
+            "session_id": "retried-paid-start",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(routes, "resolve_gate", paid_gate)
+    monkeypatch.setattr(svc, "start_session", fail_then_start)
+    req = SessionStartRequest(
+        competency_node="int_01_elevator_pitch",
+        client_start_id="refundable-paid-start",
+        confirm=True,
+    )
+    request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(routes.start(req, request))
+    assert store.profiles["test_user"]["credits"] == 500
+    assert ("test_user", "session_start:refundable-paid-start") not in store.idempotent_charges
+    assert [row["delta"] for row in store.credit_transactions] == [-50, 50]
+    assert sum(row["delta"] for row in store.credit_transactions) == 0
+
+    response = asyncio.run(routes.start(req, request))
+
+    assert response.session_id == "retried-paid-start"
+    assert store.profiles["test_user"]["credits"] == 450
+    assert ("test_user", "session_start:refundable-paid-start") in store.idempotent_charges
+    assert [row["delta"] for row in store.credit_transactions] == [-50, 50, -50]
+    assert sum(row["delta"] for row in store.credit_transactions) == -50
+
+
 def test_start_latch_rejects_second_client_for_same_source_transition(store):
     import asyncio
 
@@ -1920,6 +3286,268 @@ def test_start_latch_rejects_second_client_for_same_source_transition(store):
     assert second["accepted"] is False
     assert second["status"] == "source_transition_consumed"
     assert second["accepted_client_start_id"] == "source-start-a"
+
+
+def test_reset_start_request_reports_consumed_source_transition(store):
+    import asyncio
+    import time
+
+    first = asyncio.run(store.begin_start_request(
+        "test_user",
+        "source-reset-winner",
+        "hash-a",
+        source_session_id="source-session",
+        source_transition_id="transition-reset",
+    ))
+    store.start_requests[("test_user", "source-reset-loser")] = {
+        "user_id": "test_user",
+        "client_start_id": "source-reset-loser",
+        "request_hash": "hash-b",
+        "status": "failed",
+        "session_id": None,
+        "response_json": None,
+        "error_code": "stale_in_progress",
+        "source_session_id": "source-session",
+        "source_transition_id": "transition-reset",
+        "claim_generation": 1,
+        "created_at": time.time() - 100,
+        "updated_at": time.time() - 100,
+    }
+
+    reset = asyncio.run(store.reset_start_request(
+        "test_user",
+        "source-reset-loser",
+        "hash-b",
+        source_session_id="source-session",
+        source_transition_id="transition-reset",
+    ))
+
+    assert first["accepted"] is True
+    assert reset["accepted"] is False
+    assert reset["status"] == "source_transition_consumed"
+    assert reset["accepted_client_start_id"] == "source-reset-winner"
+    assert store.start_requests[("test_user", "source-reset-loser")]["status"] == "failed"
+
+
+def test_route_replays_completed_source_transition_found_during_reset(store):
+    from app.api import routes
+    from app.models import SessionStartRequest
+    from fastapi.testclient import TestClient
+    import asyncio
+    import time
+
+    asyncio.run(store.ensure_profile("test_user"))
+    req = SessionStartRequest(
+        competency_node="int_02_strengths",
+        client_start_id="source-route-loser",
+        source_session_id="source-session",
+        source_transition_id="transition-route-reset",
+        source_action="advance",
+    )
+    request_hash = routes._start_request_hash(req)
+    winner = asyncio.run(store.begin_start_request(
+        "test_user",
+        "source-route-winner",
+        request_hash,
+        source_session_id=req.source_session_id,
+        source_transition_id=req.source_transition_id,
+    ))
+    response_payload = {
+        "session_id": "winner-session",
+        "node_title": "Back a Strength With Evidence",
+        "first_message": "",
+        "current_mastery": 0.0,
+        "display_status": "active",
+        "node_mastered": False,
+        "readiness_score": 0.0,
+        "best_independent_score": 0.0,
+    }
+    asyncio.run(store.complete_start_request(
+        "test_user",
+        "source-route-winner",
+        "completed",
+        session_id="winner-session",
+        response_json=response_payload,
+        claim_generation=winner["claim_generation"],
+    ))
+    store.start_requests[("test_user", req.client_start_id)] = {
+        "user_id": "test_user",
+        "client_start_id": req.client_start_id,
+        "request_hash": request_hash,
+        "status": "failed",
+        "session_id": None,
+        "response_json": None,
+        "error_code": "stale_in_progress",
+        "source_session_id": req.source_session_id,
+        "source_transition_id": req.source_transition_id,
+        "claim_generation": 1,
+        "created_at": time.time() - 100,
+        "updated_at": time.time() - 100,
+    }
+
+    response = TestClient(app).post(
+        "/session/start",
+        json=req.model_dump(),
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "winner-session"
+    assert response.json()["resumed"] is True
+
+
+@pytest.mark.parametrize("consumed_branch", ["begin", "reset"])
+def test_completed_different_client_replay_reconciles_pending_source_handoff(
+    monkeypatch,
+    store,
+    consumed_branch,
+):
+    from app.api import routes
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    source_session_id = f"different-client-source-{consumed_branch}"
+    source_transition_id = f"different-client-transition-{consumed_branch}"
+    winner_client_start_id = f"different-client-winner-{consumed_branch}"
+    loser_client_start_id = f"different-client-loser-{consumed_branch}"
+    winner_session_id = f"different-client-target-{consumed_branch}"
+    req = SessionStartRequest(
+        competency_node="int_02_strengths",
+        client_start_id=loser_client_start_id,
+        source_session_id=source_session_id,
+        source_transition_id=source_transition_id,
+        source_action="advance",
+    )
+    request_hash = routes._start_request_hash(req)
+    winner = asyncio.run(store.begin_start_request(
+        "test_user",
+        winner_client_start_id,
+        request_hash,
+        source_session_id=source_session_id,
+        source_transition_id=source_transition_id,
+    ))
+    response_payload = {
+        "session_id": winner_session_id,
+        "node_title": "Back a Strength With Evidence",
+        "first_message": "",
+        "current_mastery": 0.0,
+        "display_status": "active",
+        "node_mastered": False,
+        "readiness_score": 0.0,
+        "best_independent_score": 0.0,
+    }
+    asyncio.run(store.complete_start_request(
+        "test_user",
+        winner_client_start_id,
+        "completed",
+        session_id=winner_session_id,
+        response_json=response_payload,
+        claim_generation=winner["claim_generation"],
+    ))
+
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": source_transition_id,
+        "from_node": "int_01_elevator_pitch",
+        "to_node": "int_02_strengths",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_session_id] = source_state
+
+    if consumed_branch == "reset":
+        store.start_requests[("test_user", loser_client_start_id)] = {
+            "user_id": "test_user",
+            "client_start_id": loser_client_start_id,
+            "request_hash": request_hash,
+            "status": "failed",
+            "session_id": None,
+            "response_json": None,
+            "error_code": "stale_in_progress",
+            "source_session_id": source_session_id,
+            "source_transition_id": source_transition_id,
+            "claim_generation": 1,
+            "created_at": time.time() - 100,
+            "updated_at": time.time() - 100,
+        }
+    else:
+        original_begin = store.begin_start_request
+
+        async def begin_with_winner_row(*args, **kwargs):
+            result = await original_begin(*args, **kwargs)
+            if result.get("status") != "source_transition_consumed":
+                return result
+            winner_row = dict(store.start_requests[("test_user", winner_client_start_id)])
+            winner_row.update({
+                "accepted": False,
+                "request_mismatch": False,
+                "consumed_status": winner_row["status"],
+                "status": "source_transition_consumed",
+                "accepted_client_start_id": winner_client_start_id,
+            })
+            return winner_row
+
+        monkeypatch.setattr(store, "begin_start_request", begin_with_winner_row)
+
+    async def fail_if_started(*_args, **_kwargs):
+        raise AssertionError("completed winner must replay without starting another session")
+
+    monkeypatch.setattr(svc, "start_session", fail_if_started)
+
+    response = TestClient(app).post(
+        "/session/start",
+        json=req.model_dump(),
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == winner_session_id
+    assert response.json()["resumed"] is True
+    assert source_state["pending_node_transition"] is None
+    assert source_state["handoff_session_id"] == winner_session_id
+    assert source_state["status"] == "ended"
+    assert source_state["session_over"] is True
+    assert source_state["block_reason"] == "transition_handed_off"
+
+
+def test_metered_charge_fails_closed_without_idempotent_store_contract():
+    from app.billing.gate import GateDecision, charge
+    import asyncio
+
+    class UnsafeStore:
+        async def deduct_credits(self, *_args, **_kwargs):
+            raise AssertionError("non-idempotent debit must not run")
+
+    decision = GateDecision(
+        False,
+        50,
+        "attempt",
+        "int_01_elevator_pitch",
+        False,
+        False,
+        "attempt_meter",
+    )
+
+    with pytest.raises(RuntimeError, match="storage_missing_idempotent_credit_debit"):
+        asyncio.run(
+            charge(
+                UnsafeStore(),
+                "test_user",
+                decision,
+                idempotency_key="session_start:unsafe",
+            )
+        )
 
 
 def test_session_start_requires_client_start_id(store):
@@ -2027,6 +3655,7 @@ def test_advancing_turn_replays_after_pending_transition(monkeypatch, store):
         yield svc.ProgressUpdate(
             node_id="int_01_elevator_pitch",
             mastery=0.8,
+            readiness_score=0.86,
             clean_streak=2,
             attempts=2,
         )
@@ -2100,6 +3729,621 @@ def test_session_start_replays_duplicate_client_start_id(monkeypatch, store):
     assert second.json()["session_id"] == "session-start-once"
     assert second.json()["resumed"] is True
     assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_replace_session_messages_takes_advisory_lock_before_delete():
+    from app.db import repo
+
+    class FakeSession:
+        def __init__(self):
+            self.sql: list[str] = []
+            self.commits = 0
+
+        async def execute(self, statement, *_args, **_kwargs):
+            self.sql.append(str(statement))
+
+        async def commit(self):
+            self.commits += 1
+
+    session = FakeSession()
+
+    await repo.replace_session_messages(
+        session,
+        "deadlock-safe-session",
+        [{"role": "assistant", "content": "Opening prompt"}],
+    )
+
+    assert session.commits == 1
+    assert "pg_advisory_xact_lock" in session.sql[0]
+    delete_index = next(index for index, sql in enumerate(session.sql) if "DELETE FROM session_messages" in sql)
+    assert delete_index > 0
+
+
+def test_session_start_resumes_active_same_node_after_reload(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_start(*_args, **_kwargs):
+        calls["count"] += 1
+        raise AssertionError("active same-node sessions should be resumed, not restarted")
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    state = svc._new_state(
+        "test_user",
+        "active-prep-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["current_mastery"] = 0.42
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="active-prep-session",
+        user_id="test_user",
+        current_node="int_01_elevator_pitch",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("active-prep-session", None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "fresh-after-reload",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "active-prep-session"
+    assert response.json()["resumed"] is True
+    assert response.json()["current_mastery"] == 0.42
+    assert response.json()["display_status"] == "active"
+    assert response.json()["node_mastered"] is False
+    assert response.json()["readiness_score"] == 0.0
+    assert calls["count"] == 0
+    latch = store.start_requests[("test_user", "fresh-after-reload")]
+    assert latch["status"] == "completed"
+    assert latch["session_id"] == "active-prep-session"
+
+    mismatched = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_02_strength_with_evidence",
+            "client_start_id": "fresh-after-reload",
+        },
+        headers=AUTH,
+    )
+    assert mismatched.status_code == 409
+    assert mismatched.json()["detail"]["code"] == "client_start_id_reused_with_different_payload"
+
+
+def test_session_start_does_not_resume_stale_active_session_for_ready_career_node(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_start(*_args, **_kwargs):
+        raise AssertionError("completed career nodes should require reattempt confirmation")
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        user_id="test_user",
+        node_id="int_01_elevator_pitch",
+        ema=0.85,
+        attempts=3,
+        clean_pass=True,
+        node_completed=True,
+        node_mastered=False,
+        display_status="ready_to_advance",
+    ))
+
+    state = svc._new_state(
+        "test_user",
+        "stale-active-prep-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["current_mastery"] = 0.26
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="stale-active-prep-session",
+        user_id="test_user",
+        current_node="int_01_elevator_pitch",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("stale-active-prep-session", None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "stale-ready-start",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "completed_node"
+
+
+def test_node_resume_prefers_newer_durable_session_over_stale_process_cache(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    stale_local = svc._new_state(
+        "test_user",
+        "stale-local-node-resume",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    stale_local["status"] = "active"
+    stale_local["last_seen_at"] = 100.0
+    svc.SessionStore[stale_local["session_id"]] = stale_local
+
+    durable_newer = svc._new_state(
+        "test_user",
+        "newer-durable-node-resume",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    durable_newer["status"] = "active"
+    durable_newer["last_seen_at"] = 200.0
+    asyncio.run(store.upsert_session_runtime(
+        session_id=durable_newer["session_id"],
+        user_id="test_user",
+        current_node=durable_newer["competency_node"],
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=durable_newer,
+        pending_transition=None,
+        session_version=1,
+    ))
+    store.session_runtime[durable_newer["session_id"]]["updated_at"] = 200.0
+
+    resumed = asyncio.run(svc.get_resumable_active_session_for_start(
+        "test_user",
+        "int_01_elevator_pitch",
+        test_mode=False,
+    ))
+
+    assert resumed is not None
+    assert resumed[0] == "newer-durable-node-resume"
+
+
+def test_progression_map_uses_durable_active_session_after_reload(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    for node_id in ("int_01_elevator_pitch", "int_02_strength_with_evidence"):
+        asyncio.run(store.upsert_mastery(
+            user_id="test_user",
+            node_id=node_id,
+            ema=0.82,
+            attempts=3,
+            clean_pass=True,
+            node_completed=True,
+            display_status="ready_to_advance",
+        ))
+
+    state = svc._new_state(
+        "test_user",
+        "active-map-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="active-map-session",
+        user_id="test_user",
+        current_node="int_04_star_behavioral",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("active-map-session", None)
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+
+    assert active_ids == ["int_04_star_behavioral"]
+
+
+def test_state_snapshot_exposes_authoritative_completed_turn_id():
+    from app.api import routes
+    from app.services import session_service as svc
+
+    state = svc._new_state(
+        "test_user",
+        "completed-turn-snapshot",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+    )
+    state["last_turn_id"] = "client-turn-completed"
+    state["last_turn_status"] = "completed"
+    state["active_turn_id"] = None
+    state["active_turn_status"] = "completed"
+
+    snapshot = routes._state_snapshot(state)
+
+    assert snapshot["last_turn"] == {
+        "client_turn_id": "client-turn-completed",
+        "status": "completed",
+    }
+    assert snapshot["active_turn"] is None
+
+
+def test_progression_map_uses_latest_durable_active_session_across_module(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+
+    older = svc._new_state(
+        "test_user",
+        "older-active-map-session",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    newer = svc._new_state(
+        "test_user",
+        "newer-active-map-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    for state in (older, newer):
+        state["status"] = "active"
+        asyncio.run(store.upsert_session_runtime(
+            session_id=state["session_id"],
+            user_id="test_user",
+            current_node=state["competency_node"],
+            module_id="interview",
+            task_type="interview_prep",
+            test_mode=False,
+            status="active",
+            state_snapshot=state,
+            pending_transition=None,
+            session_version=1,
+        ))
+        svc.SessionStore.pop(state["session_id"], None)
+
+    store.session_runtime["older-active-map-session"]["updated_at"] = 100.0
+    store.session_runtime["newer-active-map-session"]["updated_at"] = 200.0
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+
+    assert active_ids == ["int_04_star_behavioral"]
+
+
+def test_progression_map_prefers_newer_durable_session_over_stale_process_cache(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    stale_local = svc._new_state(
+        "test_user",
+        "stale-local-map-session",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    stale_local["status"] = "active"
+    stale_local["last_seen_at"] = 100.0
+    svc.SessionStore[stale_local["session_id"]] = stale_local
+
+    durable_newer = svc._new_state(
+        "test_user",
+        "newer-durable-map-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    durable_newer["status"] = "active"
+    durable_newer["last_seen_at"] = 200.0
+    asyncio.run(store.upsert_session_runtime(
+        session_id=durable_newer["session_id"],
+        user_id="test_user",
+        current_node=durable_newer["competency_node"],
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=durable_newer,
+        pending_transition=None,
+        session_version=1,
+    ))
+    store.session_runtime[durable_newer["session_id"]]["updated_at"] = 200.0
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+
+    assert active_ids == ["int_04_star_behavioral"]
+
+
+def test_progression_map_ignores_stale_active_rows_and_returns_one_current_node(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    for node_id in (
+        "int_01_elevator_pitch",
+        "int_02_strength_with_evidence",
+        "int_03_weakness_framing",
+    ):
+        asyncio.run(store.upsert_mastery(
+            user_id="test_user",
+            node_id=node_id,
+            ema=0.82,
+            attempts=3,
+            clean_pass=True,
+            node_completed=True,
+            display_status="ready_to_advance",
+        ))
+    for node_id in ("int_04_star_behavioral", "int_05_why_this_role"):
+        asyncio.run(store.upsert_mastery(
+            user_id="test_user",
+            node_id=node_id,
+            ema=0.2,
+            attempts=1,
+            clean_pass=False,
+            node_completed=False,
+            display_status="active",
+        ))
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+    by_id = {node["node_id"]: node for node in nodes}
+
+    assert active_ids == ["int_04_star_behavioral"]
+    assert by_id["int_05_why_this_role"]["display_status"] == "locked"
+
+
+def test_keep_practicing_starts_same_skill_reattempt_and_closes_source_transition(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    captured = {}
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        captured.update({"user_id": user_id, "node_id": node_id, "reattempt": reattempt})
+        return "same-skill-reattempt", {
+            "session_id": "same-skill-reattempt",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.8,
+            "display_status": "ready_to_advance",
+            "node_mastered": False,
+            "readiness_score": 0.8,
+            "best_independent_score": 0.9,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        user_id="test_user",
+        node_id="int_01_elevator_pitch",
+        ema=0.8,
+        attempts=3,
+        clean_pass=True,
+        node_completed=True,
+        display_status="ready_to_advance",
+    ))
+
+    source_state = svc._new_state(
+        "test_user",
+        "completed-source-for-practice",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "keep-practicing-transition",
+        "from_node": "int_01_elevator_pitch",
+        "from_title": "Tell Me About Yourself",
+        "to_node": "int_02_strength_with_evidence",
+        "to_title": "Back a Strength With Evidence",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_state["session_id"]] = source_state
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "keep-practicing-start",
+            "source_session_id": source_state["session_id"],
+            "source_transition_id": "keep-practicing-transition",
+            "source_action": "reattempt",
+            "reattempt_confirmed": True,
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "same-skill-reattempt"
+    assert captured == {
+        "user_id": "test_user",
+        "node_id": "int_01_elevator_pitch",
+        "reattempt": True,
+    }
+    assert source_state["pending_node_transition"] is None
+    assert source_state["status"] == "ended"
+    assert source_state["handoff_session_id"] == "same-skill-reattempt"
+
+
+def test_source_transition_rejects_conflicting_advance_and_reattempt_intents(store):
+    from app.api import routes
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        user_id="test_user",
+        node_id="int_01_elevator_pitch",
+        ema=0.8,
+        attempts=3,
+        clean_pass=True,
+        node_completed=True,
+        display_status="ready_to_advance",
+    ))
+    source_state = svc._new_state(
+        "test_user",
+        "source-with-conflicting-actions",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "one-action-only",
+        "from_node": "int_01_elevator_pitch",
+        "to_node": "int_02_strength_with_evidence",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_state["session_id"]] = source_state
+
+    advance = SessionStartRequest(
+        competency_node="int_02_strength_with_evidence",
+        client_start_id="advance-won",
+        source_session_id=source_state["session_id"],
+        source_transition_id="one-action-only",
+        source_action="advance",
+        confirm=True,
+    )
+    asyncio.run(store.begin_start_request(
+        "test_user",
+        advance.client_start_id,
+        routes._start_request_hash(advance),
+        source_session_id=advance.source_session_id,
+        source_transition_id=advance.source_transition_id,
+    ))
+
+    response = TestClient(app).post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "reattempt-lost",
+            "source_session_id": source_state["session_id"],
+            "source_transition_id": "one-action-only",
+            "source_action": "reattempt",
+            "reattempt_confirmed": True,
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "source_transition_already_consumed"
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected_code"),
+    [
+        ({"test_mode": True}, "source_transition_prep_only"),
+        ({"simulation_config": {"topic": "unexpected"}}, "source_transition_prep_only"),
+    ],
+)
+def test_same_skill_source_reattempt_rejects_test_or_simulation_mode(store, extra, expected_code):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        user_id="test_user",
+        node_id="int_01_elevator_pitch",
+        ema=0.8,
+        attempts=3,
+        clean_pass=True,
+        node_completed=True,
+        display_status="ready_to_advance",
+    ))
+    source_state = svc._new_state(
+        "test_user",
+        f"invalid-reattempt-{len(extra)}",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "invalid-reattempt-transition",
+        "from_node": "int_01_elevator_pitch",
+        "to_node": "int_02_strength_with_evidence",
+        "status": "awaiting_next_opening",
+    }
+    svc.SessionStore[source_state["session_id"]] = source_state
+
+    response = TestClient(app).post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": f"invalid-reattempt-{next(iter(extra))}",
+            "source_session_id": source_state["session_id"],
+            "source_transition_id": "invalid-reattempt-transition",
+            "source_action": "reattempt",
+            "reattempt_confirmed": True,
+            "confirm": True,
+            **extra,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == expected_code
 
 
 def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store):
@@ -2193,6 +4437,8 @@ def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store
 
 
 def test_next_skill_start_replays_completed_source_transition_after_client_timeout(monkeypatch, store):
+    from app.api import routes
+    from app.models import SessionStartRequest
     from app.services import session_service as svc
     import asyncio
 
@@ -2215,10 +4461,18 @@ def test_next_skill_start_replays_completed_source_transition_after_client_timeo
         "first_message": "",
         "current_mastery": 0.0,
     }
+    payload = {
+        "competency_node": "int_04_star_story",
+        "client_start_id": "original-confirmed-start",
+        "source_session_id": source_session_id,
+        "source_transition_id": source_transition_id,
+        "source_action": "advance",
+        "confirm": True,
+    }
     store.start_requests[("test_user", "original-confirmed-start")] = {
         "user_id": "test_user",
         "client_start_id": "original-confirmed-start",
-        "request_hash": "original-hash",
+        "request_hash": routes._start_request_hash(SessionStartRequest(**payload)),
         "status": "completed",
         "session_id": next_session_id,
         "response_json": response_json,
@@ -2244,13 +4498,7 @@ def test_next_skill_start_replays_completed_source_transition_after_client_timeo
     client = TestClient(app)
     response = client.post(
         "/session/start",
-        json={
-            "competency_node": "int_04_star_story",
-            "client_start_id": "new-browser-start-after-reload",
-            "source_session_id": source_session_id,
-            "source_transition_id": source_transition_id,
-            "confirm": True,
-        },
+        json=payload,
         headers=AUTH,
     )
 
@@ -2258,6 +4506,125 @@ def test_next_skill_start_replays_completed_source_transition_after_client_timeo
     assert response.json()["session_id"] == next_session_id
     assert response.json()["resumed"] is True
     assert calls["start"] == 0
+
+
+def test_completed_start_retry_reconciles_handoff_without_restarting(monkeypatch, store):
+    from app.api import routes
+    from app.models import SessionStartRequest
+    from app.services import session_service as svc
+    from types import SimpleNamespace
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    source_session_id = "handoff-crash-source"
+    source_transition_id = "handoff-crash-transition"
+    source_state = svc._new_state(
+        "test_user",
+        source_session_id,
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": source_transition_id,
+        "from_node": "int_02_strength_with_evidence",
+        "to_node": "int_03_weakness_framing",
+        "status": "awaiting_next_opening",
+    }
+    svc.SessionStore[source_session_id] = source_state
+
+    calls = {"start": 0, "handoff": 0}
+    original_handoff = svc.handoff_transition_to_session
+
+    async def fake_start(user_id, node_id, session_id=None, **_kwargs):
+        calls["start"] += 1
+        assert session_id
+        return session_id, {
+            "session_id": session_id,
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    async def crash_once_then_handoff(*args, **kwargs):
+        calls["handoff"] += 1
+        if calls["handoff"] == 1:
+            raise RuntimeError("simulated handoff persistence failure")
+        await original_handoff(*args, **kwargs)
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    monkeypatch.setattr(svc, "handoff_transition_to_session", crash_once_then_handoff)
+    req = SessionStartRequest(
+        competency_node="int_03_weakness_framing",
+        client_start_id="handoff-crash-client-start",
+        source_session_id=source_session_id,
+        source_transition_id=source_transition_id,
+        source_action="advance",
+        confirm=True,
+    )
+    request = SimpleNamespace(state=SimpleNamespace(user_id="test_user"))
+
+    with pytest.raises(RuntimeError, match="handoff persistence failure"):
+        asyncio.run(routes.start(req, request))
+
+    start_row = store.start_requests[("test_user", req.client_start_id)]
+    assert start_row["status"] == "completed"
+    target_session_id = start_row["session_id"]
+
+    response = asyncio.run(routes.start(req, request))
+
+    assert response.session_id == target_session_id
+    assert response.resumed is True
+    assert calls == {"start": 1, "handoff": 2}
+    assert source_state["handoff_session_id"] == target_session_id
+    assert source_state["status"] == "ended"
+
+
+def test_handoff_retry_reconciles_session_closure_after_partial_persistence(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    source_state = svc._new_state(
+        "test_user",
+        "partial-handoff-source",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "partial-handoff-transition",
+        "from_node": "int_02_strength_with_evidence",
+        "to_node": "int_03_weakness_framing",
+        "status": "awaiting_next_opening",
+    }
+    svc.SessionStore[source_state["session_id"]] = source_state
+
+    original_end = store.end_session
+    calls = {"end": 0}
+
+    async def fail_end_once(*args, **kwargs):
+        calls["end"] += 1
+        if calls["end"] == 1:
+            raise RuntimeError("session row closure failed")
+        await original_end(*args, **kwargs)
+
+    monkeypatch.setattr(store, "end_session", fail_end_once)
+    args = (
+        source_state["session_id"],
+        "partial-handoff-transition",
+        "partial-handoff-target",
+        "int_03_weakness_framing",
+        "test_user",
+    )
+
+    with pytest.raises(RuntimeError, match="session row closure failed"):
+        asyncio.run(svc.handoff_transition_to_session(*args))
+    asyncio.run(svc.handoff_transition_to_session(*args))
+
+    assert calls["end"] == 2
+    assert source_state["last_handed_off_transition"]["handoff_session_id"] == "partial-handoff-target"
+    assert source_state["status"] == "ended"
 
 
 def test_next_skill_source_transition_records_attempt_only_after_new_opening(monkeypatch, store):
@@ -2569,6 +4936,49 @@ def test_completed_opening_request_replays_persisted_message_after_cold_hydrate(
     assert opening_calls["count"] == 0
 
 
+@pytest.mark.asyncio
+async def test_committed_opening_replay_unlocks_and_persists_session(store):
+    from app.services import session_service as svc
+
+    session_id = "committed-opening-unlocks-session"
+    node_id = "int_01_elevator_pitch"
+    opening_key = f"initial:{node_id}"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        node_id,
+        [],
+        task_type="interview_prep",
+    )
+    state["committed_openings"] = {opening_key: "Committed opening."}
+    state["opening_streamed"] = False
+    state["input_allowed"] = False
+    state["block_reason"] = "opening_streaming"
+    state["messages"] = [
+        {
+            "message_id": f"{session_id}:opening:{opening_key}",
+            "role": "assistant",
+            "content": "Committed opening.",
+            "node_id": node_id,
+            "message_kind": "opening",
+        }
+    ]
+    svc.SessionStore[session_id] = state
+
+    chunks = [chunk async for chunk in svc.stream_opening(session_id)]
+
+    assert chunks == ["Committed opening."]
+    assert state["opening_streamed"] is True
+    assert state["input_allowed"] is True
+    assert state["block_reason"] is None
+    persisted = await store.get_session_runtime(session_id)
+    assert persisted is not None
+    snapshot = persisted["state_snapshot"]
+    assert snapshot["opening_streamed"] is True
+    assert snapshot["input_allowed"] is True
+    assert snapshot["block_reason"] is None
+
+
 def test_completed_opening_replay_does_not_double_meter_attempt(monkeypatch, store):
     from app.content import registry
     from app.services import session_service as svc
@@ -2692,6 +5102,57 @@ def test_turn_done_frame_survives_latch_completion_failure(monkeypatch, store):
     assert "event: done" in response.text
 
 
+def test_turn_done_frame_is_not_blocked_by_slow_latch_completion(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(*_args, **_kwargs):
+        yield "Tutor reply before slow latch."
+
+    async def slow_complete_turn_request(*_args, **_kwargs):
+        await asyncio.sleep(0.3)
+
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+    monkeypatch.setattr(
+        store,
+        "complete_turn_request",
+        slow_complete_turn_request,
+        raising=False,
+    )
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "turn-done-before-slow-latch"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app, raise_server_exceptions=False)
+    started = time.perf_counter()
+    response = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "My answer",
+            "client_turn_id": "turn-latch-slow-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+    elapsed = time.perf_counter() - started
+
+    assert response.status_code == 200
+    assert "Tutor reply before slow latch." in response.text
+    assert "event: done" in response.text
+    assert elapsed < 0.25
+
+
 def test_test_mode_end_starts_async_scoring_and_report_endpoint_replays_result(monkeypatch, store):
     from app.services import session_service as svc
     import asyncio
@@ -2743,6 +5204,9 @@ def test_test_mode_end_starts_async_scoring_and_report_endpoint_replays_result(m
 
     assert end_response.status_code == 202
     assert end_response.json()["status"] == "processing"
+    assert state["session_over"] is True
+    assert state["input_allowed"] is False
+    assert state["block_reason"] == "scoring"
 
     report_response = client.get(f"/session/{session_id}/report", headers=AUTH)
 
@@ -3263,6 +5727,7 @@ async def test_simulation_director_sees_current_user_turn(monkeypatch):
     state["opening_streamed"] = True
     state["input_allowed"] = True
     state["block_reason"] = None
+    state["assessment_plan"] = None
 
     chunks = []
     async for item in svc.run_turn(
@@ -3485,6 +5950,7 @@ async def test_interview_test_probe_cursor_advances_without_repeating(monkeypatc
         "int_01_elevator_pitch",
         test_mode=True,
     )
+    state["assessment_plan"] = None
     state["probe_items"] = [
         {"prompt": "Ask about project tradeoffs.", "aim": "names a tradeoff"},
         {"prompt": "Ask about teammate disagreement.", "aim": "shows collaboration"},
@@ -3576,6 +6042,7 @@ async def test_interview_test_honors_move_on_request_when_director_repeats(monke
             "interview_type": "mixed",
         },
     )
+    state["assessment_plan"] = None
     state["probe_items"] = []
     state["messages"] = [
         {"role": "assistant", "content": "[Interviewer]: Explain Singleton and Factory design patterns."},
@@ -3620,8 +6087,12 @@ async def test_test_item_generation_times_out_to_fallback(monkeypatch, store):
     from app.ai import test_gen
     from app.content.task_types import TaskType
 
+    slow_completed = False
+
     async def slow_structured(*_args, **_kwargs):
+        nonlocal slow_completed
         await asyncio.sleep(0.2)
+        slow_completed = True
         raise AssertionError("slow local model should have been timed out")
 
     monkeypatch.setattr(test_gen, "PROBE_GENERATION_TIMEOUT_SECONDS", 0.01, raising=False)
@@ -3640,9 +6111,16 @@ async def test_test_item_generation_times_out_to_fallback(monkeypatch, store):
     )
     elapsed = time.perf_counter() - started
 
-    assert elapsed < 0.12
+    assert elapsed < 0.25
+    assert slow_completed is False
     assert items
     assert "Backend Software Engineer" in items[0].prompt
+
+
+def test_test_item_generation_timeout_is_bounded_for_start_ux():
+    from app.ai import test_gen
+
+    assert test_gen.PROBE_GENERATION_TIMEOUT_SECONDS <= 15.0
 
 
 @pytest.mark.asyncio
@@ -3682,6 +6160,7 @@ async def test_gd_test_confusion_gets_moderator_guidance(monkeypatch):
         test_mode=True,
         simulation_config={"topic": "AI in hiring"},
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
         {"role": "user", "content": "I don't understand what is going on here."},
@@ -3756,6 +6235,7 @@ async def test_gd_test_honors_move_on_request(monkeypatch):
         test_mode=True,
         simulation_config={"topic": "Remote work for engineering teams"},
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
         {"role": "user", "content": "I already covered that evidence. Can we move on to a different angle?"},
@@ -3833,6 +6313,7 @@ async def test_gd_test_honors_requested_quiet_expert(monkeypatch):
             "personas": ["quiet_expert", "aggressive_challenger", "data_driven_analyst"],
         },
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Aggressive Challenger]: Make your point stronger."},
         {"role": "user", "content": "Can we hear from the Expert now?"},
@@ -3848,7 +6329,8 @@ async def test_gd_test_honors_requested_quiet_expert(monkeypatch):
 
     output = "".join(chunks).lower()
     assert speakers[0] == "Quiet Expert"
-    assert "quiet expert" in output
+    assert "quiet expert," not in output
+    assert "implementation quality" in output
     assert "push the learner again" not in output
 
 
@@ -4321,6 +6803,37 @@ def test_gd_prep_followup_prompts_lock_to_selected_topic():
         assert "remote work" not in prompt.lower()
 
 
+def test_challenge_prompt_avoids_mastery_and_celebration_language():
+    from app.ai.prompts import build_challenge_prompt
+    from app.content.registry import get_node
+
+    prompt = build_challenge_prompt(
+        get_node("int_01_elevator_pitch"),
+        messages=[
+            {
+                "role": "user",
+                "content": "I am a backend engineer who improved checkout reliability.",
+            }
+        ],
+        diagnosis={
+            "understanding": "The learner gave a usable concise answer.",
+            "strengths": ["clear role"],
+            "errors": [],
+            "next_focus": "pressure-test with a sharper transfer variant",
+            "affect": "focused",
+        },
+        memory_context=[],
+    )
+    challenge_tail = prompt.split("Recent conversation:", 1)[-1].lower()
+
+    assert "near-mastered" not in challenge_tail
+    assert "near mastery" not in challenge_tail
+    assert "mastered" not in challenge_tail
+    assert "celebrate" not in challenge_tail
+    assert "harder transfer check" in challenge_tail
+    assert "acknowledge briefly" in challenge_tail
+
+
 def test_interview_prep_followup_prompts_lock_to_role_and_recent_thread():
     from app.ai.prompts import build_challenge_prompt, build_strengthen_prompt
     from app.content.registry import get_node
@@ -4451,24 +6964,28 @@ async def test_interview_report_flags_repeated_prompts_as_assessment_caveat(monk
         "blackboard": {"qualities": [0.8, 0.78, 0.76, 0.75]},
         "messages": [
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "I used Redis for caching and Memcached for simple ephemeral lookups."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "I think I covered that. Could we discuss disagreement with a teammate?"},
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "Again, Redis handled richer data structures and persistence tradeoffs."},
+            {"role": "user", "content": "I used Redis for richer data structures and persistence tradeoffs."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a teammate disagreement."},
             {"role": "user", "content": "I disagreed with microservices for a small CRUD tool and explained why a modular monolith fit better."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a production failure."},
             {"role": "user", "content": "I caused a migration lock, helped rollback, and added traffic-window checks."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about leadership."},
             {"role": "user", "content": "I mentored two juniors until they needed only minor review notes."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about prioritization."},
+            {"role": "user", "content": "I delayed a dashboard polish task so the team could fix checkout errors before launch."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about handling ambiguity."},
+            {"role": "user", "content": "I split an unclear compliance request into reversible milestones and got legal review on the risky pieces first."},
         ],
     }
 
     report = await score_session(state)
 
     assert report.assessment_caveats
-    assert "repeated" in report.assessment_caveats[0].lower()
+    assert any("repeated" in caveat.lower() for caveat in report.assessment_caveats)
+    assert report.simulator_integrity_notes
+    assert "unanswered prompt" in report.simulator_integrity_notes[0].lower()
     assert all("elaborate further" not in item.lower() for item in report.improvements)
 
 

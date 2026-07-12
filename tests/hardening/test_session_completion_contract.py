@@ -33,7 +33,7 @@ def test_session_routes_reject_stale_token_without_recreating_profile(store):
 def test_completed_node_requires_explicit_reattempt(monkeypatch, store):
     captured = {}
 
-    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False):
+    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
         captured["reattempt"] = reattempt
         return "reattempt-session", {
             "session_id": "reattempt-session",
@@ -72,7 +72,7 @@ def test_completed_node_requires_explicit_reattempt(monkeypatch, store):
 def test_clean_pass_without_completion_does_not_block_session_start(monkeypatch, store):
     captured = {}
 
-    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False):
+    async def _fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
         captured["node_id"] = node_id
         captured["reattempt"] = reattempt
         return "active-session", {

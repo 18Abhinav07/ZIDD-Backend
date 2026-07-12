@@ -103,24 +103,66 @@ def test_learning_graph_returns_public_career_profile_without_resume_text(store)
         "resume_text": "PRIVATE resume text should not leave /me.",
         "target_roles": ["Backend Software Engineer"],
     }
-    _run(
-        store.upsert_learner_skill_profile(
-            user_id="test_user",
-            domain="career",
-            skill_id="gd_02_support_with_evidence",
-            module_id="group_discussion",
-            task_type="gd_prep",
-            mastery=0.0,
-            readiness=0.82,
-            confidence=0.8,
-            attempts=5,
-            strengths_json=["clear stance"],
-            gaps_json=["needs evidence"],
-            evidence_json={"latest_event": "turn_evaluation:eval-1"},
-            recommended_next_action="Add one concrete example.",
-            source_summary="Good stance, missing evidence.",
+    profile_rows = [
+        {
+            "skill_id": "evidence_under_pressure",
+            "module_id": "interview",
+            "task_type": "interview_prep",
+            "mastery": 0.0,
+            "readiness": 0.44,
+            "confidence": 0.7,
+            "gaps_json": ["needs quantified impact"],
+            "evidence_json": {"latest_quote": "I improved reliability but did not quantify impact."},
+            "recommended_next_action": "Add one measurable result.",
+            "source_summary": "Missing measurable impact.",
+        },
+        {
+            "skill_id": "gd_02_support_with_evidence",
+            "module_id": "group_discussion",
+            "task_type": "gd_prep",
+            "mastery": 0.0,
+            "readiness": 0.82,
+            "confidence": 0.8,
+            "gaps_json": ["needs evidence"],
+            "evidence_json": {"latest_event": "turn_evaluation:eval-1"},
+            "recommended_next_action": "Add one concrete example.",
+            "source_summary": "Good stance, missing evidence.",
+        },
+        {
+            "skill_id": "concise_tradeoff",
+            "module_id": "interview",
+            "task_type": "interview_test",
+            "mastery": 0.0,
+            "readiness": 0.9,
+            "confidence": 0.76,
+            "gaps_json": ["maintain concise tradeoff framing"],
+            "evidence_json": {"latest_quote": "I would prioritize safeguards before speed."},
+            "recommended_next_action": "Use this tradeoff under pressure.",
+            "source_summary": "Resolved concise tradeoff gap.",
+        },
+        {
+            "skill_id": "clear_stance_mastered",
+            "module_id": "group_discussion",
+            "task_type": "gd_prep",
+            "mastery": 0.96,
+            "readiness": 0.93,
+            "confidence": 0.9,
+            "gaps_json": ["keep stance direct"],
+            "evidence_json": {"latest_quote": "Remote should be default with explicit guardrails."},
+            "recommended_next_action": "Pressure-test with a new topic.",
+            "source_summary": "Sustained clear stance.",
+        },
+    ]
+    for row in profile_rows:
+        _run(
+            store.upsert_learner_skill_profile(
+                user_id="test_user",
+                domain="career",
+                attempts=5,
+                strengths_json=["clear stance"],
+                **row,
+            )
         )
-    )
 
     response = TestClient(app).get("/me/learning-graph", headers=AUTH)
 
@@ -128,5 +170,16 @@ def test_learning_graph_returns_public_career_profile_without_resume_text(store)
     body = response.json()
     assert body["career_profile"]["resume_present"] is True
     assert "resume_text" not in body["career_profile"]
-    assert body["profiles"][0]["skill_id"] == "gd_02_support_with_evidence"
-    assert body["profiles"][0]["readiness"] == 0.82
+    assert {row["skill_id"] for row in body["profiles"]} >= {
+        "evidence_under_pressure",
+        "gd_02_support_with_evidence",
+        "concise_tradeoff",
+        "clear_stance_mastered",
+    }
+    memory = body["memory_context"]
+    assert memory["active_gaps"][0]["skill_id"] == "evidence_under_pressure"
+    assert memory["improving_gaps"][0]["skill_id"] == "gd_02_support_with_evidence"
+    assert any(item["skill_id"] == "concise_tradeoff" for item in memory["improving_gaps"])
+    assert memory["resolved_gaps"] == []
+    assert memory["mastered_skills"][0]["skill_id"] == "clear_stance_mastered"
+    assert "quantify impact" in memory["active_gaps"][0]["latest_evidence"]
