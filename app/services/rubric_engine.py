@@ -14,6 +14,7 @@ from typing import Any
 
 from app.ai.schemas import CriterionEval, PrepRubricEval
 from app.content.schema import Concept
+from app.services.career_task_contract import CareerTaskContract
 from app.services.rubrics import PrepRubric, get_rubric
 
 
@@ -51,7 +52,9 @@ class EvaluationPacket:
     node_id: str
     node_title: str
     teach_focus: str
+    active_role: str
     active_topic: str
+    task_contract: dict[str, Any]
     attempt_type: str
     core_qualified: bool
     core_qualification_turn_id: str
@@ -309,13 +312,30 @@ def build_evaluation_packet(
         state = state_or_node
         node = node_or_messages  # type: ignore[assignment]
         messages = _state_messages(state)
-        active_topic = _state_topic(state)
+        active_contract = CareerTaskContract.from_state(state)
+        active_topic = (
+            active_contract.active_topic
+            if active_contract and active_contract.active_topic
+            else _state_topic(state)
+        )
+        active_role = (
+            active_contract.active_role
+            if active_contract and active_contract.active_role
+            else str(
+                (state.get("career_context") or {}).get("primary_role")
+                or (state.get("scenario_config") or {}).get("target_role")
+                or ""
+            ).strip()
+        )
+        task_contract = active_contract.model_dump() if active_contract else {}
         attempt_type = _attempt_type(state)
     else:
         state = {}
         node = state_or_node
         messages = node_or_messages if isinstance(node_or_messages, list) else []
         active_topic = ""
+        active_role = ""
+        task_contract = {}
         attempt_type = "independent"
     if not isinstance(node, Concept):
         raise TypeError("build_evaluation_packet requires a Concept node")
@@ -409,7 +429,9 @@ def build_evaluation_packet(
         node_id=node.id,
         node_title=node.title,
         teach_focus=node.teach_focus,
+        active_role=active_role,
         active_topic=active_topic,
+        task_contract=task_contract,
         attempt_type=attempt_type,
         core_qualified=core_qualified,
         core_qualification_turn_id=core_qualification_turn_id,

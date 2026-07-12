@@ -246,6 +246,7 @@ from app.services.rubric_engine import (
     resolve_prompt_gd_topic,
 )
 from app.services.career_context import build_career_context
+from app.services.career_task_contract import CareerTaskContract
 from app.services.learning_profile import CareerLearningProfileService
 from app.services.tutor_plan import (
     int01_decision_for_planned_action,
@@ -261,10 +262,76 @@ from app.storage import get_storage
 # Assessment ("test") task types run the multi-persona SIMULATION instead of the
 # coaching graph; the contribution is scored at session end, not coached mid-turn.
 _TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.value})
+_CAREER_PREP_TASK_TYPES = frozenset({TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value})
 _EVALUATION_RETRY_TEXT = (
     "I couldn't review that answer reliably, so I haven't counted it. "
     "Please send the same answer once more."
 )
+
+
+def _commit_career_task_contract(state: dict, message: dict) -> None:
+    """Bind evaluation to the Career prompt that has actually become visible."""
+    if str(state.get("task_type") or "") not in _CAREER_PREP_TASK_TYPES:
+        return
+    if str(message.get("message_kind") or "") == "coach_fallback":
+        return
+    explicit_payload = message.get("task_contract")
+    explicit = explicit_payload if isinstance(explicit_payload, dict) else None
+    message_kind = str(message.get("message_kind") or "")
+    if explicit is None and message_kind != "opening" and state.get("active_task_contract"):
+        return
+    explicit = explicit or {}
+    prompt_id = str(
+        explicit.get("prompt_id")
+        or message.get("message_id")
+        or message.get("turn_id")
+        or ""
+    ).strip()
+    if not prompt_id:
+        return
+    node_id = str(message.get("node_id") or state.get("competency_node") or "").strip()
+    attempt_type = str(
+        state.get("pending_prompt_attempt_type")
+        or state.get("active_prompt_attempt_type")
+        or "independent"
+    ).strip()
+    context_id = str(
+        explicit.get("context_id")
+        or f"{node_id}:{attempt_type}:{prompt_id}"
+    ).strip()
+    career = state.get("career_context") or {}
+    scenario = state.get("scenario_config") or {}
+    active_role = str(
+        explicit.get("active_role")
+        or career.get("primary_role")
+        or scenario.get("target_role")
+        or ""
+    ).strip()
+    active_topic = str(explicit.get("active_topic") or "").strip()
+    if not active_topic and str(state.get("task_type") or "") == TaskType.GD_PREP.value:
+        active_topic = resolve_prompt_gd_topic(state)
+    contract = CareerTaskContract(
+        prompt_id=prompt_id,
+        context_id=context_id,
+        active_role=active_role,
+        active_topic=active_topic,
+        semantic_anchors=tuple(
+            explicit.get("semantic_anchors")
+            if isinstance(explicit.get("semantic_anchors"), (list, tuple))
+            else ()
+        ),
+        participant_claims=tuple(
+            explicit.get("participant_claims")
+            if isinstance(explicit.get("participant_claims"), (list, tuple))
+            else ()
+        ),
+        evidence_policy=(
+            str(explicit.get("evidence_policy") or "learner_owned_or_sourced").strip()
+            or "learner_owned_or_sourced"
+        ),
+        hypothetical=bool(explicit.get("hypothetical")),
+    )
+    state["active_task_contract"] = contract.model_dump()
 _CELEBRATORY_OPENING_RE = re.compile(
     r"^\s*(?:great job|great effort|great start|great progress(?: so far)?|good job|nice(?: work| touch)?|well done|"
     r"brilliant(?: work)?|outstanding(?: work)?|you(?:'ve| have)?\s+crushed\s+(?:that|this)(?:\s+answer)?|"
@@ -3728,6 +3795,7 @@ def _append_opening_message_once(state: dict, message: dict) -> bool:
                 existing["message_id"] = message_id
             return False
     messages.append(message)
+    _commit_career_task_contract(state, message)
     state["turn_count"] = int(state.get("turn_count") or 0) + 1
     return True
 
@@ -4578,14 +4646,18 @@ async def _run_turn_locked(
             )
             state["active_game_prompt"] = public_game
             # Record a minimal assistant turn so conversation history stays valid.
-            state["messages"].append({
+            game_message = {
                 "role": "assistant",
                 "content": "\n\n".join(part for part in (
                     bridge_feedback,
                     f"[Fill in the blank] {game.get('sentence', '')}",
                 ) if part),
+                "node_id": state.get("competency_node"),
                 "turn_id": client_turn_id,
-            })
+                "message_kind": "game_prompt",
+            }
+            state["messages"].append(game_message)
+            _commit_career_task_contract(state, game_message)
             _commit_pending_prompt_attempt_type(state)
             state["turn_count"] += 1
             state["pending_game"] = None
@@ -4647,6 +4719,7 @@ async def _run_turn_locked(
                 "message_kind": "coach_fallback" if same_node_generation_failed else "coach_response",
             }
             state["messages"].append(assistant_message)
+            _commit_career_task_contract(state, assistant_message)
             state["turn_count"] += 1
             state["pending"] = None
 
@@ -5129,9 +5202,9 @@ async def place_user(
 
     node = placement_node(module_id, estimated_cefr)
     
-    # Persist the placement if a user is authenticated. We mark all preceding nodes
-    # in the module as fully mastered/completed so the progression map advances.
-    if user_id:
+    # Preserve legacy placement persistence for non-Career modules only. Career
+    # placement selects a starting node without claiming evidence for prior skills.
+    if user_id and module_id not in {"interview", "group_discussion"}:
         try:
             store = get_storage()
             for n in module.nodes:
