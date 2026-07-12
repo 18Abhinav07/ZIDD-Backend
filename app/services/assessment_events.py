@@ -99,6 +99,11 @@ def append_assessment_event(
 ) -> dict[str, Any]:
     ensure_assessment_runtime(state)
     events = list(state.get("assessment_events") or [])
+    latest_user = next((
+        message
+        for message in reversed(state.get("messages") or [])
+        if isinstance(message, dict) and message.get("role") == "user"
+    ), {})
     event = {
         "event_id": _next_event_id(state, "assessment_event_sequence", "assess_"),
         "event_type": event_type,
@@ -109,6 +114,14 @@ def append_assessment_event(
         "content": content,
         "validity_flags": list(validity_flags or []),
     }
+    learner_turn_id = str(
+        latest_user.get("turn_id")
+        or latest_user.get("client_turn_id")
+        or latest_user.get("message_id")
+        or ""
+    ).strip()
+    if learner_turn_id:
+        event["learner_turn_id"] = learner_turn_id
     events.append(event)
     state["assessment_events"] = events[-100:]
     return event

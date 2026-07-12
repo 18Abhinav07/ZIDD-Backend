@@ -83,8 +83,8 @@
       "level_type": "text",
       "skill": "Back a position with a relevant fact, example, or analogy — not just assertion.",
       "teach_focus": "Position -> because -> concrete support; prefer specifics over generalities.",
-      "success_criteria": "A stance followed by at least one relevant, concrete piece of support.",
-      "bridge_focus": "Add one example: 'For instance, ___.'",
+      "success_criteria": "A clear stance followed by learner-owned evidence, a named-source fact, an explicit analogy, or a labelled hypothetical, plus one sentence linking that support to the motion.",
+      "bridge_focus": "Add trustworthy support, then finish: 'This supports my position because ___.'",
       "cefr": "B2",
       "prerequisites": [
         "gd_01_stake_position"
@@ -93,7 +93,7 @@
         {
           "id": "gd_02_support_with_evidence_bx1",
           "type": "fill_blank",
-          "sentence": "Cities should expand bike lanes. ___, Amsterdam cut car traffic sharply after doing exactly that.",
+          "sentence": "Cities should expand protected bike lanes. ___, a protected lane separates cyclists from fast-moving traffic at dangerous junctions.",
           "hint": "a two-word phrase that introduces a concrete example",
           "context": "Practises the signal phrase that turns a bare claim into supported reasoning.",
           "answer_key": "For instance",
@@ -106,9 +106,9 @@
           "sentence": "Which reply backs the stance with the most concrete support?",
           "hint": "look for a specific fact or example, not a repeated opinion",
           "context": "Teaches the learner to recognise concrete support over re-asserted opinion.",
-          "answer_key": "Online courses widen access — for instance, that free coding platform now reaches two million rural learners.",
+          "answer_key": "Online courses widen access — for instance, a rural learner can join a specialist class without relocating.",
           "options": [
-            "Online courses widen access — for instance, that free coding platform now reaches two million rural learners.",
+            "Online courses widen access — for instance, a rural learner can join a specialist class without relocating.",
             "Online courses widen access because they are genuinely very good at widening access.",
             "Online courses widen access, and I really do feel strongly about that."
           ],
@@ -125,8 +125,8 @@
         }
       ],
       "exemplars": [
-        "Remote work boosts output — for instance, our team shipped 20% more after going hybrid.",
-        "I'd back stricter privacy laws; after the EU passed GDPR, companies finally started deleting data they didn't need."
+        "In my own team, hybrid work shortened our review cycle; that learner-owned result supports testing remote work more broadly.",
+        "A useful analogy is food labelling: privacy rules can make hidden data practices visible before users consent."
       ]
     },
     {
@@ -418,8 +418,8 @@
       "level_type": "text",
       "skill": "Invite a silent participant into the discussion to show facilitation skill.",
       "teach_focus": "Notice who hasn't spoken; invite without pressure; reference the topic for them.",
-      "success_criteria": "A natural, specific invitation that opens space for a quieter participant.",
-      "bridge_focus": "Use: 'I'd like to hear ___'s take on this.'",
+      "success_criteria": "Directly address the assigned quieter participant, connect the invitation to the motion, yield the floor naturally, and make it safe to decline.",
+      "bridge_focus": "Use: '___, if you'd like, I'd value your take on the ___ angle.'",
       "cefr": "C1",
       "prerequisites": [
         "gd_07_steer_back"
@@ -428,7 +428,7 @@
         {
           "id": "gd_08_include_quiet_bx1",
           "type": "fill_blank",
-          "sentence": "I'd like to ___ Neha's take on this — she's been quiet but I'm sure she has a view.",
+          "sentence": "Neha, if you'd like, I'd like to ___ your take on the customer-impact angle.",
           "hint": "a verb meaning to listen to someone's opinion",
           "context": "Practises the warm invitation stem for drawing in a quiet member.",
           "answer_key": "hear",
@@ -451,7 +451,7 @@
         {
           "id": "gd_08_include_quiet_bx3",
           "type": "spoken",
-          "sentence": "In a discussion on minimum wage, one person hasn't spoken at all. Invite them in naturally, referencing the topic for them.",
+          "sentence": "In a discussion on minimum wage, Neha has not spoken. Invite Neha in naturally, connect her invitation to the worker-impact angle, and make it safe to decline.",
           "hint": "name them, tie it to the topic, leave room to decline",
         "context": "Free production of a specific, low-pressure invitation.",
         "answer_key": "Expected elements: name the quiet participant, connect the invitation to the topic or their experience, and leave room to decline.",
@@ -469,7 +469,7 @@
       {
         "id": "gd_08_include_quiet_bx5",
         "type": "spoken",
-        "sentence": "A quiet participant has relevant experience but has not spoken. Invite them in naturally, connect to the topic, and avoid putting them on the spot.",
+        "sentence": "Maya has relevant customer experience but has not spoken. Invite Maya in naturally, connect her experience to the topic, and make it safe to pass.",
         "hint": "name them, connect to their angle, leave space",
         "context": "Pressure variant for facilitation without spotlight pressure.",
         "answer_key": "Expected elements: low-pressure invitation that connects the quiet participant's angle to the active discussion.",
@@ -558,8 +558,8 @@
       "level_type": "text",
       "skill": "Synthesize the group's points into a summary that moves toward a shared conclusion.",
       "teach_focus": "Capture the main threads fairly; name common ground; propose a conclusion.",
-      "success_criteria": "A concise synthesis of the discussion's key points plus a proposed consensus the group can rally around.",
-      "bridge_focus": "Name the two main points raised, then propose where the group agrees.",
+      "success_criteria": "A concise synthesis of two attributed, materially different stances, their supported common ground, and one decision rule or next step that preserves the remaining disagreement.",
+      "bridge_focus": "Attribute each assigned stance, preserve the disagreement, then name supported common ground and one decision rule.",
       "cefr": "C1",
       "prerequisites": [
         "gd_09_manage_dominator"
@@ -577,7 +577,7 @@
         {
           "id": "gd_10_drive_consensus_bx2",
           "type": "multiple_choice",
-          "sentence": "Which closing best synthesizes the discussion and proposes a consensus the group can rally around?",
+          "sentence": "Maya prioritizes speed, Dev prioritizes safety, and both accept a phased pilot. Which closing fairly preserves both stances and proposes their stated common ground?",
           "hint": "capture the main threads fairly, then name the common ground",
           "context": "Distinguishes a true synthesis from a one-sided or vague ending.",
           "answer_key": "We've heard strong cases for both speed and safety — and we all seem to agree on a phased rollout, so let's propose that.",

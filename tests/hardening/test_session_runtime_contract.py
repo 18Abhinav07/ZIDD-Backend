@@ -6902,7 +6902,7 @@ def test_gd_prep_opening_prompt_keeps_warmup_on_selected_topic():
 
     assert "Should AI replace campus placement interviews in India?" in prompt
     assert "GD prep opening contract" in prompt
-    assert "Do not use role-specific workplace" in prompt
+    assert "Do not use role-specific interview, coding, or technical-meeting" in prompt
     assert "technical-meeting scenarios" in prompt
     assert "do not switch the selected gd topic" in prompt.lower()
     assert "a different name, place, or topic" not in prompt

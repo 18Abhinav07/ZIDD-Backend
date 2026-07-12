@@ -11,6 +11,7 @@ history must not silently disappear into local files.
 """
 import asyncio
 import copy
+import hashlib
 import json
 import os
 import re
@@ -268,6 +269,169 @@ _EVALUATION_RETRY_TEXT = (
     "Please send the same answer once more."
 )
 
+_TRANSFER_ANCHOR_STOPWORDS = {
+    "about", "after", "answer", "ask", "before", "close", "context", "different",
+    "final", "first", "give", "interview", "keep", "meaningfully", "name", "new",
+    "next", "preserve", "response", "show", "specific", "state", "story", "task",
+    "transfer", "use", "using", "value", "with", "would", "your",
+}
+
+
+def _task_role_from_text(text: str) -> str:
+    match = re.search(
+        r"\b(?:close\s+a|for\s+(?:a|the)|hiring\s+for\s+the)\s+"
+        r"([A-Z][A-Za-z&/-]*(?:\s+[A-Z][A-Za-z&/-]*){0,4}\s+"
+        r"(?:Engineer|Manager|Analyst|Consultant|Designer|Specialist|Lead))"
+        r"(?:\s+interview|\s+role|\b)",
+        str(text or ""),
+        re.IGNORECASE,
+    )
+    return " ".join(match.group(1).split()) if match else ""
+
+
+def _visible_transfer_anchors(text: str) -> list[str]:
+    """Extract anchor groups from the visible assignment, never from node identity."""
+    clean = " ".join(str(text or "").split())
+    transfer_match = re.search(r"\bTransfer\s+(?:task|check)\s*:\s*(.+)", clean, re.IGNORECASE)
+    body = transfer_match.group(1) if transfer_match else clean
+    anchors: list[str] = []
+    role = _task_role_from_text(body)
+    if role:
+        anchors.append(role.casefold())
+    learner_owned_new_context = bool(re.search(
+        r"\bdifferent\b[^.]{0,80}\b(?:your\s+own\s+experience|achievement|story)\b",
+        body,
+        re.IGNORECASE,
+    ))
+    if learner_owned_new_context:
+        anchors.append("learner owned new context")
+        return anchors[:2]
+    for quoted in re.findall(r"['\"]([^'\"]{8,180})['\"]", body):
+        tokens = [
+            token for token in re.findall(r"[a-z][a-z0-9-]{3,}", quoted.casefold())
+            if token not in _TRANSFER_ANCHOR_STOPWORDS
+        ]
+        if tokens:
+            anchors.append(" ".join(dict.fromkeys(tokens))[:160])
+    for sentence in re.split(r"(?<=[.!?])\s+", body)[:2]:
+        tokens = [
+            token for token in re.findall(r"[a-z][a-z0-9-]{3,}", sentence.casefold())
+            if token not in _TRANSFER_ANCHOR_STOPWORDS
+        ]
+        group = " ".join(dict.fromkeys(tokens))[:160]
+        if group and group not in anchors:
+            anchors.append(group)
+    return anchors[:2]
+
+
+def _gd_task_participant_claims(node_id: str, text: str) -> list[dict[str, str]]:
+    if node_id == "gd_08_include_quiet":
+        quiet_marker = re.search(
+            r"\b(?:has\s+not|hasn't|did\s+not)\s+(?:spoken|entered|contributed)|"
+            r"\bsays\s+(?:she|he|they)\s+has\s+nothing",
+            text,
+            re.IGNORECASE,
+        )
+        name = ""
+        if quiet_marker:
+            prefix = text[max(0, quiet_marker.start() - 120):quiet_marker.start()]
+            candidates = re.findall(r"\b[A-Z][\w'’-]{1,24}\b", prefix)
+            excluded = {"The", "Analyst", "Challenger", "Pressure", "Check", "Transfer", "Motion"}
+            name = next((candidate for candidate in reversed(candidates) if candidate not in excluded), "")
+        if not name:
+            match = re.search(
+                r"\b(?:address|invite)\s+([A-Z][\w'’-]{1,24})\b|"
+                r"^\s*([A-Z][\w'’-]{1,24})\s*,",
+                text,
+                re.IGNORECASE,
+            )
+            if match:
+                name = next(group for group in match.groups() if group)
+        if not name:
+            return []
+        return [{
+            "participant_id": name.casefold(),
+            "display_name": name,
+            "status": "quiet",
+        }]
+    if node_id != "gd_10_drive_consensus":
+        return []
+    if not re.search(r"\bMaya\b", text, re.IGNORECASE) or not re.search(r"\bDev\b", text, re.IGNORECASE):
+        return []
+    maya_claim = "the evidence supports the motion"
+    dev_claim = "the evidence is too mixed to accept without qualification"
+    if re.search(r"\bspeed\b", text, re.IGNORECASE):
+        maya_claim = "speed supports moving forward"
+    if re.search(r"\bsafety\b", text, re.IGNORECASE):
+        dev_claim = "safety requires qualification before moving forward"
+    return [
+        {
+            "participant_id": "maya",
+            "display_name": "Maya",
+            "claim": maya_claim,
+            "stance": "support",
+        },
+        {
+            "participant_id": "dev",
+            "display_name": "Dev",
+            "claim": dev_claim,
+            "stance": "qualified_opposition",
+        },
+    ]
+
+
+def _derived_career_task_payload(state: dict, message: dict) -> dict:
+    content = " ".join(str(message.get("content") or "").split())
+    node_id = str(message.get("node_id") or state.get("competency_node") or "").strip()
+    attempt_type = str(
+        "scaffolded"
+        if str(message.get("message_kind") or "") == "game_prompt"
+        else
+        state.get("pending_prompt_attempt_type")
+        or state.get("active_prompt_attempt_type")
+        or "independent"
+    ).strip()
+    topic = ""
+    if str(state.get("task_type") or "") == TaskType.GD_PREP.value:
+        topic = str(state.get("pending_gd_prompt_topic") or resolve_prompt_gd_topic(state) or "").strip()
+    anchors = (
+        _visible_transfer_anchors(content)
+        if attempt_type == "transfer" and node_id.startswith("int_")
+        else []
+    )
+    role = _task_role_from_text(content)
+    context_fingerprint = uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        f"{node_id}|{attempt_type}|{content}",
+    ).hex[:16]
+    return {
+        "context_id": f"{node_id}:{attempt_type}:{context_fingerprint}",
+        "active_role": role,
+        "active_topic": topic,
+        "semantic_anchors": list(anchors),
+        "participant_claims": _gd_task_participant_claims(node_id, content),
+        "evidence_policy": "learner_owned_or_sourced",
+        "hypothetical": bool(
+            state.get("task_type") == TaskType.GD_PREP.value
+            or re.search(r"\b(?:hypothetical|transfer\s+task|pressure\s+check|premise)\b", content, re.IGNORECASE)
+        ),
+    }
+
+
+def _coach_response_assigns_task(state: dict) -> bool:
+    if not state.get("active_task_contract") or state.get("last_graded_bridge"):
+        return True
+    result = state.get("last_rubric_result")
+    if isinstance(result, dict) and (
+        bool(result.get("pass_eligible"))
+        and not result.get("required_missing")
+        and not result.get("blockers")
+    ):
+        return True
+    pending_topic = str(state.get("pending_gd_prompt_topic") or "").strip()
+    active_topic = str((state.get("active_task_contract") or {}).get("active_topic") or "").strip()
+    return bool(pending_topic and pending_topic != active_topic)
+
 
 def _commit_career_task_contract(state: dict, message: dict) -> None:
     """Bind evaluation to the Career prompt that has actually become visible."""
@@ -278,9 +442,15 @@ def _commit_career_task_contract(state: dict, message: dict) -> None:
     explicit_payload = message.get("task_contract")
     explicit = explicit_payload if isinstance(explicit_payload, dict) else None
     message_kind = str(message.get("message_kind") or "")
-    if explicit is None and message_kind != "opening" and state.get("active_task_contract"):
+    assigns_new_task = bool(
+        explicit is not None
+        or message_kind == "opening"
+        or message_kind == "game_prompt"
+    )
+    if not assigns_new_task and state.get("active_task_contract"):
         return
-    explicit = explicit or {}
+    derived = _derived_career_task_payload(state, message)
+    explicit = {**derived, **(explicit or {})}
     prompt_id = str(
         explicit.get("prompt_id")
         or message.get("message_id")
@@ -1989,7 +2159,7 @@ def _gd02_feedback_text(state: dict) -> str | None:
 
     if not result.get("pass_eligible") or required_missing or blockers:
         if "concrete_evidence" in required_missing:
-            repair = "Add one concrete fact, number, case, or learner-owned experience"
+            repair = "Add one learner-owned example, named-source fact, explicit analogy, or labelled hypothetical"
         elif "clear_stance" in required_missing:
             repair = "State the side you are defending before the evidence"
         elif "topic_relevance" in required_missing:
@@ -2010,8 +2180,8 @@ def _gd02_feedback_text(state: dict) -> str | None:
         state["pending_prompt_attempt_type"] = "transfer"
         state["pending_gd_prompt_topic"] = next_topic
         task = (
-            f'Transfer task. Motion: "{next_topic}" Take a clear side, add one concrete fact '
-            "or experience, and state why that evidence supports the side you chose."
+            f'Transfer task. Motion: "{next_topic}" Take a clear side, add one learner-owned '
+            "example or named-source fact, and state why that evidence supports the side you chose."
         )
     elif next_action == "request_pressure":
         state["pending_prompt_attempt_type"] = "pressure"
@@ -2320,7 +2490,7 @@ def _late_gd_task(node_id: str, stage: str, topic: str) -> str:
             "fresh": f"On {quoted_topic}, Maya has not spoken after two strong voices. Link her perspective to one unresolved angle and invite her without putting her on the spot.",
             "transfer": f"Transfer motion: {quoted_topic} Dev has not entered the discussion. Connect a useful lens to the motion and give him the floor naturally.",
             "pressure": f"Pressure check on {quoted_topic}: Maya says she has nothing new to add. Invite one specific lens while making it safe for her to pass.",
-            "consolidation": f"Consolidation on {quoted_topic}: address the quieter participant, link the invitation to one unresolved point, and yield the floor in two sentences.",
+            "consolidation": f"Consolidation on {quoted_topic}: address Maya directly, link her invitation to one unresolved point, make it safe to decline, and yield the floor in two sentences.",
         },
         "gd_09_manage_dominator": {
             "fresh": f"On {quoted_topic}, Rohan interrupts and repeats the same argument. Credit its useful part, set a calm boundary, and open the floor to another perspective.",
@@ -2436,6 +2606,21 @@ def _deterministic_coach_repair_text(state: dict) -> str:
     node_id = str(state.get("competency_node") or "")
     if node_id == "int_03_weakness_framing":
         return _weakness_next_challenge_text(state)
+    if node_id == "int_02_strength_with_evidence":
+        return (
+            "Keep the strength you named. Rewrite the answer with one learner-owned situation, "
+            "the action you personally took, and the observable result."
+        )
+    if node_id == "gd_08_include_quiet":
+        return (
+            "Address the assigned quieter participant by name, connect one unresolved angle to "
+            "the motion, yield the floor naturally, and make it safe to decline."
+        )
+    if node_id == "gd_10_drive_consensus":
+        return (
+            "Attribute both assigned positions fairly, preserve their real disagreement, name only "
+            "the common ground both support, and propose one decision rule or next step."
+        )
     if node_id.startswith("int_"):
         return (
             "Use your answer as the base; now make the strongest evidence easier to hear. "
@@ -2572,6 +2757,17 @@ def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
 def _bridge_full_answer_task(state: dict) -> str:
     node_id = str(state.get("competency_node") or "")
     topic = _gd_topic_phrase_for_state(state)
+    participant_claims = (
+        (state.get("active_task_contract") or {}).get("participant_claims")
+        if isinstance(state.get("active_task_contract"), dict)
+        else []
+    )
+    quiet_name = next((
+        str(claim.get("display_name") or claim.get("participant_id") or "").strip()
+        for claim in (participant_claims or [])
+        if isinstance(claim, dict)
+        and str(claim.get("status") or claim.get("role") or "").casefold() == "quiet"
+    ), "Maya")
     gd_tasks = {
         "gd_06_balanced_view": (
             "state one valid point on each side, explain the decisive trade-off, "
@@ -2582,7 +2778,7 @@ def _bridge_full_answer_task(state: dict) -> str:
             "useful angle for the group to examine next"
         ),
         "gd_08_include_quiet": (
-            "address the quieter participant, link the invitation to one unresolved "
+            f"address {quiet_name} directly, link the invitation to one unresolved "
             "topic angle, and yield the floor without pressure"
         ),
         "gd_09_manage_dominator": (
@@ -2611,6 +2807,11 @@ def _bridge_full_answer_task(state: dict) -> str:
             "Now build back to the full skill: acknowledge one fair part of the "
             "interviewer's premise, state your counter-position, tie it to one requirement "
             "or trade-off, and keep the tone collaborative."
+        )
+    if node_id == "int_02_strength_with_evidence":
+        return (
+            "Now build back to the full skill: name the strength, give one learner-owned situation, "
+            "state the action you personally took, and finish with the observable result."
         )
     if node_id == "int_10_close_strong":
         return (
@@ -2723,6 +2924,7 @@ _TRANSIENT_KEYS = (
     "pending_game",
     "pending_prompt_attempt_type",
     "pending_gd_prompt_topic",
+    "last_evaluated_task_contract",
     "last_selection",
     "_prepared_session_record",
 )
@@ -3206,6 +3408,7 @@ def _new_state(
             "growth_signals": [],
             "resolved_candidates": [],
             "latest_evidence_quotes": [],
+            "applied_evaluation_ids": [],
         },
         "scenario_config": scenario_config or {},
         "context_hash": context_hash or "default",
@@ -3285,6 +3488,7 @@ def _new_state(
         "readiness_score": 0.0,
         "last_gap": "",
         "mastery_evidence": [],
+        "credited_evidence_ids": [],
         "remediation": False,
         "module_done": False,
         # Phase 5 gamification level flags (set at the advance boundary):
@@ -3528,6 +3732,7 @@ async def start_session(
         "growth_signals": [],
         "resolved_candidates": [],
         "latest_evidence_quotes": [],
+        "applied_evaluation_ids": [],
     }
     
     # Apply loaded progress
@@ -3662,7 +3867,8 @@ def _opening_fallback_text(state: dict, node) -> str:
             ),
             "gd_02_support_with_evidence": (
                 "A participant has made a broad claim without proof. State your position, "
-                "then support it with one concrete example, metric, or causal reason."
+                "then support it with one learner-owned example, named-source fact, explicit "
+                "analogy, or labelled hypothetical, and explain the link."
             ),
             "gd_03_take_the_floor": (
                 "Two participants have spoken and there is a short pause. Enter naturally by "
@@ -3947,7 +4153,9 @@ async def stream_opening(
         return
 
     deterministic_prep_opening = (
-        _int05_opening_text(state)
+        _opening_fallback_text(state, node)
+        if state.get("task_type") == TaskType.GD_PREP.value
+        else _int05_opening_text(state)
         if state.get("task_type") == TaskType.INTERVIEW_PREP.value
         and state.get("competency_node") == "int_05_why_this_role"
         else ""
@@ -4097,8 +4305,15 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
     if not text:
         text = _opening_fallback_text(state, node)
         yield text
-    state["messages"].append({"role": "assistant", "content": text})
-    state["turn_count"] += 1
+    message = {
+        "message_id": f"{state.get('session_id')}:opening:{state.get('competency_node')}:{state.get('session_version', 1)}",
+        "role": "assistant",
+        "content": text,
+        "node_id": state.get("competency_node"),
+        "transition_id": (state.get("pending_node_transition") or {}).get("transition_id"),
+        "message_kind": "opening",
+    }
+    _append_opening_message_once(state, message)
 
 
 def _append_user_turn_message(
@@ -4169,6 +4384,18 @@ async def _hydrate_core_qualification(state: dict) -> None:
     if valid_row:
         context_json = (row or {}).get("context_json") or {}
         hydrated_topic = str(context_json.get("active_topic") or "").strip()
+        hydrated_contract = context_json.get("task_contract")
+        if not isinstance(hydrated_contract, dict) or not hydrated_contract.get("context_id"):
+            hydrated_contract = {
+                "prompt_id": f"legacy:{evaluation_id}",
+                "context_id": f"legacy-core:{evaluation_id}",
+                "active_role": "",
+                "active_topic": hydrated_topic,
+                "semantic_anchors": [],
+                "participant_claims": [],
+                "evidence_policy": "learner_owned_or_sourced",
+                "hypothetical": False,
+            }
         if state.get("task_type") == TaskType.GD_PREP.value and not hydrated_topic:
             return
         state["core_qualified"] = True
@@ -4182,6 +4409,7 @@ async def _hydrate_core_qualification(state: dict) -> None:
             "blockers": list((row or {}).get("blockers") or []),
             "effective_score": float((row or {}).get("effective_score") or 0.0),
             "learner_answer": str((row or {}).get("user_answer") or "").strip(),
+            "task_contract": copy.deepcopy(hydrated_contract),
             "active_topic": (
                 hydrated_topic
                 if state.get("task_type") == TaskType.GD_PREP.value
@@ -4508,6 +4736,10 @@ async def _run_turn_locked(
     # turn 0 was the opening (assistant-only), so turn_count>=1 means there is a
     # real learner answer to score this turn. Capture before the graph runs.
     did_eval = state["turn_count"] >= 1
+    if did_eval:
+        state["last_evaluated_task_contract"] = copy.deepcopy(
+            pre_scored_snapshot.get("active_task_contract") or {}
+        )
 
     # Graph = decision brain: evaluate the answer, pick the pedagogy move,
     # build its prompt. Returns partial-state updates we merge back.
@@ -4656,6 +4888,14 @@ async def _run_turn_locked(
                 "turn_id": client_turn_id,
                 "message_kind": "game_prompt",
             }
+            game_contract_message = {
+                **game_message,
+                "content": str(game.get("sentence") or ""),
+            }
+            game_message["task_contract"] = _derived_career_task_payload(
+                state,
+                game_contract_message,
+            )
             state["messages"].append(game_message)
             _commit_career_task_contract(state, game_message)
             _commit_pending_prompt_attempt_type(state)
@@ -4718,6 +4958,11 @@ async def _run_turn_locked(
                 "turn_id": client_turn_id,
                 "message_kind": "coach_fallback" if same_node_generation_failed else "coach_response",
             }
+            if not same_node_generation_failed and _coach_response_assigns_task(state):
+                assistant_message["task_contract"] = _derived_career_task_payload(
+                    state,
+                    assistant_message,
+                )
             state["messages"].append(assistant_message)
             _commit_career_task_contract(state, assistant_message)
             state["turn_count"] += 1
@@ -4902,7 +5147,12 @@ async def close_session(session_id: str) -> dict:
         final_summary=summary,
         avg_score=avg_score,
     )
-    if summary:
+    report_validity = str((report_dict or {}).get("validity_status") or "").strip()
+    adaptive_memory_allowed = (
+        not is_test
+        or report_validity not in {"invalid_simulation", "insufficient_evidence"}
+    )
+    if summary and adaptive_memory_allowed:
         await store.write_memory(
             state["user_id"],
             session_id,
@@ -5125,7 +5375,11 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
             "pressure_passes": int(p.get("pressure_passes") or 0) if p else 0,
             "scaffold_successes": int(p.get("scaffold_successes") or 0) if p else 0,
             "last_gap": p.get("last_gap", "") if p else "",
-            "mastery_evidence": list(p.get("mastery_evidence") or []) if p else [],
+            "mastery_evidence": (
+                public_mastery_evidence(list(p.get("mastery_evidence") or []))
+                if p and node_mastered
+                else []
+            ),
             "clean_streak": streak,
             "status": status,
             "reattempt_session_id": reattempt_by_node.get(node.id),
@@ -5249,6 +5503,33 @@ def _is_non_scorable_prep_integrity(state: dict) -> bool:
     )
 
 
+def _career_progress_evidence_id(state: dict, rubric_result: dict) -> str:
+    contract = state.get("last_evaluated_task_contract")
+    if not isinstance(contract, dict):
+        contract = state.get("active_task_contract") if isinstance(state.get("active_task_contract"), dict) else {}
+    prompt_text = ""
+    seen_latest_user = False
+    for message in reversed(state.get("messages") or []):
+        if message.get("role") == "user":
+            seen_latest_user = True
+            continue
+        if seen_latest_user and message.get("role") == "assistant":
+            prompt_text = " ".join(str(message.get("content") or "").casefold().split())
+            break
+    identity = {
+        "user_id": str(state.get("user_id") or ""),
+        "node_id": str(state.get("competency_node") or ""),
+        "attempt_type": str(rubric_result.get("attempt_type") or "independent"),
+        "prompt_text": prompt_text,
+        "active_role": str(contract.get("active_role") or "").casefold(),
+        "active_topic": str(contract.get("active_topic") or "").casefold(),
+        "semantic_anchors": sorted(str(item).casefold() for item in contract.get("semantic_anchors") or []),
+        "participant_claims": contract.get("participant_claims") or [],
+    }
+    payload = json.dumps(identity, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def _update_progress(state: dict) -> None:
     """Fold the latest score into the clean-pass streak + down-ladder counters.
 
@@ -5308,9 +5589,11 @@ def _update_progress(state: dict) -> None:
                 "readiness_score": state.get("readiness_score", 0.0),
                 "last_gap": state.get("last_gap", ""),
                 "mastery_evidence": state.get("mastery_evidence", []),
+                "credited_evidence_ids": state.get("credited_evidence_ids", []),
             },
             rubric_result,
             scaffolded=bool(state.get("last_graded_bridge")),
+            evidence_id=_career_progress_evidence_id(state, rubric_result),
         )
         state.update(credit)
         if (
@@ -5333,6 +5616,7 @@ def _update_progress(state: dict) -> None:
                 "blockers": [],
                 "effective_score": float(rubric_result.get("effective_score") or 0.0),
                 "learner_answer": str(state.get("user_input") or "").strip(),
+                "task_contract": copy.deepcopy(state.get("active_task_contract") or {}),
                 "active_topic": (
                     _gd_prompt_topic_for_state(state)
                     if state.get("task_type") == TaskType.GD_PREP.value
@@ -5565,6 +5849,7 @@ async def _maybe_advance(state: dict) -> None:
     state["readiness_score"] = 0.0
     state["last_gap"] = ""
     state["mastery_evidence"] = []
+    state["credited_evidence_ids"] = []
     state["active_prompt_attempt_type"] = None
     state["pending_prompt_attempt_type"] = None
     state["opening_streamed"] = False
@@ -5590,7 +5875,35 @@ def _append_unique_limited(items: list, value: str, *, limit: int = 8) -> None:
     del items[:-limit]
 
 
-def _update_session_learning_delta(state: dict, rubric_result: dict, user_answer: str) -> None:
+def public_mastery_evidence(state_or_items: dict | list) -> list:
+    if isinstance(state_or_items, dict):
+        if not state_or_items.get("node_mastered"):
+            return []
+        items = state_or_items.get("mastery_evidence") or []
+    else:
+        items = state_or_items
+    public: list = []
+    for item in items or []:
+        if isinstance(item, str):
+            if item.strip():
+                public.append(item)
+            continue
+        if not isinstance(item, dict) or not item.get("criteria"):
+            continue
+        public.append({
+            key: copy.deepcopy(value)
+            for key, value in item.items()
+            if key != "evidence_id"
+        })
+    return public[-8:]
+
+
+def _update_session_learning_delta(
+    state: dict,
+    rubric_result: dict,
+    user_answer: str,
+    evaluation_id: str,
+) -> None:
     delta = state.setdefault("session_learning_delta", {
         "strengths": [],
         "active_gaps": [],
@@ -5598,7 +5911,13 @@ def _update_session_learning_delta(state: dict, rubric_result: dict, user_answer
         "growth_signals": [],
         "resolved_candidates": [],
         "latest_evidence_quotes": [],
+        "applied_evaluation_ids": [],
     })
+    applied_ids = delta.setdefault("applied_evaluation_ids", [])
+    if evaluation_id in applied_ids:
+        return
+    applied_ids.append(evaluation_id)
+    del applied_ids[:-100]
     delta["module_id"] = state.get("module_id") or _module_id_for_state(str(state.get("competency_node") or ""))
     delta["task_type"] = state.get("task_type", "")
     strengths = delta.setdefault("strengths", [])
@@ -5635,8 +5954,7 @@ def _update_session_learning_delta(state: dict, rubric_result: dict, user_answer
             repeated[criterion_key] = max(int(repeated.get(criterion_key) or 0), 1)
         quote = " ".join(str(criterion.get("evidence_quote") or "").split())
         if (
-            criterion.get("met") is True
-            and quote
+            quote
             and quote.lower() in normalized_answer
         ):
             _append_unique_limited(evidence_quotes, quote[:260], limit=8)
@@ -5679,13 +5997,9 @@ async def _track_turn(state: dict, node_id: str) -> None:
     if rubric_result and hasattr(store, "record_turn_evaluation"):
         turn_id = state.get("active_turn_id") or state.get("last_turn_id")
         attempt_index = int(state.get("attempts") or 0)
-        _update_session_learning_delta(
-            state,
-            dict(rubric_result),
-            str(state.get("user_input") or ""),
-        )
+        evaluation_id = f"{state['session_id']}:{turn_id or attempt_index}:{node_id}"
         await store.record_turn_evaluation(
-            evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
+            evaluation_id=evaluation_id,
             session_id=state["session_id"],
             user_id=state["user_id"],
             node_id=node_id,
@@ -5705,12 +6019,23 @@ async def _track_turn(state: dict, node_id: str) -> None:
             context_json={
                 "active_topic": str(state.get("last_evaluated_gd_topic") or ""),
                 "task_type": str(state.get("task_type") or ""),
+                "task_contract": copy.deepcopy(
+                    state.get("last_evaluated_task_contract")
+                    or state.get("active_task_contract")
+                    or {}
+                ),
             },
             model_name=get_settings().ollama_model if get_settings().ai_backend == "local" else "gemini",
             prompt_version="prep-eval-v1",
         )
+        _update_session_learning_delta(
+            state,
+            dict(rubric_result),
+            str(state.get("user_input") or ""),
+            evaluation_id,
+        )
         await CareerLearningProfileService(store).record_prep_turn_evaluation(
-            evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
+            evaluation_id=evaluation_id,
             state=state,
             rubric_result=dict(rubric_result),
             tutor_plan=dict(tutor_plan),

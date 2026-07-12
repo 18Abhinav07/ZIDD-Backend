@@ -2236,6 +2236,26 @@ def _normalized_round_qualities(state: dict) -> list[float]:
     raw = (state.get("blackboard") or {}).get("qualities", [])
     if not isinstance(raw, list):
         return []
+    typed_events = [
+        event
+        for event in state.get("assessment_events") or []
+        if isinstance(event, dict) and event.get("event_type") == "analysis"
+    ]
+    if typed_events:
+        typed_qualities: list[float] = []
+        scorable_count = 0
+        for event in typed_events:
+            if event.get("scorable") is not True:
+                continue
+            scorable_count += 1
+            analysis = event.get("analysis") if isinstance(event.get("analysis"), dict) else {}
+            quality = _normalize_round_quality_value(analysis.get("quality_score"))
+            if quality is not None:
+                typed_qualities.append(quality)
+        if typed_qualities:
+            return typed_qualities
+        if len(raw) != scorable_count:
+            return []
     normalized: list[float] = []
     for value in raw:
         quality = _normalize_round_quality_value(value)
@@ -2365,6 +2385,7 @@ def _score_breakdown(
     validity_cap: float | None,
     final_score: float,
     repeated_prompt_count: int = 0,
+    excluded_turn_count: int = 0,
 ) -> dict:
     return {
         "model_score": round(float(model_score), 4),
@@ -2385,11 +2406,16 @@ def _score_breakdown(
             else None
         ),
         "repeated_prompt_count": int(repeated_prompt_count or 0),
+        "excluded_turn_count": int(excluded_turn_count or 0),
         "final_score": round(float(final_score), 4),
     }
 
 
-_FINAL_SCORE_AFFECTING_REPAIR_CODES: set[str] = set()
+_FINAL_SCORE_AFFECTING_REPAIR_CODES = {
+    "assessment_quality_score_repaired",
+    "assessment_turn_call_failed",
+    "interview_missing_evidence_repaired",
+}
 _SAFE_REPORT_INTEGRITY_NOTE_CODES = {
     "empty_gd_visible_response_repaired",
     "gd_panelist_ask_only_repaired",
@@ -2470,6 +2496,7 @@ def _invalid_simulation_report(
             validity_cap=0.0,
             final_score=0.0,
             repeated_prompt_count=_repeated_unanswered_prompt_count(state.get("messages") or []),
+            excluded_turn_count=_assessment_event_counts(state)[1],
         ),
         validity_status="invalid_simulation",
         scorable_turn_count=scorable_turn_count,
@@ -2682,18 +2709,82 @@ def _score_excluded_answer_event(event: dict) -> bool:
     )
 
 
+def _assessment_event_counts(state: dict) -> tuple[int, int, int]:
+    scorable = 0
+    excluded = 0
+    controls = 0
+    for event in _assessment_analysis_events(state):
+        if event.get("scorable") is True:
+            scorable += 1
+        elif _score_excluded_answer_event(event):
+            excluded += 1
+        else:
+            controls += 1
+    return scorable, excluded, controls
+
+
 def _effective_scorable_turn_count(state: dict, messages: list[dict]) -> int:
     events = _assessment_analysis_events(state)
-    message_scorable_count = _scorable_user_turn_count(messages)
     if events:
-        event_scorable_count = sum(
-            1
-            for event in events
-            if event.get("scorable") is True or _score_excluded_answer_event(event)
-        )
-        missing_event_rows = max(0, message_scorable_count - len(events))
-        return event_scorable_count + missing_event_rows
-    return message_scorable_count
+        return sum(1 for event in events if event.get("scorable") is True)
+    return _scorable_user_turn_count(messages)
+
+
+def _typed_scorable_messages(messages: list[dict], events: list[dict]) -> list[dict]:
+    """Project a transcript through its typed turn ledger.
+
+    Once a typed ledger exists it is authoritative. Unmatched transcript rows are
+    intentionally excluded instead of being guessed back into learner evidence.
+    """
+    if not events:
+        return _answered_scorable_messages(messages)
+    user_indices = [
+        index for index, message in enumerate(messages)
+        if message.get("role") == "user"
+    ]
+    event_by_user_index: dict[int, dict] = {}
+    used_user_indices: set[int] = set()
+    unbound_events: list[dict] = []
+    for event in events:
+        learner_turn_id = str(event.get("learner_turn_id") or "").strip()
+        if not learner_turn_id:
+            unbound_events.append(event)
+            continue
+        matched_index = next((
+            index
+            for index in user_indices
+            if index not in used_user_indices
+            and learner_turn_id == str(
+                messages[index].get("turn_id")
+                or messages[index].get("client_turn_id")
+                or messages[index].get("message_id")
+                or ""
+            ).strip()
+        ), None)
+        if matched_index is not None:
+            event_by_user_index[matched_index] = event
+            used_user_indices.add(matched_index)
+    available_tail = [index for index in user_indices if index not in used_user_indices]
+    if unbound_events:
+        available_tail = available_tail[-len(unbound_events):]
+        for index, event in zip(available_tail, unbound_events):
+            event_by_user_index[index] = event
+
+    projected: list[dict] = []
+    pending: list[dict] = []
+    for message_index, message in enumerate(messages):
+        if message.get("role") != "user":
+            pending.append(message)
+            continue
+        event = event_by_user_index.get(message_index)
+        if event is None:
+            pending = []
+            continue
+        if event.get("scorable") is True:
+            projected.extend(pending)
+            projected.append(message)
+        pending = []
+    return projected
 
 
 def _evidence_excerpt(value: str, limit: int = 220) -> str:
@@ -2707,9 +2798,14 @@ def _evidence_excerpt(value: str, limit: int = 220) -> str:
 
 
 def _grounded_evidence_quotes(state: dict, candidates: list[str]) -> list[str]:
+    typed_events = _assessment_analysis_events(state)
+    evidence_messages = _typed_scorable_messages(
+        state.get("messages") or [],
+        typed_events,
+    )
     learner_messages = [
         " ".join(str(message.get("content") or "").split())
-        for message in state.get("messages") or []
+        for message in evidence_messages
         if message.get("role") == "user"
         and message.get("message_kind") != "simulation_control"
         and str(message.get("content") or "").strip()
@@ -2748,7 +2844,7 @@ def _assessment_evidence_quotes(state: dict) -> list[str]:
             candidates.append(text)
 
     for event in _assessment_analysis_events(state):
-        if event.get("scorable") is not True and not _score_excluded_answer_event(event):
+        if event.get("scorable") is not True:
             continue
         analysis = event.get("analysis") or {}
         if not isinstance(analysis, dict):
@@ -2768,6 +2864,28 @@ def _coverage_key(event: dict) -> str:
     return ""
 
 
+def _next_gd_focus_id(state: dict) -> str:
+    plan = state.get("assessment_plan") if isinstance(state.get("assessment_plan"), dict) else {}
+    focus_ids = [
+        str(item.get("focus_id") or "").strip()
+        for item in plan.get("focus_plan") or []
+        if isinstance(item, dict) and str(item.get("focus_id") or "").strip()
+    ]
+    if not focus_ids:
+        return ""
+    covered = {
+        str(event.get("focus_id") or "").strip()
+        for event in state.get("coverage_events") or []
+        if isinstance(event, dict)
+        and event.get("answered") is True
+        and str(event.get("focus_id") or "").strip()
+    }
+    pending = state.get("pending_coverage_event")
+    if isinstance(pending, dict) and str(pending.get("focus_id") or "").strip():
+        covered.add(str(pending["focus_id"]).strip())
+    return next((focus_id for focus_id in focus_ids if focus_id not in covered), focus_ids[0])
+
+
 def _coverage_events_from_state(state: dict) -> list[dict]:
     events: list[dict] = []
     for item in state.get("coverage_events") or []:
@@ -2782,7 +2900,7 @@ def _coverage_events_from_state(state: dict) -> list[dict]:
 def _coverage_events_from_analysis_events(state: dict) -> list[dict]:
     events: list[dict] = []
     for index, item in enumerate(_assessment_analysis_events(state)):
-        if item.get("scorable") is not True and not _score_excluded_answer_event(item):
+        if item.get("scorable") is not True:
             continue
         analysis = item.get("analysis") if isinstance(item.get("analysis"), dict) else {}
         skill_id = str(
@@ -2796,6 +2914,7 @@ def _coverage_events_from_analysis_events(state: dict) -> list[dict]:
         events.append({
             "skill_id": skill_id,
             "prompt_id": prompt_id,
+            "focus_id": str(analysis.get("focus_id") or "").strip(),
             "speaker_id": item.get("speaker_id"),
             "answered": True,
             "source": "assessment_events",
@@ -2829,30 +2948,39 @@ def _derive_coverage_from_messages(messages: list[dict]) -> list[dict]:
 def _coverage_summary(state: dict, task_type: TaskType, answered_messages: list[dict]) -> dict:
     plan = state.get("assessment_plan") if isinstance(state.get("assessment_plan"), dict) else {}
     required_unique = int(plan.get("required_unique_coverage") or _MIN_UNIQUE_COVERAGE.get(task_type, 1))
-    coverage_events = _coverage_events_from_state(state)
-    analysis_coverage_events: list[dict] = []
     analysis_events = _assessment_analysis_events(state)
-    events = coverage_events
-    if not events:
-        analysis_coverage_events = _coverage_events_from_analysis_events(state)
-        events = analysis_coverage_events
-    answered_turn_count = _scorable_user_turn_count(answered_messages)
+    coverage_events = _coverage_events_from_state(state)
+    analysis_coverage_events = _coverage_events_from_analysis_events(state)
+    if analysis_events:
+        scorable_event_count = sum(1 for event in analysis_events if event.get("scorable") is True)
+        events = coverage_events[:scorable_event_count] if coverage_events else analysis_coverage_events
+        answered_turn_count = scorable_event_count
+    else:
+        events = coverage_events
+        answered_turn_count = _scorable_user_turn_count(answered_messages)
     planned_session = isinstance(plan, dict) and bool(plan)
-    missing_event_rows = max(0, answered_turn_count - len(analysis_events))
-    transcript_fallback_limit = missing_event_rows if analysis_events else answered_turn_count
-    allow_transcript_fallback = (not planned_session) or (
-        bool(analysis_events) and missing_event_rows > 0
-    )
+    transcript_fallback_limit = answered_turn_count
+    allow_transcript_fallback = not analysis_events and not planned_session
     if (not events or len(events) < answered_turn_count) and (
         allow_transcript_fallback and transcript_fallback_limit > 0
     ):
         derived_events = _derive_coverage_from_messages(answered_messages)
         if not coverage_events and not analysis_coverage_events:
             events = derived_events[:transcript_fallback_limit]
-        elif missing_event_rows > 0:
-            events = [*events, *derived_events[len(events): len(events) + missing_event_rows]]
+        elif len(events) < answered_turn_count:
+            events = [*events, *derived_events[len(events):answered_turn_count]]
     keys = [key for event in events if (key := _coverage_key(event))]
     unique_keys = sorted(set(keys))
+    focus_covered_ids = sorted({
+        str(event.get("focus_id") or "").strip()
+        for event in events
+        if str(event.get("focus_id") or "").strip()
+    })
+    focus_required_ids = [
+        str(item.get("focus_id") or "").strip()
+        for item in plan.get("focus_plan") or []
+        if isinstance(item, dict) and str(item.get("focus_id") or "").strip()
+    ]
     repeated_prompts = _repeated_unanswered_prompt_count(state.get("messages") or [])
     used_transcript_fallback = any(
         isinstance(event, dict) and event.get("source") == "derived_from_transcript"
@@ -2869,6 +2997,8 @@ def _coverage_summary(state: dict, task_type: TaskType, answered_messages: list[
         "required_unique": required_unique,
         "unique_covered": len(unique_keys),
         "covered_ids": unique_keys[:12],
+        "focus_covered_ids": focus_covered_ids[:8],
+        "focus_required_ids": focus_required_ids[:8],
         "event_count": len(events),
         "repeated_prompt_count": repeated_prompts,
         "source": source,
@@ -2977,6 +3107,7 @@ def _stage_prompt_coverage_event(
         "skill_id": skill_id,
         "prompt_id": prompt_id,
         "topic_angle": topic_angle,
+        "focus_id": _next_gd_focus_id(state) if task_type == TaskType.GD_TEST else "",
         "speaker_id": persona.get("speaker_id"),
         "speaker_name": persona.get("name"),
         "phase": bb.get("phase"),
@@ -3038,6 +3169,7 @@ def _insufficient_evidence_report(
             validity_cap=None,
             final_score=0.0,
             repeated_prompt_count=_repeated_unanswered_prompt_count(state.get("messages") or []),
+            excluded_turn_count=_assessment_event_counts(state)[1],
         ),
         validity_status="insufficient_evidence",
         scorable_turn_count=scorable_turn_count,
@@ -3118,24 +3250,20 @@ def assessment_progress_snapshot(state: dict) -> dict:
     if task_type not in {TaskType.INTERVIEW_TEST, TaskType.GD_TEST}:
         return {}
     answered_messages = _answered_scorable_messages(state.get("messages", []))
-    event_scorable_count = _scorable_turn_count_from_events(state)
-    message_scorable_count = _scorable_user_turn_count(answered_messages)
     scorable_turn_count = _effective_scorable_turn_count(state, answered_messages)
-    control_turn_count = sum(
-        1
-        for event in _assessment_analysis_events(state)
-        if event.get("scorable") is False
-    )
-    control_turn_count += sum(
-        1
-        for message in state.get("messages") or []
-        if message.get("role") == "user"
-        and message.get("message_kind") == "simulation_control"
-    )
+    _event_scorable, excluded_turn_count, control_turn_count = _assessment_event_counts(state)
+    if not _assessment_analysis_events(state):
+        control_turn_count += sum(
+            1
+            for message in state.get("messages") or []
+            if message.get("role") == "user"
+            and message.get("message_kind") == "simulation_control"
+        )
     return {
         "scorable_turn_count": scorable_turn_count,
         "min_scorable_turns": _MIN_FINAL_SCORABLE_TURNS.get(task_type, 1),
         "control_turn_count": control_turn_count,
+        "excluded_turn_count": excluded_turn_count,
         "round_count": int(
             state.get("simulation_round")
             or (state.get("blackboard") or {}).get("turn")
@@ -3209,12 +3337,21 @@ async def score_session(state: dict) -> SimulationReport:
     ran. A fallback-only session (no director rounds) keeps the LLM score alone.
     Only the top-line `score` is blended; the rubric sub-scores stay as scored."""
     task_type = TaskType(state["task_type"])
-    answered_messages = _answered_scorable_messages(state.get("messages", []))
-    event_scorable_count = _scorable_turn_count_from_events(state)
-    message_scorable_count = _scorable_user_turn_count(answered_messages)
+    all_messages = state.get("messages", [])
+    answered_messages = _answered_scorable_messages(all_messages)
+    analysis_events = _assessment_analysis_events(state)
+    scoring_messages = _typed_scorable_messages(all_messages, analysis_events)
     scorable_turn_count = _effective_scorable_turn_count(state, answered_messages)
-    coverage_map = _coverage_summary(state, task_type, answered_messages)
+    _event_scorable, excluded_turn_count, _control_turn_count = _assessment_event_counts(state)
+    coverage_map = _coverage_summary(state, task_type, scoring_messages)
     min_turns = _MIN_FINAL_SCORABLE_TURNS.get(task_type, 1)
+    if _has_invalid_simulation_flags(state) or (excluded_turn_count > 0 and scorable_turn_count == 0):
+        return _invalid_simulation_report(
+            state,
+            task_type,
+            scorable_turn_count,
+            coverage_map,
+        )
     if scorable_turn_count < min_turns:
         return _insufficient_evidence_report(
             state,
@@ -3222,18 +3359,10 @@ async def score_session(state: dict) -> SimulationReport:
             scorable_turn_count,
             coverage_map,
         )
-    if _has_invalid_simulation_flags(state):
-        return _invalid_simulation_report(
-            state,
-            task_type,
-            scorable_turn_count,
-            coverage_map,
-        )
-
     report = await evaluate_simulation(
         task_type,
         state.get("sim_topic", ""),
-        answered_messages,
+        scoring_messages,
         scenario_config=state.get("scenario_config") or {},
         career_context=state.get("career_context") or {},
     )
@@ -3279,7 +3408,7 @@ async def score_session(state: dict) -> SimulationReport:
         *list(report.simulator_integrity_notes or []),
         *_simulator_integrity_notes(state, task_type),
     ]
-    has_partial_integrity_flags = any(
+    has_partial_integrity_flags = excluded_turn_count > 0 or any(
         isinstance(flag, dict)
         and str(flag.get("severity") or "").lower() == "partial"
         and _flag_affects_final_score(flag)
@@ -3362,6 +3491,7 @@ async def score_session(state: dict) -> SimulationReport:
             validity_cap=validity_cap,
             final_score=float(report.score),
             repeated_prompt_count=_repeated_unanswered_prompt_count(state.get("messages") or []),
+            excluded_turn_count=excluded_turn_count,
         ),
     })
     return report

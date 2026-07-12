@@ -219,6 +219,147 @@ def test_interview_probe_plan_starts_with_selected_scenario_prompt():
     assert "technical project" not in first_prompt
 
 
+def test_gd_assessment_plan_projects_scoped_deduped_focus_plan():
+    from app.services.assessment_plan import build_assessment_plan
+
+    def focus(skill_id: str, repeat_count: int, **overrides) -> dict:
+        item = {
+            "focus_id": skill_id,
+            "skill_id": skill_id,
+            "gap": f"Improve {skill_id}.",
+            "repeat_count": repeat_count,
+            "latest_evidence": f"Recent evidence for {skill_id}.",
+        }
+        item.update(overrides)
+        return item
+
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "career_context": {
+            "career_memory_context": {
+                "active_gaps": [
+                    focus(
+                        "int_04_star_behavioral", 500,
+                        module_id="interview", task_type="interview_test",
+                    ),
+                    focus(
+                        "gd_01_take_position", 2,
+                        focus_id="gd-position",
+                        module_id="group_discussion",
+                        task_type="gd_prep",
+                        private_report={"raw_transcript": "must not leave private context"},
+                    ),
+                    focus(
+                        "gd_01_take_position", 8,
+                        focus_id="gd-position-newer", module_id="group_discussion",
+                        task_type="gd_test", gap="Lead with a clear stance.",
+                    ),
+                    focus("rebuttal_quality", 4, focus_id="gd-rebuttal", task_type="gd_test"),
+                    focus(
+                        "gd_active_listening", 3,
+                        focus_id="gd-listening", module_id="interview", task_type="interview_prep",
+                    ),
+                    focus(
+                        "gd_evidence", 1,
+                        focus_id="gd-evidence", module_id="group_discussion", task_type="gd_prep",
+                    ),
+                ],
+                "improving_gaps": [
+                    focus(
+                        "gd_01_take_position", 999,
+                        focus_id="gd-position-improving", module_id="group_discussion",
+                        task_type="gd_prep",
+                    ),
+                    focus(
+                        "collaborative_synthesis", 100,
+                        focus_id="gd-synthesis", module_id="group_discussion",
+                    ),
+                ],
+                "recent_reports": [
+                    {"status": "invalid_simulation", "summary": "Raw invalid report content."},
+                    {"status": "insufficient_evidence", "summary": "Raw insufficient report content."},
+                ],
+            }
+        },
+    }
+
+    plan = build_assessment_plan(state)
+    dumped = plan.model_dump(mode="json")
+    focus_plan = dumped["focus_plan"]
+
+    assert [item["skill_id"] for item in focus_plan] == [
+        "gd_01_take_position",
+        "rebuttal_quality",
+        "gd_evidence",
+        "collaborative_synthesis",
+    ]
+    assert [item["status"] for item in focus_plan] == [
+        "active_gap",
+        "active_gap",
+        "active_gap",
+        "improving",
+    ]
+    assert focus_plan[0]["focus_id"] == "gd-position-newer"
+    assert focus_plan[0]["gap"] == "Lead with a clear stance."
+    assert len(focus_plan) == 4
+    assert isinstance(plan.focus_plan, tuple)
+    assert all(set(item) == {
+        "focus_id",
+        "skill_id",
+        "status",
+        "gap",
+        "repeat_count",
+        "latest_evidence",
+    } for item in focus_plan)
+    assert "int_04_star_behavioral" not in {item["skill_id"] for item in focus_plan}
+    assert "recent_reports" not in dumped
+    assert "private_report" not in str(dumped)
+    assert "Raw invalid report content" not in str(dumped)
+    assert "Raw insufficient report content" not in str(dumped)
+
+
+def test_gd_focus_id_is_validated_against_immutable_plan():
+    from app.ai.schemas import AssessmentTurnCall, GDAnalysis, NextAction, VisibleResponse
+    from app.services.assessment_policy import authorize_assessment_turn
+
+    state = _gd_state()
+    state["assessment_plan"]["focus_plan"] = [{
+        "focus_id": "gd-evidence",
+        "skill_id": "gd_02_support_with_evidence",
+        "status": "active_gap",
+        "gap": "Ground claims in evidence.",
+        "repeat_count": 2,
+        "latest_evidence": "The prior claim had no source.",
+    }]
+    state["messages"].append({"role": "user", "content": "I would track retention and delivery quality."})
+
+    def authorize(focus_id: str):
+        return authorize_assessment_turn(
+            state,
+            state["assessment_plan"],
+            AssessmentTurnCall(
+                analysis=GDAnalysis(
+                    focus_id=focus_id,
+                    quality_score=0.72,
+                    evidence_points=["retention and delivery quality"],
+                ),
+                next_action=NextAction(
+                    speaker_id="devils_advocate",
+                    action_type="challenge",
+                    intent="Challenge whether the metrics capture trust.",
+                ),
+                visible_response=VisibleResponse(
+                    speaker_id="devils_advocate",
+                    text="Retention is useful, but it can hide whether new hires build trust quickly.",
+                ),
+            ),
+        )
+
+    assert authorize("gd-evidence").analysis["focus_id"] == "gd-evidence"
+    assert authorize("invented-focus").analysis["focus_id"] == ""
+
+
 def test_assessment_turn_prompt_separates_gd_visible_response_rules():
     from app.ai.prompts import build_assessment_turn_prompt
 

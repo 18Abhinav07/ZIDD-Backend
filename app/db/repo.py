@@ -2605,24 +2605,16 @@ async def get_progression(session: AsyncSession, user_id: str) -> list[dict]:
                    last_completed_session_id, node_mastered, display_status,
                    best_independent_score, independent_passes, transfer_passes,
                    pressure_passes, scaffold_successes, last_gap, mastery_evidence,
-                   GREATEST(
-                       COALESCE(independent_passes, 0)
+                   COALESCE(independent_passes, 0)
                        + COALESCE(transfer_passes, 0)
-                       + COALESCE(pressure_passes, 0),
-                       COALESCE((
-                       SELECT COUNT(*)
-                       FROM turn_evaluations te
-                       WHERE te.user_id = competency_nodes.user_id
-                         AND te.node_id = competency_nodes.competency_node
-                         AND te.pass_eligible = TRUE
-                         AND te.attempt_type <> 'scaffolded'
-                   ), 0)) AS meaningful_attempts,
+                       + COALESCE(pressure_passes, 0) AS meaningful_attempts,
                    COALESCE((
-                       SELECT te.effective_score
-                       FROM turn_evaluations te
-                       WHERE te.user_id = competency_nodes.user_id
-                         AND te.node_id = competency_nodes.competency_node
-                       ORDER BY te.created_at DESC
+                       SELECT (evidence.value->>'score')::double precision
+                       FROM jsonb_array_elements(
+                           COALESCE(competency_nodes.mastery_evidence, '[]'::jsonb)
+                       ) WITH ORDINALITY AS evidence(value, ordinality)
+                       WHERE evidence.value ? 'evidence_id'
+                       ORDER BY evidence.ordinality DESC
                        LIMIT 1
                    ), mastery) AS readiness_score
             FROM competency_nodes

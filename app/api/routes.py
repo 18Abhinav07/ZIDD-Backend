@@ -481,7 +481,7 @@ def _state_snapshot(state: dict) -> dict:
         "scaffold_successes": int(state.get("scaffold_successes") or 0),
         "meaningful_attempts": int(state.get("meaningful_attempts") or 0),
         "last_gap": state.get("last_gap", ""),
-        "mastery_evidence": list(state.get("mastery_evidence") or []),
+        "mastery_evidence": svc.public_mastery_evidence(state),
         "remediation": state.get("remediation", False),
         "module_done": state.get("module_done", False),
         # Phase 5 progression surfacing: macro lifecycle, named section, and the

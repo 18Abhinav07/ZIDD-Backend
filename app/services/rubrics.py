@@ -77,7 +77,7 @@ _RUBRICS: dict[str, PrepRubric] = {
                 0.62,
             ),
             R("topic_relevance", "Stays on the active GD topic", True, 0.35),
-            R("evidence_link", "Explains how the evidence supports the stance"),
+            R("evidence_link", "Explains how the evidence supports the stance", True, 0.65),
         ),
     ),
     "int_04_star_behavioral": PrepRubric(
@@ -252,7 +252,7 @@ _RUBRICS: dict[str, PrepRubric] = {
         title="Bring a quiet participant into the GD",
         module="group_discussion",
         criteria=(
-            R("names_quiet_participant", "Names or clearly addresses the quiet participant", True, 0.6),
+            R("names_quiet_participant", "Directly addresses the assigned quiet participant", True, 0.6),
             R("topic_linked_invite", "Connects the invitation to the active topic", True, 0.6),
             R("respectful_floor_give", "Gives the floor respectfully without sounding performative", True, 0.65),
             R("non_pressuring_tone", "Invites without embarrassing or forcing the participant", True, 0.65),
@@ -274,8 +274,8 @@ _RUBRICS: dict[str, PrepRubric] = {
         title="Summarize and drive consensus",
         module="group_discussion",
         criteria=(
-            R("summarizes_key_points", "Summarizes at least two key points from the discussion", True, 0.62),
-            R("identifies_common_ground", "Names an area of agreement or emerging consensus", True, 0.65),
+            R("summarizes_key_points", "Fairly summarizes two attributed, materially different positions", True, 0.62),
+            R("identifies_common_ground", "Names common ground supported by both assigned positions", True, 0.65),
             R("proposes_next_step", "Proposes a final recommendation or next step", True, 0.68),
             R("balanced_credit", "Credits the group rather than presenting only a personal conclusion"),
         ),

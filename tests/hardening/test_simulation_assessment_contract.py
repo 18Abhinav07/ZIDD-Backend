@@ -417,19 +417,11 @@ async def test_score_session_returns_insufficient_evidence_without_minimum_scora
 
 
 @pytest.mark.asyncio
-async def test_score_session_uses_learner_answers_when_assessment_events_under_count(monkeypatch):
+async def test_score_session_fails_closed_when_typed_assessment_events_under_count(monkeypatch):
     from app.services import simulation_service as sim
 
     async def model_report(*_args, **_kwargs):
-        return SimulationReport(
-            score=0.78,
-            summary="The discussion had enough learner evidence.",
-            strengths=["Clear stance"],
-            improvements=["Add one more concrete benchmark"],
-            participation_score=0.78,
-            relevance_score=0.8,
-            language_score=0.76,
-        )
+        raise AssertionError("typed-event under-count must not be repaired from transcript messages")
 
     monkeypatch.setattr(sim, "evaluate_simulation", model_report)
 
@@ -470,10 +462,10 @@ async def test_score_session_uses_learner_answers_when_assessment_events_under_c
         "messages": messages,
     })
 
-    assert report.validity_status != "insufficient_evidence"
-    assert report.scorable_turn_count == 10
-    assert report.coverage_map["event_count"] >= 10
-    assert report.score > 0
+    assert report.validity_status == "insufficient_evidence"
+    assert report.scorable_turn_count == 1
+    assert report.coverage_map["event_count"] == 1
+    assert report.score == 0
 
 
 def test_effective_scorable_count_uses_event_truth_when_events_cover_transcript():
@@ -522,7 +514,177 @@ def test_effective_scorable_count_does_not_upgrade_non_scorable_events_from_mess
     assert _effective_scorable_turn_count({"assessment_events": events}, messages) == 5
 
 
-def test_assessment_turn_call_failure_counts_as_answered_but_score_excluded_evidence():
+def test_typed_scorable_projection_keeps_alignment_across_control_turns():
+    from app.services.simulation_service import _typed_scorable_messages
+
+    messages = [
+        {"role": "assistant", "content": "Question one"},
+        {"role": "user", "content": "Answer one"},
+        {"role": "assistant", "content": "Question two"},
+        {"role": "user", "content": "Clarify", "message_kind": "simulation_control"},
+        {"role": "assistant", "content": "Clarified question two"},
+        {"role": "user", "content": "Answer two"},
+    ]
+    events = [
+        {"event_type": "analysis", "scorable": True},
+        {"event_type": "analysis", "scorable": False, "analysis": {"control_intent": "clarify"}},
+        {"event_type": "analysis", "scorable": True},
+    ]
+
+    projected = _typed_scorable_messages(messages, events)
+
+    assert [message["content"] for message in projected if message["role"] == "user"] == [
+        "Answer one",
+        "Answer two",
+    ]
+    assert projected[-2]["content"] == "Clarified question two"
+
+
+def test_typed_scorable_projection_drops_legacy_prefix_after_reload():
+    from app.services.simulation_service import _typed_scorable_messages
+
+    messages = [
+        {"role": "assistant", "content": "Legacy prompt"},
+        {"role": "user", "content": "Legacy answer"},
+        {"role": "assistant", "content": "Typed prompt"},
+        {"role": "user", "content": "Typed answer", "turn_id": "turn-2"},
+    ]
+    events = [{
+        "event_type": "analysis",
+        "scorable": True,
+        "learner_turn_id": "turn-2",
+    }]
+
+    projected = _typed_scorable_messages(messages, events)
+
+    assert [message["content"] for message in projected if message["role"] == "user"] == [
+        "Typed answer"
+    ]
+
+
+def test_assessment_progress_does_not_double_count_typed_control_messages():
+    from app.services.simulation_service import assessment_progress_snapshot
+
+    snapshot = assessment_progress_snapshot({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "assessment_events": [{
+            "event_type": "analysis",
+            "scorable": False,
+            "analysis": {"control_intent": "clarify"},
+        }],
+        "messages": [{
+            "role": "user",
+            "content": "Could you clarify?",
+            "message_kind": "simulation_control",
+        }],
+    })
+
+    assert snapshot["control_turn_count"] == 1
+
+
+def test_round_qualities_use_only_scorable_typed_event_values():
+    from app.services.simulation_service import _normalized_round_qualities
+
+    state = {
+        "blackboard": {"qualities": [0.9, 0.9, 0.1]},
+        "assessment_events": [
+            {
+                "event_type": "analysis",
+                "scorable": True,
+                "analysis": {"quality_score": 0.8},
+            },
+            {
+                "event_type": "analysis",
+                "scorable": False,
+                "analysis": {
+                    "quality_score": 0.1,
+                    "score_excluded_reason": "simulator_integrity_repair",
+                },
+            },
+        ],
+    }
+
+    assert _normalized_round_qualities(state) == [0.8]
+
+
+def test_insufficient_report_exposes_excluded_turn_count():
+    from app.services.simulation_service import _insufficient_evidence_report
+
+    state = {
+        "assessment_events": [
+            *[{"event_type": "analysis", "scorable": True} for _ in range(3)],
+            *[
+                {
+                    "event_type": "analysis",
+                    "scorable": False,
+                    "analysis": {"score_excluded_reason": "simulator_integrity_repair"},
+                }
+                for _ in range(2)
+            ],
+        ],
+        "messages": [],
+    }
+
+    report = _insufficient_evidence_report(
+        state,
+        TaskType.INTERVIEW_TEST,
+        3,
+        {"unique_covered": 2, "required_unique": 4},
+    )
+
+    assert report.score_breakdown["excluded_turn_count"] == 2
+
+
+def test_gd_focus_coverage_is_recorded_only_after_answered_prompt():
+    from app.ai.schemas import DirectorDecision
+    from app.services import simulation_service as sim
+
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "assessment_plan": {
+            "focus_plan": [
+                {"focus_id": "gd-evidence"},
+                {"focus_id": "gd-synthesis"},
+            ],
+        },
+        "coverage_events": [],
+        "blackboard": {"turn": 0, "phase": "opening"},
+    }
+    persona = {"speaker_id": "devils_advocate", "name": "Devil's Advocate"}
+    decision = DirectorDecision(
+        action="probe_deeper",
+        next_speaker="devils_advocate",
+        intent="Challenge the evidence.",
+        tension=0.4,
+        answer_quality=0.72,
+        should_close=False,
+    )
+
+    sim._stage_prompt_coverage_event(
+        state,
+        TaskType.GD_TEST,
+        persona,
+        decision,
+        "A metric can still hide trust erosion.",
+    )
+    assert state["pending_coverage_event"]["focus_id"] == "gd-evidence"
+    assert state["coverage_events"] == []
+
+    state["messages"] = [{"role": "user", "content": "I would also track onboarding trust."}]
+    sim._settle_pending_coverage_event(state, decision, control_turn=False)
+    assert state["coverage_events"][0]["focus_id"] == "gd-evidence"
+
+    sim._stage_prompt_coverage_event(
+        state,
+        TaskType.GD_TEST,
+        persona,
+        decision,
+        "Now reconcile access and trust.",
+    )
+    assert state["pending_coverage_event"]["focus_id"] == "gd-synthesis"
+
+
+def test_assessment_turn_call_failure_is_not_learner_score_evidence():
     from app.services.simulation_service import (
         _assessment_evidence_quotes,
         _coverage_events_from_analysis_events,
@@ -557,25 +719,17 @@ def test_assessment_turn_call_failure_counts_as_answered_but_score_excluded_evid
         ],
     }
 
-    assert _effective_scorable_turn_count(state, messages) == 5
-    assert len(_coverage_events_from_analysis_events(state)) == 5
-    assert _assessment_evidence_quotes(state)
+    assert _effective_scorable_turn_count(state, messages) == 0
+    assert _coverage_events_from_analysis_events(state) == []
+    assert _assessment_evidence_quotes(state) == []
 
 
 @pytest.mark.asyncio
-async def test_score_session_counts_gd_visible_safety_repairs_as_answered_evidence(monkeypatch):
+async def test_score_session_marks_all_excluded_gd_turns_invalid(monkeypatch):
     from app.services import simulation_service as sim
 
     async def model_report(*_args, **_kwargs):
-        return SimulationReport(
-            score=0.82,
-            summary="The learner gave enough GD contributions, with simulator integrity repairs noted separately.",
-            strengths=["Used concrete metrics"],
-            improvements=["Synthesize opposing points more explicitly"],
-            relevance_score=0.82,
-            structure_score=0.78,
-            language_score=0.84,
-        )
+        raise AssertionError("excluded GD answers must not reach the final scorer")
 
     monkeypatch.setattr(sim, "evaluate_simulation", model_report)
     messages = []
@@ -629,14 +783,15 @@ async def test_score_session_counts_gd_visible_safety_repairs_as_answered_eviden
         "messages": messages,
     })
 
-    assert report.validity_status == "final"
-    assert report.scorable_turn_count == 5
-    assert report.coverage_map["unique_covered"] >= report.coverage_map["required_unique"]
-    assert report.evidence_quotes
+    assert report.validity_status == "invalid_simulation"
+    assert report.scorable_turn_count == 0
+    assert report.coverage_map["unique_covered"] == 0
+    assert report.evidence_quotes == []
     learner_text = "\n".join(report.learner_assessment_caveats).lower()
     assert "not enough answered turns" not in learner_text
     assert report.simulator_integrity_notes
-    assert report.score_breakdown["validity_cap"] is None
+    assert report.score_breakdown["validity_cap"] == 0.0
+    assert report.score_breakdown["excluded_turn_count"] == 5
 
 
 @pytest.mark.asyncio
@@ -709,10 +864,13 @@ async def test_score_session_does_not_cap_safe_visible_response_repairs(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_score_session_does_not_call_full_answered_repair_debt_insufficient(monkeypatch):
+async def test_score_session_scores_only_usable_answers_and_marks_mixed_run_partial(monkeypatch):
     from app.services import simulation_service as sim
 
-    async def model_report(*_args, **_kwargs):
+    scored_messages = []
+
+    async def model_report(_task_type, _topic, messages, **_kwargs):
+        scored_messages.extend(messages)
         return SimulationReport(
             score=0.84,
             summary="The interview had enough learner answers, but simulator repairs capped confidence.",
@@ -756,20 +914,25 @@ async def test_score_session_does_not_call_full_answered_repair_debt_insufficien
                 "event_type": "analysis",
                 "task_type": TaskType.INTERVIEW_TEST.value,
                 "speaker_id": "interviewer",
-                "scorable": False,
-                "analysis": {"scorable": False, "score_excluded_reason": "simulator_integrity_repair"},
+                "scorable": index < 6,
+                "analysis": (
+                    {"scorable": True, "quality_score": 0.74}
+                    if index < 6
+                    else {"scorable": False, "score_excluded_reason": "simulator_integrity_repair"}
+                ),
                 "content": "Repair-continuation prompt.",
-                "validity_flags": repair_flags,
+                "validity_flags": [] if index < 6 else repair_flags,
             }
-            for _ in range(10)
+            for index in range(10)
         ],
         "assessment_validity_flags": repair_flags,
         "messages": messages,
     })
 
     assert report.validity_status == "partial"
-    assert report.scorable_turn_count == 10
+    assert report.scorable_turn_count == 6
     assert report.score_breakdown["validity_cap"] == 0.72
+    assert sum(1 for message in scored_messages if message.get("role") == "user") == 6
     assert not any("not enough" in caveat.lower() for caveat in report.learner_assessment_caveats)
     assert all("multiple viewpoints" not in item.lower() for item in report.improvements)
     assert any("situation" in item.lower() and "measured result" in item.lower() for item in report.improvements)
@@ -973,7 +1136,7 @@ async def test_score_session_sanitizes_generic_overpraise_in_report_summary(monk
         assert forbidden not in lowered
     assert "6 answered turns" in lowered
     assert "coverage breadth" in lowered
-    assert "payment retries and idempotency fix" in lowered
+    assert "payment retries and idempotency fix" not in lowered
 
 
 @pytest.mark.asyncio
@@ -1164,10 +1327,7 @@ def test_assessment_evidence_quotes_are_display_safe():
 
     quotes = sim._assessment_evidence_quotes(state)
 
-    assert quotes
-    assert len(quotes[0]) <= 220
-    assert quotes[0].endswith("...")
-    assert not quotes[0][-4].isspace()
+    assert quotes == []
 
 
 def test_simulation_report_exposes_learner_caveats_integrity_notes_and_score_breakdown():
@@ -1527,7 +1687,7 @@ async def test_closed_partial_and_insufficient_test_reports_update_learning_prof
 
 
 @pytest.mark.asyncio
-async def test_invalid_simulation_report_does_not_update_learning_profile(monkeypatch):
+async def test_invalid_simulation_report_is_audited_without_adaptive_memory(monkeypatch, store):
     from app.services import session_service as svc
 
     async def fake_score_session(_state):
@@ -1541,14 +1701,13 @@ async def test_invalid_simulation_report_does_not_update_learning_profile(monkey
             assessment_caveats=["Simulator caveat: hidden speaker reference."],
         )
 
-    async def should_not_record(*_args, **_kwargs):
-        raise AssertionError("invalid simulator reports must not update the learner profile")
+    adaptive_memory_writes = []
+
+    async def capture_memory(*args, **kwargs):
+        adaptive_memory_writes.append((args, kwargs))
 
     monkeypatch.setattr(svc, "score_session", fake_score_session)
-    monkeypatch.setattr(
-        "app.services.session_service.CareerLearningProfileService.record_session_report",
-        should_not_record,
-    )
+    monkeypatch.setattr(store, "write_memory", capture_memory)
 
     state = svc._new_state(
         "user-1",
@@ -1564,3 +1723,7 @@ async def test_invalid_simulation_report_does_not_update_learning_profile(monkey
     result = await svc.close_session("session-invalid")
 
     assert result["report"]["validity_status"] == "invalid_simulation"
+    assert store.session_reports[("user-1", "session-invalid")]["status"] == "invalid_simulation"
+    assert store.learning_events == []
+    assert store.learner_skill_profiles == {}
+    assert adaptive_memory_writes == []

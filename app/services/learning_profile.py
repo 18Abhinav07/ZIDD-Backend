@@ -200,15 +200,25 @@ def _prep_task_type_for_module(module_id: str) -> str:
 def _progression_evidence(row: dict[str, Any]) -> str:
     evidence = row.get("mastery_evidence")
     if isinstance(evidence, list):
-        for item in evidence:
-            text = str(item or "").strip()
-            if text:
-                return text[:320]
+        for item in reversed(evidence):
+            if isinstance(item, str):
+                text = item.strip()
+                if text:
+                    return text[:320]
+                continue
+            if not isinstance(item, dict):
+                continue
+            for criterion in reversed(item.get("criteria") or []):
+                if not isinstance(criterion, dict):
+                    continue
+                quote = " ".join(str(criterion.get("evidence_quote") or "").split())
+                if quote:
+                    return quote[:320]
     return str(row.get("last_gap") or "").strip()[:320]
 
 
 def _progression_readiness(row: dict[str, Any]) -> float:
-    for key in ("best_independent_score", "best_ema", "ema", "mastery"):
+    for key in ("readiness_score", "best_independent_score", "best_ema", "ema", "mastery"):
         value = _safe_score(row.get(key))
         if value > 0:
             return value
@@ -372,7 +382,12 @@ def build_career_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
         )
 
     recent_reports: list[dict[str, Any]] = []
-    for report in reports[:5]:
+    usable_reports = [
+        report for report in reports
+        if str(report.get("status") or "").strip()
+        not in {"invalid_simulation", "insufficient_evidence"}
+    ]
+    for report in usable_reports[:5]:
         recent_reports.append({
             "task_type": str(report.get("task_type") or ""),
             "status": str(report.get("status") or ""),
@@ -526,10 +541,10 @@ class CareerLearningProfileService:
         caveats = list(learner_caveats)
         caveats.extend(f"Simulator integrity: {item}" for item in simulator_notes)
         explicit_validity = str(report.get("validity_status") or "").strip()
-        if explicit_validity:
+        if explicit_validity in {"invalid_simulation", "insufficient_evidence", "partial"}:
             status = explicit_validity
         else:
-            status = str(report.get("status") or ("partial" if learner_caveats else "final"))
+            status = "partial" if learner_caveats else str(report.get("status") or "final")
         gaps = _sanitize_report_gaps(
             task_type,
             report.get("observed_skill_gaps") or report.get("improvements") or [],

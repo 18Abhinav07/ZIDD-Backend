@@ -76,6 +76,106 @@ def test_eighty_percent_readiness_creates_advance_state_without_mastery():
     assert progress["node_mastered"] is False
 
 
+def test_attempt_credit_deduplicates_repeated_prompt_context_evidence():
+    result = {
+        "pass_eligible": True,
+        "mastery_eligible": False,
+        "effective_score": 0.84,
+        "next_focus": "Apply this in a new context.",
+        "attempt_type": "independent",
+    }
+
+    progress = compute_attempt_credit({}, result, evidence_id="evidence-1")
+    repeated = compute_attempt_credit(progress, result, evidence_id="evidence-1")
+    distinct = compute_attempt_credit(repeated, result, evidence_id="evidence-2")
+
+    assert repeated["independent_passes"] == 1
+    assert repeated["meaningful_attempts"] == 1
+    assert distinct["independent_passes"] == 2
+    assert distinct["meaningful_attempts"] == 2
+    assert {item["evidence_id"] for item in distinct["mastery_evidence"]} == {
+        "evidence-1",
+        "evidence-2",
+    }
+    hydrated = {
+        key: distinct[key]
+        for key in (
+            "independent_passes",
+            "meaningful_attempts",
+            "mastery_evidence",
+        )
+    }
+    replayed_after_reload = compute_attempt_credit(
+        hydrated,
+        result,
+        evidence_id="evidence-2",
+    )
+    assert replayed_after_reload["independent_passes"] == 2
+    assert replayed_after_reload["meaningful_attempts"] == 2
+
+
+def test_career_progress_evidence_identity_is_session_independent_and_context_bound():
+    from app.services import session_service as svc
+
+    def state_for(session_id: str, topic: str) -> dict:
+        state = svc._new_state(
+            "user-1",
+            session_id,
+            "gd_02_support_with_evidence",
+            [],
+            task_type="gd_prep",
+            module_id="group_discussion",
+        )
+        state["messages"] = [
+            {"role": "assistant", "content": "Support the motion with one grounded example."},
+            {"role": "user", "content": "I would compare retention before and after the policy."},
+        ]
+        state["last_evaluated_task_contract"] = {
+            "active_topic": topic,
+            "semantic_anchors": ["retention"],
+            "participant_claims": [],
+        }
+        return state
+
+    result = {"attempt_type": "independent"}
+    first = svc._career_progress_evidence_id(state_for("session-1", "Remote work"), result)
+    replay = svc._career_progress_evidence_id(state_for("session-2", "Remote work"), result)
+    new_context = svc._career_progress_evidence_id(state_for("session-3", "Four-day week"), result)
+
+    assert first == replay
+    assert first != new_context
+
+
+def test_private_credit_ids_do_not_enter_prompt_or_public_mastery_evidence():
+    from app.services import session_service as svc
+    from app.services.learning_profile import _progression_evidence
+
+    private = [{
+        "evidence_id": "private-hash",
+        "attempt_type": "independent",
+        "score": 0.84,
+    }]
+    assert _progression_evidence({
+        "mastery_evidence": private,
+        "last_gap": "Add a clearer result.",
+    }) == "Add a clearer result."
+    assert svc.public_mastery_evidence({
+        "node_mastered": False,
+        "mastery_evidence": private,
+    }) == []
+
+    mastered = [{
+        **private[0],
+        "criteria": [{"id": "result", "evidence_quote": "reduced failures by 20%"}],
+    }]
+    public = svc.public_mastery_evidence({
+        "node_mastered": True,
+        "mastery_evidence": mastered,
+    })
+    assert public[0]["criteria"][0]["evidence_quote"] == "reduced failures by 20%"
+    assert "evidence_id" not in public[0]
+
+
 def test_prep_turn_evaluation_updates_global_learning_profile(store):
     from app.services.learning_profile import CareerLearningProfileService
 
@@ -282,7 +382,8 @@ def test_simulation_report_updates_global_learning_profile_before_next_session(s
     assert store.learning_events[0]["source"] == "test_report"
     assert store.learning_events[0]["gap"] == "evidence_under_pressure"
     assert store.learning_events[0]["evidence_json"]["strengths"] == []
-    profile = store.learner_skill_profiles[("user-1", "career", "evidence_under_pressure")]
+    skill_id = store.learning_events[0]["skill_id"]
+    profile = store.learner_skill_profiles[("user-1", "career", skill_id)]
     assert profile["recommended_next_action"] == "Add evidence under pressure"
     assert profile["strengths_json"] == []
 
@@ -318,10 +419,31 @@ def test_simulation_report_validity_status_is_preserved_in_learning_profile(stor
     assert stored["validity_json"]["status"] == "insufficient_evidence"
     assert stored["validity_json"]["scorable_turn_count"] == 1
     assert stored["validity_json"]["coverage_map"]["required_unique"] == 4
-    profile = store.learner_skill_profiles[("user-1", "career", "insufficient_assessment_evidence")]
-    assert profile["evidence_json"]["validity_status"] == "insufficient_evidence"
-    assert profile["evidence_json"]["coverage_map"]["unique_covered"] == 1
-    assert profile["evidence_json"]["scorable_turn_count"] == 1
+    assert store.learning_events == []
+    assert store.learner_skill_profiles == {}
+
+
+def test_invalid_and_insufficient_reports_are_excluded_from_adaptive_memory_context():
+    from app.services.learning_profile import build_career_memory_context
+
+    context = build_career_memory_context({
+        "profiles": [],
+        "events": [],
+        "progression": [],
+        "reports": [
+            {"task_type": "gd_test", "status": "invalid_simulation", "summary": "broken simulator"},
+            {"task_type": "interview_test", "status": "insufficient_evidence", "summary": "too few turns"},
+            {"task_type": "interview_test", "status": "partial", "summary": "usable gaps only"},
+        ],
+    })
+
+    assert context["recent_reports"] == [{
+        "task_type": "interview_test",
+        "status": "partial",
+        "score": 0.0,
+        "summary": "usable gaps only",
+        "recommended_actions": [],
+    }]
 
 
 def test_split_report_caveats_prevent_strength_promotion_to_memory(store):
@@ -352,7 +474,8 @@ def test_split_report_caveats_prevent_strength_promotion_to_memory(store):
     stored = store.session_reports[("user-1", "sim-split-caveats")]
     assert stored["status"] == "partial"
     assert store.learning_events[0]["evidence_json"]["strengths"] == []
-    profile = store.learner_skill_profiles[("user-1", "career", "stakeholder_tradeoff_evidence")]
+    skill_id = store.learning_events[0]["skill_id"]
+    profile = store.learner_skill_profiles[("user-1", "career", skill_id)]
     assert profile["strengths_json"] == []
     assert profile["evidence_json"]["validity_status"] == "partial"
 
@@ -548,3 +671,32 @@ def test_prep_turn_updates_hot_session_learning_delta(store):
     assert delta["active_gaps"] == ["Add quantified impact."]
     assert delta["repeated_issue_counts"]["Add quantified impact."] == 1
     assert "did not measure the result" in delta["latest_evidence_quotes"][0]
+
+
+def test_hot_session_learning_delta_is_idempotent_by_evaluation_id():
+    from app.services import session_service as svc
+
+    state = svc._new_state(
+        "user-1",
+        "session-delta-idempotent",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    result = {
+        "effective_score": 0.42,
+        "next_focus": "Add quantified impact.",
+        "criteria": [{"id": "impact", "met": False, "evidence_quote": "no measured result"}],
+        "required_missing": ["impact"],
+        "pass_eligible": False,
+        "mastery_eligible": False,
+    }
+
+    svc._update_session_learning_delta(state, result, "There was no measured result.", "eval-1")
+    svc._update_session_learning_delta(state, result, "There was no measured result.", "eval-1")
+
+    delta = state["session_learning_delta"]
+    assert delta["repeated_issue_counts"]["Add quantified impact."] == 1
+    assert delta["repeated_issue_counts"]["criterion:impact"] == 1
+    assert delta["applied_evaluation_ids"] == ["eval-1"]

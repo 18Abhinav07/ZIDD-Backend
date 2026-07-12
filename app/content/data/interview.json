@@ -76,10 +76,10 @@
       "title": "Back a Strength With Evidence",
       "level": 2,
       "level_type": "text",
-      "skill": "Assert a strength and immediately support it with a concrete, specific example.",
-      "teach_focus": "Claim -> proof pairing; replace adjectives ('hardworking') with evidence (what you did).",
-      "success_criteria": "A named strength followed by one specific situation that demonstrates it.",
-      "bridge_focus": "State the strength, then finish: 'For example, once I ___.'",
+      "skill": "Assert a strength and prove it with a learner-owned situation, personal action, and observable impact.",
+      "teach_focus": "Strength -> situation -> your action -> impact; replace adjectives ('hardworking') with evidence of what you did and what changed.",
+      "success_criteria": "A named strength, one specific learner-owned situation, the learner's action, and an observable result or value signal.",
+      "bridge_focus": "State the strength, then complete: 'For example, when ___, I ___, which led to ___.'",
       "cefr": "B2",
       "prerequisites": [
         "int_01_elevator_pitch"

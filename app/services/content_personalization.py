@@ -49,14 +49,14 @@ _FILL_BLANKS = {
     "gd_05_disagree_respectfully": "That's a fair point, ___ I'd push back because {topic_phrase} also needs safeguards for vulnerable groups.",
     "gd_06_balanced_view": "There are real risks in {topic_phrase}, but ___ I think a limited pilot is better than avoiding it entirely.",
     "gd_07_steer_back": "I think we've ___ a bit - the real question is which evidence should decide {topic_phrase}.",
-    "gd_08_include_quiet": "I'd like to ___ Neha's take on {topic_phrase} - she's been quiet and may see an impact angle.",
+    "gd_08_include_quiet": "Neha, if you'd like, I'd like to ___ your take on the impact angle in {topic_phrase}.",
     "gd_09_manage_dominator": "That's a strong point, Karan - let's also ___ others on {topic_phrase} before we move on.",
     "gd_10_drive_consensus": "So to ___: Maya says the evidence supports {topic_phrase}, Dev says it is still too mixed, and we agree reliable evidence should decide.",
 }
 
 _FILL_BLANKS_BY_EXERCISE = {
     "gd_08_include_quiet_bx1": (
-        "I'd like to ___ Neha's take on {topic_phrase} - she's been quiet and may see a useful impact angle.",
+        "Neha, if you'd like, I'd like to ___ your take on the impact angle in {topic_phrase}.",
         "hear",
     ),
     "gd_08_include_quiet_bx4": (
@@ -110,7 +110,7 @@ _MCQ_OPTIONS = {
         "Everyone is going off topic, so I will start over.",
     ),
     "gd_08_include_quiet": (
-        "Neha, you have been listening closely - I'd like your view on the stakeholder-impact side of {topic_phrase}.",
+        "Neha, if you'd like, I'd value your view on the stakeholder-impact side of {topic_phrase}.",
         "Neha, why are you not saying anything?",
         "Someone quiet should speak now.",
     ),
@@ -120,7 +120,7 @@ _MCQ_OPTIONS = {
         "You have already spoken, so your point does not count.",
     ),
     "gd_10_drive_consensus": (
-        "We have one case supporting {topic_phrase} and one asking for stronger evidence; we agree on defining the evidence threshold before deciding.",
+        "Maya supports {topic_phrase}; Dev wants stronger evidence before accepting it. Both want a reliable threshold, so let's define that threshold before deciding.",
         "Everyone said different things, so there is no conclusion.",
         "I think my view won, so we should end there.",
     ),
@@ -128,13 +128,13 @@ _MCQ_OPTIONS = {
 
 _SPOKEN = {
     "gd_01_stake_position": "Topic: '{topic}'. Open the discussion by stating your position in one sentence before giving reasons.",
-    "gd_02_support_with_evidence": "State your position on '{topic}', then support it with one concrete fact, example, or comparison.",
+    "gd_02_support_with_evidence": "State your position on '{topic}', support it with a learner-owned example, named-source fact, explicit analogy, or labelled hypothetical, then explain the link.",
     "gd_03_take_the_floor": "The group is discussing '{topic}'. Enter politely, link to the previous speaker, and add one new angle.",
     "gd_04_build_on_others": "A peer makes a useful point about '{topic}'. Credit them, then extend the idea with one fresh detail.",
     "gd_05_disagree_respectfully": "A peer strongly supports '{topic}'. Disagree respectfully: concede one valid point, then give your reason.",
     "gd_06_balanced_view": "For '{topic}', name one fair point for each side, then say which side you support overall.",
     "gd_07_steer_back": "The GD on '{topic}' has drifted into unrelated examples. Steer the group back in one calm sentence.",
-    "gd_08_include_quiet": "In a discussion on '{topic}', one participant has not spoken. Invite them in naturally without pressure.",
+    "gd_08_include_quiet": "In a discussion on '{topic}', Neha has not spoken. Invite Neha in naturally, connect one useful angle, and make it safe to decline.",
     "gd_09_manage_dominator": "A participant keeps dominating the GD on '{topic}'. Reclaim space firmly while keeping rapport.",
     "gd_10_drive_consensus": "The GD on '{topic}' is ending. Maya says the evidence supports the motion; Dev says it is too mixed to accept without qualification. Summarize both, name their shared need for reliable evidence, and propose a decision rule.",
 }

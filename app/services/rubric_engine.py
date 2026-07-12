@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import logging
 import re
-from typing import Any
+from typing import Any, Literal
 
 from app.ai.schemas import CriterionEval, PrepRubricEval
 from app.content.schema import Concept
@@ -19,6 +19,25 @@ from app.services.rubrics import PrepRubric, get_rubric
 
 
 logger = logging.getLogger("zidd.rubric_engine")
+
+EvidenceType = Literal[
+    "learner_owned",
+    "sourced_external",
+    "analogy",
+    "hypothetical",
+    "unsupported",
+]
+
+
+@dataclass(frozen=True)
+class EvidenceAssessment:
+    evidence_type: EvidenceType
+    source_status: Literal["not_needed", "named", "missing"]
+    epistemic_quality: float
+    evidence_quote: str = ""
+
+    def model_dump(self) -> dict[str, Any]:
+        return asdict(self)
 
 _GD09_DIRECTED_ATTACK_RE = re.compile(
     r"\b(?:shut\s+up|stop\s+talking|you\s+talk\s+too\s+much|"
@@ -87,6 +106,7 @@ class RubricResult:
     pass_eligible: bool
     mastery_eligible: bool
     attempt_type: str
+    evidence_assessment: dict[str, Any] | None = None
 
     @property
     def score(self) -> float:
@@ -2252,6 +2272,256 @@ def _gd_has_concrete_evidence(answer: str) -> bool:
     return has_outcome and (has_number or has_context)
 
 
+_GD_NAMED_SOURCE_RE = re.compile(
+    r"\b(?:according\s+to|(?:study|survey|report|data|research)\s+"
+    r"(?:published\s+)?(?:by|from))\s+([a-z][\w&.'-]*(?:\s+[a-z][\w&.'-]*){0,4})|"
+    r"\b([a-z][\w&.'-]*(?:\s+[a-z][\w&.'-]*){0,3})'s\s+"
+    r"(?:study|survey|report|data|research|handbook)\b",
+    re.IGNORECASE,
+)
+_GD_GENERIC_SOURCE_WORDS = {
+    "a company", "a source", "a study", "an unnamed source", "anonymous source",
+    "data", "experts", "one source", "people", "report", "research", "scientists",
+    "some source", "statistics", "studies", "survey", "the company", "the data",
+    "the report", "the research", "the source", "unknown source", "unnamed source",
+}
+_GD_PLACEHOLDER_SOURCE_RE = re.compile(
+    r"\b(?:anonymous|generic|unidentified|unknown|unnamed|unspecified)\b",
+    re.IGNORECASE,
+)
+_GD_GENERIC_SOURCE_TOKENS = {
+    "a", "an", "anonymous", "company", "data", "expert", "experts", "familiar",
+    "generic", "handbook", "individual", "insider", "it", "one", "organization",
+    "people", "person", "public", "report", "research", "s", "scientist",
+    "scientists", "some", "source", "statistics", "study", "survey", "the",
+    "their", "them", "they", "unidentified", "unknown", "unnamed", "unspecified",
+    "with",
+}
+_GD_SOURCE_SCOPE_BREAK_RE = re.compile(
+    r"\b(?:although|but|however|meanwhile|whereas|while)\b",
+    re.IGNORECASE,
+)
+_GD_LEARNER_OWNED_RE = re.compile(
+    r"\b(?:in\s+my\s+experience|in\s+our\s+(?:pilot|team|project|company|workplace)|"
+    r"on\s+my\s+(?:team|project|shift)|"
+    r"at\s+my\s+(?:company|workplace|school)|my\s+(?:team|project|company|pilot)|"
+    r"our\s+(?:team|project|company|pilot)\s+(?:measured|tracked|saw|reduced|"
+    r"increased|improved|cut|shipped|delivered|caught|found|missed)|"
+    r"we\s+(?:measured|tracked|saw|reduced|increased|improved|cut|shipped|delivered)|"
+    r"i\s+(?:measured|tracked|saw|reduced|increased|improved|built|led|delivered))\b",
+    re.IGNORECASE,
+)
+_GD_HYPOTHETICAL_RE = re.compile(
+    r"\b(?:as\s+an?\s+hypothetical|hypothetical(?:ly)?|suppose|imagine|"
+    r"assume\s+for\s+this\s+example|if\s+we\s+assume)\b",
+    re.IGNORECASE,
+)
+_GD_ANALOGY_RE = re.compile(
+    r"\b(?:by\s+analogy|an\s+analogy|similar\s+to|like\s+a\b|"
+    r"the\s+same\s+principle\s+as)\b",
+    re.IGNORECASE,
+)
+_GD_EXTERNAL_ASSERTION_RE = re.compile(
+    r"\b(?:research|data|a\s+study|studies|a\s+survey|surveys|reports?|"
+    r"statistics?|companies|workers|employees|users)\s+(?:show|shows|showed|"
+    r"found|find|report|reports|prove|proves|indicate|indicates|improve|"
+    r"increased|decreased|reduced)\b",
+    re.IGNORECASE,
+)
+
+
+def assess_gd_evidence(answer: str) -> EvidenceAssessment:
+    """Classify support without pretending learner-verbatim means verified."""
+    sentences = [
+        " ".join(sentence.split())
+        for sentence in re.split(r"(?<=[.!?;])\s+", str(answer or ""))
+        if sentence.strip()
+    ]
+    candidate = _gd_sentence_evidence(
+        answer,
+        _GD_EVIDENCE_MARKERS + _GD_EVIDENCE_OUTCOMES,
+    ) or " ".join(str(answer or "").split())[:320]
+    if not candidate:
+        return EvidenceAssessment("unsupported", "missing", 0.0, "")
+
+    def named_source_matches(text: str) -> list[re.Match[str]]:
+        matches: list[re.Match[str]] = []
+        for match in _GD_NAMED_SOURCE_RE.finditer(text):
+            source = " ".join(next(group for group in match.groups() if group).casefold().split())
+            source_tokens = set(re.findall(r"[a-z0-9]+", source))
+            if (
+                source not in _GD_GENERIC_SOURCE_WORDS
+                and not _GD_PLACEHOLDER_SOURCE_RE.search(source)
+                and bool(source_tokens - _GD_GENERIC_SOURCE_TOKENS)
+            ):
+                matches.append(match)
+        return matches
+
+    def has_named_source(text: str) -> bool:
+        return bool(named_source_matches(text))
+
+    def source_linked_in_sentence(
+        text: str,
+        claim_start: int,
+        claim_end: int,
+        *,
+        generic_assertion: bool,
+    ) -> bool:
+        for source_match in named_source_matches(text):
+            if source_match.start() <= claim_start <= source_match.end():
+                return True
+            if source_match.end() <= claim_start:
+                if generic_assertion:
+                    continue
+                between = text[source_match.end():claim_start]
+                if not _GD_SOURCE_SCOPE_BREAK_RE.search(between):
+                    return True
+            if claim_end <= source_match.start():
+                between = text[claim_end:source_match.start()]
+                if (
+                    not _GD_SOURCE_SCOPE_BREAK_RE.search(between)
+                    and re.match(r"^\s*,?\s*(?:as\s+)?according\s+to\b", between, re.IGNORECASE)
+                ):
+                    return True
+        return False
+
+    for index, sentence in enumerate(sentences):
+        external_claims: list[tuple[re.Match[str], re.Match[str] | None]] = [
+            (match, match) for match in _GD_EXTERNAL_ASSERTION_RE.finditer(sentence)
+        ]
+        external_claims.extend(
+            (match, None)
+            for match in re.finditer(r"\b\d+(?:\.\d+)?%?\b", sentence)
+        )
+        if not external_claims:
+            continue
+        previous = sentences[index - 1] if index > 0 else ""
+        following = sentences[index + 1] if index + 1 < len(sentences) else ""
+        for external_match, assertion_match in sorted(
+            external_claims,
+            key=lambda item: item[0].start(),
+        ):
+            source_linked = source_linked_in_sentence(
+                sentence,
+                external_match.start(),
+                external_match.end(),
+                generic_assertion=assertion_match is not None,
+            )
+            if (
+                not source_linked
+                and assertion_match is None
+                and previous
+                and has_named_source(previous)
+            ):
+                prefix = sentence[:external_match.start()]
+                references = list(re.finditer(
+                    r"\b(?:it|they|that\s+(?:source|study|report|survey|handbook)|"
+                    r"the\s+(?:company|study|report|survey|research|handbook))\b",
+                    prefix,
+                    re.IGNORECASE,
+                ))
+                if references:
+                    source_linked = not _GD_SOURCE_SCOPE_BREAK_RE.search(
+                        prefix[references[-1].end():]
+                    )
+            if not source_linked and following and has_named_source(following):
+                source_linked = bool(re.search(
+                    r"\b(?:this|that|the)\s+(?:claim|figure|finding|result|number|study|report)\b",
+                    following,
+                    re.IGNORECASE,
+                ))
+            hypothetical_match = _GD_HYPOTHETICAL_RE.search(sentence)
+            analogy_match = _GD_ANALOGY_RE.search(sentence)
+            explicitly_hypothetical = bool(
+                hypothetical_match
+                and assertion_match is None
+                and hypothetical_match.start() <= external_match.start()
+            )
+            explicitly_analogous_number = bool(
+                analogy_match
+                and analogy_match.start() <= external_match.start()
+                and assertion_match is None
+            )
+            learner_owned_number = bool(
+                assertion_match is None
+                and _GD_LEARNER_OWNED_RE.search(sentence)
+            )
+            if explicitly_hypothetical or explicitly_analogous_number or learner_owned_number:
+                continue
+            if not source_linked:
+                return EvidenceAssessment("unsupported", "missing", 0.1, sentence[:320])
+
+    full_text = " ".join(sentences)
+    if _GD_LEARNER_OWNED_RE.search(candidate):
+        return EvidenceAssessment("learner_owned", "not_needed", 0.9, candidate)
+    if has_named_source(full_text):
+        return EvidenceAssessment("sourced_external", "named", 0.88, candidate)
+    if _GD_HYPOTHETICAL_RE.search(candidate):
+        return EvidenceAssessment("hypothetical", "not_needed", 0.7, candidate)
+    if _GD_ANALOGY_RE.search(candidate):
+        return EvidenceAssessment("analogy", "not_needed", 0.68, candidate)
+    return EvidenceAssessment("unsupported", "missing", 0.2, candidate)
+
+
+_HARD_EVIDENCE_FAILURE_TAGS = (
+    "unsupported",
+    "unsupported_evidence",
+    "unsupported evidence",
+    "unverified",
+    "source_missing",
+    "source missing",
+)
+
+
+def _has_hard_evidence_failure(result: PrepRubricEval) -> bool:
+    values = [*(result.errors or [])]
+    values.extend(row.reason for row in result.criteria)
+    lowered = " ".join(str(value).lower() for value in values)
+    return any(tag in lowered for tag in _HARD_EVIDENCE_FAILURE_TAGS)
+
+
+def _apply_gd_evidence_integrity(
+    packet: EvaluationPacket,
+    result: PrepRubricEval,
+    assessment: EvidenceAssessment | None,
+    *,
+    evaluator_blocked: bool,
+) -> PrepRubricEval:
+    if packet.node_id != "gd_02_support_with_evidence" or assessment is None:
+        return result
+    blocked = evaluator_blocked or assessment.evidence_type == "unsupported"
+    if not blocked:
+        return result
+    blocked_ids = {"concrete_evidence", "evidence_link"}
+    criteria = [
+        row.model_copy(update={
+            "met": False,
+            "quality": min(float(row.quality or 0.0), 0.2),
+            "evidence_quote": assessment.evidence_quote if row.id == "concrete_evidence" else "",
+            "reason": "unsupported_evidence: external factual or numerical support requires a named source",
+        })
+        if row.id in blocked_ids
+        else row
+        for row in result.criteria
+    ]
+    required_missing = list(result.required_missing or [])
+    for criterion_id in blocked_ids:
+        if criterion_id not in required_missing:
+            required_missing.append(criterion_id)
+    errors = list(result.errors or [])
+    message = "unsupported_evidence: use a learner-owned example, named source, explicit analogy, or labelled hypothetical"
+    if message not in errors:
+        errors.append(message)
+    return result.model_copy(update={
+        "criteria": criteria,
+        "required_missing": required_missing,
+        "errors": errors,
+        "pass_eligible": False,
+        "mastery_eligible": False,
+        "next_focus": "Replace the unsupported claim with learner-owned evidence or name the source.",
+    })
+
+
 def _reconcile_gd_balanced_view(
     packet: EvaluationPacket,
     result: PrepRubricEval,
@@ -2371,10 +2641,12 @@ def _reconcile_gd_balanced_view(
 
 
 def _gd_latest_assistant_prompt(packet: EvaluationPacket) -> str:
+    legacy_candidate = ""
     for message in reversed(packet.recent_messages or []):
         if str(message.get("role") or "") != "assistant":
             continue
-        if packet.node_id and str(message.get("node_id") or "") != packet.node_id:
+        message_node_id = str(message.get("node_id") or "")
+        if packet.node_id and message_node_id and message_node_id != packet.node_id:
             continue
         content = " ".join(str(message.get("content") or "").split())
         message_kind = str(message.get("message_kind") or "")
@@ -2386,7 +2658,15 @@ def _gd_latest_assistant_prompt(packet: EvaluationPacket) -> str:
             re.IGNORECASE,
         ):
             return content
-    return ""
+        if (
+            not message_kind
+            and not message_node_id
+            and packet.attempt_type in {"transfer", "pressure"}
+            and ("?" in content or re.search(r"\b(?:challenge|defend|respond)\b", content, re.IGNORECASE))
+            and not legacy_candidate
+        ):
+            legacy_candidate = content
+    return legacy_candidate
 
 
 def _reconcile_gd_steer_back(
@@ -2608,7 +2888,21 @@ def gd_invitation_clause(answer: str, expected_names: set[str] | None = None) ->
                 and candidate.casefold() not in _GD_NON_NAME_ADDRESSEE_WORDS
                 and (not expected_names or candidate.casefold() in expected_names)
             ):
-                return clause.strip()
+                prefix = clause[:match.start()]
+                contrast_markers = list(re.finditer(
+                    r"\b(?:although|but|however|meanwhile|separately|whereas|while)\b",
+                    prefix,
+                    re.IGNORECASE,
+                ))
+                if contrast_markers:
+                    return clause[contrast_markers[-1].start():].strip()
+                if re.match(
+                    r"^\s*(?:about|for|on|regarding|when\s+it\s+comes\s+to)\b",
+                    clause,
+                    re.IGNORECASE,
+                ):
+                    return clause.strip()
+                return clause[match.start():].strip()
     return ""
 
 
@@ -2752,10 +3046,7 @@ def _reconcile_gd_drive_consensus(
             re.IGNORECASE,
         )
     ]
-    has_two_positions = _gd10_has_distinct_positions(
-        answer,
-        _gd_latest_assistant_prompt(packet),
-    )
+    has_two_positions = _gd10_has_distinct_positions(packet)
     summary = " ".join(position_sentences[:2]) if has_two_positions else ""
     common_ground = next((
         sentence for sentence in sentences
@@ -3021,7 +3312,9 @@ def _reconcile_gd_evidence(packet: EvaluationPacket, result: PrepRubricEval) -> 
                 _gd_meaningful_tokens(prompt)
                 - _gd_meaningful_tokens(packet.active_topic)
             )
-            pressure_grounded = False
+            pressure_grounded = bool(
+                challenge_tokens & _gd_meaningful_tokens(answer)
+            )
         if direct_rebuttal and topic_relevant and pressure_grounded:
             proof["pressure_response"] = first_sentence[:320]
         if concrete and linked:
@@ -3029,6 +3322,16 @@ def _reconcile_gd_evidence(packet: EvaluationPacket, result: PrepRubricEval) -> 
                 answer,
                 _GD_EVIDENCE_MARKERS + _GD_EVIDENCE_OUTCOMES,
             )
+        core_answer = str(packet.core_qualification_evidence.get("learner_answer") or "")
+        core_overlap = _gd_meaningful_tokens(answer) & _gd_meaningful_tokens(core_answer)
+        core_polarity = _gd_stance_polarity(core_answer)
+        answer_polarity = _gd_stance_polarity(answer)
+        if (
+            topic_relevant
+            and len(core_overlap) >= 2
+            and not (core_polarity and answer_polarity and core_polarity != answer_polarity)
+        ):
+            proof["core_consistency"] = first_sentence[:320]
     else:
         if stance:
             proof["clear_stance"] = first_sentence[:320]
@@ -3549,6 +3852,11 @@ def _answers_near_duplicate(first: str, second: str) -> bool:
 
 
 def _int10_closing_missing(answer: str, active_role: str = "") -> dict[str, str]:
+    if not str(active_role or "").strip():
+        return {
+            "role_relevance": "minimum gate requires the active target role",
+            "role_fit_evidence": "minimum gate requires role-fit evidence for the active target role",
+        }
     role_tokens = {
         token
         for token in _normalize(active_role).split()
@@ -3595,26 +3903,49 @@ def _int10_closing_missing(answer: str, active_role: str = "") -> dict[str, str]
     return missing
 
 
-_INTERVIEW_TRANSFER_MARKER_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
-    "int_02_strength_with_evidence": (("stakeholder", "client", "partner"), ("communicat", "explain", "align")),
-    "int_03_weakness_framing": (("estimat", "forecast"), ("ambigu", "uncertain", "unknown")),
-    "int_05_why_this_role": (("company", "product", "engineering", "strategy"), ("contribut", "fit", "experience", "work")),
-    "int_06_own_a_failure": (("constraint", "limited", "without", "unavailable", "deadline", "access", "budget", "time"), ("response", "workaround", "adjust", "priorit", "scope")),
-    "int_07_clarify_ambiguous": (("onboarding", "reliability", "retention"), ("product", "improv")),
-    "int_08_quantify_impact": (("customer", "operational", "team"), ("baseline", "metric", "result", "outcome")),
-    "int_09_diplomatic_pushback": (("alone", "individual"), ("team", "collaborat")),
-    "int_10_close_strong": (("platform",), ("reliability",)),
-    "int_11_salary_negotiation": (("bonus", "equity"), ("fixed", "package", "total value")),
-    "int_12_explain_a_gap": (("plateau", "stagnat"), ("growth", "learn", "next")),
-}
+def _semantic_anchor_met(answer: str, anchor: str) -> bool:
+    if _normalize(anchor) == "learner owned new context":
+        return bool(re.search(
+            r"\b(?:I|my|we|our)\b[^.!?]{0,180}\b(?:built|created|led|owned|"
+            r"handled|resolved|improved|changed|delivered|coordinated|decided|"
+            r"implemented|managed|learned)\w*\b",
+            answer,
+            re.IGNORECASE,
+        ))
+    answer_tokens = set(_normalize(answer).split())
+    anchor_tokens = {
+        token
+        for token in _normalize(anchor).split()
+        if len(token) >= 4 and token not in {"with", "from", "that", "this"}
+    }
+    if not anchor_tokens:
+        return False
+    return any(
+        answer_token.startswith(anchor_token[:6])
+        or anchor_token.startswith(answer_token[:6])
+        for answer_token in answer_tokens
+        for anchor_token in anchor_tokens
+        if len(answer_token) >= 4
+    )
 
 
-def _has_assigned_interview_transfer_context(node_id: str, answer: str) -> bool:
-    groups = _INTERVIEW_TRANSFER_MARKER_GROUPS.get(node_id)
-    if not groups:
-        return True
-    lowered = _normalize(answer)
-    return all(any(marker in lowered for marker in group) for group in groups)
+def _has_assigned_interview_transfer_context(packet: EvaluationPacket) -> bool:
+    contract = packet.task_contract if isinstance(packet.task_contract, dict) else {}
+    context_id = str(contract.get("context_id") or "").strip()
+    anchors = [
+        str(anchor).strip()
+        for anchor in (contract.get("semantic_anchors") or [])
+        if str(anchor).strip()
+    ]
+    core_contract = packet.core_qualification_evidence.get("task_contract")
+    core_context_id = str(
+        core_contract.get("context_id")
+        if isinstance(core_contract, dict)
+        else ""
+    ).strip()
+    if not context_id or not core_context_id or context_id == core_context_id or not anchors:
+        return False
+    return all(_semantic_anchor_met(packet.learner_answer, anchor) for anchor in anchors)
 
 
 def _gd_stance_polarity(text: str) -> str:
@@ -3628,8 +3959,27 @@ def _gd_stance_polarity(text: str) -> str:
     return ""
 
 
-def _gd08_invite_missing(answer: str, active_topic: str, prompt: str = "") -> dict[str, str]:
-    invitation = gd_invitation_clause(answer, gd_prompt_participant_names(prompt))
+def _task_participant_claims(packet: EvaluationPacket) -> list[dict[str, str]]:
+    raw = packet.task_contract.get("participant_claims") if isinstance(packet.task_contract, dict) else []
+    return [
+        {str(key): str(value).strip() for key, value in item.items()}
+        for item in (raw or [])
+        if isinstance(item, dict)
+    ]
+
+
+def _gd08_invite_missing(packet: EvaluationPacket) -> dict[str, str]:
+    answer = packet.learner_answer
+    quiet_claims = [
+        claim for claim in _task_participant_claims(packet)
+        if str(claim.get("status") or claim.get("role") or "").casefold() == "quiet"
+    ]
+    expected_names = {
+        str(claim.get("display_name") or claim.get("participant_id") or "").casefold()
+        for claim in quiet_claims
+        if str(claim.get("display_name") or claim.get("participant_id") or "").strip()
+    }
+    invitation = gd_invitation_clause(answer, expected_names) if expected_names else ""
     addressed = bool(invitation)
     floor_give = bool(re.search(
         r"\b(?:share|add|view|take|perspective|thoughts?|hear\s+from|give\s+you\s+the\s+floor)\b",
@@ -3649,9 +3999,9 @@ def _gd08_invite_missing(answer: str, active_topic: str, prompt: str = "") -> di
         re.IGNORECASE,
     ))
     missing: dict[str, str] = {}
-    if not addressed:
-        missing["names_quiet_participant"] = "minimum gate requires directly addressing one quiet participant"
-    if not _gd_topic_grounded(invitation, active_topic):
+    if not addressed or not expected_names:
+        missing["names_quiet_participant"] = "minimum gate requires directly addressing the assigned quiet participant"
+    if not _gd_topic_grounded(invitation, packet.active_topic):
         missing["topic_linked_invite"] = "minimum gate requires linking the invitation to the active motion"
     if not floor_give:
         missing["respectful_floor_give"] = "minimum gate requires a clear invitation or floor handoff"
@@ -3660,62 +4010,114 @@ def _gd08_invite_missing(answer: str, active_topic: str, prompt: str = "") -> di
     return missing
 
 
-def _gd10_has_distinct_positions(answer: str, prompt: str = "") -> bool:
-    expected_names = gd_prompt_participant_names(prompt)
-    affirmative_re = re.compile(
-        r"\b(?:support|in\s+favou?r|benefit|advantage|case\s+for|accept|adopt(?:\s+now)?)\w*\b",
-        re.IGNORECASE,
-    )
-    counter_re = re.compile(
-        r"\b(?:oppose|against|risk\s+(?:remains|outweighs)|concern\s+remains|"
-        r"mixed|too\s+mixed|qualif|case\s+against|reject|do(?:es)?\s+not\s+support|"
-        r"wait\s+for|stronger\s+evidence)\w*\b",
-        re.IGNORECASE,
-    )
-    clauses = [
-        clause.strip(" ,")
-        for clause in re.split(
-            r"(?<=[.!?;])\s+|\b(?:while|whereas|but|however)\b",
-            answer,
-            flags=re.IGNORECASE,
-        )
-        if clause.strip(" ,")
+def _gd10_has_distinct_positions(packet: EvaluationPacket) -> bool:
+    claims = [
+        claim for claim in _task_participant_claims(packet)
+        if claim.get("participant_id") and claim.get("claim") and claim.get("stance")
     ]
-    rows: list[tuple[str, str]] = []
-    generic_speaker_re = re.compile(
-        r"\b(?:one\s+side|one\s+participant|the\s+other\s+side|another\s+participant)\b",
-        re.IGNORECASE,
-    )
-    excluded_names = {"I", "We", "The", "This", "That", "However", "While", "Whereas", "But"}
-    for clause in clauses:
-        generic = generic_speaker_re.search(clause)
-        if generic:
-            speaker = _normalize(generic.group(0))
-        else:
-            named = re.search(
-                r"\b([^\W\d_][\w'’.-]{1,24})\b\s+(?:argues?|says?|believes?|supports?|"
-                r"opposes?|accepts?|rejects?|would\s+(?:adopt|wait|accept|reject))\b",
-                clause,
-                re.UNICODE | re.IGNORECASE,
+    if len(claims) < 2:
+        return False
+    participant_ids = {claim["participant_id"].casefold() for claim in claims}
+    stances = {claim["stance"].casefold() for claim in claims}
+    if len(participant_ids) < 2 or len(stances) < 2:
+        return False
+    answer = packet.learner_answer
+    answer_sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?;])\s+", answer)
+        if sentence.strip()
+    ]
+
+    def stance_matches(sentence: str, stance: str) -> bool:
+        normalized_stance = _normalize(stance)
+        positive = bool(re.search(
+            r"\b(?:support|favou?r|accept|adopt|benefit|move\s+forward|proceed)\w*\b",
+            sentence,
+            re.IGNORECASE,
+        ))
+        qualified = bool(re.search(
+            r"\b(?:mixed|qualif|uncertain|stronger\s+evidence|wait|risk|concern|"
+            r"not\s+(?:yet|without)|before\s+(?:accept|adopt|proceed))\w*\b",
+            sentence,
+            re.IGNORECASE,
+        ))
+        opposed = bool(re.search(
+            r"\b(?:oppose|against|reject|should\s+not|must\s+not)\w*\b",
+            sentence,
+            re.IGNORECASE,
+        ))
+        negates_qualification = bool(re.search(
+            r"\b(?:challenge|contest|contradict|deny|dismiss|dispute|question|refute|reject)\w*"
+            r"\s+(?:the\s+)?(?:idea|claim|view|concern)?"
+            r"[^.!?]{0,70}\b(?:mixed|uncertain|risk|concern|stronger\s+evidence|qualif)\w*\b",
+            sentence,
+            re.IGNORECASE,
+        )) or bool(re.search(
+            r"\b(?:(?:not(?:\s+\w+){0,2}|no\s+longer|hardly|barely|scarcely)\s+"
+            r"(?:mixed|uncertain|qualified|risky|concerning)|"
+            r"(?:far\s+from|anything\s+but)\s+(?:mixed|uncertain|qualified)|"
+            r"no\s+(?:material\s+)?(?:risk|concern)|"
+            r"does(?:\s+not|n't)\s+need\s+(?:stronger\s+)?evidence)\b",
+            sentence,
+            re.IGNORECASE,
+        ))
+        negates_support = bool(re.search(
+            r"\b(?:does\s+not|doesn't|reject|deny|dismiss)\w*[^.!?]{0,60}"
+            r"\b(?:support|benefit|accept|adopt|proceed|move\s+forward)\w*\b",
+            sentence,
+            re.IGNORECASE,
+        ))
+        if any(term in normalized_stance for term in ("qualified", "conditional", "mixed")):
+            return qualified and not negates_qualification
+        if any(term in normalized_stance for term in ("oppose", "against", "reject", "negative")):
+            return opposed or qualified
+        if any(term in normalized_stance for term in ("support", "favour", "favor", "positive")):
+            return positive and not opposed and not negates_support
+        return False
+
+    all_participant_names = {
+        name
+        for claim in claims
+        for name in {
+            str(claim.get("participant_id") or "").casefold(),
+            str(claim.get("display_name") or "").casefold(),
+        }
+        if name
+    }
+
+    def participant_clauses(sentence: str, target_names: set[str]) -> list[str]:
+        mentions: list[tuple[int, int, str]] = []
+        for name in all_participant_names:
+            mentions.extend(
+                (match.start(), match.end(), name)
+                for match in re.finditer(rf"\b{re.escape(name)}\b", sentence, re.IGNORECASE)
             )
-            if not named or not named.group(1)[0].isupper() or named.group(1) in excluded_names:
+        mentions.sort(key=lambda item: (item[0], item[1]))
+        clauses: list[str] = []
+        for index, (start, _end, name) in enumerate(mentions):
+            if name not in target_names:
                 continue
-            speaker = named.group(1).casefold()
-            if expected_names and speaker not in expected_names:
-                continue
-            if not expected_names and speaker not in {"maya", "dev"}:
-                continue
-        rows.append((speaker, clause))
-    support_rows = [(speaker, row) for speaker, row in rows if affirmative_re.search(row)]
-    counter_rows = [
-        (speaker, row) for speaker, row in rows
-        if counter_re.search(row) and not affirmative_re.search(row)
-    ]
-    return any(
-        support_speaker != counter_speaker
-        for support_speaker, _ in support_rows
-        for counter_speaker, _ in counter_rows
-    )
+            stop = mentions[index + 1][0] if index + 1 < len(mentions) else len(sentence)
+            clauses.append(sentence[start:stop].strip(" ,:;-"))
+        return clauses
+
+    grounded = 0
+    for claim in claims:
+        names = {
+            claim["participant_id"].casefold(),
+            str(claim.get("display_name") or "").casefold(),
+        } - {""}
+        claim_tokens = _gd_meaningful_tokens(claim["claim"])
+        clause = next((
+            candidate
+            for item in answer_sentences
+            for candidate in participant_clauses(item, names)
+            if bool(_gd_meaningful_tokens(candidate) & claim_tokens)
+            and stance_matches(candidate, claim["stance"])
+        ), "")
+        if clause:
+            grounded += 1
+    return grounded >= 2
 
 
 def _minimum_gate_missing(packet: EvaluationPacket) -> dict[str, str]:
@@ -3731,19 +4133,12 @@ def _minimum_gate_missing(packet: EvaluationPacket) -> dict[str, str]:
         else {}
     )
     if packet.node_id == "int_10_close_strong":
-        tone_missing.update(_int10_closing_missing(answer, packet.active_topic))
+        tone_missing.update(_int10_closing_missing(answer, packet.active_role))
     if packet.node_id == "gd_08_include_quiet":
-        tone_missing.update(_gd08_invite_missing(
-            answer,
-            packet.active_topic,
-            _gd_latest_assistant_prompt(packet),
-        ))
+        tone_missing.update(_gd08_invite_missing(packet))
     if packet.node_id == "gd_09_manage_dominator" and gd_has_directed_attack(answer):
         tone_missing["respectful_boundary"] = "minimum gate rejects a directed personal attack"
-    if packet.node_id == "gd_10_drive_consensus" and not _gd10_has_distinct_positions(
-        answer,
-        _gd_latest_assistant_prompt(packet),
-    ):
+    if packet.node_id == "gd_10_drive_consensus" and not _gd10_has_distinct_positions(packet):
         tone_missing["summarizes_key_points"] = "minimum gate requires two genuinely different positions"
     if packet.attempt_type == "transfer":
         if (
@@ -3763,7 +4158,7 @@ def _minimum_gate_missing(packet: EvaluationPacket) -> dict[str, str]:
                     **tone_missing,
                     "transfer_context": "transfer requires a meaningfully different answer for the newly assigned context",
                 }
-            if not _has_assigned_interview_transfer_context(packet.node_id, answer):
+            if not _has_assigned_interview_transfer_context(packet):
                 return {
                     **tone_missing,
                     "transfer_context": "transfer answer does not address the newly assigned scenario",
@@ -3929,6 +4324,13 @@ def _pitch_next_focus(required_missing: list[str]) -> str:
 
 def apply_caps(packet: EvaluationPacket, raw: PrepRubricEval | RubricResult | dict) -> RubricResult:
     """Apply configured caps and eligibility rules to a semantic LLM eval."""
+    validated = validate_llm_eval(raw, packet)
+    evaluator_evidence_blocked = _has_hard_evidence_failure(validated)
+    evidence_assessment = (
+        assess_gd_evidence(packet.learner_answer)
+        if packet.node_id == "gd_02_support_with_evidence"
+        else None
+    )
     normalized = _reconcile_gd_evidence(
         packet,
         _reconcile_shared_gd_transfer(
@@ -3969,7 +4371,7 @@ def apply_caps(packet: EvaluationPacket, raw: PrepRubricEval | RubricResult | di
                                                                                 packet,
                                                                                 _reconcile_int11_salary_negotiation(
                                                                                     packet,
-                                                                                    validate_llm_eval(raw, packet),
+                                                                                    validated,
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -3989,6 +4391,12 @@ def apply_caps(packet: EvaluationPacket, raw: PrepRubricEval | RubricResult | di
                 ),
             ),
         ),
+    )
+    normalized = _apply_gd_evidence_integrity(
+        packet,
+        normalized,
+        evidence_assessment,
+        evaluator_blocked=evaluator_evidence_blocked,
     )
     minimum_missing = _minimum_gate_missing(packet)
     normalized = _apply_minimum_gate_to_rows(normalized, minimum_missing)
@@ -4103,6 +4511,11 @@ def apply_caps(packet: EvaluationPacket, raw: PrepRubricEval | RubricResult | di
         pass_eligible=pass_eligible,
         mastery_eligible=mastery_eligible,
         attempt_type=packet.attempt_type,
+        evidence_assessment=(
+            evidence_assessment.model_dump()
+            if evidence_assessment is not None
+            else None
+        ),
     )
 
 
@@ -4123,6 +4536,7 @@ def compute_attempt_credit(
     scaffolded: bool = False,
     transfer: bool = False,
     pressure: bool = False,
+    evidence_id: str = "",
     min_mastery_independent_passes: int = 3,
 ) -> dict:
     """Fold one rubric result into durable prep-progress counters.
@@ -4142,6 +4556,7 @@ def compute_attempt_credit(
     out.setdefault("meaningful_attempts", 0)
     out.setdefault("last_gap", "")
     out.setdefault("mastery_evidence", [])
+    out.setdefault("credited_evidence_ids", [])
     out.setdefault("readiness_score", 0.0)
 
     pass_eligible = bool(_result_value(result, "pass_eligible", False))
@@ -4152,15 +4567,25 @@ def compute_attempt_credit(
     scaffolded = scaffolded or attempt_type == "scaffolded"
     transfer = transfer or attempt_type == "transfer"
     pressure = pressure or attempt_type == "pressure"
+    evidence_id = str(evidence_id or "").strip()
+    credited_ids = {
+        str(item).strip()
+        for item in out.get("credited_evidence_ids") or []
+        if str(item).strip()
+    }
+    for item in out.get("mastery_evidence") or []:
+        if isinstance(item, dict) and str(item.get("evidence_id") or "").strip():
+            credited_ids.add(str(item["evidence_id"]).strip())
+    is_new_evidence = not evidence_id or evidence_id not in credited_ids
 
     # Readiness and mastery represent independently demonstrated evidence, not
     # time spent retrying. Failed and scaffolded turns remain useful for tutor
     # adaptation but must never accelerate progression.
-    if pass_eligible and not scaffolded:
+    if pass_eligible and not scaffolded and is_new_evidence:
         out["meaningful_attempts"] = int(out.get("meaningful_attempts") or 0) + 1
-    if pass_eligible and scaffolded:
+    if pass_eligible and scaffolded and is_new_evidence:
         out["scaffold_successes"] = int(out["scaffold_successes"]) + 1
-    elif pass_eligible:
+    elif pass_eligible and is_new_evidence:
         if transfer:
             out["transfer_passes"] = int(out["transfer_passes"]) + 1
         elif pressure:
@@ -4175,11 +4600,24 @@ def compute_attempt_credit(
     if next_focus:
         out["last_gap"] = next_focus
     bounded_score = round(max(0.0, min(1.0, effective_score)), 4)
-    out["readiness_score"] = (
-        bounded_score
-        if pass_eligible
-        else min(float(out.get("readiness_score") or 0.0), bounded_score)
-    )
+    if pass_eligible and is_new_evidence:
+        out["readiness_score"] = bounded_score
+    elif not pass_eligible:
+        out["readiness_score"] = min(float(out.get("readiness_score") or 0.0), bounded_score)
+
+    if pass_eligible and is_new_evidence and evidence_id:
+        credited_ids.add(evidence_id)
+        evidence = list(out.get("mastery_evidence") or [])
+        evidence.append({
+            "evidence_id": evidence_id,
+            "attempt_type": (
+                "pressure" if pressure else "transfer" if transfer
+                else "scaffolded" if scaffolded else "independent"
+            ),
+            "score": bounded_score,
+        })
+        out["mastery_evidence"] = evidence[-64:]
+    out["credited_evidence_ids"] = sorted(credited_ids)[-64:]
 
     independent_passes = int(out["independent_passes"])
     transfer_passes = int(out["transfer_passes"])
@@ -4200,7 +4638,12 @@ def compute_attempt_credit(
                 for row in (_result_value(result, "criteria", []) or [])
             ],
         }
-        if attempt_evidence not in evidence:
+        if evidence_id:
+            for item in evidence:
+                if isinstance(item, dict) and item.get("evidence_id") == evidence_id:
+                    item["criteria"] = attempt_evidence["criteria"]
+                    break
+        elif attempt_evidence not in evidence:
             evidence.append(attempt_evidence)
         out["mastery_evidence"] = evidence
     elif (

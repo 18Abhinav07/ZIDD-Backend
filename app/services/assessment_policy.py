@@ -598,6 +598,13 @@ def authorize_assessment_turn(
     requested_id = str(analysis.get("requested_next_speaker") or "").strip()
     explicit_requested_id = ""
     if plan.get("mode") == TaskType.GD_TEST.value:
+        valid_focus_ids = {
+            str(item.get("focus_id") or "").strip()
+            for item in plan.get("focus_plan") or []
+            if isinstance(item, dict) and str(item.get("focus_id") or "").strip()
+        }
+        if str(analysis.get("focus_id") or "").strip() not in valid_focus_ids:
+            analysis["focus_id"] = ""
         explicit_requested_id = explicit_requested_speaker_id(
             plan,
             _latest_learner_text(state),
