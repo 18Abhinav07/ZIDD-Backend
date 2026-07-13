@@ -159,7 +159,7 @@ Migration execution invariant: every new migration in this plan must also be app
 - [x] Implement strict Pydantic models with `extra="forbid"`; reject duplicate order positions, duplicate module IDs, missing hashes, unsupported classes, and retired releases used as current.
 - [x] Implement `load_current_release(subject_id="english", class_no=N)` and trusted-manifest `verify_release_sources(curriculum_release_id)`; source verification compares persisted hashes and metadata, never downloads at API boot.
 - [x] Populate the release manifest from the verified official source map and local official PDF hashes. Store only source metadata, declared pedagogical structures, and verification evidence; do not store textbook body text.
-- [ ] Run:
+- [x] Run:
 
 ```bash
 ./.venv/bin/pytest -q tests/hardening/test_school_canonical_release_contract.py
@@ -176,15 +176,17 @@ Expected: four classes verified, zero manifest errors, and a deterministic relea
 - Create: `app/services/school/evaluator_contract.py`
 - Create: `tests/hardening/test_school_canonical_compatibility_contracts.py`
 
-- [ ] Define the final `CompetencyStandardRef` identity fields and registry interface without authoring the full graph yet. Adapt the existing locked English taxonomy into these objects so Phase 0 runtime no longer imports `school_v3_taxonomy`.
-- [ ] Define the final source-map module reference, `OpenAnswerRubric`, rubric criterion, and strict evaluator-result DTOs with `extra="forbid"`. Adapt current approved content/evaluator payloads at the boundary so Phase 0 runtime no longer imports V3 schema/evaluator types.
-- [ ] Keep these modules as the canonical files expanded by Phases 1-2; those phases modify them and must not create replacement contracts.
-- [ ] Add compatibility tests proving current canonical `/school` responses are unchanged while all V3 runtime imports are removed.
+- [x] Define the final `CompetencyStandardRef` identity fields and registry interface without authoring the full graph yet. Adapt the existing locked English taxonomy into these objects so Phase 0 runtime no longer imports `school_v3_taxonomy`.
+- [x] Define the final source-map module reference, `OpenAnswerRubric`, rubric criterion, and strict evaluator-result DTOs with `extra="forbid"`. Adapt current approved content/evaluator payloads at the boundary so Phase 0 runtime no longer imports V3 schema/evaluator types.
+- [x] Keep these modules as the canonical files expanded by Phases 1-2; those phases modify them and must not create replacement contracts.
+- [x] Add compatibility tests proving the canonical DTOs translate the current taxonomy and rubric wire shapes without drift, and that the new canonical contract modules themselves import no V2/V3 authority. Runtime import removal and route-response equivalence are Task 0.4 gates.
 
 ### Task 0.4: Lock one runtime and route authority
 
 **Files:**
 - Create: `app/services/school/authority.py`
+- Create: `app/services/school/language_confidence.py`
+- Create: `app/content/school/source_map_compat.py`
 - Create: `scripts/audit_school_runtime_authority.py`
 - Create: `tests/hardening/test_school_canonical_authority_contract.py`
 - Modify: `app/main.py`
@@ -197,7 +199,9 @@ Expected: four classes verified, zero manifest errors, and a deterministic relea
 - [ ] Write a failing test that inspects `app.routes` and requires one mounted `/school/state`, one handler per canonical path/method, and no mounted V1/V2/V3 School router.
 - [ ] Add a static import audit that rejects new runtime imports from `school_v2_*`, `school_v3_*`, `app/content/data/school`, or generated seed loaders outside compatibility/archive tests.
 - [ ] Record every canonical endpoint and its owning service in `CANONICAL_SCHOOL_AUTHORITY`; route registration fails if duplicated.
-- [ ] Remove the canonical runtime's remaining `school_v3_content`, `school_v3_taxonomy`, and V3 evaluator imports by adapting the Phase 0 release/standard compatibility interfaces. Keep old modules importable only for historical tests until Phase 7.
+- [ ] Capture representative canonical `/school` response fixtures before adaptation and assert byte-equivalent public JSON after V3 imports are removed; internal class names may change, public response fields may not.
+- [ ] Remove the canonical runtime's remaining `school_v3_content`, `school_v3_taxonomy`, V3 evaluator, and V3 language-confidence imports by adapting the Phase 0 release/standard/evaluator interfaces and a canonical language-confidence module. Keep old modules importable only for historical tests until Phase 7.
+- [ ] `source_map_compat.py` may project the existing flat chapter IDs needed by the current beta content, but it must cross-validate every ID/title against the immutable release and is explicitly removed when the Phase 2 canonical loader takes over. It cannot introduce a second source title/order authority.
 - [ ] Keep `school_rebuild_routes.router` mounted for compatibility, but change its internal imports task-by-task to canonical modules. Do not mount `school_routes.router`.
 - [ ] Run:
 
