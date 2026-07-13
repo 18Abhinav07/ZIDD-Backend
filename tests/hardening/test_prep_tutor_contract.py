@@ -3834,6 +3834,179 @@ def test_interview_weakness_shape_evidence_is_reconciled_before_caps():
     assert "pressure-test" in result.next_focus.lower()
 
 
+def test_interview_weakness_checklist_result_repairs_contradictory_model_evidence():
+    answer = (
+        "A weakness I am managing is missing migration edge cases when I am moving fast. "
+        "I now use a pre-deploy checklist covering lock risk, regional timing, rollback commands, "
+        "alert ownership, and reviewer sign-off. Since adopting it, two schema changes shipped "
+        "without checkout errors, and rollback readiness improved from ad hoc notes to a tested "
+        "command runbook."
+    )
+    state = svc._new_state(
+        "user-1",
+        "session-1",
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+        career_context={"primary_role": "Backend Engineer"},
+    )
+    packet = build_evaluation_packet(state, svc.get_node("int_03_weakness_framing"), answer)
+    model_eval = PrepRubricEval(
+        raw_score=0.79,
+        criteria=[
+            CriterionEval(id="real_weakness", met=True, evidence_quote="missing migration edge cases"),
+            CriterionEval(id="mitigation_habit", met=True, evidence_quote="pre-deploy checklist"),
+            CriterionEval(id="progress_evidence", met=False, reason="no completed result"),
+            CriterionEval(id="non_self_sabotage", met=False, reason="the framing boundary is unclear"),
+        ],
+        required_missing=["progress_evidence", "non_self_sabotage"],
+        errors=["missing required rubric proof: progress_evidence, non_self_sabotage"],
+        strengths=["The checklist already improved schema delivery and rollback readiness."],
+        next_focus="Add progress evidence and frame the weakness safely.",
+        pass_eligible=False,
+        mastery_eligible=False,
+    )
+
+    result = apply_caps(packet, model_eval)
+    rows = {row.id: row for row in result.criteria}
+
+    assert rows["progress_evidence"].met is True
+    assert "rollback readiness improved" in rows["progress_evidence"].evidence_quote
+    assert rows["progress_evidence"].evidence_quote in answer
+    assert rows["non_self_sabotage"].met is True
+    assert "I now use" in rows["non_self_sabotage"].evidence_quote
+    assert rows["non_self_sabotage"].evidence_quote in answer
+    assert result.required_missing == []
+    assert result.errors == []
+    assert result.blockers == []
+    assert result.pass_eligible is True
+
+
+def test_interview_weakness_disqualifying_rejection_is_not_overridden():
+    answer = (
+        "A weakness I am managing is missing migration edge cases when I am moving fast. "
+        "I now use a pre-deploy checklist covering lock risk, regional timing, rollback commands, "
+        "alert ownership, and reviewer sign-off. Since adopting it, two schema changes shipped "
+        "without checkout errors, and rollback readiness improved from ad hoc notes to a tested "
+        "command runbook."
+    )
+    state = svc._new_state(
+        "user-1", "session-1", "int_03_weakness_framing", [], task_type="interview_prep"
+    )
+    packet = build_evaluation_packet(state, svc.get_node("int_03_weakness_framing"), answer)
+    reason = (
+        "Although it is not disqualifying in every role, it violates a core role "
+        "requirement for this position."
+    )
+    model_eval = PrepRubricEval(
+        raw_score=0.79,
+        criteria=[
+            CriterionEval(id="real_weakness", met=True, evidence_quote="missing migration edge cases"),
+            CriterionEval(id="mitigation_habit", met=True, evidence_quote="pre-deploy checklist"),
+            CriterionEval(id="progress_evidence", met=False, reason="no completed result"),
+            CriterionEval(id="non_self_sabotage", met=False, reason=reason),
+        ],
+        required_missing=["progress_evidence", "non_self_sabotage"],
+        errors=["missing required rubric proof: progress_evidence, non_self_sabotage"],
+        next_focus="Choose a weakness that does not violate a core role requirement.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, model_eval)
+    rows = {row.id: row for row in result.criteria}
+
+    assert rows["progress_evidence"].met is True
+    assert rows["non_self_sabotage"].met is False
+    assert rows["non_self_sabotage"].reason == reason
+    assert result.required_missing == ["non_self_sabotage"]
+    assert result.errors == ["missing required rubric proof: non_self_sabotage"]
+    assert result.blockers == ["missing_required:non_self_sabotage"]
+    assert result.pass_eligible is False
+
+
+def test_interview_weakness_transfer_context_repairs_false_model_rejection():
+    core_answer = (
+        "A weakness I am managing is missing migration edge cases when I am moving fast. "
+        "I now use a deployment checklist. Since adopting it, two schema changes shipped "
+        "without checkout errors."
+    )
+    answer = (
+        "A weakness I am managing is committing to estimates before hidden dependencies are clear. "
+        "I now separate a discovery estimate from a delivery estimate, list assumptions, and "
+        "re-estimate after a short technical spike. Since adopting that habit, estimate variance "
+        "across my last three backend changes fell from roughly 40% to under 15%."
+    )
+    parent_id = "session-1:core"
+    core_contract = {
+        "context_id": "int_03_weakness_framing:independent:core",
+        "semantic_anchors": [],
+    }
+    state = svc._new_state(
+        "user-1", "session-1", "int_03_weakness_framing", [], task_type="interview_prep"
+    )
+    state.update({
+        "active_prompt_attempt_type": "transfer",
+        "active_task_contract": {
+            "prompt_id": "transfer-prompt",
+            "context_id": "int_03_weakness_framing:transfer:estimation",
+            "semantic_anchors": [
+                "estimation under ambiguity",
+                "real weakness corrective habit when requirements uncertain measurable progress signal",
+            ],
+        },
+        "core_qualified": True,
+        "core_qualification_turn_id": parent_id,
+        "core_qualification_evidence": {
+            "evaluation_id": parent_id,
+            "user_id": "user-1",
+            "node_id": "int_03_weakness_framing",
+            "attempt_type": "independent",
+            "pass_eligible": True,
+            "blockers": [],
+            "learner_answer": core_answer,
+            "task_contract": core_contract,
+        },
+    })
+    packet = build_evaluation_packet(state, svc.get_node("int_03_weakness_framing"), answer)
+    model_eval = PrepRubricEval(
+        raw_score=0.85,
+        criteria=[
+            CriterionEval(id="real_weakness", met=True, evidence_quote=answer.split(".")[0] + "."),
+            CriterionEval(id="mitigation_habit", met=True, evidence_quote="I now separate a discovery estimate from a delivery estimate, list assumptions, and re-estimate after a short technical spike."),
+            CriterionEval(id="progress_evidence", met=True, evidence_quote="Since adopting that habit, estimate variance across my last three backend changes fell from roughly 40% to under 15%."),
+            CriterionEval(id="non_self_sabotage", met=True, evidence_quote=answer.split(".")[0] + "."),
+            CriterionEval(id="transfer_context", met=False, reason="new context not recognized"),
+        ],
+        required_missing=["transfer_context"],
+        errors=["missing required rubric proof: transfer_context"],
+        next_focus="Use the newly assigned scenario.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, model_eval)
+    rows = {row.id: row for row in result.criteria}
+
+    assert packet.core_qualified is True
+    assert rows["transfer_context"].met is True
+    assert rows["transfer_context"].evidence_quote == answer.split(".")[0] + "."
+    assert result.required_missing == []
+    assert result.blockers == []
+    assert result.pass_eligible is True
+
+    from app.services import rubric_engine as engine
+
+    partial_answer = (
+        "A weakness I am managing is estimates under pressure. I now use a checklist habit, and my "
+        "progress is measurable across recent delivery dates."
+    )
+    partial_packet = build_evaluation_packet(
+        state,
+        svc.get_node("int_03_weakness_framing"),
+        partial_answer,
+    )
+    assert engine._has_assigned_interview_transfer_context(partial_packet) is False
+
+
 def test_interview_weakness_reconciliation_rewrites_old_delivery_focus_when_core_already_met():
     answer = (
         "Earlier, I tended to explain technical implementation before business impact. "
@@ -6363,12 +6536,32 @@ def test_existing_session_recovers_core_parent_from_durable_independent_eval(mon
                 "user_answer": (
                     "My weakness was rushing rollouts; I now use phased pilots and decision gates."
                 ),
+                "context_json": {
+                    "task_contract": {
+                        "prompt_id": "core-prompt",
+                        "context_id": "int_03_weakness_framing:independent:core",
+                        "semantic_anchors": [],
+                    },
+                },
             }
 
     state = svc._new_state(
         "user-1", "session-1", "int_03_weakness_framing", [], task_type="interview_prep"
     )
-    state["independent_passes"] = 4
+    state.update({
+        "independent_passes": 4,
+        "core_qualified": True,
+        "core_qualification_turn_id": "session-old:turn-core-2:int_03_weakness_framing",
+        "core_qualification_evidence": {
+            "evaluation_id": "session-old:turn-core-2:int_03_weakness_framing",
+            "user_id": "user-1",
+            "node_id": "int_03_weakness_framing",
+            "attempt_type": "independent",
+            "pass_eligible": True,
+            "blockers": [],
+            "learner_answer": "Legacy answer without a task contract.",
+        },
+    })
     monkeypatch.setattr(svc, "get_storage", lambda: Store())
 
     _run(svc._hydrate_core_qualification(state))
@@ -6379,6 +6572,9 @@ def test_existing_session_recovers_core_parent_from_durable_independent_eval(mon
     )
     assert state["core_qualification_evidence"]["learner_answer"] == (
         "My weakness was rushing rollouts; I now use phased pilots and decision gates."
+    )
+    assert state["core_qualification_evidence"]["task_contract"]["context_id"] == (
+        "int_03_weakness_framing:independent:core"
     )
 
 

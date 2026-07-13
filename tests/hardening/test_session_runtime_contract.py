@@ -1483,6 +1483,29 @@ async def test_module_done_emits_grounded_completion_feedback_before_recap(monke
     assert state["messages"][-1] in store.session_messages[session_id]
 
 
+def test_weakness_completion_feedback_uses_one_complete_progress_quote():
+    from app.services import session_service as svc
+
+    answer = (
+        "A weakness I am managing is missing migration edge cases when I am moving too quickly. "
+        "I now use a pre-deploy checklist covering lock risk and rollback commands. Across two "
+        "schema changes, that habit prevented checkout errors and produced a tested runbook."
+    )
+    rubric_result = {
+        "criteria": [
+            {"id": "real_weakness", "met": True, "evidence_quote": answer[:93]},
+            {"id": "mitigation_habit", "met": True, "evidence_quote": "I now use a pre-deploy checklist covering lock risk and rollback commands."},
+            {"id": "progress_evidence", "met": True, "evidence_quote": "Across two schema changes, that habit prevented checkout errors and produced a tested runbook."},
+        ],
+    }
+
+    feedback = svc._completion_feedback_text(rubric_result, answer)
+
+    assert feedback.count('"') == 2
+    assert "Across two schema changes" in feedback
+    assert '"dge cases' not in feedback
+
+
 @pytest.mark.asyncio
 async def test_module_done_marks_session_terminal_and_blocks_more_turns():
     from app.services import session_service as svc

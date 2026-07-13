@@ -799,6 +799,22 @@ _WEAKNESS_MITIGATION_TERMS = (
     "plain language",
     "compare options",
 )
+_WEAKNESS_BOUNDED_TERMS = (
+    "sometimes",
+    "used to",
+    "earlier",
+    "previously",
+    "under pressure",
+    "tend to",
+    "tended to",
+    "when i ",
+    "when i am",
+    "when i'm",
+    "when moving",
+    "working on",
+    "managing",
+    "weakness was",
+)
 _WEAKNESS_PROGRESS_TERMS = (
     "recently",
     "in a ",
@@ -902,7 +918,13 @@ def _criterion_evidence(answer: str, terms: tuple[str, ...]) -> str:
             continue
         start = max(0, index - 40)
         end = min(len(answer), index + max(len(term), 1) + 90)
-        return " ".join(answer[start:end].strip(" .,;:-").split())
+        if start > 0 and answer[start - 1].isalnum() and answer[start].isalnum():
+            next_space = answer.find(" ", start)
+            start = next_space + 1 if next_space >= 0 else start
+        excerpt = answer[start:end]
+        if end < len(answer) and excerpt and excerpt[-1].isalnum() and answer[end].isalnum():
+            excerpt = excerpt.rsplit(" ", 1)[0]
+        return " ".join(excerpt.strip(" .,;:-").split())
     return ""
 
 
@@ -991,11 +1013,20 @@ def _has_concrete_weakness_progress(answer: str) -> bool:
                 continue
         if re.search(
             r"\b(?:i|we|my|our)\b|\b(?:that|this|the)\s+"
-            r"(?:approach|change|habit|decision|rollout|fix)\b",
+            r"(?:approach|change|habit|decision|rollout|fix|checklist)\b",
             sentence,
         ) or (
             has_learner_action
-            and ("that meant" in sentence or "that helped" in sentence)
+            and (
+                "that meant" in sentence
+                or "that helped" in sentence
+                or bool(re.search(
+                    r"\b(?:since|after)\s+(?:(?:i|we)\s+)?"
+                    r"(?:adopt(?:ed|ing)|start(?:ed|ing)\s+using|us(?:ed|ing))\s+"
+                    r"(?:it|that\b)",
+                    sentence,
+                ))
+            )
         ):
             owned_completed_result = True
             break
@@ -1164,6 +1195,52 @@ def _has_real_weakness_signal(answer: str) -> bool:
     return _answer_has_any(answer, _WEAKNESS_REAL_REQUIRED_TERMS)
 
 
+def _has_bounded_weakness_signal(answer: str) -> bool:
+    lowered = " ".join(str(answer or "").lower().split())
+    if not lowered:
+        return False
+    if _answer_has_any(lowered, _WEAKNESS_BOUNDED_TERMS[:-3]):
+        return True
+    return bool(re.search(
+        r"\bweakness\b[^.!?]{0,80}\b(?:working on|managing|was)\b",
+        lowered,
+    ))
+
+
+def _has_explicit_disqualifying_weakness_reason(reason: str) -> bool:
+    lowered = " ".join(str(reason or "").lower().split())
+    if not lowered:
+        return False
+    safe_phrases = (
+        "not disqualifying",
+        "isn't disqualifying",
+        "does not violate",
+        "doesn't violate",
+        "no integrity concern",
+        "no safety concern",
+    )
+    rejection_phrases = (
+        "disqualifying",
+        "disqualifies",
+        "core requirement",
+        "core role requirement",
+        "core-role requirement",
+        "essential requirement",
+        "essential role requirement",
+        "integrity concern",
+        "integrity violation",
+        "safety concern",
+        "safety violation",
+    )
+    clauses = re.split(r"\s*(?:[,.!?;]|\bbut\b|\bhowever\b)\s*", lowered)
+    return any(
+        any(phrase in clause for phrase in rejection_phrases)
+        and not any(phrase in clause for phrase in safe_phrases)
+        for clause in clauses
+        if clause
+    )
+
+
 def _has_complete_weakness_shape(packet: EvaluationPacket) -> bool:
     if packet.node_id != "int_03_weakness_framing" or packet.attempt_type != "independent":
         return False
@@ -1185,8 +1262,18 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
     evidence_by_id = {
         "real_weakness": _criterion_evidence(answer, _WEAKNESS_REAL_TERMS) or answer[:180],
         "mitigation_habit": _criterion_evidence(answer, _WEAKNESS_MITIGATION_TERMS) or answer[:180],
-        "progress_evidence": _criterion_evidence(answer, _WEAKNESS_PROGRESS_TERMS) or answer[:180],
+        "progress_evidence": _criterion_evidence(answer, _WEAKNESS_PROGRESS_OUTCOME_TERMS) or answer[:180],
     }
+    non_self_sabotage = rows_by_id.get("non_self_sabotage")
+    if (
+        non_self_sabotage is not None
+        and not non_self_sabotage.met
+        and _has_bounded_weakness_signal(answer)
+        and not _has_explicit_disqualifying_weakness_reason(non_self_sabotage.reason)
+    ):
+        evidence_by_id["non_self_sabotage"] = (
+            _criterion_evidence(answer, _WEAKNESS_BOUNDED_TERMS) or answer[:180]
+        )
     for criterion_id, evidence in evidence_by_id.items():
         row = rows_by_id.get(criterion_id)
         if row is not None:
@@ -1229,11 +1316,13 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
     errors = [
         item
         for item in (result.errors or [])
-        if not (
-            "missing required rubric proof" in str(item).lower()
-            and any(key in str(item) for key in evidence_by_id)
-        )
+        if "missing required rubric proof" not in str(item).lower()
     ]
+    if required_missing and any(
+        "missing required rubric proof" in str(item).lower()
+        for item in (result.errors or [])
+    ):
+        errors.append("missing required rubric proof: " + ", ".join(map(str, required_missing)))
     return result.model_copy(update={
         "criteria": criteria,
         "required_missing": required_missing,
@@ -3916,17 +4005,44 @@ def _semantic_anchor_met(answer: str, anchor: str) -> bool:
     anchor_tokens = {
         token
         for token in _normalize(anchor).split()
-        if len(token) >= 4 and token not in {"with", "from", "that", "this"}
+        if len(token) >= 4
+        and token not in {"with", "from", "that", "this", "under", "when", "real"}
     }
     if not anchor_tokens:
         return False
-    return any(
-        answer_token.startswith(anchor_token[:6])
-        or anchor_token.startswith(answer_token[:6])
-        for answer_token in answer_tokens
-        for anchor_token in anchor_tokens
-        if len(answer_token) >= 4
+    alias_groups = (
+        {
+            "estimate", "estimates", "estimation", "estimated", "forecast", "forecasting",
+            "timeline", "timelines", "date", "dates", "range", "ranges",
+        },
+        {
+            "ambiguity", "ambiguous", "uncertain", "uncertainty", "unknown", "unknowns",
+            "unresolved", "assumption", "assumptions", "dependency", "dependencies", "scope",
+        },
     )
+
+    def token_matches(anchor_token: str) -> bool:
+        if any(
+            answer_token.startswith(anchor_token[:6])
+            or anchor_token.startswith(answer_token[:6])
+            for answer_token in answer_tokens
+            if len(answer_token) >= 4
+        ):
+            return True
+        group = next((items for items in alias_groups if anchor_token in items), None)
+        return bool(group and answer_tokens & group)
+
+    matched_anchor_tokens = {
+        anchor_token
+        for anchor_token in anchor_tokens
+        if token_matches(anchor_token)
+    }
+    required_matches = (
+        1
+        if len(anchor_tokens) == 1
+        else min(3, max(2, (len(anchor_tokens) + 2) // 3))
+    )
+    return len(matched_anchor_tokens) >= required_matches
 
 
 def _has_assigned_interview_transfer_context(packet: EvaluationPacket) -> bool:
@@ -3946,6 +4062,66 @@ def _has_assigned_interview_transfer_context(packet: EvaluationPacket) -> bool:
     if not context_id or not core_context_id or context_id == core_context_id or not anchors:
         return False
     return all(_semantic_anchor_met(packet.learner_answer, anchor) for anchor in anchors)
+
+
+def _reconcile_interview_transfer_context(
+    packet: EvaluationPacket,
+    result: PrepRubricEval,
+) -> PrepRubricEval:
+    if (
+        packet.attempt_type != "transfer"
+        or not packet.node_id.startswith("int_")
+        or not packet.core_qualified
+    ):
+        return result
+    core_answer = str(packet.core_qualification_evidence.get("learner_answer") or "").strip()
+    answer = " ".join(str(packet.learner_answer or "").split()).strip()
+    if (
+        not core_answer
+        or not answer
+        or _answers_near_duplicate(core_answer, answer)
+        or not _has_assigned_interview_transfer_context(packet)
+    ):
+        return result
+    rows_by_id = {row.id: row for row in result.criteria}
+    transfer_row = rows_by_id.get("transfer_context")
+    if transfer_row is None or transfer_row.met:
+        return result
+    evidence = re.split(r"(?<=[.!?])\s+", answer, maxsplit=1)[0].strip()
+    updated_row = transfer_row.model_copy(update={
+        "met": True,
+        "quality": max(float(transfer_row.quality or 0.0), 0.75),
+        "evidence_quote": evidence,
+        "reason": "backend verified the visible transfer anchors in a context distinct from the qualified answer",
+    })
+    criteria = [
+        updated_row if row.id == "transfer_context" else row
+        for row in result.criteria
+    ]
+    required_missing = [
+        item for item in (result.required_missing or [])
+        if str(item) != "transfer_context"
+    ]
+    required_ids = {
+        str(criterion["id"])
+        for criterion in packet.criteria
+        if bool(criterion.get("required"))
+    }
+    met_ids = {row.id for row in criteria if row.met}
+    complete_required = required_ids.issubset(met_ids)
+    errors = [
+        item for item in (result.errors or [])
+        if "transfer_context" not in str(item)
+    ]
+    return result.model_copy(update={
+        "criteria": criteria,
+        "required_missing": required_missing,
+        "errors": errors,
+        "effective_score": max(float(result.effective_score or result.raw_score), packet.pass_score)
+        if complete_required
+        else result.effective_score,
+        "pass_eligible": True if complete_required else result.pass_eligible,
+    })
 
 
 def _gd_stance_polarity(text: str) -> str:
@@ -4363,15 +4539,18 @@ def apply_caps(packet: EvaluationPacket, raw: PrepRubricEval | RubricResult | di
                                                                 packet,
                                                                 _reconcile_weakness_evidence(
                                                                     packet,
-                                                                    _reconcile_pitch_evidence(
+                                                                    _reconcile_interview_transfer_context(
                                                                         packet,
-                                                                        _reconcile_int08_quantified_impact(
+                                                                        _reconcile_pitch_evidence(
                                                                             packet,
-                                                                            _reconcile_int09_diplomatic_pushback(
+                                                                            _reconcile_int08_quantified_impact(
                                                                                 packet,
-                                                                                _reconcile_int11_salary_negotiation(
+                                                                                _reconcile_int09_diplomatic_pushback(
                                                                                     packet,
-                                                                                    validated,
+                                                                                    _reconcile_int11_salary_negotiation(
+                                                                                        packet,
+                                                                                        validated,
+                                                                                    ),
                                                                                 ),
                                                                             ),
                                                                         ),

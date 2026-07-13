@@ -1041,7 +1041,7 @@ def _exact_rubric_evidence_quote(user_input: str, evidence_quote: str) -> str:
 
 def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
     criteria_labels: list[str] = []
-    evidence_quotes: list[str] = []
+    evidence_by_id: dict[str, str] = {}
     for row in rubric_result.get("criteria") or []:
         if not isinstance(row, dict) or row.get("met") is not True:
             continue
@@ -1055,8 +1055,17 @@ def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
             if label not in criteria_labels:
                 criteria_labels.append(label)
         quote = _exact_rubric_evidence_quote(user_input, row.get("evidence_quote") or "")
-        if quote and quote not in evidence_quotes:
-            evidence_quotes.append(quote)
+        if criterion_id and quote:
+            evidence_by_id.setdefault(criterion_id, quote)
+
+    weakness_ids = {"real_weakness", "mitigation_habit", "progress_evidence"}
+    if weakness_ids.issubset(evidence_by_id):
+        progress_quote = evidence_by_id["progress_evidence"]
+        return (
+            "Keep this version. It names the weakness, the management habit, and the progress "
+            f'signal, grounded in "{progress_quote}". No required gap remains, so this skill is '
+            "ready to carry forward."
+        )
 
     criteria = criteria_labels[:3]
     if len(criteria) > 1:
@@ -1066,7 +1075,22 @@ def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
     else:
         criteria_text = "the required criteria"
 
-    quotes = evidence_quotes[:2]
+    quote_priority = (
+        "result",
+        "impact_signal",
+        "progress_evidence",
+        "learner_action",
+        "mitigation_habit",
+    )
+    candidates = [evidence_by_id[item] for item in quote_priority if evidence_by_id.get(item)]
+    if not candidates:
+        candidates = list(evidence_by_id.values())
+    quotes: list[str] = []
+    for quote in candidates:
+        if quote not in quotes:
+            quotes.append(quote)
+        if len(quotes) == 2:
+            break
     if not quotes:
         fallback = _bounded_exact_excerpt(user_input)
         if fallback:
@@ -1412,14 +1436,23 @@ def _early_interview_feedback_text(state: dict) -> str | None:
         return None
     answer = " ".join(str(state.get("user_input") or "").split())
     answer_lower = answer.lower()
-    quotes: list[str] = []
+    quotes_by_id: dict[str, str] = {}
     for row in result.get("criteria") or []:
         if not isinstance(row, dict) or row.get("met") is not True:
             continue
+        criterion_id = str(row.get("id") or row.get("criterion_id") or "").strip()
         quote = " ".join(str(row.get("evidence_quote") or "").split())
-        if quote and quote.lower() in answer_lower and quote not in quotes:
-            quotes.append(quote[:220])
-    evidence = quotes[0] if quotes else ""
+        if criterion_id and quote and quote.lower() in answer_lower:
+            quotes_by_id.setdefault(criterion_id, _bounded_exact_excerpt(quote, 180))
+    evidence_priority = (
+        ("impact_signal", "learner_action", "specific_evidence", "strength_claim")
+        if node_id == "int_02_strength_with_evidence"
+        else ("progress_evidence", "mitigation_habit", "real_weakness")
+    )
+    evidence = next(
+        (quotes_by_id[criterion_id] for criterion_id in evidence_priority if quotes_by_id.get(criterion_id)),
+        "",
+    )
     required_missing = [str(item) for item in (result.get("required_missing") or [])]
     blockers = [str(item) for item in (result.get("blockers") or [])]
     attempt_type = str(result.get("attempt_type") or "independent")
@@ -1436,20 +1469,33 @@ def _early_interview_feedback_text(state: dict) -> str | None:
             "real_weakness": "name one genuine past tendency",
             "mitigation_habit": "state the corrective habit you now use",
             "progress_evidence": "add one concrete progress signal",
+            "non_self_sabotage": "bound the weakness so it does not disqualify you for the role",
             "transfer_context": "use the newly assigned context rather than repeating the core answer",
             "core_consistency": "keep the harder answer consistent with the qualified version",
         }
         gaps = [criterion_focus[item] for item in required_missing if item in criterion_focus]
         focus = "; and ".join(gaps) or "complete the active skill with learner-owned evidence"
+        if "core_consistency" in required_missing:
+            core = qualified_core_evidence(state, node_id)
+            core_excerpt = _bounded_exact_excerpt(
+                str((core or {}).get("learner_answer") or ""),
+                150,
+            )
+            if core_excerpt:
+                return (
+                    f'{anchor}That result belongs to the transfer scenario. Return to the qualified '
+                    f'answer that began: "{core_excerpt}". Defend that same weakness, habit, and '
+                    "result; change only the defense."
+                )
         return f"{anchor}The missing step is to {focus}. Revise only that part using the same story."
 
     action = validated_tutor_next_action(plan, state)
-    anchor = (
-        f'Your evidence is grounded in your own answer: "{evidence}". '
-        if evidence
-        else "The required structure is present in your own answer. "
-    )
     if node_id == "int_02_strength_with_evidence":
+        anchor = (
+            f'Your proof is specific and learner-owned: "{evidence}". '
+            if evidence
+            else "Your strength, action, and result are all present. "
+        )
         tasks = {
             "request_transfer": (
                 "Transfer task: show stakeholder communication as a different strength. Prove it "
@@ -1465,14 +1511,33 @@ def _early_interview_feedback_text(state: dict) -> str | None:
         }
         task = tasks.get(action, "Use a different strength and support it with one action and one result.")
     else:
+        anchor = (
+            f'Your answer now shows concrete progress: "{evidence}". '
+            if evidence
+            else "Your weakness, management habit, and progress signal are all present. "
+        )
+        core = qualified_core_evidence(state, node_id)
+        core_excerpt = _bounded_exact_excerpt(
+            str((core or {}).get("learner_answer") or ""),
+            150,
+        )
+        pressure_task = (
+            f'Return to the qualified answer that began: "{core_excerpt}". The interviewer '
+            "challenges whether that corrective habit really works. Defend the same habit with "
+            "one concrete result from that answer."
+            if core_excerpt
+            else (
+                "Pressure check: defend why your corrective habit works with one concrete result, "
+                "without disguising a strength as a weakness."
+            )
+        )
         tasks = {
             "request_transfer": (
-                "Transfer task: use estimation under ambiguity as the context. Name the real weakness, "
-                "the corrective habit you use when requirements are uncertain, and one measurable progress signal."
+                "Now transfer that structure to estimation under ambiguity. In three concise sentences, "
+                "name the tendency, the habit you use when requirements are uncertain, and one measurable "
+                "sign that the habit is working."
             ),
-            "request_pressure": (
-                "Pressure check: defend why your corrective habit works with one concrete result, without disguising a strength as a weakness."
-            ),
+            "request_pressure": pressure_task,
             "request_consolidation": (
                 "Final delivery: give the real weakness, corrective habit, and progress evidence in three concise sentences."
             ),
@@ -3531,6 +3596,8 @@ def _new_state(
         "active_game_prompt": None,
         "active_prompt_attempt_type": None,
         "pending_prompt_attempt_type": None,
+        "active_task_contract": None,
+        "last_evaluated_task_contract": None,
         # Spec B: the selector's read of the most recent advance (transient).
         "last_selection": None,
         "last_route": None,
@@ -4581,6 +4648,13 @@ def _has_valid_core_qualification(state: dict) -> bool:
         and evidence.get("attempt_type") == "independent"
         and evidence.get("pass_eligible") is True
         and bool(str(evidence.get("learner_answer") or "").strip())
+        and (
+            state.get("task_type") != TaskType.INTERVIEW_PREP.value
+            or (
+                isinstance(evidence.get("task_contract"), dict)
+                and bool(str((evidence.get("task_contract") or {}).get("context_id") or "").strip())
+            )
+        )
         and (
             state.get("task_type") != TaskType.GD_PREP.value
             or bool(str(evidence.get("active_topic") or "").strip())

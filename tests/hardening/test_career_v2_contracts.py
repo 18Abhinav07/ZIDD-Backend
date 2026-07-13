@@ -99,6 +99,13 @@ def test_evaluation_packet_uses_exact_active_task_contract():
     assert packet.task_contract == contract
 
 
+def test_langgraph_state_keeps_career_task_contract_channels():
+    from app.models import TutorState
+
+    assert "active_task_contract" in TutorState.__annotations__
+    assert "last_evaluated_task_contract" in TutorState.__annotations__
+
+
 def test_visible_career_task_replaces_contract_only_when_committed():
     state = svc._new_state(
         "user-1",

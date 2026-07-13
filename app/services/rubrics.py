@@ -61,7 +61,12 @@ _RUBRICS: dict[str, PrepRubric] = {
             R("real_weakness", "Names a genuine non-cliche weakness", True, 0.6),
             R("mitigation_habit", "Gives a concrete habit or system used to manage it", True, 0.62),
             R("progress_evidence", "Includes a sign the weakness is improving", True, 0.68),
-            R("non_self_sabotage", "Frames the weakness honestly without disqualifying the learner"),
+            R(
+                "non_self_sabotage",
+                "Frames the weakness honestly without disqualifying the learner",
+                True,
+                0.58,
+            ),
         ),
     ),
     "gd_02_support_with_evidence": PrepRubric(

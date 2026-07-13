@@ -59,6 +59,8 @@ class TutorState(TypedDict):
     pending_prompt_attempt_type: Optional[str]  # transient marker for the in-flight prompt
     active_gd_prompt_topic: Optional[str]  # exact motion attached to the committed learner prompt
     pending_gd_prompt_topic: Optional[str]  # exact motion staged for the next visible prompt
+    active_task_contract: Optional[dict]  # exact visible Career prompt contract used by evaluation
+    last_evaluated_task_contract: Optional[dict]  # frozen contract for the turn being scored
     # True only on a turn that graded a served BRIDGE fill against its answer key
     # (set by evaluate_node, read by _update_progress). A correct bridge fill is a
     # scaffolded sub-step, NOT a clean pass at this node, so the advance-streak
