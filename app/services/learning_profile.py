@@ -130,18 +130,40 @@ def _row_dict(row: Any) -> dict[str, Any]:
     return row if isinstance(row, dict) else {}
 
 
+_EVIDENCE_CRITERION_PRIORITY = (
+    "result",
+    "progress_evidence",
+    "quantified_before_after",
+    "impact_signal",
+    "impact_claim",
+    "learner_contribution",
+    "learner_action",
+    "actions",
+    "specific_evidence",
+    "concrete_evidence",
+    "evidence_defense",
+    "pressure_response",
+)
+
+
 def _first_criterion_quote(criteria: list[Any], fallback: str = "") -> str:
     normalized_fallback = " ".join(str(fallback or "").split()).lower()
-    for raw in criteria:
+    candidates: list[tuple[int, int, str]] = []
+    for index, raw in enumerate(criteria):
         row = _row_dict(raw)
         quote = " ".join(str(row.get("evidence_quote") or "").split())
         if (
             row.get("met") is True
             and quote
-            and quote.lower() in normalized_fallback
+            and (not normalized_fallback or quote.lower() in normalized_fallback)
         ):
-            return quote[:320]
-    return ""
+            criterion_id = str(row.get("id") or row.get("criterion_id") or "").strip()
+            try:
+                priority = _EVIDENCE_CRITERION_PRIORITY.index(criterion_id)
+            except ValueError:
+                priority = len(_EVIDENCE_CRITERION_PRIORITY)
+            candidates.append((priority, index, quote[:320]))
+    return min(candidates, default=(0, 0, ""))[2]
 
 
 def _quote(value: Any) -> str:
@@ -157,6 +179,15 @@ def _latest_evidence(evidence: Any, *, allow_answer_excerpt: bool = False) -> st
     """
     if not isinstance(evidence, dict):
         return ""
+    answer_excerpt = evidence.get("answer_excerpt") if allow_answer_excerpt else ""
+    criteria = evidence.get("criteria")
+    if isinstance(criteria, list) and str(answer_excerpt or "").strip():
+        criterion_quote = _first_criterion_quote(
+            criteria,
+            str(answer_excerpt),
+        )
+        if criterion_quote:
+            return criterion_quote
     for key in ("evidence_quote", "latest_quote"):
         direct = _quote(evidence.get(key))
         if direct:
@@ -770,6 +801,7 @@ class CareerLearningProfileService:
             evidence_json={
                 "latest_event": event["source_event_key"],
                 "criteria": criteria,
+                "answer_excerpt": str(user_answer or "")[:500],
                 "blockers": blockers,
                 "caveats": errors,
                 "latest_quote": latest_quote,

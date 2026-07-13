@@ -1283,8 +1283,21 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
                 "evidence_quote": evidence,
                 "reason": "backend detected weakness, corrective habit, and concrete progress evidence in learner answer",
             })
+    criteria = [updates.get(row.id, row) for row in result.criteria]
+    required_missing = [
+        item
+        for item in (result.required_missing or [])
+        if str(item) not in evidence_by_id
+    ]
+    rows_after = {row.id: row for row in criteria}
+    all_required_met = all(
+        bool(rows_after.get(str(criterion["id"])))
+        and bool(rows_after[str(criterion["id"])].met)
+        for criterion in packet.criteria
+        if bool(criterion.get("required"))
+    )
     next_focus = result.next_focus
-    if any(
+    if not required_missing and all_required_met and any(
         phrase in str(next_focus or "").lower()
         for phrase in (
             "corrective habit",
@@ -1293,6 +1306,13 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
             "concrete progress",
             "evidence of progress",
             "real weakness",
+            "frame the weakness",
+            "honest weakness",
+            "disqualif",
+            "self-sabot",
+            "humble-brag",
+            "cliche",
+            "cliché",
             "three-part weakness answer",
             "practise delivering",
             "practice delivering",
@@ -1307,12 +1327,6 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
             "Pressure-test the answer against one follow-up about stakeholder "
             "pushback or what changed after the rollout."
         )
-    criteria = [updates.get(row.id, row) for row in result.criteria]
-    required_missing = [
-        item
-        for item in (result.required_missing or [])
-        if str(item) not in evidence_by_id
-    ]
     errors = [
         item
         for item in (result.errors or [])

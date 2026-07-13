@@ -678,3 +678,113 @@ async def test_turn_ledger_persists_evaluated_contract_not_replacement_prompt(st
     await svc._track_turn(state, "int_02_strength_with_evidence")
 
     assert store.turn_evaluations[-1]["context_json"]["task_contract"]["context_id"] == "core-context"
+
+
+@pytest.mark.asyncio
+async def test_prep_persistence_prefers_progress_quote_over_opening_criterion(store):
+    from app.services.learning_profile import CareerLearningProfileService
+
+    answer = (
+        "A weakness I am managing is missing migration edge cases when moving fast. "
+        "I now use a pre-deploy checklist. Since adopting it, two schema changes shipped "
+        "without checkout errors and rollback readiness improved."
+    )
+    criteria = [
+        {"id": "real_weakness", "met": True, "evidence_quote": "missing migration edge cases"},
+        {"id": "mitigation_habit", "met": True, "evidence_quote": "I now use a pre-deploy checklist"},
+        {
+            "id": "progress_evidence",
+            "met": True,
+            "evidence_quote": (
+                "Since adopting it, two schema changes shipped without checkout errors "
+                "and rollback readiness improved"
+            ),
+        },
+    ]
+    state = svc._new_state(
+        "user-strongest-quote", "session-strongest-quote", "int_03_weakness_framing", [],
+        task_type="interview_prep", module_id="interview",
+    )
+
+    await CareerLearningProfileService(store).record_prep_turn_evaluation(
+        evaluation_id="eval-strongest-quote",
+        state=state,
+        rubric_result={
+            "effective_score": 0.82,
+            "criteria": criteria,
+            "required_missing": [],
+            "blockers": [],
+            "errors": [],
+            "next_focus": "Pressure-test this in a different role context.",
+            "pass_eligible": True,
+            "mastery_eligible": False,
+        },
+        tutor_plan={},
+        user_answer=answer,
+        attempt_index=1,
+    )
+
+    expected = criteria[-1]["evidence_quote"]
+    assert store.learning_events[-1]["evidence_json"]["latest_quote"] == expected
+    profile = store.learner_skill_profiles[(
+        "user-strongest-quote", "career", "int_03_weakness_framing",
+    )]
+    assert profile["evidence_json"]["latest_quote"] == expected
+
+
+def test_historical_career_projection_prefers_strongest_stored_criterion_quote():
+    from app.services.learning_profile import _base_item_from_profile, _event_observation
+
+    opening = "missing migration edge cases"
+    progress = "two schema changes shipped without checkout errors and rollback readiness improved"
+    criteria = [
+        {"id": "real_weakness", "met": True, "evidence_quote": opening},
+        {"id": "progress_evidence", "met": True, "evidence_quote": progress},
+    ]
+    evidence = {
+        "criteria": criteria,
+        "latest_quote": opening,
+        "answer_excerpt": f"A weakness was {opening}; {progress}.",
+        "pass_eligible": True,
+        "proof": {"grounded": True},
+    }
+
+    profile_item = _base_item_from_profile({
+        "skill_id": "int_03_weakness_framing",
+        "module_id": "interview",
+        "task_type": "interview_prep",
+        "readiness": 0.82,
+        "confidence": 0.8,
+        "evidence_json": evidence,
+    })
+    event_item = _event_observation({
+        "skill_id": "int_03_weakness_framing",
+        "module_id": "interview",
+        "task_type": "interview_prep",
+        "source": "prep_turn",
+        "score": 0.82,
+        "confidence": 0.8,
+        "evidence_json": evidence,
+    })
+
+    assert profile_item["latest_evidence"] == progress
+    assert event_item["quote"] == progress
+    assert _base_item_from_profile({
+        "skill_id": "int_03_weakness_framing",
+        "task_type": "interview_prep",
+        "evidence_json": {"latest_quote": opening},
+    })["latest_evidence"] == opening
+
+    ungrounded = {
+        **evidence,
+        "criteria": [
+            {"id": "real_weakness", "met": True, "evidence_quote": opening},
+            {"id": "progress_evidence", "met": True, "evidence_quote": "invented model result"},
+        ],
+        "answer_excerpt": f"A weakness was {opening}.",
+    }
+    assert _base_item_from_profile({
+        "skill_id": "int_03_weakness_framing",
+        "task_type": "interview_prep",
+        "evidence_json": ungrounded,
+    })["latest_evidence"] == opening

@@ -3862,7 +3862,7 @@ def test_interview_weakness_checklist_result_repairs_contradictory_model_evidenc
         required_missing=["progress_evidence", "non_self_sabotage"],
         errors=["missing required rubric proof: progress_evidence, non_self_sabotage"],
         strengths=["The checklist already improved schema delivery and rollback readiness."],
-        next_focus="Add progress evidence and frame the weakness safely.",
+        next_focus="Frame the weakness honestly without disqualifying yourself.",
         pass_eligible=False,
         mastery_eligible=False,
     )
@@ -3880,6 +3880,8 @@ def test_interview_weakness_checklist_result_repairs_contradictory_model_evidenc
     assert result.errors == []
     assert result.blockers == []
     assert result.pass_eligible is True
+    assert "frame the weakness honestly" not in result.next_focus.lower()
+    assert "pressure-test" in result.next_focus.lower()
 
 
 def test_interview_weakness_disqualifying_rejection_is_not_overridden():
@@ -3922,6 +3924,7 @@ def test_interview_weakness_disqualifying_rejection_is_not_overridden():
     assert result.errors == ["missing required rubric proof: non_self_sabotage"]
     assert result.blockers == ["missing_required:non_self_sabotage"]
     assert result.pass_eligible is False
+    assert result.next_focus == "Choose a weakness that does not violate a core role requirement."
 
 
 def test_interview_weakness_transfer_context_repairs_false_model_rejection():
