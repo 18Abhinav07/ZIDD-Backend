@@ -1,0 +1,385 @@
+{
+  "schema_version": "1.0",
+  "manifest_id": "english_cbse_2026_27",
+  "academic_year": "2026-27",
+  "created_on": "2026-07-13",
+  "source_policy": "official_metadata_only_no_textbook_body",
+  "releases": [
+    {
+      "curriculum_release_id": "english_cbse_2026_27_c2_bemr1",
+      "board_id": "cbse",
+      "subject_id": "english",
+      "class_no": 2,
+      "academic_year": "2026-27",
+      "release_label": "Reprint 2026-27",
+      "release_status": "current",
+      "verification_status": "verified",
+      "book_title": "Mridang",
+      "book_code": "bemr1",
+      "isbn": "978-93-5292-434-9",
+      "official_selector_url": "https://ncert.nic.in/textbook.php",
+      "official_pdf_url": "https://ncert.nic.in/textbook/pdf/bemr1ps.pdf",
+      "source_sha256": "bd8b09e5eec4502a47bcaa5b46a0e4cb3cee9643fd5e20918a8b72a496ac22ca",
+      "source_size_bytes": 2812044,
+      "edition_history": [
+        {"kind": "first_edition", "month": "May", "year": 2023},
+        {"kind": "reprint", "month": "March", "year": 2024},
+        {"kind": "reprint", "month": "March", "year": 2025},
+        {"kind": "reprint", "month": "February", "year": 2026}
+      ],
+      "effective_from": "2026-04-01",
+      "effective_through": "2027-03-31",
+      "retired_on": null,
+      "language_structures": ["listening", "speaking", "reading", "writing"],
+      "pedagogical_sections": [
+        {"order": 1, "label": "Sing", "mode": "singing", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 2, "label": "Speak", "mode": "oral_expression", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 3, "label": "Read", "mode": "reading", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 4, "label": "Draw", "mode": "drawing", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 5, "label": "Say", "mode": "pronunciation", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 6, "label": "Write", "mode": "writing", "source_pdf_page": 6, "source_evidence": "official_front_matter"}
+      ],
+      "verification_evidence": {
+        "verified_on": "2026-07-13",
+        "method": "official_pdf_metadata_and_local_sha256",
+        "official_url": "https://ncert.nic.in/textbook/pdf/bemr1ps.pdf",
+        "hash_algorithm": "sha256",
+        "provenance": "official_ncert_pdf",
+        "evidence_note": "Official NCERT Reprint 2026-27 PDF metadata and local byte hash verified; no textbook body is stored."
+      },
+      "units": [
+        {
+          "unit_id": "eng_c2_u01",
+          "order": 1,
+          "title": "Fun with Friends",
+          "modules": [
+            {"module_id": "eng_c2_u01_m01", "order": 1, "title": "My Bicycle", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u01_m02", "order": 2, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"}
+          ]
+        },
+        {
+          "unit_id": "eng_c2_u02",
+          "order": 2,
+          "title": "Welcome to My World",
+          "modules": [
+            {"module_id": "eng_c2_u02_m01", "order": 1, "title": "It is Fun", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u02_m02", "order": 2, "title": "Seeing without Seeing", "kind": "lesson", "source_genre": "prose"}
+          ]
+        },
+        {
+          "unit_id": "eng_c2_u03",
+          "order": 3,
+          "title": "Going Places",
+          "modules": [
+            {"module_id": "eng_c2_u03_m01", "order": 1, "title": "Come Back Soon", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u03_m02", "order": 2, "title": "Between Home and School", "kind": "lesson", "source_genre": "prose"},
+            {"module_id": "eng_c2_u03_m03", "order": 3, "title": "This is My Town", "kind": "lesson", "source_genre": "poem"}
+          ]
+        },
+        {
+          "unit_id": "eng_c2_u04",
+          "order": 4,
+          "title": "Life Around Us",
+          "modules": [
+            {"module_id": "eng_c2_u04_m01", "order": 1, "title": "A Show of Clouds", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u04_m02", "order": 2, "title": "My Name", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c2_u04_m03", "order": 3, "title": "The Crow", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u04_m04", "order": 4, "title": "The Smart Monkey", "kind": "lesson", "source_genre": "story"}
+          ]
+        },
+        {
+          "unit_id": "eng_c2_u05",
+          "order": 5,
+          "title": "Harmony",
+          "modules": [
+            {"module_id": "eng_c2_u05_m01", "order": 1, "title": "Little Drops of Water", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c2_u05_m02", "order": 2, "title": "We are all Indians", "kind": "lesson", "source_genre": "mixed"}
+          ]
+        }
+      ],
+      "reference_modules": []
+    },
+    {
+      "curriculum_release_id": "english_cbse_2026_27_c3_cesa1",
+      "board_id": "cbse",
+      "subject_id": "english",
+      "class_no": 3,
+      "academic_year": "2026-27",
+      "release_label": "Reprint 2026-27",
+      "release_status": "current",
+      "verification_status": "verified",
+      "book_title": "Santoor",
+      "book_code": "cesa1",
+      "isbn": "978-93-5292-991-7",
+      "official_selector_url": "https://ncert.nic.in/textbook.php",
+      "official_pdf_url": "https://ncert.nic.in/textbook/pdf/cesa1ps.pdf",
+      "source_sha256": "6b0ce2a24327c9fad6acd997b38a12ce4bff961e729856133c4474656b424816",
+      "source_size_bytes": 1956951,
+      "edition_history": [
+        {"kind": "first_edition", "month": "April", "year": 2024},
+        {"kind": "reprint", "month": "March", "year": 2025},
+        {"kind": "reprint", "month": "January", "year": 2026}
+      ],
+      "effective_from": "2026-04-01",
+      "effective_through": "2027-03-31",
+      "retired_on": null,
+      "language_structures": ["listening", "speaking", "reading", "writing"],
+      "pedagogical_sections": [
+        {"order": 1, "label": "Recite", "mode": "recitation", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 2, "label": "Think", "mode": "reasoning", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 3, "label": "Speak", "mode": "oral_expression", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 4, "label": "Learn", "mode": "language_focus", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 5, "label": "Listen", "mode": "listening", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 6, "label": "Write", "mode": "writing", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 7, "label": "Do", "mode": "activity", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 8, "label": "Explore", "mode": "exploration", "source_pdf_page": 6, "source_evidence": "official_front_matter"}
+      ],
+      "verification_evidence": {
+        "verified_on": "2026-07-13",
+        "method": "official_pdf_metadata_and_local_sha256",
+        "official_url": "https://ncert.nic.in/textbook/pdf/cesa1ps.pdf",
+        "hash_algorithm": "sha256",
+        "provenance": "official_ncert_pdf",
+        "evidence_note": "Official NCERT Reprint 2026-27 PDF metadata and local byte hash verified; no textbook body is stored."
+      },
+      "units": [
+        {
+          "unit_id": "eng_c3_u01",
+          "order": 1,
+          "title": "Fun with Friends",
+          "modules": [
+            {"module_id": "eng_c3_u01_m01", "order": 1, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"},
+            {"module_id": "eng_c3_u01_m02", "order": 2, "title": "Colours", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u01_m03", "order": 3, "title": "Badal and Moti", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c3_u01_m04", "order": 4, "title": "Best Friends", "kind": "lesson", "source_genre": "poem"}
+          ]
+        },
+        {
+          "unit_id": "eng_c3_u02",
+          "order": 2,
+          "title": "Toys and Games",
+          "modules": [
+            {"module_id": "eng_c3_u02_m01", "order": 1, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"},
+            {"module_id": "eng_c3_u02_m02", "order": 2, "title": "Out in the Garden", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u02_m03", "order": 3, "title": "Talking Toys", "kind": "lesson", "source_genre": "play"},
+            {"module_id": "eng_c3_u02_m04", "order": 4, "title": "Paper Boats", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u02_m05", "order": 5, "title": "Self Assessment", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        },
+        {
+          "unit_id": "eng_c3_u03",
+          "order": 3,
+          "title": "Good Food",
+          "modules": [
+            {"module_id": "eng_c3_u03_m01", "order": 1, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"},
+            {"module_id": "eng_c3_u03_m02", "order": 2, "title": "The Big Laddoo", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c3_u03_m03", "order": 3, "title": "Thank God", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u03_m04", "order": 4, "title": "Madhu's Wish", "kind": "lesson", "source_genre": "story"}
+          ]
+        },
+        {
+          "unit_id": "eng_c3_u04",
+          "order": 4,
+          "title": "The Sky",
+          "modules": [
+            {"module_id": "eng_c3_u04_m01", "order": 1, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"},
+            {"module_id": "eng_c3_u04_m02", "order": 2, "title": "Night", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u04_m03", "order": 3, "title": "Chanda Mama Counts the Stars", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c3_u04_m04", "order": 4, "title": "Chandrayaan", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c3_u04_m05", "order": 5, "title": "Self Assessment", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        }
+      ],
+      "reference_modules": [
+        {"module_id": "eng_c3_ref01", "order": 1, "title": "Our National Anthem", "kind": "reference", "source_genre": "reference"}
+      ]
+    },
+    {
+      "curriculum_release_id": "english_cbse_2026_27_c4_desa1",
+      "board_id": "cbse",
+      "subject_id": "english",
+      "class_no": 4,
+      "academic_year": "2026-27",
+      "release_label": "Reprint 2026-27",
+      "release_status": "current",
+      "verification_status": "verified",
+      "book_title": "Santoor",
+      "book_code": "desa1",
+      "isbn": "978-93-5729-932-9",
+      "official_selector_url": "https://ncert.nic.in/textbook.php",
+      "official_pdf_url": "https://ncert.nic.in/textbook/pdf/desa1ps.pdf",
+      "source_sha256": "ab890381b64c55094ea0651adb3e2c68d32a8341665d587ef90873fb9ab35f9a",
+      "source_size_bytes": 6888606,
+      "edition_history": [
+        {"kind": "first_edition", "month": "March", "year": 2025},
+        {"kind": "reprint", "month": "January", "year": 2026}
+      ],
+      "effective_from": "2026-04-01",
+      "effective_through": "2027-03-31",
+      "retired_on": null,
+      "language_structures": ["listening", "speaking", "reading", "writing"],
+      "pedagogical_sections": [
+        {"order": 1, "label": "Read", "mode": "reading", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 2, "label": "Recite", "mode": "recitation", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 3, "label": "Think", "mode": "reasoning", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 4, "label": "Speak", "mode": "oral_expression", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 5, "label": "Learn", "mode": "language_focus", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 6, "label": "Listen", "mode": "listening", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 7, "label": "Write", "mode": "writing", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 8, "label": "Do", "mode": "activity", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 9, "label": "Explore", "mode": "exploration", "source_pdf_page": 6, "source_evidence": "official_front_matter"}
+      ],
+      "verification_evidence": {
+        "verified_on": "2026-07-13",
+        "method": "official_pdf_metadata_and_local_sha256",
+        "official_url": "https://ncert.nic.in/textbook/pdf/desa1ps.pdf",
+        "hash_algorithm": "sha256",
+        "provenance": "official_ncert_pdf",
+        "evidence_note": "Official NCERT Reprint 2026-27 PDF metadata and local byte hash verified; no textbook body is stored."
+      },
+      "units": [
+        {
+          "unit_id": "eng_c4_u01",
+          "order": 1,
+          "title": "My Land",
+          "modules": [
+            {"module_id": "eng_c4_u01_m01", "order": 1, "title": "Together We Can", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c4_u01_m02", "order": 2, "title": "The Tinkling Bells", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c4_u01_m03", "order": 3, "title": "Be Smart Be Safe", "kind": "lesson", "source_genre": "informational"}
+          ]
+        },
+        {
+          "unit_id": "eng_c4_u02",
+          "order": 2,
+          "title": "My Beautiful World",
+          "modules": [
+            {"module_id": "eng_c4_u02_m01", "order": 1, "title": "One Thing at a Time", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c4_u02_m02", "order": 2, "title": "The Old Stag", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c4_u02_m03", "order": 3, "title": "Braille", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c4_u02_m04", "order": 4, "title": "Self Assessment 1", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        },
+        {
+          "unit_id": "eng_c4_u03",
+          "order": 3,
+          "title": "Fun with Games",
+          "modules": [
+            {"module_id": "eng_c4_u03_m01", "order": 1, "title": "Fit Body Fit Mind Fit Nation", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c4_u03_m02", "order": 2, "title": "The Lagori Champions", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c4_u03_m03", "order": 3, "title": "Hekko", "kind": "lesson", "source_genre": "informational"}
+          ]
+        },
+        {
+          "unit_id": "eng_c4_u04",
+          "order": 4,
+          "title": "Up High",
+          "modules": [
+            {"module_id": "eng_c4_u04_m01", "order": 1, "title": "The Swing", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c4_u04_m02", "order": 2, "title": "A Journey to the Magical Mountains", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c4_u04_m03", "order": 3, "title": "Maheshwar", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c4_u04_m04", "order": 4, "title": "Self Assessment 2", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        }
+      ],
+      "reference_modules": [
+        {"module_id": "eng_c4_ref01", "order": 1, "title": "Constitution of India", "kind": "reference", "source_genre": "reference"}
+      ]
+    },
+    {
+      "curriculum_release_id": "english_cbse_2026_27_c5_eesa1",
+      "board_id": "cbse",
+      "subject_id": "english",
+      "class_no": 5,
+      "academic_year": "2026-27",
+      "release_label": "Reprint 2026-27",
+      "release_status": "current",
+      "verification_status": "verified",
+      "book_title": "Santoor",
+      "book_code": "eesa1",
+      "isbn": "978-93-5729-062-3",
+      "official_selector_url": "https://ncert.nic.in/textbook.php",
+      "official_pdf_url": "https://ncert.nic.in/textbook/pdf/eesa1ps.pdf",
+      "source_sha256": "7ecaefaa0ed0ada410282fa18ab5a944b8e818cbc897993404cc4924a2682e5d",
+      "source_size_bytes": 4469179,
+      "edition_history": [
+        {"kind": "first_edition", "month": "June", "year": 2025},
+        {"kind": "reprint", "month": "January", "year": 2026}
+      ],
+      "effective_from": "2026-04-01",
+      "effective_through": "2027-03-31",
+      "retired_on": null,
+      "language_structures": ["listening", "speaking", "reading", "writing"],
+      "pedagogical_sections": [
+        {"order": 1, "label": "Recite", "mode": "recitation", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 2, "label": "Think", "mode": "reasoning", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 3, "label": "Speak", "mode": "oral_expression", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 4, "label": "Learn", "mode": "language_focus", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 5, "label": "Listen", "mode": "listening", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 6, "label": "Write", "mode": "writing", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 7, "label": "Do", "mode": "activity", "source_pdf_page": 6, "source_evidence": "official_front_matter"},
+        {"order": 8, "label": "Explore", "mode": "exploration", "source_pdf_page": 6, "source_evidence": "official_front_matter"}
+      ],
+      "verification_evidence": {
+        "verified_on": "2026-07-13",
+        "method": "official_pdf_metadata_and_local_sha256",
+        "official_url": "https://ncert.nic.in/textbook/pdf/eesa1ps.pdf",
+        "hash_algorithm": "sha256",
+        "provenance": "official_ncert_pdf",
+        "evidence_note": "Official NCERT Reprint 2026-27 PDF metadata and local byte hash verified; no textbook body is stored."
+      },
+      "units": [
+        {
+          "unit_id": "eng_c5_u01",
+          "order": 1,
+          "title": "Let's Have Fun",
+          "modules": [
+            {"module_id": "eng_c5_u01_m01", "order": 1, "title": "Papa's Spectacles", "kind": "lesson", "source_genre": "play"},
+            {"module_id": "eng_c5_u01_m02", "order": 2, "title": "Gone with the Scooter", "kind": "lesson", "source_genre": "story"}
+          ]
+        },
+        {
+          "unit_id": "eng_c5_u02",
+          "order": 2,
+          "title": "My Colourful World",
+          "modules": [
+            {"module_id": "eng_c5_u02_m01", "order": 1, "title": "The Rainbow", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c5_u02_m02", "order": 2, "title": "The Wise Parrot", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c5_u02_m03", "order": 3, "title": "Self-assessment 1", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        },
+        {
+          "unit_id": "eng_c5_u03",
+          "order": 3,
+          "title": "Water",
+          "modules": [
+            {"module_id": "eng_c5_u03_m01", "order": 1, "title": "The Frog", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c5_u03_m02", "order": 2, "title": "What a Tank!", "kind": "lesson", "source_genre": "informational"}
+          ]
+        },
+        {
+          "unit_id": "eng_c5_u04",
+          "order": 4,
+          "title": "Ups and Downs",
+          "modules": [
+            {"module_id": "eng_c5_u04_m01", "order": 1, "title": "Gilli Danda", "kind": "lesson", "source_genre": "story"},
+            {"module_id": "eng_c5_u04_m02", "order": 2, "title": "The Decision of the Panchayat", "kind": "lesson", "source_genre": "play"}
+          ]
+        },
+        {
+          "unit_id": "eng_c5_u05",
+          "order": 5,
+          "title": "Work is Worship",
+          "modules": [
+            {"module_id": "eng_c5_u05_m01", "order": 1, "title": "Vocation", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c5_u05_m02", "order": 2, "title": "Glass Bangles", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c5_u05_m03", "order": 3, "title": "Self-assessment 2", "kind": "self_assessment", "source_genre": "none"}
+          ]
+        }
+      ],
+      "reference_modules": [
+        {"module_id": "eng_c5_ref01", "order": 1, "title": "Gandhiji's Talisman", "kind": "reference", "source_genre": "reference"}
+      ]
+    }
+  ],
+  "manifest_sha256": "9e493e73007d640762854b8d3adf5d72b2daf9601eb4833828051b0f29982a0b"
+}
