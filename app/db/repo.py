@@ -1916,12 +1916,22 @@ async def get_active_career_session_runtimes(
             SELECT DISTINCT ON (module_id, test_mode)
                 session_id, current_node, module_id, task_type, test_mode,
                 status, pending_transition, updated_at
-            FROM session_runtime
-            WHERE user_id = :uid
-              AND status = 'active'
-              AND module_id IN ('interview', 'group_discussion')
-              AND (lease_expires_at IS NULL OR lease_expires_at > now())
-              AND updated_at > now() - interval '7 days'
+            FROM session_runtime AS runtime
+            WHERE runtime.user_id = :uid
+              AND runtime.status = 'active'
+              AND runtime.module_id IN ('interview', 'group_discussion')
+              AND (runtime.lease_expires_at IS NULL OR runtime.lease_expires_at > now())
+              AND runtime.updated_at > now() - interval '7 days'
+              AND NOT (
+                  runtime.test_mode
+                  AND EXISTS (
+                      SELECT 1
+                      FROM session_reports AS report
+                      WHERE report.user_id = runtime.user_id
+                        AND report.module_id = runtime.module_id
+                        AND report.created_at >= runtime.updated_at
+                  )
+              )
             ORDER BY module_id, test_mode, updated_at DESC
             """
         ),
