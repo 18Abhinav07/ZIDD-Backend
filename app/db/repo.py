@@ -1855,10 +1855,14 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
         ),
         {"uid": user_id},
     )
+    progression = await get_progression(session, user_id)
+    active_sessions = await get_active_career_session_runtimes(session, user_id)
     return {
         "profiles": [dict(row) for row in profiles.mappings().all()],
         "reports": [dict(row) for row in reports.mappings().all()],
         "events": [dict(row) for row in events.mappings().all()],
+        "progression": progression,
+        "active_sessions": active_sessions,
     }
 
 

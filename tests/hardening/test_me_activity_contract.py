@@ -207,3 +207,28 @@ def test_active_career_session_query_excludes_expired_leases():
     assert _run(repo.get_active_career_session_runtimes(session, "user-1")) == []
     assert "lease_expires_at IS NULL OR lease_expires_at > now()" in session.statement
     assert "DISTINCT ON (module_id, test_mode)" in session.statement
+
+
+def test_learning_graph_uses_store_aggregate_without_extra_checkouts():
+    from app.services.learning_profile import CareerLearningProfileService
+
+    class AggregateStore:
+        async def get_learning_graph(self, _user_id):
+            return {
+                "profiles": [],
+                "reports": [],
+                "events": [],
+                "progression": [{"module_id": "group_discussion"}],
+                "active_sessions": [{"session_id": "session-gd"}],
+            }
+
+        async def get_progression(self, _user_id):
+            raise AssertionError("progression must use the aggregate session")
+
+        async def get_active_career_session_runtimes(self, _user_id):
+            raise AssertionError("active sessions must use the aggregate session")
+
+    graph = _run(CareerLearningProfileService(AggregateStore()).get_learning_graph("user-1"))
+
+    assert graph["progression"] == [{"module_id": "group_discussion"}]
+    assert graph["active_sessions"] == [{"session_id": "session-gd"}]
