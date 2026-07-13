@@ -1862,6 +1862,30 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
     }
 
 
+async def get_active_career_session_runtimes(
+    session: AsyncSession,
+    user_id: str,
+) -> list[dict]:
+    result = await session.execute(
+        text(
+            """
+            SELECT DISTINCT ON (module_id, test_mode)
+                session_id, current_node, module_id, task_type, test_mode,
+                status, pending_transition, updated_at
+            FROM session_runtime
+            WHERE user_id = :uid
+              AND status = 'active'
+              AND module_id IN ('interview', 'group_discussion')
+              AND (lease_expires_at IS NULL OR lease_expires_at > now())
+              AND updated_at > now() - interval '7 days'
+            ORDER BY module_id, test_mode, updated_at DESC
+            """
+        ),
+        {"uid": user_id},
+    )
+    return [dict(row) for row in result.mappings().all()]
+
+
 async def upsert_session_runtime(
     session: AsyncSession,
     session_id: str,

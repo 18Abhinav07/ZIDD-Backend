@@ -440,6 +440,12 @@ class PgStore:
         async with _session() as s:
             return await repo.get_learning_graph(s, user_id)
 
+    async def get_active_career_session_runtimes(self, user_id: str) -> list[dict]:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_career_session_runtimes(s, user_id)
+
     async def upsert_session_runtime(
         self,
         session_id: str,

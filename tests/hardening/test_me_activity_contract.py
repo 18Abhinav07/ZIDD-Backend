@@ -170,6 +170,7 @@ def test_learning_graph_returns_public_career_profile_without_resume_text(store)
     body = response.json()
     assert body["career_profile"]["resume_present"] is True
     assert "resume_text" not in body["career_profile"]
+    assert body["active_sessions"] == []
     assert {row["skill_id"] for row in body["profiles"]} >= {
         "evidence_under_pressure",
         "gd_02_support_with_evidence",
@@ -183,3 +184,26 @@ def test_learning_graph_returns_public_career_profile_without_resume_text(store)
     assert memory["resolved_gaps"] == []
     assert memory["mastered_skills"][0]["skill_id"] == "clear_stance_mastered"
     assert "quantify impact" in memory["active_gaps"][0]["latest_evidence"]
+
+
+def test_active_career_session_query_excludes_expired_leases():
+    from app.db import repo
+
+    class Result:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return []
+
+    class Session:
+        statement = ""
+
+        async def execute(self, statement, _params):
+            self.statement = str(statement)
+            return Result()
+
+    session = Session()
+    assert _run(repo.get_active_career_session_runtimes(session, "user-1")) == []
+    assert "lease_expires_at IS NULL OR lease_expires_at > now()" in session.statement
+    assert "DISTINCT ON (module_id, test_mode)" in session.statement

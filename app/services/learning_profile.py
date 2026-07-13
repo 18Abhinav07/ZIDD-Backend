@@ -1121,6 +1121,13 @@ class CareerLearningProfileService:
             graph = {"profiles": [], "reports": [], "events": []}
         if "progression" not in graph and hasattr(self.store, "get_progression"):
             graph = {**graph, "progression": await self.store.get_progression(user_id)}
+        if hasattr(self.store, "get_active_career_session_runtimes"):
+            graph = {
+                **graph,
+                "active_sessions": await self.store.get_active_career_session_runtimes(user_id),
+            }
+        else:
+            graph = {**graph, "active_sessions": []}
         graph = {
             **graph,
             "profiles": _current_profile_rows(

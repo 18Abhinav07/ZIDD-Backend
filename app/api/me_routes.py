@@ -314,6 +314,7 @@ async def learning_graph(request: Request) -> dict:
         "profiles": _activity_rows(graph.get("profiles")),
         "reports": _activity_rows(graph.get("reports")),
         "events": _activity_rows(graph.get("events")),
+        "active_sessions": _activity_rows(graph.get("active_sessions")),
         "memory_context": build_career_memory_context(graph),
         "degraded": degraded,
     }
