@@ -590,8 +590,8 @@ def _interview_control_decision(state: dict, personas: list[dict], bb: dict) -> 
     return None
 
 
-def _select_next_interview_probe(state: dict) -> dict:
-    explicit_pivot = _requested_interview_pivot(state)
+def _select_next_interview_probe(state: dict, *, allow_requested_pivot: bool = True) -> dict:
+    explicit_pivot = _requested_interview_pivot(state) if allow_requested_pivot else None
     if explicit_pivot:
         return explicit_pivot
 
@@ -618,7 +618,7 @@ def _select_next_interview_probe(state: dict) -> dict:
     ]
     cursor = int(state.get("probe_cursor") or 0)
     used = list(state.get("used_probe_prompts") or [])
-    recent = _recent_assistant_tokens(state.get("messages") or [])
+    recent = _recent_assistant_tokens(state.get("messages") or [], limit=32)
     covered_skills = {
         str(event.get("skill_id") or "").strip()
         for event in state.get("coverage_events") or []
@@ -1477,7 +1477,7 @@ def _typed_control_payload(
                 if active_prompt not in used:
                     used.append(active_prompt)
                     state["used_probe_prompts"] = used[-12:]
-            probe = _select_next_interview_probe(state)
+            probe = _select_next_interview_probe(state, allow_requested_pivot=False)
             prompt = str(probe.get("prompt") or "").strip()
             if not prompt:
                 prompt = (
@@ -1494,7 +1494,11 @@ def _typed_control_payload(
             if prompt not in used:
                 used.append(prompt)
                 state["used_probe_prompts"] = used[-12:]
-            text = f"Let's move to a different area. {prompt}"
+            text = (
+                prompt
+                if prompt.lower().startswith(("let's move", "let us move"))
+                else f"Let's move to a different area. {prompt}"
+            )
             control_intent = "move_on"
         else:
             return None
@@ -1557,9 +1561,7 @@ async def _stream_typed_assessment_control(
         tension=new_bb["tension"],
         should_close=False,
     )
-    if task_type == TaskType.INTERVIEW_TEST:
-        text = _safe_interview_turn_text(state, text)
-    else:
+    if task_type != TaskType.INTERVIEW_TEST:
         text = _safe_gd_turn_text(state, persona, text)
     _stage_prompt_coverage_event(
         state,
@@ -1942,6 +1944,16 @@ async def stream_simulation_round(state: dict) -> AsyncIterator[object]:
     # Phase the discussion is in BEFORE the Director moves — drives how many
     # panelists cross-talk this round (a fresh round opens single-voice).
     prev_phase = bb.get("phase", "opening")
+
+    if _client_assessment_action_kind(state) in {"clarify", "new_angle", "move_on"}:
+        async for item in _stream_typed_assessment_control(
+            state,
+            task_type=task_type,
+            personas=personas,
+            bb=bb,
+        ):
+            yield item
+        return
 
     if isinstance(state.get("assessment_plan"), dict):
         try:
