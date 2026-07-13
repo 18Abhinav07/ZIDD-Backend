@@ -1012,6 +1012,77 @@ def _latest_user_feedback_excerpt(state: dict, limit: int = 140) -> str:
     return ""
 
 
+def _bounded_exact_excerpt(text: str, limit: int = 220) -> str:
+    excerpt = str(text or "").strip()
+    if len(excerpt) <= limit:
+        return excerpt
+    excerpt = excerpt[:limit].rstrip()
+    if " " in excerpt:
+        excerpt = excerpt.rsplit(" ", 1)[0].rstrip()
+    return excerpt
+
+
+def _exact_rubric_evidence_quote(user_input: str, evidence_quote: str) -> str:
+    candidate = str(evidence_quote or "").strip()
+    if not candidate:
+        return ""
+    tokens = candidate.split()
+    if not tokens:
+        return ""
+    match = re.search(
+        r"\s+".join(re.escape(token) for token in tokens),
+        str(user_input or ""),
+        flags=re.IGNORECASE,
+    )
+    if match is None:
+        return ""
+    return _bounded_exact_excerpt(match.group(0))
+
+
+def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
+    criteria_labels: list[str] = []
+    evidence_quotes: list[str] = []
+    for row in rubric_result.get("criteria") or []:
+        if not isinstance(row, dict) or row.get("met") is not True:
+            continue
+        criterion_id = str(row.get("id") or row.get("criterion_id") or "").strip()
+        if criterion_id:
+            label = (
+                "answering the question"
+                if criterion_id == "answers_question"
+                else criterion_id.replace("_", " ").replace("-", " ")
+            )
+            if label not in criteria_labels:
+                criteria_labels.append(label)
+        quote = _exact_rubric_evidence_quote(user_input, row.get("evidence_quote") or "")
+        if quote and quote not in evidence_quotes:
+            evidence_quotes.append(quote)
+
+    criteria = criteria_labels[:3]
+    if len(criteria) > 1:
+        criteria_text = ", ".join(criteria[:-1]) + f", and {criteria[-1]}"
+    elif criteria:
+        criteria_text = criteria[0]
+    else:
+        criteria_text = "the required criteria"
+
+    quotes = evidence_quotes[:2]
+    if not quotes:
+        fallback = _bounded_exact_excerpt(user_input)
+        if fallback:
+            quotes = [fallback]
+    quoted_evidence = " and ".join(f'"{quote}"' for quote in quotes)
+    proof_text = (
+        f", using {quoted_evidence} as proof"
+        if quoted_evidence
+        else ""
+    )
+    return (
+        f"Keep this version. It covers {criteria_text}{proof_text}. "
+        "No required gap remains, so this skill is ready to carry forward."
+    )
+
+
 def _recent_user_feedback_text(state: dict, *, max_messages: int = 4, limit: int = 1200) -> str:
     parts: list[str] = []
     current = " ".join(str(state.get("user_input") or "").split())
@@ -4888,8 +4959,10 @@ async def _run_turn_locked(
     advanced_or_done = False
     same_node_generation_failed = False
     scored_turn_persisted = False
+    completion_feedback: str | None = None
     if counted_eval:
         _update_progress(state)
+        completion_rubric_result = copy.deepcopy(state.get("last_rubric_result"))
         will_attempt_advance = state.get("clean_streak", 0) >= int(
             state.get("advance_streak") or ADVANCE_STREAK
         )
@@ -4920,6 +4993,19 @@ async def _run_turn_locked(
             state["pending_prompt_attempt_type"] = None
             state["active_prompt_attempt_type"] = None
             suppress_same_node_response = True
+            if isinstance(completion_rubric_result, dict):
+                completion_feedback = _completion_feedback_text(
+                    completion_rubric_result,
+                    user_input,
+                )
+                state["messages"].append({
+                    "role": "assistant",
+                    "content": completion_feedback,
+                    "node_id": prev_node,
+                    "turn_id": client_turn_id,
+                    "message_kind": "completion_feedback",
+                })
+                state["turn_count"] += 1
 
     # Gamified path: teach_node produced a FillBlankGame instead of a GenSpec.
     # Yield the game frame directly and skip text streaming for this turn.
@@ -5072,6 +5158,9 @@ async def _run_turn_locked(
         scored_turn_persisted = True
 
     if counted_eval and scored_turn_persisted:
+        if completion_feedback:
+            yield completion_feedback
+
         # Emit per-turn mastery update so the UI progress bar animates mid-stream.
         yield ProgressUpdate(
             node_id=prev_node,

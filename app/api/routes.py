@@ -372,6 +372,12 @@ async def _validate_source_transition(
                 status_code=409,
                 detail={"code": "invalid_source_reattempt"},
             )
+    elif action == "advance_reattempt":
+        if not req.reattempt_confirmed or not existing or not bool(existing.get("node_completed")):
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "invalid_source_advance_reattempt"},
+            )
     elif req.reattempt_confirmed:
         raise HTTPException(
             status_code=409,

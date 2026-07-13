@@ -111,7 +111,7 @@ class SessionStartRequest(BaseModel):
     client_start_id: Optional[str] = None
     source_session_id: Optional[str] = None
     source_transition_id: Optional[str] = None
-    source_action: Optional[Literal["advance", "reattempt"]] = None
+    source_action: Optional[Literal["advance", "reattempt", "advance_reattempt"]] = None
 
 
 class SessionStartResponse(BaseModel):

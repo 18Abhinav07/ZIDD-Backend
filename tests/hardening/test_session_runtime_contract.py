@@ -1291,11 +1291,16 @@ async def test_successful_same_node_turn_bumps_session_version(monkeypatch, stor
 
 
 @pytest.mark.asyncio
-async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
+async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch, store):
     from app.services import session_service as svc
 
     class FakeGraph:
         async def ainvoke(self, _state):
+            rubric_result = _passing_prep_rubric_result("transfer")
+            for criterion in rubric_result["criteria"]:
+                criterion["evidence_quote"] = (
+                    "I reduced checkout failures by 18% after adding retry alerts"
+                )
             return {
                 "last_eval_score": 0.9,
                 "last_clean_pass_score": 0.9,
@@ -1304,7 +1309,7 @@ async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
                     "on_task": True,
                     "affect": "confident",
                 },
-                "last_rubric_result": _passing_prep_rubric_result("transfer"),
+                "last_rubric_result": rubric_result,
                 "current_mastery": 0.8,
                 "attempts": 5,
                 "active_prompt_attempt_type": None,
@@ -1328,23 +1333,154 @@ async def test_advancing_turn_suppresses_stale_same_node_exercise(monkeypatch):
     state["turn_count"] = 1
     state["clean_streak"] = 1
     state["meaningful_attempts"] = 4
-    state["independent_passes"] = 2
+    state["independent_passes"] = 3
+    state["pressure_passes"] = 1
     state["best_independent_score"] = 0.82
     state["core_qualified"] = True
     state["core_qualification_turn_id"] = "turn-core-2"
+    state["core_qualification_evidence"] = {
+        "evaluation_id": "turn-core-2",
+        "user_id": "user-1",
+        "node_id": "int_01_elevator_pitch",
+        "attempt_type": "independent",
+        "pass_eligible": True,
+        "blockers": [],
+        "learner_answer": "A qualified core pitch.",
+    }
     state["active_prompt_attempt_type"] = "transfer"
 
-    chunks = await _collect_stream(svc.run_turn(session_id, "A strong answer."))
+    learner_answer = (
+        "I reduced checkout failures by 18% after adding retry alerts, then documented "
+        "the rollout decision."
+    )
+    chunks = await _collect_stream(
+        svc.run_turn(session_id, learner_answer, client_turn_id="turn-advance-1")
+    )
+
+    expected_feedback = (
+        "Keep this version. It covers answering the question, specific detail, and pitch "
+        "structure, using \"I reduced checkout failures by 18% after adding retry alerts\" "
+        "as proof. No required gap remains, so this skill is ready to carry forward."
+    )
+    feedback_index = chunks.index(expected_feedback)
+    advance_indexes = [
+        index for index, item in enumerate(chunks) if isinstance(item, svc.NodeAdvance)
+    ]
+    progress_indexes = [
+        index for index, item in enumerate(chunks) if isinstance(item, svc.ProgressUpdate)
+    ]
 
     assert "This is another exercise that should not be shown." not in chunks
     assert all(
         "This is another exercise" not in message.get("content", "")
         for message in state["messages"]
     )
-    assert any(isinstance(item, svc.NodeAdvance) for item in chunks)
+    assert len(advance_indexes) == 1
+    assert len(progress_indexes) == 1
+    assert feedback_index < progress_indexes[0] < advance_indexes[0]
+    completion_messages = [
+        message
+        for message in state["messages"]
+        if message.get("message_kind") == "completion_feedback"
+    ]
+    assert completion_messages == [{
+        "role": "assistant",
+        "content": expected_feedback,
+        "node_id": "int_01_elevator_pitch",
+        "turn_id": "turn-advance-1",
+        "message_kind": "completion_feedback",
+    }]
+    assert completion_messages[0] in store.session_messages[session_id]
     assert state["pending_node_transition"] is not None
     assert state["pending_prompt_attempt_type"] is None
     assert state["active_prompt_attempt_type"] is None
+
+
+@pytest.mark.asyncio
+async def test_module_done_emits_grounded_completion_feedback_before_recap(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            rubric_result = _passing_prep_rubric_result("transfer")
+            for criterion in rubric_result["criteria"]:
+                criterion["evidence_quote"] = ""
+            return {
+                "last_eval_score": 0.9,
+                "last_clean_pass_score": 0.9,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "last_rubric_result": rubric_result,
+                "current_mastery": 0.8,
+                "attempts": 5,
+                "active_prompt_attempt_type": None,
+                "pending_prompt_attempt_type": "pressure",
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test",
+                    prompt="Ask another stale exercise.",
+                    kind="teach",
+                ),
+            }
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+
+    session_id, state = await svc.start_session("user-1", "int_12_explain_a_gap")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["clean_streak"] = 1
+    state["meaningful_attempts"] = 4
+    state["independent_passes"] = 3
+    state["pressure_passes"] = 1
+    state["best_independent_score"] = 0.82
+    state["core_qualified"] = True
+    state["core_qualification_turn_id"] = "turn-core-2"
+    state["core_qualification_evidence"] = {
+        "evaluation_id": "turn-core-2",
+        "user_id": "user-1",
+        "node_id": "int_12_explain_a_gap",
+        "attempt_type": "independent",
+        "pass_eligible": True,
+        "blockers": [],
+        "learner_answer": "A qualified core gap explanation.",
+    }
+    state["active_prompt_attempt_type"] = "transfer"
+
+    learner_answer = "I explain the gap directly, then show the work I completed afterward."
+    chunks = await _collect_stream(
+        svc.run_turn(session_id, learner_answer, client_turn_id="turn-module-done")
+    )
+
+    expected_feedback = (
+        "Keep this version. It covers answering the question, specific detail, and pitch "
+        "structure, using \"I explain the gap directly, then show the work I completed "
+        "afterward.\" as proof. No required gap remains, so this skill is ready to carry "
+        "forward."
+    )
+    feedback_index = chunks.index(expected_feedback)
+    recap_indexes = [
+        index for index, item in enumerate(chunks) if isinstance(item, svc.SessionRecap)
+    ]
+    progress_indexes = [
+        index for index, item in enumerate(chunks) if isinstance(item, svc.ProgressUpdate)
+    ]
+
+    assert len(recap_indexes) == 1
+    assert len(progress_indexes) == 1
+    assert feedback_index < progress_indexes[0] < recap_indexes[0]
+    assert not any(isinstance(item, svc.NodeAdvance) for item in chunks)
+    assert state["module_done"] is True
+    assert state["messages"][-1] == {
+        "role": "assistant",
+        "content": expected_feedback,
+        "node_id": "int_12_explain_a_gap",
+        "turn_id": "turn-module-done",
+        "message_kind": "completion_feedback",
+    }
+    assert state["messages"][-1] in store.session_messages[session_id]
 
 
 @pytest.mark.asyncio
@@ -4434,6 +4570,70 @@ def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store
     restored_source = client.get(f"/session/{source_session_id}/state", headers=AUTH)
     assert restored_source.status_code == 200
     assert restored_source.json()["handoff_session_id"] == "next-skill-session"
+
+
+def test_next_skill_can_advance_into_completed_target_as_reattempt(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    captured = {}
+
+    async def fake_start(user_id, node_id, learner_name="", test_mode=False, reattempt=False, **_kwargs):
+        captured.update({"node_id": node_id, "reattempt": reattempt})
+        return "next-skill-reattempt-session", {
+            "session_id": "next-skill-reattempt-session",
+            "user_id": user_id,
+            "competency_node": node_id,
+            "current_mastery": 0.0,
+        }
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        "test_user",
+        "int_03_weakness_framing",
+        0.85,
+        4,
+        clean_pass=True,
+        node_completed=True,
+    ))
+
+    source_state = svc._new_state(
+        "test_user",
+        "completed-target-source-session",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+    )
+    source_state["pending_node_transition"] = {
+        "transition_id": "advance-reattempt-transition",
+        "from_node": "int_02_strength_with_evidence",
+        "to_node": "int_03_weakness_framing",
+        "status": "awaiting_next_opening",
+    }
+    source_state["input_allowed"] = False
+    source_state["block_reason"] = "awaiting_next_skill"
+    svc.SessionStore[source_state["session_id"]] = source_state
+
+    response = TestClient(app).post(
+        "/session/start",
+        json={
+            "competency_node": "int_03_weakness_framing",
+            "client_start_id": "advance-completed-target",
+            "source_session_id": source_state["session_id"],
+            "source_transition_id": "advance-reattempt-transition",
+            "source_action": "advance_reattempt",
+            "reattempt_confirmed": True,
+            "confirm": True,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert captured == {"node_id": "int_03_weakness_framing", "reattempt": True}
+    assert source_state["status"] == "ended"
+    assert source_state["handoff_session_id"] == "next-skill-reattempt-session"
 
 
 def test_next_skill_start_replays_completed_source_transition_after_client_timeout(monkeypatch, store):
