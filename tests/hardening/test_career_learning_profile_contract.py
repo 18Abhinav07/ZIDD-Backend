@@ -688,6 +688,8 @@ def test_explicit_generic_fallback_id_remains_durable(store):
     ))
 
     assert store.learning_events[0]["skill_id"] == "int_00_general_communication"
+    context = _run(CareerLearningProfileService(store).get_career_memory_context("user-1"))
+    assert context["active_gaps"][0]["focus_id"] == "int_01_elevator_pitch"
 
 
 def test_mastered_progression_overrides_profile_for_same_canonical_node():
@@ -878,6 +880,7 @@ def test_career_memory_context_groups_active_improving_and_repeated_gaps(store):
 
     assert context["active_gaps"][0]["skill_id"] == "int_02_strength_with_evidence"
     assert context["improving_gaps"][0]["skill_id"] == "clear_stance"
+    assert context["improving_gaps"][0]["focus_id"] == "gd_01_stake_position"
     assert context["repeated_issue_counts"]["int_02_strength_with_evidence"] == 2
     assert "reliability" in context["active_gaps"][0]["latest_evidence"]
 
@@ -908,6 +911,7 @@ def test_high_readiness_without_mastery_stays_improving_not_resolved(store):
     assert context["mastered_skills"] == []
     assert context["improving_gaps"][0]["skill_id"] == "star_result_evidence"
     assert context["improving_gaps"][0]["status"] == "improving"
+    assert context["improving_gaps"][0]["focus_id"] == "int_04_star_behavioral"
 
 
 def _career_observation(

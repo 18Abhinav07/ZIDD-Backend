@@ -7,6 +7,7 @@ from typing import Any
 from app.content.registry import module_of
 from app.services.career_skill_taxonomy import (
     canonicalize_report_gaps,
+    focus_node_for_observation,
     skill_for_id,
     unmapped_report_observations,
 )
@@ -224,6 +225,14 @@ def _base_item_from_profile(profile: dict[str, Any]) -> dict[str, Any] | None:
     confidence = _safe_score(profile.get("confidence"))
     gaps = [str(item).strip() for item in profile.get("gaps_json") or [] if str(item).strip()]
     evidence_json = profile.get("evidence_json") if isinstance(profile.get("evidence_json"), dict) else {}
+    skill = skill_for_id(skill_id)
+    focus_id = str(evidence_json.get("recommended_node_id") or "").strip()
+    if focus_id and skill_for_id(focus_id) is None:
+        focus_id = ""
+    if not focus_id and skill is not None:
+        focus_id = skill.recommended_node_id
+    if not focus_id:
+        focus_id = focus_node_for_observation(task_type, skill_id, *gaps)
     explicit_status = str(evidence_json.get("gap_status") or "").strip()
     status = (
         explicit_status
@@ -239,13 +248,14 @@ def _base_item_from_profile(profile: dict[str, Any]) -> dict[str, Any] | None:
     blockers = _clean_string_list(evidence_json.get("blockers"), limit=5)
     return {
         "skill_id": skill_id,
+        "focus_id": focus_id,
         "module_id": str(profile.get("module_id") or ""),
         "task_type": task_type,
         "status": status,
         "readiness": readiness,
         "confidence": confidence,
         "attempts": int(profile.get("attempts") or 0),
-        "gap": _first(gaps, skill_id),
+        "gap": _first(gaps),
         "latest_evidence": _latest_evidence(
             evidence_json,
             allow_answer_excerpt=task_type.endswith("_prep"),
@@ -272,9 +282,10 @@ def _base_item_from_progression(row: dict[str, Any]) -> dict[str, Any] | None:
     if status == "resolved" and not row.get("node_mastered"):
         status = "improving"
     latest_evidence = _progression_evidence(row)
-    gap = str(row.get("last_gap") or "").strip() or skill_id
+    gap = str(row.get("last_gap") or "").strip()
     return {
         "skill_id": skill_id,
+        "focus_id": skill_id,
         "module_id": module_id,
         "task_type": _prep_task_type_for_module(module_id),
         "status": status,
@@ -359,8 +370,14 @@ def _event_observation(event: dict[str, Any]) -> dict[str, Any] | None:
         )
     if not kind:
         return None
+    focus_id = str(evidence.get("recommended_node_id") or "").strip()
+    if focus_id and skill_for_id(focus_id) is None:
+        focus_id = ""
+    if not focus_id:
+        focus_id = focus_node_for_observation(task_type, skill_id, event.get("gap"))
     return {
         "skill_id": skill_id,
+        "focus_id": focus_id,
         "kind": kind,
         "quote": quote,
         "score": _safe_score(event.get("score")),
@@ -444,18 +461,20 @@ def _reduce_skill_item(
         item.update({
             "module_id": latest.get("module_id") or item.get("module_id", ""),
             "task_type": latest.get("task_type") or item.get("task_type", ""),
+            "focus_id": latest.get("focus_id") or item.get("focus_id") or "",
             "readiness": latest["score"],
             "confidence": latest["confidence"] or item.get("confidence", 0.0),
-            "gap": latest.get("gap") or item.get("gap") or skill_id,
+            "gap": latest.get("gap") or item.get("gap") or "",
             "latest_evidence": latest["quote"],
             "missing_criteria": latest["missing_criteria"],
             "blockers": latest["blockers"],
         })
     item.setdefault("module_id", "")
+    item.setdefault("focus_id", "")
     item.setdefault("task_type", "")
     item.setdefault("readiness", 0.0)
     item.setdefault("confidence", 0.0)
-    item.setdefault("gap", skill_id)
+    item.setdefault("gap", "")
     item.setdefault("latest_evidence", "")
     item.setdefault("recommended_next_action", "")
     item.setdefault("missing_criteria", [])

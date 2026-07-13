@@ -113,6 +113,18 @@ def canonical_skill_id(mode: Any, value: Any) -> str:
     return matches[0] if len(matches) == 1 else fallback_skill_id(mode)
 
 
+def focus_node_for_observation(mode: Any, *values: Any) -> str:
+    """Resolve a practice target only when an observation has one unique owner."""
+    for value in values:
+        matches = _matching_skill_ids(mode, value)
+        if len(matches) != 1:
+            continue
+        skill = _BY_ID.get(matches[0])
+        if skill is not None:
+            return skill.recommended_node_id
+    return ""
+
+
 def taxonomy_prompt_lines(mode: Any) -> str:
     return "\n".join(
         f"- {skill.skill_id}: {skill.label} (recommended node: {skill.recommended_node_id})"
