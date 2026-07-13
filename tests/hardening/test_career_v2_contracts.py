@@ -732,6 +732,127 @@ async def test_prep_persistence_prefers_progress_quote_over_opening_criterion(st
     assert profile["evidence_json"]["latest_quote"] == expected
 
 
+@pytest.mark.asyncio
+async def test_replayed_prep_evaluation_cannot_replace_newer_profile_evidence(store):
+    from app.services.learning_profile import CareerLearningProfileService
+
+    service = CareerLearningProfileService(store)
+    state = svc._new_state(
+        "user-replay", "session-replay", "int_02_strength_with_evidence", [],
+        task_type="interview_prep", module_id="interview",
+    )
+
+    async def persist(evaluation_id: str, score: float, answer: str, gap: str) -> None:
+        await service.record_prep_turn_evaluation(
+            evaluation_id=evaluation_id,
+            state=state,
+            rubric_result={
+                "effective_score": score,
+                "criteria": [{"id": "evidence", "met": True, "evidence_quote": answer}],
+                "required_missing": [],
+                "blockers": [],
+                "errors": [],
+                "next_focus": gap,
+                "pass_eligible": True,
+                "mastery_eligible": False,
+            },
+            tutor_plan={},
+            user_answer=answer,
+            attempt_index=2,
+        )
+
+    await persist("evaluation-old", 0.55, "I helped with delivery.", "Add a measured result.")
+    await persist(
+        "evaluation-new",
+        0.88,
+        "I reduced checkout failures by 30%.",
+        "Pressure-test the evidence under follow-up.",
+    )
+    await persist("evaluation-old", 0.55, "I helped with delivery.", "Add a measured result.")
+
+    profile = store.learner_skill_profiles[(
+        "user-replay", "career", "int_02_strength_with_evidence",
+    )]
+    assert len(store.learning_events) == 2
+    assert profile["readiness"] == 0.88
+    assert profile["evidence_json"]["latest_quote"] == "I reduced checkout failures by 30%."
+    assert profile["recommended_next_action"] == "Pressure-test the evidence under follow-up."
+
+
+@pytest.mark.asyncio
+async def test_prep_projection_failure_rolls_back_learning_event(store, monkeypatch):
+    from app.services.learning_profile import CareerLearningProfileService
+
+    async def fail_profile_write(**_kwargs):
+        raise RuntimeError("profile write failed")
+
+    monkeypatch.setattr(store, "upsert_learner_skill_profile", fail_profile_write)
+    state = svc._new_state(
+        "user-rollback", "session-rollback", "int_02_strength_with_evidence", [],
+        task_type="interview_prep", module_id="interview",
+    )
+
+    with pytest.raises(RuntimeError, match="profile write failed"):
+        await CareerLearningProfileService(store).record_prep_turn_evaluation(
+            evaluation_id="evaluation-rollback",
+            state=state,
+            rubric_result={"effective_score": 0.7, "criteria": []},
+            tutor_plan={},
+            user_answer="I improved delivery reliability.",
+            attempt_index=1,
+        )
+
+    assert store.learning_events == []
+    assert store.learner_skill_profiles == {}
+
+
+@pytest.mark.asyncio
+async def test_repo_atomic_projection_transaction_contract(monkeypatch):
+    from app.db import repo
+
+    class Session:
+        commits = 0
+        rollbacks = 0
+
+        async def commit(self):
+            self.commits += 1
+
+        async def rollback(self):
+            self.rollbacks += 1
+
+    session = Session()
+
+    async def duplicate_event(_session, *, commit, **_event):
+        assert commit is False
+        return False
+
+    async def unexpected_profile(*_args, **_kwargs):
+        raise AssertionError("duplicate event must not update profile")
+
+    monkeypatch.setattr(repo, "record_learning_event", duplicate_event)
+    monkeypatch.setattr(repo, "upsert_learner_skill_profile", unexpected_profile)
+    assert await repo.record_learning_event_and_update_profile(
+        session, event={}, profile={},
+    ) is False
+    assert (session.commits, session.rollbacks) == (0, 0)
+
+    async def inserted_event(_session, *, commit, **_event):
+        assert commit is False
+        return True
+
+    async def fail_profile(_session, *, commit, **_profile):
+        assert commit is False
+        raise RuntimeError("profile failed")
+
+    monkeypatch.setattr(repo, "record_learning_event", inserted_event)
+    monkeypatch.setattr(repo, "upsert_learner_skill_profile", fail_profile)
+    with pytest.raises(RuntimeError, match="profile failed"):
+        await repo.record_learning_event_and_update_profile(
+            session, event={}, profile={},
+        )
+    assert (session.commits, session.rollbacks) == (0, 1)
+
+
 def test_historical_career_projection_prefers_strongest_stored_criterion_quote():
     from app.services.learning_profile import (
         _base_item_from_profile,

@@ -389,11 +389,26 @@ class PgStore:
                 attempt_type,
             )
 
-    async def record_learning_event(self, **kwargs) -> None:
+    async def record_learning_event(self, **kwargs) -> bool:
         from app.db import repo
 
         async with _session() as s:
-            await repo.record_learning_event(s, **kwargs)
+            return await repo.record_learning_event(s, **kwargs)
+
+    async def record_learning_event_and_update_profile(
+        self,
+        *,
+        event: dict,
+        profile: dict,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.record_learning_event_and_update_profile(
+                s,
+                event=event,
+                profile=profile,
+            )
 
     async def upsert_session_report(self, **kwargs) -> None:
         from app.db import repo

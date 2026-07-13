@@ -558,11 +558,32 @@ class InMemoryStore:
     async def record_turn_evaluation(self, **kwargs) -> None:
         self.turn_evaluations.append(dict(kwargs))
 
-    async def record_learning_event(self, **kwargs) -> None:
+    async def record_learning_event(self, **kwargs) -> bool:
         key = kwargs.get("source_event_key")
         if key and any(row.get("source_event_key") == key for row in self.learning_events):
-            return
+            return False
         self.learning_events.append(dict(kwargs))
+        return True
+
+    async def record_learning_event_and_update_profile(
+        self,
+        *,
+        event: dict,
+        profile: dict,
+    ) -> bool:
+        inserted = await self.record_learning_event(**event)
+        if not inserted:
+            return False
+        try:
+            await self.upsert_learner_skill_profile(**profile)
+        except Exception:
+            self.learning_events = [
+                row
+                for row in self.learning_events
+                if row.get("source_event_key") != event.get("source_event_key")
+            ]
+            raise
+        return True
 
     async def upsert_session_report(self, **kwargs) -> None:
         self.session_reports[(kwargs["user_id"], kwargs["session_id"])] = dict(kwargs)

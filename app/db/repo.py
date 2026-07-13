@@ -1455,6 +1455,7 @@ async def get_turns(session: AsyncSession, session_id: str) -> list[dict]:
 async def record_learning_event(
     session: AsyncSession,
     *,
+    commit: bool = True,
     source_event_key: str,
     user_id: str,
     domain: str,
@@ -1475,8 +1476,8 @@ async def record_learning_event(
     caveats: list | None = None,
     model_name: str | None = None,
     prompt_version: str | None = None,
-) -> None:
-    await session.execute(
+) -> bool:
+    result = await session.execute(
         text(
             """
             INSERT INTO learning_events
@@ -1492,6 +1493,7 @@ async def record_learning_event(
                  :gap, CAST(:scenario_json AS jsonb), CAST(:caveats AS jsonb),
                  :model_name, :prompt_version)
             ON CONFLICT (source_event_key) DO NOTHING
+            RETURNING source_event_key
             """
         ),
         {
@@ -1517,7 +1519,10 @@ async def record_learning_event(
             "prompt_version": prompt_version,
         },
     )
-    await session.commit()
+    inserted = result.scalar_one_or_none() is not None
+    if commit:
+        await session.commit()
+    return inserted
 
 
 async def upsert_session_report(
@@ -1594,6 +1599,7 @@ async def upsert_session_report(
 async def upsert_learner_skill_profile(
     session: AsyncSession,
     *,
+    commit: bool = True,
     user_id: str,
     domain: str,
     skill_id: str,
@@ -1655,7 +1661,27 @@ async def upsert_learner_skill_profile(
             "source_summary": source_summary or "",
         },
     )
-    await session.commit()
+    if commit:
+        await session.commit()
+
+
+async def record_learning_event_and_update_profile(
+    session: AsyncSession,
+    *,
+    event: dict,
+    profile: dict,
+) -> bool:
+    """Persist one prep event and projection using a dedicated store session."""
+    try:
+        inserted = await record_learning_event(session, commit=False, **event)
+        if not inserted:
+            return False
+        await upsert_learner_skill_profile(session, commit=False, **profile)
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def reconcile_learner_skill_profiles_for_report(

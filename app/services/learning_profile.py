@@ -828,20 +828,19 @@ class CareerLearningProfileService:
             "model_name": None,
             "prompt_version": "prep-eval-v1",
         }
-        await self.store.record_learning_event(**event)
-        await self.store.upsert_learner_skill_profile(
-            user_id=user_id,
-            domain=CAREER_DOMAIN,
-            skill_id=node_id,
-            module_id=str(state.get("module_id") or ""),
-            task_type=task_type,
-            readiness=score,
-            mastery=1.0 if state.get("node_mastered") else 0.0,
-            confidence=confidence,
-            attempts=max(1, int(attempt_index or 0)),
-            strengths_json=profile_strengths,
-            gaps_json=[gap] if gap else [],
-            evidence_json={
+        profile = {
+            "user_id": user_id,
+            "domain": CAREER_DOMAIN,
+            "skill_id": node_id,
+            "module_id": str(state.get("module_id") or ""),
+            "task_type": task_type,
+            "readiness": score,
+            "mastery": 1.0 if state.get("node_mastered") else 0.0,
+            "confidence": confidence,
+            "attempts": max(1, int(attempt_index or 0)),
+            "strengths_json": profile_strengths,
+            "gaps_json": [gap] if gap else [],
+            "evidence_json": {
                 "latest_event": event["source_event_key"],
                 "criteria": criteria,
                 "answer_excerpt": str(user_answer or "")[:500],
@@ -855,8 +854,12 @@ class CareerLearningProfileService:
                     "grounded": bool(latest_quote or str(user_answer or "").strip()),
                 },
             },
-            recommended_next_action=gap,
-            source_summary=_first(profile_strengths, gap),
+            "recommended_next_action": gap,
+            "source_summary": _first(profile_strengths, gap),
+        }
+        await self.store.record_learning_event_and_update_profile(
+            event=event,
+            profile=profile,
         )
 
     async def record_session_report(
