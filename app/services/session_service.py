@@ -1022,6 +1022,63 @@ def _bounded_exact_excerpt(text: str, limit: int = 220) -> str:
     return excerpt
 
 
+def _grounded_display_evidence(
+    learner_answer: str,
+    evidence_quote: str,
+    limit: int = 220,
+) -> str:
+    answer = " ".join(str(learner_answer or "").split())
+    quote = " ".join(str(evidence_quote or "").split())
+    if not answer or not quote or limit <= 0:
+        return ""
+    match = re.search(re.escape(quote), answer, flags=re.IGNORECASE)
+    if match is None:
+        return ""
+
+    sentence_spans: list[tuple[int, int]] = []
+    start = 0
+    for boundary in re.finditer(r"[.!?]+(?:[\"')\]]+)?(?=\s|$)", answer):
+        end = boundary.end()
+        sentence_spans.append((start, end))
+        start = end
+        while start < len(answer) and answer[start].isspace():
+            start += 1
+    if start < len(answer):
+        sentence_spans.append((start, len(answer)))
+
+    containing = [
+        span
+        for span in sentence_spans
+        if span[0] <= match.start() and span[1] >= match.end()
+    ]
+    for span_start, span_end in containing:
+        candidate = answer[span_start:span_end].strip()
+        if candidate and len(candidate) <= limit:
+            return candidate
+
+    clause_boundary = re.compile(
+        r"[;:]|,(?=\s+(?:and|but|so|yet|while|although|however|then)\b)",
+        flags=re.IGNORECASE,
+    )
+    for sentence_start, sentence_end in containing:
+        sentence = answer[sentence_start:sentence_end]
+        clause_start = 0
+        clause_spans: list[tuple[int, int]] = []
+        for boundary in clause_boundary.finditer(sentence):
+            clause_spans.append((clause_start, boundary.start()))
+            clause_start = boundary.end()
+        clause_spans.append((clause_start, len(sentence)))
+        for local_start, local_end in clause_spans:
+            absolute_start = sentence_start + local_start
+            absolute_end = sentence_start + local_end
+            if absolute_start > match.start() or absolute_end < match.end():
+                continue
+            candidate = answer[absolute_start:absolute_end].strip()
+            if candidate and len(candidate) <= limit:
+                return candidate
+    return ""
+
+
 def _exact_rubric_evidence_quote(user_input: str, evidence_quote: str) -> str:
     candidate = str(evidence_quote or "").strip()
     if not candidate:
@@ -2009,7 +2066,11 @@ def _int08_feedback_text(state: dict) -> str | None:
         row = rows.get(criterion_id) or {}
         if row.get("met") is not True:
             return ""
-        return " ".join(str(row.get("evidence_quote") or "").split())[:220]
+        return _grounded_display_evidence(
+            str(state.get("user_input") or ""),
+            str(row.get("evidence_quote") or ""),
+            220,
+        )
 
     metric = evidence("quantified_before_after") or evidence("impact_claim")
     action = evidence("learner_contribution")
@@ -2019,8 +2080,10 @@ def _int08_feedback_text(state: dict) -> str | None:
     if not result.get("pass_eligible") or required_missing or blockers:
         state["pending_prompt_attempt_type"] = attempt_type
         if set(required_missing) == {"learner_contribution"} and metric:
+            sentence_end = "" if metric.endswith((".", "!", "?")) else "."
             return (
-                f'The result is measurable: "{metric}". Add what you changed to cause that result; '
+                f'The result is measurable: "{metric}"{sentence_end} '
+                "Add what you changed to cause that result; "
                 "keep the numbers unchanged."
             )
         labels = {
@@ -2034,16 +2097,25 @@ def _int08_feedback_text(state: dict) -> str | None:
         }
         gaps = [labels[item] for item in required_missing if item in labels]
         gap = "; and ".join(gaps) or "connect your action to a before-and-after result"
-        anchor = f'The measurable evidence you already gave is "{metric}". ' if metric else ""
+        sentence_end = "" if metric.endswith((".", "!", "?")) else "."
+        anchor = (
+            f'The measurable evidence you already gave is "{metric}"{sentence_end} '
+            if metric else ""
+        )
         return f"{anchor}The missing step is to {gap}. Revise only that part."
 
-    proof = (
-        f'Your answer links "{action}" to "{metric}". '
-        if action and metric
-        else f'Your answer gives measurable evidence: "{metric}". '
-        if metric
-        else "Your action and measurable result are both present. "
-    )
+    metric_end = "" if metric.endswith((".", "!", "?")) else "."
+    if action and metric and action.casefold() == metric.casefold():
+        proof = (
+            "Your action and measurable result appear together in this sentence: "
+            f'"{metric}"{metric_end} '
+        )
+    elif action and metric:
+        proof = f'Your answer links "{action}" to "{metric}"{metric_end} '
+    elif metric:
+        proof = f'Your answer gives measurable evidence: "{metric}"{metric_end} '
+    else:
+        proof = "Your action and measurable result are both present. "
     next_action = validated_tutor_next_action(plan, state)
     if next_action == "request_transfer":
         state["pending_prompt_attempt_type"] = "transfer"
@@ -2191,13 +2263,17 @@ def _late_interview_feedback_text(state: dict) -> str | None:
     plan = state.get("tutor_turn_plan")
     if not isinstance(result, dict) or not isinstance(plan, dict):
         return None
-    answer_norm = re.sub(r"\s+", " ", str(state.get("user_input") or "").strip()).lower()
+    learner_answer = str(state.get("user_input") or "")
     evidence: dict[str, str] = {}
     for row in result.get("criteria") or []:
         if not isinstance(row, dict) or row.get("met") is not True:
             continue
-        quote = " ".join(str(row.get("evidence_quote") or "").split())[:240]
-        if quote and quote.lower() in answer_norm:
+        quote = _grounded_display_evidence(
+            learner_answer,
+            str(row.get("evidence_quote") or ""),
+            240,
+        )
+        if quote:
             evidence[str(row.get("id") or "")] = quote
     required_missing = [str(item) for item in (result.get("required_missing") or [])]
     blockers = [str(item) for item in (result.get("blockers") or [])]
@@ -2207,7 +2283,11 @@ def _late_interview_feedback_text(state: dict) -> str | None:
         gaps = [config["labels"].get(item) for item in required_missing]
         gaps = [gap for gap in gaps if gap]
         proven = next(iter(evidence.values()), "")
-        anchor = f'You already provided this usable part: "{proven}". ' if proven else ""
+        sentence_end = "" if proven.endswith((".", "!", "?")) else "."
+        anchor = (
+            f'You already provided this usable part: "{proven}"{sentence_end} '
+            if proven else ""
+        )
         gap = "; and ".join(gaps) or "complete the active skill using the same facts"
         return f"{anchor}The missing step is to {gap}. Revise only that part."
 
@@ -2219,12 +2299,16 @@ def _late_interview_feedback_text(state: dict) -> str | None:
         quoted.append(quote)
         if len(quoted) == 2:
             break
-    proof = (
-        "The required parts are present in your own wording: "
-        + "; ".join(f'"{quote}"' for quote in quoted)
-        + ". "
-        if quoted else "The required parts are present. "
-    )
+    if quoted:
+        sentence_end = "" if quoted[-1].endswith((".", "!", "?")) else "."
+        proof = (
+            "The required parts are present in your own wording: "
+            + "; ".join(f'"{quote}"' for quote in quoted)
+            + sentence_end
+            + " "
+        )
+    else:
+        proof = "The required parts are present. "
     action = validated_tutor_next_action(plan, state)
     if action == "request_transfer":
         state["pending_prompt_attempt_type"] = "transfer"
@@ -2608,6 +2692,39 @@ _LATE_GD_COMMON_LABELS = {
     "transfer_context": "apply the skill to a genuinely different motion",
 }
 
+_LATE_GD_FEEDBACK_CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
+    "gd_06_balanced_view": (
+        ("weighs_tradeoff", "You identified the decisive trade-off"),
+        ("returns_to_position", "You returned to a clear recommendation"),
+        ("names_both_sides", "You stated a valid point on each side"),
+        ("topic_relevance", "You kept both sides tied to the motion"),
+    ),
+    "gd_07_steer_back": (
+        ("gives_next_step", "You gave the group a concrete next step"),
+        ("redirects_to_topic", "You restated the active motion"),
+        ("identifies_derailment", "You flagged the drift neutrally"),
+        ("non_controlling_tone", "You kept the redirect facilitative"),
+    ),
+    "gd_08_include_quiet": (
+        ("topic_linked_invite", "You linked the invitation to the active motion"),
+        ("respectful_floor_give", "You gave the quieter participant the floor"),
+        ("non_pressuring_tone", "You made the invitation optional"),
+        ("names_quiet_participant", "You addressed the quieter participant directly"),
+    ),
+    "gd_09_manage_dominator": (
+        ("redistributes_floor", "You redistributed the floor explicitly"),
+        ("respectful_boundary", "You set a respectful speaking boundary"),
+        ("topic_link", "You tied the turn-sharing boundary to the motion"),
+        ("acknowledges_contribution", "You credited the speaker's useful point"),
+    ),
+    "gd_10_drive_consensus": (
+        ("proposes_next_step", "You proposed a concrete way forward"),
+        ("identifies_common_ground", "You named the common ground"),
+        ("summarizes_key_points", "You summarized the two positions distinctly"),
+        ("balanced_credit", "You credited the group's contributions"),
+    ),
+}
+
 
 def _late_gd_task(node_id: str, stage: str, topic: str) -> str:
     quoted_topic = f'"{topic}"'
@@ -2657,22 +2774,49 @@ def _late_gd_feedback_text(state: dict) -> str | None:
     plan = state.get("tutor_turn_plan")
     if not isinstance(result, dict) or not isinstance(plan, dict):
         return None
-    learner_answer = " ".join(str(state.get("user_input") or "").split())
-    learner_lower = learner_answer.lower()
-    evidence_quote = ""
+    learner_answer = str(state.get("user_input") or "")
+    missing = [str(item) for item in (result.get("required_missing") or [])]
+    blockers = [str(item) for item in (result.get("blockers") or [])]
+    ineligible_criteria = set(missing)
+    ineligible_criteria.update(
+        blocker.removeprefix("missing_required:")
+        for blocker in blockers
+        if blocker.startswith("missing_required:")
+    )
+    met_rows: dict[str, dict] = {}
     for row in result.get("criteria") or []:
         if not isinstance(row, dict) or row.get("met") is not True:
             continue
-        quote = " ".join(str(row.get("evidence_quote") or "").split()).strip()
-        if quote and quote.lower() in learner_lower:
-            evidence_quote = quote[:220]
+        criterion_id = str(row.get("id") or row.get("criterion_id") or "").strip()
+        if criterion_id and criterion_id not in ineligible_criteria:
+            met_rows.setdefault(criterion_id, row)
+
+    criterion_feedback = _LATE_GD_FEEDBACK_CRITERIA[node_id]
+    priority = tuple(item[0] for item in criterion_feedback)
+    acknowledgements = dict(criterion_feedback)
+    selected_id = next((item for item in priority if item in met_rows), None)
+    evidence_quote = ""
+    for criterion_id in priority:
+        row = met_rows.get(criterion_id)
+        if row is None:
+            continue
+        quote = _grounded_display_evidence(
+            learner_answer,
+            str(row.get("evidence_quote") or ""),
+            220,
+        )
+        if quote:
+            selected_id = criterion_id
+            evidence_quote = quote
             break
-    anchor = (
-        f'Your contribution includes this evidence: "{evidence_quote}". '
-        if evidence_quote else ""
-    )
-    missing = [str(item) for item in (result.get("required_missing") or [])]
-    blockers = [str(item) for item in (result.get("blockers") or [])]
+    acknowledgement = acknowledgements.get(selected_id or "", "")
+    if acknowledgement and evidence_quote:
+        sentence_end = "" if evidence_quote.endswith((".", "!", "?")) else "."
+        anchor = f'{acknowledgement}: "{evidence_quote}"{sentence_end} '
+    elif acknowledgement:
+        anchor = f"{acknowledgement}. "
+    else:
+        anchor = ""
     attempt_type = str(result.get("attempt_type") or "independent")
     current_topic = _gd_prompt_topic_for_state(state)
     if not result.get("pass_eligible") or missing or blockers:
@@ -2726,7 +2870,7 @@ def _late_gd_feedback_text(state: dict) -> str | None:
         state["pending_prompt_attempt_type"] = "independent"
         state["pending_gd_prompt_topic"] = current_topic
         stage = "fresh"
-    return f"{anchor}The required discussion move is present. {_late_gd_task(node_id, stage, current_topic)}"
+    return f"{anchor}{_late_gd_task(node_id, stage, current_topic)}"
 
 
 def _looks_incomplete_coach_text(text: str) -> bool:

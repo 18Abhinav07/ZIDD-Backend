@@ -6356,6 +6356,209 @@ def test_int08_feedback_never_repeats_quote_from_unmet_criterion():
     assert "baseline and a measurable result" in cleaned.lower()
 
 
+def _late_feedback_state(node_id, task_type, answer, criteria):
+    state = svc._new_state(
+        "user-1",
+        f"session-{node_id}-display-evidence",
+        node_id,
+        [],
+        task_type=task_type,
+        career_context=(
+            {"gd_topics": ["Should remote work be the default?"]}
+            if task_type == "gd_prep"
+            else None
+        ),
+    )
+    state.update({
+        "user_input": answer,
+        "last_rubric_result": {
+            "pass_eligible": True,
+            "required_missing": [],
+            "blockers": [],
+            "attempt_type": "independent",
+            "criteria": criteria,
+        },
+        "tutor_turn_plan": {
+            "verdict": "independent_pass",
+            "next_action": "request_fresh_independent",
+            "allowed_praise": False,
+        },
+    })
+    if task_type == "gd_prep":
+        state["active_gd_prompt_topic"] = "Should remote work be the default?"
+    return state
+
+
+@pytest.mark.parametrize(
+    ("node_id", "first_id", "first_sentence", "salient_id", "salient_sentence", "acknowledgement", "task"),
+    [
+        (
+            "gd_06_balanced_view", "names_both_sides",
+            "Remote work improves access while office work supports faster onboarding",
+            "weighs_tradeoff",
+            "The decisive trade-off is access versus onboarding, so hybrid work is the better recommendation",
+            "You identified the decisive trade-off", "use a different trade-off",
+        ),
+        (
+            "gd_07_steer_back", "identifies_derailment",
+            "We have moved into personal commuting preferences", "gives_next_step",
+            "The next useful step is to compare onboarding outcomes under each policy",
+            "You gave the group a concrete next step", "group drifts into personal preferences",
+        ),
+        (
+            "gd_08_include_quiet", "names_quiet_participant",
+            "Maya, we have not heard from you yet", "topic_linked_invite",
+            "Could you share how this policy might affect first-year employees",
+            "You linked the invitation to the active motion", "Maya has not spoken",
+        ),
+        (
+            "gd_09_manage_dominator", "acknowledges_contribution",
+            "Rohan, your point about delivery speed is useful", "redistributes_floor",
+            "Let us hear Maya's view on the implementation risk before returning to this point",
+            "You redistributed the floor explicitly", "Rohan interrupts",
+        ),
+        (
+            "gd_10_drive_consensus", "summarizes_key_points",
+            "Maya supports the motion while Dev wants stronger evidence", "proposes_next_step",
+            "We should adopt a pilot only if it meets the agreed accuracy threshold",
+            "You proposed a concrete way forward", "Maya says the evidence supports",
+        ),
+    ],
+)
+def test_late_gd_feedback_prefers_node_salient_evidence_and_keeps_next_task(
+    node_id, first_id, first_sentence, salient_id, salient_sentence, acknowledgement, task,
+):
+    state = _late_feedback_state(
+        node_id,
+        "gd_prep",
+        f"{first_sentence}. {salient_sentence}.",
+        [
+            {"id": first_id, "met": True, "evidence_quote": first_sentence},
+            {"id": salient_id, "met": True, "evidence_quote": salient_sentence},
+        ],
+    )
+
+    feedback = svc._late_gd_feedback_text(state)
+
+    assert f'"{salient_sentence}."' in feedback
+    assert f'"{first_sentence}."' not in feedback
+    assert acknowledgement in feedback
+    assert "The required discussion move is present" not in feedback
+    assert task in feedback
+    assert state["pending_prompt_attempt_type"] == "independent"
+
+
+def test_late_gd_long_evidence_displays_one_complete_exact_learner_sentence():
+    opening = (
+        "The decisive trade-off is broader hiring access versus reliable onboarding, "
+        "so I recommend a hybrid policy"
+    )
+    tail = (
+        "I would review that policy after two quarters using retention, manager response time, "
+        "new-hire confidence, mentoring coverage, and delivery predictability across every team "
+        "before deciding whether any role should move further toward remote or office work."
+    )
+    answer = f"{opening}. {tail}"
+    assert len(answer) > 220
+    state = _late_feedback_state(
+        "gd_06_balanced_view",
+        "gd_prep",
+        answer,
+        [{"id": "weighs_tradeoff", "met": True, "evidence_quote": opening}],
+    )
+
+    feedback = svc._late_gd_feedback_text(state)
+
+    assert f'"{opening}."' in feedback
+    assert "mentoring coverage" not in feedback
+    assert "The required discussion move is present" not in feedback
+
+
+def test_late_gd_feedback_omits_evidence_without_grounded_complete_excerpt():
+    grounded_but_too_long = " ".join(
+        ["Maya could connect first-year employee retention to remote onboarding"] * 5
+    )
+    cases = (
+        (
+            "Maya, would you like to add the perspective of first-year employees?",
+            "Could you share the customer impact?",
+        ),
+        (grounded_but_too_long, grounded_but_too_long),
+    )
+    for answer, evidence_quote in cases:
+        state = _late_feedback_state(
+            "gd_08_include_quiet",
+            "gd_prep",
+            answer,
+            [{
+                "id": "topic_linked_invite",
+                "met": True,
+                "evidence_quote": evidence_quote,
+            }],
+        )
+
+        feedback = svc._late_gd_feedback_text(state)
+
+        assert "You linked the invitation to the active motion." in feedback
+        assert evidence_quote not in feedback
+        assert "includes this evidence" not in feedback
+
+
+def test_late_gd_feedback_does_not_claim_an_unmet_salient_move():
+    state = _late_feedback_state(
+        "gd_10_drive_consensus",
+        "gd_prep",
+        "I support a guarded remote-work policy.",
+        [{"id": "proposes_next_step", "met": True, "evidence_quote": "guarded remote-work policy"}],
+    )
+    state["last_rubric_result"].update({
+        "pass_eligible": False,
+        "required_missing": ["proposes_next_step"],
+    })
+
+    feedback = svc._late_gd_feedback_text(state)
+
+    assert "You proposed a concrete way forward" not in feedback
+    assert "You named the common ground" not in feedback
+    assert "The missing move is to" in feedback
+
+
+@pytest.mark.parametrize(
+    ("node_id", "criterion_id", "opening", "tail", "next_task", "renderer"),
+    [
+        (
+            "int_08_quantify_impact", "quantified_before_after",
+            "Deployment failures fell from 14 per quarter to 3 after I introduced staged rollouts",
+            "I tracked the result across payment, notification, reconciliation, and reporting services before treating the change as reliable enough for the wider platform.",
+            "different achievement", svc._int08_feedback_text,
+        ),
+        (
+            "int_09_diplomatic_pushback", "requirement_based_reasoning",
+            "The fair concern is release speed, but recoverability under failed deployments is the governing requirement",
+            "I would preserve automated rollback checks, staged exposure, production telemetry, and an explicit owner for the go-or-no-go decision across every release path before accepting a faster manual-only process.",
+            "Extensive manual testing", svc._late_interview_feedback_text,
+        ),
+    ],
+)
+def test_late_interview_long_evidence_displays_one_complete_exact_learner_sentence(
+    node_id, criterion_id, opening, tail, next_task, renderer,
+):
+    answer = f"{opening}. {tail}"
+    assert len(answer) > 220
+    state = _late_feedback_state(
+        node_id,
+        "interview_prep",
+        answer,
+        [{"id": criterion_id, "met": True, "evidence_quote": opening}],
+    )
+
+    feedback = renderer(state)
+
+    assert f'"{opening}."' in feedback
+    assert tail not in feedback
+    assert next_task in feedback
+
+
 def test_forged_parent_id_fails_closed_on_pressure_rubric():
     state = svc._new_state(
         "user-1", "session-1", "int_03_weakness_framing", [], task_type="interview_prep"
