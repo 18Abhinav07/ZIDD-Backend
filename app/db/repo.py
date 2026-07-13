@@ -23,7 +23,6 @@ _SCHOOL_MASTERED_THRESHOLD = 0.8
 _SCHOOL_REVIEW_STALE_SECONDS = 5 * 24 * 60 * 60
 _REQUEST_STALE_SECONDS = 120
 CAREER_LEARNING_EVENT_LIMIT = 200
-_NON_CAREER_LEARNING_EVENT_LIMIT = 50
 
 # ---------- profiles ----------
 
@@ -1824,33 +1823,74 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
     events = await session.execute(
         text(
             f"""
-            WITH recent_career_events AS (
-                SELECT source_event_key, domain, task_type, module_id, session_id,
-                       node_id, skill_id, source, attempt_type, score, confidence,
-                       evidence_json, gap, caveats, occurred_at
-                FROM learning_events
-                WHERE user_id = :uid AND domain = 'career'
-                ORDER BY occurred_at DESC
-                LIMIT {CAREER_LEARNING_EVENT_LIMIT}
-            ),
-            recent_other_events AS (
-                SELECT source_event_key, domain, task_type, module_id, session_id,
-                       node_id, skill_id, source, attempt_type, score, confidence,
-                       evidence_json, gap, caveats, occurred_at
-                FROM learning_events
-                WHERE user_id = :uid AND domain <> 'career'
-                ORDER BY occurred_at DESC
-                LIMIT {_NON_CAREER_LEARNING_EVENT_LIMIT}
-            )
             SELECT source_event_key, domain, task_type, module_id, session_id,
                    node_id, skill_id, source, attempt_type, score, confidence,
-                   evidence_json, gap, caveats, occurred_at
-            FROM (
-                SELECT * FROM recent_career_events
-                UNION ALL
-                SELECT * FROM recent_other_events
-            ) AS recent_learning_events
+                   jsonb_strip_nulls(jsonb_build_object(
+                       'criteria', CASE
+                           WHEN skill_id = 'int_03_weakness_framing'
+                           THEN evidence_json->'criteria'
+                           ELSE NULL
+                       END,
+                       'answer_excerpt', evidence_json->'answer_excerpt',
+                       'latest_quote', COALESCE(
+                           evidence_json->>'latest_quote',
+                           (
+                               SELECT criterion.value->>'evidence_quote'
+                               FROM jsonb_array_elements(
+                                   COALESCE(evidence_json->'criteria', '[]'::jsonb)
+                               ) WITH ORDINALITY AS criterion(value, ordinality)
+                               WHERE criterion.value->>'met' = 'true'
+                                 AND NULLIF(BTRIM(criterion.value->>'evidence_quote'), '') IS NOT NULL
+                                 AND POSITION(
+                                     BTRIM(REGEXP_REPLACE(
+                                         REGEXP_REPLACE(
+                                             LOWER(criterion.value->>'evidence_quote'),
+                                             '[^a-z0-9[:space:]]', ' ', 'g'
+                                         ),
+                                         '[[:space:]]+', ' ', 'g'
+                                     ))
+                                     IN BTRIM(REGEXP_REPLACE(
+                                         REGEXP_REPLACE(
+                                             LOWER(COALESCE(evidence_json->>'answer_excerpt', '')),
+                                             '[^a-z0-9[:space:]]', ' ', 'g'
+                                         ),
+                                         '[[:space:]]+', ' ', 'g'
+                                     ))
+                                 ) > 0
+                               ORDER BY CASE COALESCE(
+                                   criterion.value->>'id',
+                                   criterion.value->>'criterion_id'
+                               )
+                                   WHEN 'result' THEN 0
+                                   WHEN 'progress_evidence' THEN 1
+                                   WHEN 'quantified_before_after' THEN 2
+                                   WHEN 'impact_signal' THEN 3
+                                   WHEN 'impact_claim' THEN 4
+                                   WHEN 'learner_contribution' THEN 5
+                                   WHEN 'learner_action' THEN 6
+                                   WHEN 'actions' THEN 7
+                                   WHEN 'specific_evidence' THEN 8
+                                   WHEN 'concrete_evidence' THEN 9
+                                   WHEN 'evidence_defense' THEN 10
+                                   WHEN 'pressure_response' THEN 11
+                                   ELSE 12
+                               END, criterion.ordinality
+                               LIMIT 1
+                           )
+                       ),
+                       'evidence_quote', evidence_json->'evidence_quote',
+                       'gap_status', evidence_json->'gap_status',
+                       'pass_eligible', evidence_json->'pass_eligible',
+                       'required_missing', evidence_json->'required_missing',
+                       'blockers', evidence_json->'blockers',
+                       'proof', evidence_json->'proof',
+                       'recommended_node_id', evidence_json->'recommended_node_id'
+                   )) AS evidence_json,
+                   gap, caveats, occurred_at
+            FROM learning_events
+            WHERE user_id = :uid AND domain = 'career'
             ORDER BY occurred_at DESC
+            LIMIT {CAREER_LEARNING_EVENT_LIMIT}
             """
         ),
         {"uid": user_id},

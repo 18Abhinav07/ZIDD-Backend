@@ -3077,17 +3077,51 @@ def _reconcile_gd_manage_dominator(
         return result
     sentences = [
         sentence.strip()
-        for sentence in re.split(r"(?<=[.!?;])\s+", answer)
+        for sentence in re.split(
+            r"(?<=[.!?;])\s+|(?:,\s*|\s+)(?=(?:but|however|so|now)\b)",
+            answer,
+            flags=re.IGNORECASE,
+        )
         if sentence.strip()
     ]
-    acknowledgement = next((
-        sentence for sentence in sentences
-        if re.search(
-            r"\b(?:strong|useful|fair|valid|important|appreciate|thank\s+you|good)\b",
-            sentence,
-            re.IGNORECASE,
-        )
-    ), "")
+    participant_pattern = r"(?:rohan|vik|maya|neha|dev|sara|aman|leena|rohit)"
+    acknowledgement_pattern = re.compile(
+        rf"\b(?:{participant_pattern}\b.{{0,90}}"
+        r"(?:point|argument|concern|evidence|perspective|contribution)\b.{0,50}"
+        r"(?:strong|useful|fair|valid|important|appreciate|good)|"
+        r"your\s+(?:point|argument|concern|evidence|perspective|contribution)\s+"
+        r"(?:is|was|seems|sounds)\s+(?:strong|useful|fair|valid|important|good))\b",
+        re.IGNORECASE,
+    )
+    boundary_pattern = re.compile(
+            r"\b(?:let\s+me\s+(?:pause|stop|interrupt)\s+you|"
+            r"hold\s+that\s+thought|"
+            r"i\s+need\s+to\s+(?:pause|stop|interrupt)\s+you|"
+            r"we(?:'ll|\s+will)\s+come\s+back\s+to\s+you)\b",
+        re.IGNORECASE,
+    )
+    boundary_index = next((
+        index for index, sentence in enumerate(sentences)
+        if boundary_pattern.search(sentence)
+    ), -1)
+    respectful_boundary = sentences[boundary_index] if boundary_index >= 0 else ""
+    boundary_name_match = re.search(participant_pattern, respectful_boundary, re.IGNORECASE)
+    boundary_name = boundary_name_match.group(0).casefold() if boundary_name_match else ""
+    acknowledgement = ""
+    for index in (boundary_index, boundary_index - 1):
+        if index < 0 or index >= len(sentences):
+            continue
+        candidate = sentences[index]
+        if not acknowledgement_pattern.search(candidate):
+            continue
+        candidate_name_match = re.search(participant_pattern, candidate, re.IGNORECASE)
+        candidate_name = candidate_name_match.group(0).casefold() if candidate_name_match else ""
+        if boundary_name and candidate_name != boundary_name:
+            continue
+        if index != boundary_index and not candidate_name:
+            continue
+        acknowledgement = candidate
+        break
     redistribution = next((
         sentence for sentence in sentences
         if re.search(
@@ -3108,6 +3142,7 @@ def _reconcile_gd_manage_dominator(
         criterion_id: quote
         for criterion_id, quote in {
             "acknowledges_contribution": acknowledgement,
+            "respectful_boundary": respectful_boundary,
             "redistributes_floor": redistribution,
             "topic_link": topic_link,
         }.items()

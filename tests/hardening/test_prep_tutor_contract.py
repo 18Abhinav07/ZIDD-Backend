@@ -6523,6 +6523,88 @@ def test_late_gd_feedback_does_not_claim_an_unmet_salient_move():
     assert "The missing move is to" in feedback
 
 
+def test_manage_dominator_reconciles_grounded_respectful_boundary():
+    answer = (
+        "Rohan, your access point is useful; let me pause you there. "
+        "On making remote work the default, let us hear Maya's view on the mentoring risk."
+    )
+    state = svc._new_state(
+        "user-1",
+        "session-gd09-boundary",
+        "gd_09_manage_dominator",
+        [],
+        task_type="gd_prep",
+        career_context={"gd_topics": ["Should remote work be the default?"]},
+    )
+    packet = build_evaluation_packet(state, svc.get_node("gd_09_manage_dominator"), answer)
+    missing = [
+        "acknowledges_contribution",
+        "respectful_boundary",
+        "redistributes_floor",
+        "topic_link",
+    ]
+    raw = PrepRubricEval(
+        raw_score=0.3,
+        criteria=[CriterionEval(id=item, met=False, evidence_quote="") for item in missing],
+        required_missing=missing,
+        next_focus="Try again.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, raw)
+
+    assert result.pass_eligible is True
+    assert result.required_missing == []
+    assert {row.id for row in result.criteria if row.met} >= set(missing)
+
+
+@pytest.mark.parametrize("answer", [
+    (
+        "Rohan, your access point is useful and relevant to remote work being the default. "
+        "Maya, please take the floor and give us your mentoring perspective."
+    ),
+    (
+        "Remote work is important to company policy, so let's pause here. "
+        "Let's hear from Maya about the remote-work mentoring risk before we continue."
+    ),
+    (
+        "Maya, your mentoring perspective is useful. Rohan, let me pause you there. "
+        "On making remote work the default, Maya, please take the floor."
+    ),
+    (
+        "Maya, your mentoring perspective is useful, but Rohan, let me pause you there. "
+        "On making remote work the default, Maya, please take the floor."
+    ),
+    (
+        "Maya, your mentoring perspective is useful but Rohan, let me pause you there. "
+        "On making remote work the default, Maya, please take the floor."
+    ),
+])
+def test_manage_dominator_does_not_invent_a_missing_boundary(answer):
+    state = svc._new_state(
+        "user-1",
+        "session-gd09-no-boundary",
+        "gd_09_manage_dominator",
+        [],
+        task_type="gd_prep",
+        career_context={"gd_topics": ["Should remote work be the default?"]},
+    )
+    packet = build_evaluation_packet(state, svc.get_node("gd_09_manage_dominator"), answer)
+    raw = PrepRubricEval(
+        raw_score=0.5,
+        criteria=[],
+        required_missing=["respectful_boundary"],
+        next_focus="Set a respectful boundary.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, raw)
+
+    assert result.pass_eligible is False
+    boundary = next(row for row in result.criteria if row.id == "respectful_boundary")
+    assert boundary.met is False
+
+
 @pytest.mark.parametrize(
     ("node_id", "criterion_id", "opening", "tail", "next_task", "renderer"),
     [

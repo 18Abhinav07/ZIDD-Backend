@@ -550,6 +550,11 @@ def _state_snapshot(state: dict) -> dict:
             else None
         ),
         "handoff_session_id": state.get("handoff_session_id"),
+        "handoff_source_node": (
+            state.get("last_handed_off_transition", {}).get("from_node")
+            if isinstance(state.get("last_handed_off_transition"), dict)
+            else None
+        ),
         "input_allowed": bool(state.get("input_allowed", True)),
         "block_reason": state.get("block_reason"),
         "opening_streamed": bool(state.get("opening_streamed", False)),

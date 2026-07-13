@@ -232,3 +232,68 @@ def test_learning_graph_uses_store_aggregate_without_extra_checkouts():
 
     assert graph["progression"] == [{"module_id": "group_discussion"}]
     assert graph["active_sessions"] == [{"session_id": "session-gd"}]
+
+
+def test_learning_graph_projects_only_career_memory_evidence():
+    from app.db import repo
+
+    class EmptyResult:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return []
+
+    class RecordingSession:
+        statements = []
+
+        async def execute(self, statement, _params):
+            self.statements.append(str(statement))
+            return EmptyResult()
+
+    session = RecordingSession()
+    graph = _run(repo.get_learning_graph(session, "user-1"))
+    event_query = next(sql for sql in session.statements if "FROM learning_events" in sql)
+
+    assert "domain = 'career'" in event_query
+    assert "jsonb_strip_nulls(jsonb_build_object" in event_query
+    assert "criterion.value->>'evidence_quote'" in event_query
+    assert "evidence_json->>'answer_excerpt'" in event_query
+    assert "REGEXP_REPLACE" in event_query
+    assert "'tutor_plan'" not in event_query
+    assert f"LIMIT {repo.CAREER_LEARNING_EVENT_LIMIT}" in event_query
+    assert graph["progression"] == []
+    assert graph["active_sessions"] == []
+
+
+def test_compact_event_projection_keeps_derived_grounded_quote():
+    from app.services.learning_profile import build_career_memory_context
+
+    context = build_career_memory_context({
+        "profiles": [],
+        "reports": [],
+        "progression": [],
+        "events": [{
+            "source_event_key": "turn_evaluation:legacy-1",
+            "domain": "career",
+            "task_type": "gd_prep",
+            "module_id": "group_discussion",
+            "session_id": "session-legacy",
+            "skill_id": "gd_09_manage_dominator",
+            "source": "prep_turn",
+            "attempt_type": "independent",
+            "score": 0.8,
+            "confidence": 0.8,
+            "evidence_json": {
+                "answer_excerpt": "Rohan made a useful point. Maya, please take the floor on mentoring risk.",
+                "latest_quote": "Maya, please take the floor on mentoring risk",
+                "pass_eligible": True,
+                "proof": {"grounded": True},
+            },
+            "gap": "Keep the handoff tied to the motion.",
+        }],
+    })
+
+    assert context["improving_gaps"][0]["latest_evidence"] == (
+        "Maya, please take the floor on mentoring risk"
+    )

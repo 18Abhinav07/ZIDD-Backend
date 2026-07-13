@@ -4593,6 +4593,7 @@ def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store
     restored_source = client.get(f"/session/{source_session_id}/state", headers=AUTH)
     assert restored_source.status_code == 200
     assert restored_source.json()["handoff_session_id"] == "next-skill-session"
+    assert restored_source.json()["handoff_source_node"] == "int_02_strength_with_evidence"
 
 
 def test_next_skill_can_advance_into_completed_target_as_reattempt(monkeypatch, store):
