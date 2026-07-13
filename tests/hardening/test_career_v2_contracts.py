@@ -733,7 +733,11 @@ async def test_prep_persistence_prefers_progress_quote_over_opening_criterion(st
 
 
 def test_historical_career_projection_prefers_strongest_stored_criterion_quote():
-    from app.services.learning_profile import _base_item_from_profile, _event_observation
+    from app.services.learning_profile import (
+        _base_item_from_profile,
+        _event_observation,
+        build_career_memory_context,
+    )
 
     opening = "missing migration edge cases"
     progress = "two schema changes shipped without checkout errors and rollback readiness improved"
@@ -788,3 +792,67 @@ def test_historical_career_projection_prefers_strongest_stored_criterion_quote()
         "task_type": "interview_prep",
         "evidence_json": ungrounded,
     })["latest_evidence"] == opening
+
+    complete_criteria = [
+        *criteria,
+        {"id": "mitigation_habit", "met": True, "evidence_quote": "I now use a checklist"},
+        {"id": "non_self_sabotage", "met": True, "evidence_quote": "I am managing"},
+    ]
+    complete_answer = (
+        f"A weakness I am managing is {opening}. I now use a checklist. {progress}."
+    )
+    stale_event = {
+        "source_event_key": "turn_evaluation:weakness-complete",
+        "domain": "career",
+        "skill_id": "int_03_weakness_framing",
+        "module_id": "interview",
+        "task_type": "interview_prep",
+        "source": "prep_turn",
+        "attempt_type": "pressure",
+        "score": 0.85,
+        "confidence": 0.8,
+        "gap": "Frame the weakness honestly without disqualifying yourself.",
+        "evidence_json": {
+            "criteria": complete_criteria,
+            "answer_excerpt": complete_answer,
+            "latest_quote": opening,
+            "pass_eligible": True,
+            "required_missing": [],
+            "blockers": [],
+            "proof": {"grounded": True},
+        },
+    }
+    memory = build_career_memory_context({
+        "profiles": [{
+            "domain": "career",
+            "skill_id": "int_03_weakness_framing",
+            "module_id": "interview",
+            "task_type": "interview_prep",
+            "readiness": 0.85,
+            "confidence": 0.8,
+            "gaps_json": [stale_event["gap"]],
+            "recommended_next_action": stale_event["gap"],
+            "evidence_json": stale_event["evidence_json"],
+        }],
+        "events": [stale_event],
+        "reports": [],
+        "progression": [],
+    })
+    item = memory["improving_gaps"][0]
+    assert "pressure-test" in item["gap"].lower()
+    assert item["recommended_next_action"] == item["gap"]
+    assert item["latest_evidence"] == progress
+
+    ungrounded_complete_event = {
+        **stale_event,
+        "evidence_json": {
+            **stale_event["evidence_json"],
+            "criteria": [
+                *complete_criteria[:-1],
+                {"id": "non_self_sabotage", "met": True, "evidence_quote": ""},
+            ],
+        },
+    }
+    assert "frame the weakness" in _event_observation(
+        ungrounded_complete_event
+    )["gap"].lower()

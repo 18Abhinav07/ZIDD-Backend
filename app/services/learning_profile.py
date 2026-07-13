@@ -406,6 +406,46 @@ def _event_observation(event: dict[str, Any]) -> dict[str, Any] | None:
         focus_id = ""
     if not focus_id:
         focus_id = focus_node_for_observation(task_type, skill_id, event.get("gap"))
+    gap = str(event.get("gap") or "").strip()
+    if skill_id == "int_03_weakness_framing" and not required_missing and not blockers:
+        normalized_answer = " ".join(str(evidence.get("answer_excerpt") or "").split()).lower()
+        grounded_met_ids: set[str] = set()
+        for row in evidence.get("criteria") or []:
+            item = _row_dict(row)
+            criterion_quote = _quote(item.get("evidence_quote"))
+            if (
+                item.get("met") is True
+                and criterion_quote
+                and criterion_quote.lower() in normalized_answer
+            ):
+                grounded_met_ids.add(
+                    str(item.get("id") or item.get("criterion_id") or "").strip()
+                )
+        weakness_ids = {
+            "real_weakness",
+            "mitigation_habit",
+            "progress_evidence",
+            "non_self_sabotage",
+        }
+        stale_focus_terms = (
+            "frame the weakness",
+            "honest weakness",
+            "disqualif",
+            "self-sabot",
+            "humble-brag",
+            "real weakness",
+            "mitigation habit",
+            "corrective habit",
+            "progress evidence",
+            "concrete progress",
+        )
+        if weakness_ids.issubset(grounded_met_ids) and any(
+            term in gap.lower() for term in stale_focus_terms
+        ):
+            gap = (
+                "Pressure-test the answer against one follow-up about stakeholder "
+                "pushback or what changed after the rollout."
+            )
     return {
         "skill_id": skill_id,
         "focus_id": focus_id,
@@ -419,7 +459,7 @@ def _event_observation(event: dict[str, Any]) -> dict[str, Any] | None:
         "attempt_type": str(event.get("attempt_type") or "").strip(),
         "task_type": task_type,
         "module_id": str(event.get("module_id") or "").strip(),
-        "gap": str(event.get("gap") or "").strip(),
+        "gap": gap,
         "missing_criteria": required_missing,
         "blockers": blockers,
     }
@@ -496,6 +536,9 @@ def _reduce_skill_item(
             "readiness": latest["score"],
             "confidence": latest["confidence"] or item.get("confidence", 0.0),
             "gap": latest.get("gap") or item.get("gap") or "",
+            "recommended_next_action": (
+                latest.get("gap") or item.get("recommended_next_action") or ""
+            ),
             "latest_evidence": latest["quote"],
             "missing_criteria": latest["missing_criteria"],
             "blockers": latest["blockers"],
