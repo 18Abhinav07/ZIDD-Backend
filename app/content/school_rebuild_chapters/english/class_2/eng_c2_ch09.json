@@ -1,0 +1,1029 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-content-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Original Zidd passages checked against the corrected NCERT title and chapter theme.",
+    "Every independent, transfer, and assessment scenario checked for stage freshness.",
+    "Masterclass checks verified deterministic with non-empty accepted answers.",
+    "Prompts, alternatives, misconceptions, age fit, and answer contracts reviewed item by item."
+  ],
+  "runtime_sha256": "cc945bc2989086004f78bb38ee21cf42e289f0db0b71865614450460d9737efb",
+  "content_version": "2026-07-12.2",
+  "chapter_id": "eng_c2_ch09",
+  "chapter_no": 9,
+  "title": "My Name",
+  "book_title": "Mridang",
+  "unit_title": "Life Around Us",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr109.pdf",
+  "source_note": "NCERT structural and thematic alignment only. All teaching passages, checks, feedback, and assessment situations are original Zidd content.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch09_search_chain",
+      "title": "Follow the search for a name",
+      "focus": "track who is asked and where the search moves next",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read short My Name scenes in order and match each speaker with the next helper.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Read the two actions in order. The first name is the asker; the second name is the helper. Do not choose someone just because that name is nearest the question.",
+          "passage": "A worried fly asks an ant for help. The ant sends him to the old tree.",
+          "prompt": "Whom does the fly ask for help?",
+          "options": [
+            "the ant",
+            "the tree",
+            "the cow",
+            "the leaf"
+          ],
+          "accepted_answers": [
+            "the ant",
+            "ant"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Now follow a two-step chain. Ask: who answers, and where does that answer point?",
+          "passage": "The tree cannot solve the puzzle. It points toward a cow resting nearby.",
+          "prompt": "Where does the tree send the fly?",
+          "options": [
+            "to the cow",
+            "to the grass",
+            "to the ant"
+          ],
+          "accepted_answers": [
+            "to the cow",
+            "the cow",
+            "cow"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Keep the order straight: the place that is mentioned is not always the speaker. Match the action word with its doer.",
+          "passage": "The cow suggests the grass. The fly then hurries across the path to speak to it.",
+          "prompt": "Who suggests asking the grass?",
+          "options": [],
+          "accepted_answers": [
+            "the cow",
+            "cow"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Work without choices. Read once for the speaker and once for the next stop.",
+          "passage": "A beetle tells Mina to check the flower bed. Mina walks there and asks a butterfly.",
+          "prompt": "Who tells Mina to check the flower bed?",
+          "options": [],
+          "accepted_answers": [
+            "a beetle",
+            "the beetle",
+            "beetle"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same tracking skill in a lost-and-found problem. Follow the message, not the nearest object.",
+          "passage": "Kabir asks the bus driver about his missing cap. The driver tells him to visit the school office.",
+          "prompt": "Where should Kabir go next?",
+          "options": [],
+          "accepted_answers": [
+            "the school office",
+            "school office",
+            "to the school office"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch09_memory_clue",
+      "title": "Notice what wakes a memory",
+      "focus": "infer which sight or action helps someone remember",
+      "skill_ids": [
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Connect a visible clue with the memory it brings back instead of guessing from one word.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A memory clue is something seen, heard, or done that brings an idea back. Link the last event to the remembered idea.",
+          "passage": "The fly watches a dry leaf spin in the breeze. Its quick movement reminds him of how he moves through the air.",
+          "prompt": "What helps the fly remember?",
+          "options": [
+            "the spinning leaf",
+            "the quiet tree",
+            "the sleeping cow",
+            "the dark soil"
+          ],
+          "accepted_answers": [
+            "the spinning leaf",
+            "a spinning leaf",
+            "the leaf spinning"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "The clue must connect to the forgotten thing. A detail that is present but unrelated is a distractor.",
+          "passage": "Leela cannot recall her dance step. When the drum begins its old beat, her feet start the step on their own.",
+          "prompt": "Which clue brings the dance step back?",
+          "options": [
+            "the old drumbeat",
+            "the stage curtain",
+            "her water bottle"
+          ],
+          "accepted_answers": [
+            "the old drumbeat",
+            "the drumbeat",
+            "the drum beat"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Check cause and result. The cause comes before the words remembers or recalls.",
+          "passage": "Omar sees a blue thread tied around his pencil. He suddenly recalls that it marks the pencil his aunt gave him.",
+          "prompt": "Why does Omar remember who gave him the pencil?",
+          "options": [],
+          "accepted_answers": [
+            "because of the blue thread",
+            "the blue thread",
+            "he sees the blue thread",
+            "because he sees a blue thread"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the link in your own words. Name both the clue and the memory; do not copy the whole passage.",
+          "passage": "Tara pauses at a gate and hears a soft bell. The sound makes her remember the bell on her puppy's collar.",
+          "prompt": "How does the sound help Tara?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "clue",
+              "description": "Name the sound clue.",
+              "any_of": [
+                "bell",
+                "soft bell",
+                "bell sound"
+              ]
+            },
+            {
+              "id": "memory",
+              "description": "State what it brings to mind.",
+              "any_of": [
+                "puppy",
+                "puppy's collar",
+                "dog",
+                "collar"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the clue-and-memory link to a school routine. Include what is noticed and what action is remembered.",
+          "passage": "At the end of art class, Dev sees a red sticker on the cupboard. It reminds him that red means the paintbrushes must be washed.",
+          "prompt": "Explain what Dev remembers and why.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "clue",
+              "description": "Identify the reminder.",
+              "any_of": [
+                "red sticker",
+                "sticker",
+                "red mark"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "State the remembered action.",
+              "any_of": [
+                "wash",
+                "paintbrushes",
+                "clean the brushes",
+                "brushes must be washed"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch09_context_words",
+      "title": "Work out story words",
+      "focus": "use nearby actions to understand remember, shade, and breeze",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use a nearby result or example to infer a word's meaning in an original name-search scene.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Look after the bold idea for a result. If someone can say the forgotten fact again, remember means bring it back to mind.",
+          "passage": "Nilu could not recall the tune. After one hum from Grandfather, she remembered every note.",
+          "prompt": "What does remembered mean here?",
+          "options": [
+            "brought back to mind",
+            "covered with a cloth",
+            "asked loudly",
+            "walked away"
+          ],
+          "accepted_answers": [
+            "brought back to mind",
+            "recalled",
+            "could think of it again"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use the comfort clue. Shade is the cooler place away from direct sunlight, not the whole tree.",
+          "passage": "The noon sun is hot, so the calf lies in the shade under a wide roof.",
+          "prompt": "What does shade mean in this sentence?",
+          "options": [
+            "a place away from direct sun",
+            "a loud animal call",
+            "a patch of wet mud"
+          ],
+          "accepted_answers": [
+            "a place away from direct sun",
+            "away from the sun",
+            "a cool place out of the sun"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A breeze is shown by its effect. Notice what moves gently; do not confuse it with a storm.",
+          "passage": "A light breeze lifts the corner of the name card but leaves the books still.",
+          "prompt": "Which meaning fits breeze?",
+          "options": [],
+          "accepted_answers": [
+            "a light wind",
+            "light wind",
+            "a gentle wind",
+            "gentle wind"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use both sentences. The second sentence demonstrates the target word.",
+          "passage": "Pema whispers her answer. Only the child beside her can hear it.",
+          "prompt": "What does whispers mean?",
+          "options": [],
+          "accepted_answers": [
+            "speaks very softly",
+            "talks very softly",
+            "speaks quietly",
+            "talks quietly"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply context clues to a new setting. Use the action around the unfamiliar word.",
+          "passage": "The librarian beckons to Jai by moving her hand toward herself. Jai walks to the desk.",
+          "prompt": "What does beckons mean?",
+          "options": [],
+          "accepted_answers": [
+            "signals him to come",
+            "signals to come",
+            "calls him over",
+            "motions him to come"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch09_polite_requests",
+      "title": "Choose words for a polite request",
+      "focus": "complete requests with ask, please, give, and thank you",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Select courteous words that fit the speaker's purpose rather than any familiar chapter word.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A polite request names what is needed and uses please. The word ask fits when we seek information.",
+          "passage": "I do not know what my name means. I will ____ my grandmother.",
+          "prompt": "Which word completes the idea?",
+          "options": [
+            "ask",
+            "shade",
+            "blow",
+            "forget"
+          ],
+          "accepted_answers": [
+            "ask"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Read the speaker's purpose. Use give when an object is requested, not when a question is asked.",
+          "passage": "Please ____ me the blue name card.",
+          "prompt": "Choose the useful word.",
+          "options": [
+            "give",
+            "remember",
+            "climb"
+          ],
+          "accepted_answers": [
+            "give"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Courtesy has an order: request first, gratitude after help. Choose the word that belongs after the action is done.",
+          "passage": "Maya returns the lost badge. Arun says, '____ you.'",
+          "prompt": "What word belongs in the blank?",
+          "options": [],
+          "accepted_answers": [
+            "thank",
+            "thank you"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Complete the request without a word bank. The sentence should sound respectful.",
+          "passage": "Ria wants to borrow an eraser. She begins, '____ may I use your eraser?'",
+          "prompt": "Write the missing polite word.",
+          "options": [],
+          "accepted_answers": [
+            "please"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use polite request words in a new community setting. Include both the request and gratitude.",
+          "passage": "At a clinic, Noor needs a form from the reception desk. The receptionist hands it to him.",
+          "prompt": "Write what Noor could say before and after receiving the form.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "request",
+              "description": "Include a polite request.",
+              "any_of": [
+                "please",
+                "may i",
+                "could i",
+                "can i"
+              ]
+            },
+            {
+              "id": "thanks",
+              "description": "Include gratitude after receiving help.",
+              "any_of": [
+                "thank you",
+                "thanks"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch09_sentence_path",
+      "title": "Build a clear search sentence",
+      "focus": "arrange a doer, action, and place in sensible order",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Reorder jumbled words by finding the doer and action before adding where or why.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Start with who, then place the action beside that person. Add the place last. Capital letters can also signal the start.",
+          "passage": "Jumbled words: asks / the ant / Fly / for help",
+          "prompt": "Which sentence is in the clearest order?",
+          "options": [
+            "Fly asks the ant for help.",
+            "The ant Fly for help asks.",
+            "Asks for help Fly the ant."
+          ],
+          "accepted_answers": [
+            "Fly asks the ant for help.",
+            "fly asks the ant for help"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the action word and ask who does it. Keep a place phrase after the main action.",
+          "passage": "Jumbled words: waits / under the tree / the cow",
+          "prompt": "Put the words into a sentence.",
+          "options": [
+            "The cow waits under the tree.",
+            "Under waits the cow the tree.",
+            "Waits the tree under cow."
+          ],
+          "accepted_answers": [
+            "The cow waits under the tree.",
+            "the cow waits under the tree"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not begin with the action unless the sentence is a command. This sentence tells what the leaf does.",
+          "passage": "Jumbled words: across the grass / rolls / a leaf",
+          "prompt": "Write the ordered sentence.",
+          "options": [],
+          "accepted_answers": [
+            "A leaf rolls across the grass.",
+            "a leaf rolls across the grass"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Work from meaning, not from the printed order. Use every word once.",
+          "passage": "Jumbled words: her full name / writes / Saba / neatly",
+          "prompt": "Make one complete sentence.",
+          "options": [],
+          "accepted_answers": [
+            "Saba writes her full name neatly.",
+            "saba writes her full name neatly"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same ordering skill for an announcement. Put the doer before the message action.",
+          "passage": "Jumbled words: the next stop / announces / the conductor",
+          "prompt": "Make the announcement sentence clear.",
+          "options": [],
+          "accepted_answers": [
+            "The conductor announces the next stop.",
+            "the conductor announces the next stop"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch09_identity_intro",
+      "title": "Introduce yourself clearly",
+      "focus": "share a name and one identity detail in complete sentences",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Build a brief introduction that includes a name plus one true detail, while allowing many valid answers.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A complete introduction names the speaker and gives a whole idea. A lone name is not yet a full sentence.",
+          "passage": "A new learner joins the art group. She says, 'My name is Naina. I like clay work.'",
+          "prompt": "Which choice is a complete introduction?",
+          "options": [
+            "My name is Naina. I like clay work.",
+            "Naina clay.",
+            "Like art."
+          ],
+          "accepted_answers": [
+            "My name is Naina. I like clay work.",
+            "my name is naina i like clay work"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Add a detail that helps others know the speaker. Check that each sentence has a person and a complete thought.",
+          "passage": "Vihaan wants to tell a classmate his name and favourite game.",
+          "prompt": "Which response does both jobs?",
+          "options": [
+            "I am Vihaan. I like kho-kho.",
+            "Vihaan and kho-kho.",
+            "My favourite."
+          ],
+          "accepted_answers": [
+            "I am Vihaan. I like kho-kho.",
+            "i am vihaan i like kho kho"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass check: choose the answer that includes both required details without adding an unrelated list.",
+          "passage": "The music teacher asks Zoya for her name and the instrument she plays.",
+          "prompt": "What is the best short reply?",
+          "options": [],
+          "accepted_answers": [
+            "I am Zoya and I play the tabla.",
+            "my name is Zoya and I play the tabla",
+            "I am Zoya. I play the tabla.",
+            "i am zoya i play the tabla"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write your own two-part introduction. Include the child's name and one interest; wording may differ.",
+          "passage": "Aarohi is meeting her reading partner for the first time. She enjoys funny stories.",
+          "prompt": "Write a short introduction Aarohi could give.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "name",
+              "description": "State the child's name.",
+              "any_of": [
+                "aarohi"
+              ]
+            },
+            {
+              "id": "interest",
+              "description": "State her reading interest.",
+              "any_of": [
+                "funny stories",
+                "funny books",
+                "humorous stories"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Create an introduction for a membership card, a new context. Include identity and one useful preference.",
+          "passage": "Imran is joining a neighbourhood library. He loves books about space.",
+          "prompt": "What could Imran write in the 'About me' box?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "name",
+              "description": "Include the member's name.",
+              "any_of": [
+                "imran"
+              ]
+            },
+            {
+              "id": "preference",
+              "description": "Include the kind of books he likes.",
+              "any_of": [
+                "space",
+                "space books",
+                "books about space"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch09_assess_01",
+        "passage": "A ladybird asks a snail for directions. The snail points to the pond.",
+        "prompt": "Who gives the directions?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the snail",
+          "the ladybird",
+          "the pond",
+          "a fish"
+        ],
+        "accepted_answers": [
+          "the snail",
+          "snail"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_02",
+        "passage": "Mohan asks the coach about a lost bottle. The coach sends him to the equipment room.",
+        "prompt": "Where is Mohan sent?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the equipment room",
+          "the gate",
+          "the field"
+        ],
+        "accepted_answers": [
+          "the equipment room",
+          "equipment room",
+          "to the equipment room"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_03",
+        "passage": "The sparrow questions the squirrel. The squirrel suggests asking the gardener.",
+        "prompt": "Whom should the sparrow ask next?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the gardener",
+          "gardener"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_04",
+        "passage": "Renu speaks to the shopkeeper, who tells her to check the help desk.",
+        "prompt": "Who tells Renu about the help desk?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the shopkeeper",
+          "shopkeeper"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_05",
+        "passage": "A chalk mark on the wall reminds Gopal where his team must stand.",
+        "prompt": "What brings Gopal's memory back?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "the chalk mark",
+          "the team",
+          "the playground",
+          "a whistle"
+        ],
+        "accepted_answers": [
+          "the chalk mark",
+          "chalk mark"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_06",
+        "passage": "Sia smells cardamom and recalls the sweet rice her uncle makes.",
+        "prompt": "Why does Sia think of the sweet rice?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "the cardamom smell",
+          "the rice bowl",
+          "her school bag"
+        ],
+        "accepted_answers": [
+          "the cardamom smell",
+          "smelling cardamom",
+          "because she smells cardamom"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_07",
+        "passage": "A tune from the ice-cream cart makes Joel remember coins in his pocket.",
+        "prompt": "Explain the clue and the memory.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "clue",
+            "description": "Name the sound clue.",
+            "any_of": [
+              "tune",
+              "cart tune",
+              "ice cream tune"
+            ]
+          },
+          {
+            "id": "memory",
+            "description": "Name what Joel remembers.",
+            "any_of": [
+              "coins",
+              "coins in his pocket",
+              "money"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_08",
+        "passage": "Nandini sees a knot on her handkerchief and remembers to return a key.",
+        "prompt": "How does the knot help Nandini?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "clue",
+            "description": "Identify the reminder.",
+            "any_of": [
+              "knot",
+              "handkerchief knot"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "State the remembered task.",
+            "any_of": [
+              "return",
+              "key",
+              "return a key"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_09",
+        "passage": "The puppy dozes in the shade while the sunny steps stay hot.",
+        "prompt": "What does shade mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a place out of direct sun",
+          "a noisy corner",
+          "a deep hole",
+          "a wet floor"
+        ],
+        "accepted_answers": [
+          "a place out of direct sun",
+          "out of the sun",
+          "a cool place away from the sun"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_10",
+        "passage": "A faint breeze makes only the thin curtain move.",
+        "prompt": "Which meaning fits faint breeze?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a very light wind",
+          "a heavy rain",
+          "a loud shout"
+        ],
+        "accepted_answers": [
+          "a very light wind",
+          "light wind",
+          "gentle wind"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_11",
+        "passage": "Neel recalls the address after looking at the envelope again.",
+        "prompt": "What does recalls mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "remembers",
+          "brings back to mind",
+          "thinks of again"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_12",
+        "passage": "The teacher nods, so Pia knows she may begin speaking.",
+        "prompt": "What does nods mean in this scene?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "moves her head to signal yes",
+          "moves the head to show yes",
+          "signals yes with her head"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_13",
+        "passage": "I will ____ the caretaker where the hall is.",
+        "prompt": "Choose the word that completes the sentence.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "ask",
+          "shade",
+          "spin",
+          "forget"
+        ],
+        "accepted_answers": [
+          "ask"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_14",
+        "passage": "'____ pass me the ruler,' said Alia.",
+        "prompt": "Which courteous word belongs at the start?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "Please",
+          "Grass",
+          "Remember"
+        ],
+        "accepted_answers": [
+          "Please",
+          "please"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_15",
+        "passage": "The guard finds Raj's bag. Raj says, '____.'",
+        "prompt": "Write the polite words Raj should use.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "thank you",
+          "thanks"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_16",
+        "passage": "Meera needs the red folder from her partner.",
+        "prompt": "Write one polite request she could make.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "courtesy",
+            "description": "Use a courteous request word.",
+            "any_of": [
+              "please",
+              "may i",
+              "could you",
+              "can you"
+            ]
+          },
+          {
+            "id": "object",
+            "description": "Name the needed object.",
+            "any_of": [
+              "red folder",
+              "folder"
+            ]
+          }
+        ],
+        "min_response_words": 5
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_17",
+        "passage": "Jumbled words: the sign / reads / Parth / carefully",
+        "prompt": "Choose the correctly ordered sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Parth reads the sign carefully.",
+          "Reads Parth carefully the sign.",
+          "The sign carefully Parth reads."
+        ],
+        "accepted_answers": [
+          "Parth reads the sign carefully.",
+          "parth reads the sign carefully"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_18",
+        "passage": "Jumbled words: near the window / sits / the rabbit",
+        "prompt": "Which sentence is clear?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "The rabbit sits near the window.",
+          "Near sits rabbit the window.",
+          "Sits the near window rabbit."
+        ],
+        "accepted_answers": [
+          "The rabbit sits near the window.",
+          "the rabbit sits near the window"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_19",
+        "passage": "Jumbled words: my name / I / clearly / say",
+        "prompt": "Put all the words in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "I say my name clearly.",
+          "i say my name clearly"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_20",
+        "passage": "Jumbled words: opens / the office / at nine",
+        "prompt": "Make a complete sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "The office opens at nine.",
+          "the office opens at nine"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_21",
+        "passage": "Kuhu joins a nature club. She likes watching butterflies.",
+        "prompt": "Which reply introduces her clearly?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "I am Kuhu. I like watching butterflies.",
+          "Kuhu butterflies.",
+          "Watching and club."
+        ],
+        "accepted_answers": [
+          "I am Kuhu. I like watching butterflies.",
+          "i am kuhu i like watching butterflies"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_22",
+        "passage": "Arman meets a new football teammate. He plays as a goalkeeper.",
+        "prompt": "Choose the useful introduction.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "My name is Arman, and I am a goalkeeper.",
+          "Goal Arman.",
+          "A new teammate."
+        ],
+        "accepted_answers": [
+          "My name is Arman, and I am a goalkeeper.",
+          "my name is arman and i am a goalkeeper",
+          "I am Arman. I am a goalkeeper."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_23",
+        "passage": "Lobsang enters a craft class. He enjoys making paper birds.",
+        "prompt": "Write a short introduction for Lobsang.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "name",
+            "description": "State the child's name.",
+            "any_of": [
+              "lobsang"
+            ]
+          },
+          {
+            "id": "interest",
+            "description": "State the craft interest.",
+            "any_of": [
+              "paper birds",
+              "making paper birds",
+              "paper craft"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch09_assess_24",
+        "passage": "Sonal signs up for a science fair. She enjoys building toy bridges.",
+        "prompt": "What could Sonal write on her name card?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "name",
+            "description": "Include the child's name.",
+            "any_of": [
+              "sonal"
+            ]
+          },
+          {
+            "id": "interest",
+            "description": "Include what she enjoys.",
+            "any_of": [
+              "toy bridges",
+              "building bridges",
+              "build toy bridges"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      }
+    ]
+  }
+}

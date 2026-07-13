@@ -1,0 +1,988 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: chapter theme, pedagogy stages, deterministic keys, unseen passages, assessment coverage, age fit, and source independence"
+  ],
+  "runtime_sha256": "b30cc2f83bf506ac4c503e0eb9521e4940bee45e22b220541ff50fc83c120086",
+  "chapter_id": "eng_c3_ch10",
+  "chapter_no": 10,
+  "title": "Night",
+  "book_title": "Santoor",
+  "unit_title": "The Sky",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa110.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and assessment scenes instead of copying textbook prose.",
+  "levels": [
+    {
+      "level_id": "night_scene_main_idea",
+      "title": "From bright day to quiet night",
+      "focus": "identify a poem scene and main idea",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use linked details about fading light, evening sounds, and rest to explain the poem's night scene.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A poem's main idea grows from details that belong together. A sinking sun, lit lamps, quiet birds, and sleepy homes all show day changing into night.",
+          "passage": "The orange sun slips behind the hill. Shop lights blink on, and sparrows settle under the roof.",
+          "prompt": "What change joins these details?",
+          "options": [
+            "day is turning into night",
+            "a storm is flooding the road",
+            "morning is beginning",
+            "the market is opening"
+          ],
+          "accepted_answers": [
+            "day is turning into night",
+            "day turns into night"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Group the clues: less sunlight + lamps glowing + birds resting. Together they name evening.",
+          "passage": "The lane grows dim. A lamp shines beside the gate.",
+          "prompt": "Which time is beginning?",
+          "options": [
+            "evening",
+            "noon",
+            "morning",
+            "lunch time"
+          ],
+          "accepted_answers": [
+            "evening",
+            "night"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not select one object as the main idea. 'There is a lamp' is a detail; the stronger answer explains the whole change.",
+          "passage": "The sun is hidden, windows glow, and families speak softly indoors.",
+          "prompt": "Which answer covers the entire scene?",
+          "options": [
+            "Night settles over the neighbourhood.",
+            "One window is square.",
+            "A family owns a lamp.",
+            "The sun is a ball."
+          ],
+          "accepted_answers": [
+            "Night settles over the neighbourhood.",
+            "night settles over the neighbourhood"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a fresh scene and explain its main idea.",
+          "passage": "The playground empties. Bats sweep above the trees, and the watchman switches on the gate light.",
+          "prompt": "What main idea connects the scene?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "time",
+              "description": "Name evening or night.",
+              "any_of": [
+                "evening",
+                "night",
+                "after sunset"
+              ]
+            },
+            {
+              "id": "change",
+              "description": "Mention the place becoming quiet or empty.",
+              "any_of": [
+                "playground empties",
+                "becomes quiet",
+                "children leave"
+              ]
+            },
+            {
+              "id": "clue",
+              "description": "Use one night clue.",
+              "any_of": [
+                "bats",
+                "gate light",
+                "light switches on"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Recognize the same day-to-night change in a harbour.",
+          "passage": "Fishing boats return as the western sky darkens. A white beacon begins to flash across the water.",
+          "prompt": "Explain what time change is happening and give one clue.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "change",
+              "description": "State that evening or night is beginning.",
+              "any_of": [
+                "evening begins",
+                "night begins",
+                "day ends",
+                "day turns to night"
+              ]
+            },
+            {
+              "id": "clue",
+              "description": "Use the dark sky, returning boats, or beacon.",
+              "any_of": [
+                "sky darkens",
+                "boats return",
+                "beacon flashes",
+                "light flashes"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "night_event_sequence",
+      "title": "Track the evening order",
+      "focus": "sequence changes using time clues",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Arrange sunset, growing darkness, and night-time actions in chronological order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Time order follows the changing sky: the sun lowers, disappears, and then stars become visible.",
+          "passage": "(1) The sun touches the hill. (2) It drops from sight. (3) The first star appears.",
+          "prompt": "What happens after the sun drops from sight?",
+          "options": [
+            "the first star appears",
+            "the sun touches the hill",
+            "breakfast is served",
+            "the moon hides at noon"
+          ],
+          "accepted_answers": [
+            "the first star appears",
+            "first star appears"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Choose what must happen first. A streetlight is usually switched on after the lane grows dark.",
+          "passage": "The lane grows dark. Ravi switches on the porch light.",
+          "prompt": "Which event comes first?",
+          "options": [
+            "the lane grows dark",
+            "Ravi switches on the light",
+            "Ravi eats breakfast",
+            "the light breaks"
+          ],
+          "accepted_answers": [
+            "the lane grows dark",
+            "lane grows dark"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not use the printed order of mixed words. Use real time. Sunset comes before darkness, and darkness comes before bedtime.",
+          "passage": "Words: bedtime / sunset / darkness",
+          "prompt": "Which order is sensible?",
+          "options": [
+            "sunset, darkness, bedtime",
+            "bedtime, sunset, darkness",
+            "darkness, bedtime, sunset",
+            "bedtime, darkness, sunset"
+          ],
+          "accepted_answers": [
+            "sunset, darkness, bedtime"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange a new evening sequence.",
+          "passage": "Words: stars appear / sky fades / child closes curtains",
+          "prompt": "Order the morning events from earliest to latest.",
+          "options": [],
+          "accepted_answers": [
+            "sky fades, stars appear, child closes curtains",
+            "sky fades stars appear child closes curtains"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Sequence a morning change instead of an evening one.",
+          "passage": "Words: school gate opens / sun rises / children arrive",
+          "prompt": "Put the sky changes in their evening order.",
+          "options": [],
+          "accepted_answers": [
+            "sun rises, school gate opens, children arrive",
+            "sun rises school gate opens children arrive"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "night_context_words",
+      "title": "Hear the hush and see the glow",
+      "focus": "infer descriptive word meanings",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use nearby sound and light clues to understand dim, glow, and hush.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context explains description words. If a room is not fully dark but has little light, it is dim.",
+          "passage": "Only a weak blue light reaches the room, so the corners look dim.",
+          "prompt": "What does dim mean here?",
+          "options": [
+            "not very bright",
+            "very noisy",
+            "full of people",
+            "burning hot"
+          ],
+          "accepted_answers": [
+            "not very bright",
+            "faintly lit",
+            "faint"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A glow is a soft steady light. Look for the clue that the light is gentle, not flashing.",
+          "passage": "The moon gives a pale, gentle glow above the field.",
+          "prompt": "Which phrase explains glow?",
+          "options": [
+            "soft light",
+            "loud bang",
+            "deep hole",
+            "quick run"
+          ],
+          "accepted_answers": [
+            "soft light",
+            "a soft light"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Hush does not mean every sound is gone. It means a quiet stillness. A distant cricket can still be heard.",
+          "passage": "After the doors close, a hush falls over the lane, with only one cricket chirping.",
+          "prompt": "What does hush mean?",
+          "options": [
+            "a quiet calm",
+            "a bright colour",
+            "a heavy rain",
+            "a crowded race"
+          ],
+          "accepted_answers": [
+            "a quiet calm",
+            "quiet",
+            "silence"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the new sentence clue.",
+          "passage": "Clouds cover the moon, and the courtyard becomes gloomy and hard to see.",
+          "prompt": "What does gloomy mean here?",
+          "options": [],
+          "accepted_answers": [
+            "dark",
+            "dim",
+            "dark and dull",
+            "not bright"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a sound clue in a library setting.",
+          "passage": "When the bell stops, a hush spreads through the reading room.",
+          "prompt": "What does hush mean in this sentence?",
+          "options": [],
+          "accepted_answers": [
+            "quiet",
+            "silence",
+            "a quiet calm",
+            "stillness"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "night_describing_words",
+      "title": "Build clear night descriptions",
+      "focus": "identify nouns, verbs, and adjectives",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose nouns for things, verbs for actions, and adjectives for qualities in night descriptions.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In 'The silver moon glows,' moon names a thing, glows shows action, and silver describes the moon.",
+          "passage": "The bright stars twinkle.",
+          "prompt": "Which word tells what the stars do?",
+          "options": [
+            "twinkle",
+            "bright",
+            "stars",
+            "the"
+          ],
+          "accepted_answers": [
+            "twinkle"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "First find the thing. Then ask what word tells more about it.",
+          "passage": "A silent lane rests below the sky.",
+          "prompt": "Which word describes the lane?",
+          "options": [
+            "silent",
+            "lane",
+            "rests",
+            "below"
+          ],
+          "accepted_answers": [
+            "silent"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is calling every sky word a naming word. In 'dark clouds drift,' dark describes, clouds name, and drift acts.",
+          "passage": "Dark clouds drift past the moon.",
+          "prompt": "Which pair is adjective then noun?",
+          "options": [
+            "dark clouds",
+            "clouds drift",
+            "drift past",
+            "past moon"
+          ],
+          "accepted_answers": [
+            "dark clouds"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Identify the describing word without options.",
+          "passage": "A cool breeze moves through the balcony.",
+          "prompt": "Write the adjective.",
+          "options": [],
+          "accepted_answers": [
+            "cool"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Create a complete description in a new place.",
+          "passage": "A train platform is nearly empty after sunset. One yellow lamp shines above a bench.",
+          "prompt": "Write one complete sentence using an adjective and an action verb.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "thing",
+              "description": "Name a platform, lamp, or bench.",
+              "any_of": [
+                "platform",
+                "lamp",
+                "bench"
+              ]
+            },
+            {
+              "id": "adjective",
+              "description": "Use a fitting describing word.",
+              "any_of": [
+                "empty",
+                "quiet",
+                "yellow",
+                "lonely",
+                "dim"
+              ]
+            },
+            {
+              "id": "verb",
+              "description": "Use an action or state verb.",
+              "any_of": [
+                "shines",
+                "glows",
+                "waits",
+                "stands",
+                "is"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "night_short_description",
+      "title": "Write a small night picture",
+      "focus": "summarize and describe a changing scene",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write two connected sentences that show a night setting through specific light, sound, or action clues.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A strong description names the setting and adds exact clues. Worked example: 'Night settles over the lane. Window lights glow while the trees grow still.'",
+          "passage": "The riverside is dark except for boat lamps. Water taps softly against the steps.",
+          "prompt": "Which description uses both a light clue and a sound clue?",
+          "options": [
+            "Boat lamps glow while water taps softly at the steps.",
+            "It is nice.",
+            "The river is a thing.",
+            "Dark because boat."
+          ],
+          "accepted_answers": [
+            "Boat lamps glow while water taps softly at the steps.",
+            "boat lamps glow while water taps softly at the steps"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build one sentence from place + light, then another from sound or action.",
+          "passage": "Place: terrace. Light: moonlight. Sound: a distant train.",
+          "prompt": "Which sentence uses the light clue clearly?",
+          "options": [
+            "Moonlight spreads across the terrace.",
+            "A train is distant.",
+            "Terrace moon.",
+            "Because it is."
+          ],
+          "accepted_answers": [
+            "Moonlight spreads across the terrace.",
+            "moonlight spreads across the terrace"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Avoid a list of night objects. A description connects them into a scene and shows what they do.",
+          "passage": "Stars, a lamp, a sleeping dog, and a quiet gate are visible.",
+          "prompt": "Which answer creates a connected scene?",
+          "options": [
+            "Stars shine above the quiet gate while a dog sleeps beside the lamp.",
+            "Stars, lamp, dog, gate.",
+            "Night has things.",
+            "The dog star lamp."
+          ],
+          "accepted_answers": [
+            "Stars shine above the quiet gate while a dog sleeps beside the lamp.",
+            "stars shine above the quiet gate while a dog sleeps beside the lamp"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Describe an unseen night setting without a model to copy.",
+          "passage": "The power is off in a village courtyard. Fireflies blink near a tulsi plant, and family members talk in low voices.",
+          "prompt": "Write two connected sentences that create the night scene.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "setting",
+              "description": "Name the courtyard or night setting.",
+              "any_of": [
+                "courtyard",
+                "village",
+                "night",
+                "power is off"
+              ]
+            },
+            {
+              "id": "light",
+              "description": "Use the firefly light clue.",
+              "any_of": [
+                "fireflies blink",
+                "fireflies glow",
+                "tiny lights"
+              ]
+            },
+            {
+              "id": "sound",
+              "description": "Use the quiet voice clue.",
+              "any_of": [
+                "low voices",
+                "talk softly",
+                "quiet talk",
+                "speak softly"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        },
+        "transfer_check": {
+          "teaching_block": "Change the context from night to early morning.",
+          "passage": "A tea stall opens before sunrise. Steam curls above a pot, bicycle bells ring, and the eastern sky becomes pink.",
+          "prompt": "Write two connected sentences that create the early-morning scene.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "setting",
+              "description": "Name the tea stall or early morning.",
+              "any_of": [
+                "tea stall",
+                "early morning",
+                "before sunrise",
+                "dawn"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "Use one action clue.",
+              "any_of": [
+                "steam curls",
+                "stall opens",
+                "bells ring"
+              ]
+            },
+            {
+              "id": "colour_sound",
+              "description": "Use the pink sky or bell sound.",
+              "any_of": [
+                "pink sky",
+                "sky becomes pink",
+                "bicycle bells",
+                "bells ring"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3c10_scene01",
+        "passage": "A violet sky hangs above closed shops. Lamps glow under the awnings, and people head home.",
+        "prompt": "Which main idea connects the details?",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Evening is settling over the market.",
+          "The market is opening at noon.",
+          "A parade is beginning.",
+          "The shops sell only lamps."
+        ],
+        "accepted_answers": [
+          "Evening is settling over the market.",
+          "evening is settling over the market"
+        ]
+      },
+      {
+        "item_id": "c3c10_scene02",
+        "passage": "The last football rolls to a stop. Children leave the field, and a watchman locks the side gate.",
+        "prompt": "Explain what change is happening at the field.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "time",
+            "description": "Name evening or the end of day.",
+            "any_of": [
+              "evening",
+              "day is ending",
+              "night is coming",
+              "after sunset"
+            ]
+          },
+          {
+            "id": "change",
+            "description": "Mention play ending or children leaving.",
+            "any_of": [
+              "play ends",
+              "children leave",
+              "field empties",
+              "game is over"
+            ]
+          },
+          {
+            "id": "clue",
+            "description": "Use the locked gate or stopped ball.",
+            "any_of": [
+              "gate locks",
+              "watchman locks",
+              "ball stops",
+              "last football"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c10_order01",
+        "passage": "First the western sky turns orange. Next the sun vanishes. Then porch lights come on.",
+        "prompt": "What happens second?",
+        "skill_ids": [
+          "grammar.sentence_order",
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the sun vanishes",
+          "porch lights come on",
+          "the sky turns orange",
+          "birds begin breakfast"
+        ],
+        "accepted_answers": [
+          "the sun vanishes",
+          "sun vanishes"
+        ]
+      },
+      {
+        "item_id": "c3c10_order02",
+        "passage": "Words: owl calls / forest darkens / sun sets",
+        "prompt": "Put the events in time order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "sun sets, forest darkens, owl calls",
+          "sun sets forest darkens owl calls"
+        ]
+      },
+      {
+        "item_id": "c3c10_meaning01",
+        "passage": "The faint lamp made only a small circle of light.",
+        "prompt": "What does faint mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "not bright",
+          "very loud",
+          "freshly painted",
+          "moving fast"
+        ],
+        "accepted_answers": [
+          "not bright",
+          "dim",
+          "weak"
+        ]
+      },
+      {
+        "item_id": "c3c10_meaning02",
+        "passage": "A tranquil night followed the noisy festival, and everyone rested peacefully.",
+        "prompt": "What does tranquil mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "peaceful",
+          "calm",
+          "quiet"
+        ]
+      },
+      {
+        "item_id": "c3c10_vocab01",
+        "passage": "A soft steady light surrounds the lantern.",
+        "prompt": "Which word names this kind of light?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "glow",
+          "crash",
+          "shadow",
+          "storm"
+        ],
+        "accepted_answers": [
+          "glow",
+          "a glow"
+        ]
+      },
+      {
+        "item_id": "c3c10_vocab02",
+        "passage": "The room becomes quiet as the storyteller raises a finger to her lips.",
+        "prompt": "Write the word for this quiet stillness.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "hush",
+          "a hush",
+          "silence"
+        ]
+      },
+      {
+        "item_id": "c3c10_grammar01",
+        "passage": "The pale moon rises.",
+        "prompt": "Choose the word that describes the moon.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "pale",
+          "moon",
+          "rises",
+          "the"
+        ],
+        "accepted_answers": [
+          "pale"
+        ]
+      },
+      {
+        "item_id": "c3c10_grammar02",
+        "passage": "Tiny insects hum beside the pond.",
+        "prompt": "Write the verb that tells what the insects do.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "hum"
+        ]
+      },
+      {
+        "item_id": "c3c10_sentence01",
+        "passage": "A lighthouse sends a white beam across dark water.",
+        "prompt": "Which option is a complete descriptive sentence?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The white beam sweeps across the water.",
+          "Across dark water.",
+          "White and bright.",
+          "Because lighthouse."
+        ],
+        "accepted_answers": [
+          "The white beam sweeps across the water.",
+          "the white beam sweeps across the water"
+        ]
+      },
+      {
+        "item_id": "c3c10_sentence02",
+        "passage": "A single candle burns beside an open window.",
+        "prompt": "Write one complete sentence describing the scene.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "subject",
+            "description": "Name the candle or window.",
+            "any_of": [
+              "candle",
+              "window"
+            ]
+          },
+          {
+            "id": "verb",
+            "description": "Use a complete action or state.",
+            "any_of": [
+              "burns",
+              "glows",
+              "flickers",
+              "is open",
+              "stands"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "Add a fitting place or quality.",
+            "any_of": [
+              "beside the window",
+              "open window",
+              "single",
+              "small",
+              "warm light"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c10_summary01",
+        "passage": "At dusk, cranes return to the wetland, frogs begin to call, and the water reflects the first star.",
+        "prompt": "Which sentence best summarizes the scene?",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Night begins as wetland animals settle and evening sounds start.",
+          "One crane has long legs.",
+          "Water is useful.",
+          "A frog can jump."
+        ],
+        "accepted_answers": [
+          "Night begins as wetland animals settle and evening sounds start.",
+          "night begins as wetland animals settle and evening sounds start"
+        ]
+      },
+      {
+        "item_id": "c3c10_summary02",
+        "passage": "A hill village grows quiet. Smoke thins above the roofs, dogs curl near doors, and moonlight reaches the path.",
+        "prompt": "Summarize the scene in one or two sentences.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "setting",
+            "description": "Name the hill village or path.",
+            "any_of": [
+              "hill village",
+              "village",
+              "path"
+            ]
+          },
+          {
+            "id": "time",
+            "description": "Show that night or evening has arrived.",
+            "any_of": [
+              "night",
+              "evening",
+              "moonlight"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "Use one quieting detail.",
+            "any_of": [
+              "dogs curl",
+              "smoke thins",
+              "grows quiet",
+              "quiet roofs"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c10_scene03",
+        "passage": "Curtains close, dinner plates clink, and the lane outside becomes empty.",
+        "prompt": "Which detail best shows the outside scene is changing?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the lane becomes empty",
+          "dinner plates clink",
+          "curtains have cloth",
+          "plates are round"
+        ],
+        "accepted_answers": [
+          "the lane becomes empty",
+          "lane becomes empty"
+        ]
+      },
+      {
+        "item_id": "c3c10_order03",
+        "passage": "Words: moon rises / birds settle / sunlight fades",
+        "prompt": "Arrange the evening events.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "sunlight fades, birds settle, moon rises",
+          "sunlight fades birds settle moon rises"
+        ]
+      },
+      {
+        "item_id": "c3c10_meaning03",
+        "passage": "The stars were scattered across the sky like tiny seeds.",
+        "prompt": "What does scattered mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "spread in different places",
+          "joined in one pile",
+          "hidden underground",
+          "making a loud sound"
+        ],
+        "accepted_answers": [
+          "spread in different places",
+          "spread out"
+        ]
+      },
+      {
+        "item_id": "c3c10_grammar03",
+        "passage": "A gentle breeze rustles dry leaves.",
+        "prompt": "Write the noun named after gentle.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "breeze",
+          "a breeze"
+        ]
+      },
+      {
+        "item_id": "c3c10_sentence03",
+        "passage": "The balcony is cool, and a radio plays softly inside.",
+        "prompt": "Which sentence joins the two details clearly?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The cool balcony is quiet while a radio plays softly inside.",
+          "Balcony radio.",
+          "Cool because.",
+          "Inside and."
+        ],
+        "accepted_answers": [
+          "The cool balcony is quiet while a radio plays softly inside.",
+          "the cool balcony is quiet while a radio plays softly inside"
+        ]
+      },
+      {
+        "item_id": "c3c10_summary03",
+        "passage": "Before sunrise, milk carts rattle along the road and bakery workers lift warm trays from ovens.",
+        "prompt": "Explain how this scene differs from a quiet night.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "time",
+            "description": "Name early morning or before sunrise.",
+            "any_of": [
+              "early morning",
+              "before sunrise",
+              "dawn"
+            ]
+          },
+          {
+            "id": "activity",
+            "description": "Mention work or movement beginning.",
+            "any_of": [
+              "carts rattle",
+              "workers lift trays",
+              "work begins",
+              "road becomes active"
+            ]
+          },
+          {
+            "id": "contrast",
+            "description": "Show it is becoming active rather than settling.",
+            "any_of": [
+              "not quiet",
+              "waking up",
+              "activity begins",
+              "busy"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      }
+    ]
+  }
+}

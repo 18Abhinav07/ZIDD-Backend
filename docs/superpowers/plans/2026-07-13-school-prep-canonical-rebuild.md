@@ -186,9 +186,17 @@ Expected: four classes verified, zero manifest errors, and a deterministic relea
 **Files:**
 - Create: `app/services/school/authority.py`
 - Create: `app/services/school/language_confidence.py`
+- Create: `app/services/school/open_answer_ai.py`
+- Create: `app/services/school/open_answer_prompt.py`
 - Create: `app/content/school/source_map_compat.py`
 - Create: `scripts/audit_school_runtime_authority.py`
 - Create: `tests/hardening/test_school_canonical_authority_contract.py`
+- Modify: `app/ai/calls.py`
+- Modify: `app/ai/prompts.py`
+- Modify: `app/content/registry.py`
+- Modify: `app/content/school/release_schema.py`
+- Modify: `app/content/school/release_loader.py`
+- Modify: `app/content/school/releases/english_cbse_2026_27.json`
 - Modify: `app/main.py`
 - Modify: `app/api/school_rebuild_routes.py`
 - Modify: `app/content/school_rebuild_content.py`
@@ -196,14 +204,14 @@ Expected: four classes verified, zero manifest errors, and a deterministic relea
 - Modify: `app/services/school_rebuild_curriculum.py`
 - Modify: `app/services/school_rebuild_placement_evaluator.py`
 
-- [ ] Write a failing test that inspects `app.routes` and requires one mounted `/school/state`, one handler per canonical path/method, and no mounted V1/V2/V3 School router.
-- [ ] Add a static import audit that rejects new runtime imports from `school_v2_*`, `school_v3_*`, `app/content/data/school`, or generated seed loaders outside compatibility/archive tests.
-- [ ] Record every canonical endpoint and its owning service in `CANONICAL_SCHOOL_AUTHORITY`; route registration fails if duplicated.
-- [ ] Capture representative canonical `/school` response fixtures before adaptation and assert byte-equivalent public JSON after V3 imports are removed; internal class names may change, public response fields may not.
-- [ ] Remove the canonical runtime's remaining `school_v3_content`, `school_v3_taxonomy`, V3 evaluator, and V3 language-confidence imports by adapting the Phase 0 release/standard/evaluator interfaces and a canonical language-confidence module. Keep old modules importable only for historical tests until Phase 7.
-- [ ] `source_map_compat.py` may project the existing flat chapter IDs needed by the current beta content, but it must cross-validate every ID/title against the immutable release and is explicitly removed when the Phase 2 canonical loader takes over. It cannot introduce a second source title/order authority.
-- [ ] Keep `school_rebuild_routes.router` mounted for compatibility, but change its internal imports task-by-task to canonical modules. Do not mount `school_routes.router`.
-- [ ] Run:
+- [x] Write a failing test that inspects `app.routes` and requires one mounted `/school/state`, one handler per canonical path/method, and no mounted V1/V2/V3 School router.
+- [x] Add a static import audit that rejects new runtime imports from `school_v2_*`, `school_v3_*`, `app/content/data/school`, or generated seed loaders outside compatibility/archive tests.
+- [x] Record every canonical endpoint and its owning service in `CANONICAL_SCHOOL_AUTHORITY`; route registration fails if duplicated.
+- [x] Capture representative canonical `/school` response fixtures before adaptation and assert byte-equivalent public JSON after V3 imports are removed; internal class names may change, public response fields may not.
+- [x] Remove the canonical runtime's remaining `school_v3_content`, `school_v3_taxonomy`, V3 evaluator, and V3 language-confidence imports by adapting the Phase 0 release/standard/evaluator interfaces and a canonical language-confidence module. Keep old modules importable only for historical tests until Phase 7.
+- [x] `source_map_compat.py` may project the existing flat chapter IDs needed by the current beta content, but it must cross-validate every ID/title against the immutable release and is explicitly removed when the Phase 2 canonical loader takes over. It cannot introduce a second source title/order authority.
+- [x] Keep `school_rebuild_routes.router` mounted for compatibility, but change its internal imports task-by-task to canonical modules. Do not mount `school_routes.router`.
+- [x] Run:
 
 ```bash
 ./.venv/bin/pytest -q tests/hardening/test_school_canonical_authority_contract.py
@@ -222,12 +230,12 @@ Expected: one canonical router, zero forbidden active imports.
 - Modify: `scripts/apply_migrations.py`
 - Create: `tests/integration/test_school_canonical_release_migration.py`
 
-- [ ] Write the integration test against PostgreSQL before the migration. It must fail because `school_curriculum_releases` and release lineage columns do not exist.
-- [ ] Add one immutable `school_curriculum_releases` row per subject/class release with `curriculum_release_id TEXT PRIMARY KEY` (for example `english_cbse_2026_27_c2_r1`), manifest JSON, release digest, status, effective/retired dates, and uniqueness on `(board_id, subject_id, class_no, academic_year, release_digest)`. Reject updates to manifest/digest through a database trigger; corrections create a new release ID.
-- [ ] Add nullable `curriculum_release_id`, `taxonomy_version`, and `certification_epoch` to `school_sessions` and `school_placement_reports`; do not make them non-null until lineage backfill is validated. The release FK is many sessions/reports to one subject/class release row.
-- [ ] Add nullable `coach_avatar_id` and `coach_palette_id` to `school_profile_versions`; onboarding activation fills both in one transaction. Existing profiles receive a deterministic one-time backfill based on profile-version ID, after which the stored values are authoritative.
-- [ ] Backfill only current canonical `api_version='rebuild'` sessions whose subject/class maps unambiguously to the approved release. Keep ambiguous historical rows nullable and non-authoritative.
-- [ ] Preserve the existing partial unique index:
+- [x] Write the integration test against PostgreSQL before the migration. It must fail because `school_curriculum_releases` and release lineage columns do not exist.
+- [x] Add one immutable `school_curriculum_releases` row per subject/class release with `curriculum_release_id TEXT PRIMARY KEY` (for example `english_cbse_2026_27_c2_r1`), manifest JSON, release digest, status, effective/retired dates, and uniqueness on `(board_id, subject_id, class_no, academic_year, release_digest)`. Reject updates to manifest/digest through a database trigger; corrections create a new release ID.
+- [x] Add nullable `curriculum_release_id`, `taxonomy_version`, and `certification_epoch` to `school_sessions` and `school_placement_reports`; do not make them non-null until lineage backfill is validated. The release FK is many sessions/reports to one subject/class release row.
+- [x] Add nullable `coach_avatar_id` and `coach_palette_id` to `school_profile_versions`; onboarding activation fills both in one transaction. Existing profiles receive a deterministic one-time backfill based on profile-version ID, after which the stored values are authoritative.
+- [x] Backfill only current canonical `api_version='rebuild'` sessions whose subject/class maps unambiguously to the approved release. Keep ambiguous historical rows nullable and non-authoritative.
+- [x] Preserve the existing partial unique index:
 
 ```sql
 CREATE UNIQUE INDEX IF NOT EXISTS idx_school_sessions_one_active_flow
@@ -235,10 +243,10 @@ ON school_sessions(user_id, flow_type, subject_id, class_no)
 WHERE status IN ('active', 'paused_for_masterclass');
 ```
 
-- [ ] Treat all existing July 9-12 migration SQL as immutable history. Append new migrations to the explicit dependency-ordered `DEFAULT_MIGRATIONS` list; do not infer order from filenames.
-- [ ] Extend `school_migration_markers` with the applied file SHA-256 and applied timestamp for canonical School migrations. Refuse to rerun a migration name whose stored hash differs from the checked-in file.
-- [ ] Run a preflight that records counts and IDs for active profiles/sessions/reports, verifies predecessor tables/constraints, and aborts before SQL if lineage is ambiguous. Persist the preflight output with migration QA evidence.
-- [ ] Run both an empty-schema migration test and an upgraded-copy test containing representative existing profiles, active sessions, linked sessions, reports, and drafts. Then apply through `scripts/apply_migrations.py`, rerun to prove idempotency, and query schema metadata for columns, FKs, partial unique index, RLS, and revoked client grants.
+- [x] Treat all existing July 9-12 migration SQL as immutable history. Append new migrations to the explicit dependency-ordered `DEFAULT_MIGRATIONS` list; do not infer order from filenames.
+- [x] Extend `school_migration_markers` with the applied file SHA-256 and applied timestamp for canonical School migrations. Refuse to rerun a migration name whose stored hash differs from the checked-in file.
+- [x] Run a preflight that records counts and IDs for active profiles/sessions/reports, verifies predecessor tables/constraints, and aborts before SQL if lineage is ambiguous. Persist the preflight output with migration QA evidence.
+- [x] Run both an empty-schema migration test and an upgraded-copy test containing representative existing profiles, active sessions, linked sessions, reports, and drafts. Then apply through `scripts/apply_migrations.py`, rerun to prove idempotency, and query schema metadata for columns, FKs, partial unique index, RLS, and revoked client grants.
 
 ### Task 0.6: Lock onboarding, state authority, and persisted visual identity
 

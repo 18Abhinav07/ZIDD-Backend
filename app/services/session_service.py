@@ -137,6 +137,7 @@ class GamePrompt:
     context: str
     answer_key: str     # server-side only — not forwarded to the client
     options: list[str] | None = None
+    turn_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -209,7 +210,7 @@ from app.services.selector import (
     validate_decision,
 )
 from app.ai.behaviors import behavior_for_value
-from app.ai.prompts import build_opening_prompt, coach_view
+from app.ai.prompts import build_opening_prompt, coach_view, sanitize_memory_text
 from app.ai.test_gen import generate_test_items
 from app.graph.answer_check import is_blank_nonanswer
 from app.content.registry import (
@@ -236,6 +237,7 @@ from app.graph.build import get_graph
 from app.services.rubric_engine import compute_attempt_credit
 from app.services.career_context import build_career_context
 from app.services.learning_profile import CareerLearningProfileService
+from app.services.assessment_plan import ensure_assessment_plan
 from app.services.simulation_config import resolve_simulation_config
 from app.services.simulation_service import score_session, stream_simulation_round
 from app.storage import get_storage
@@ -246,18 +248,30 @@ _TEST_TASK_TYPES = frozenset({TaskType.INTERVIEW_TEST.value, TaskType.GD_TEST.va
 _CELEBRATORY_OPENING_RE = re.compile(
     r"^\s*(?:great job|great start|good job|nice(?: work| touch)?|well done|"
     r"excellent(?: work)?|awesome(?: work)?|"
+    r"(?:strong|solid)\s+(?:answer|response)|"
+    r"this\s+is\s+(?:a\s+)?(?:strong|solid)\s+(?:answer|response)|"
     r"you(?:'ve| have)? nailed it|"
+    r"you(?:'ve|’ve| have)? made good progress|"
+    r"you(?:'ve|’ve| have)?(?:\s+effectively)? outlined|"
+    r"you(?:'ve|’ve| have)? done well(?:\s+(?:by|in))?|"
     r"you\s+(?:(?:effectively|clearly|successfully|nicely)\s+)?"
     r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates)|"
     r"your\s+(?:pitch|answer|response)\s+"
     r"(?:(?:effectively|clearly|successfully|nicely)\s+)?"
     r"(?:highlighted|included|provided|articulated|showed|explained|demonstrated|demonstrates))"
-    r"(?:,\s*[^.!?\n]{1,80})?[.!?]?\s*",
+    r"(?:\s*[,:\-\u2013\u2014]\s*)?(?:[.!?]\s*)?",
+    re.IGNORECASE,
+)
+_ACTIONABLE_COACHING_MARKER_RE = re.compile(
+    r"\b(?:now|next|try|add|rewrite|revise|pressure-test|make|cut|answer|give|state|name|show|include|tighten)\b",
     re.IGNORECASE,
 )
 _COPYABLE_EXAMPLE_RE = re.compile(
-    r"\s*(?:for example|you could say something like)[:,-]?\s*"
-    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])",
+    r"\s*(?:"
+    r"for example[:,-]?\s*(?:\"[^\"\n]{1,700}\"|(?:you\s+(?:could|might)\s+|try\s+saying|say\s+)[^.!?\n]{1,700}[.!?])"
+    r"|(?:this could be something like|you could say something like|you could start with(?: a clear position like)?)[:,-]?\s*"
+    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])"
+    r")",
     re.IGNORECASE,
 )
 _COPYABLE_SCENARIO_RE = re.compile(
@@ -265,9 +279,207 @@ _COPYABLE_SCENARIO_RE = re.compile(
     r"(?=(?:Now,\s*)?(?:apply|try|use)\b)",
     re.IGNORECASE,
 )
+_COPYABLE_IMAGINE_RE = re.compile(
+    r"\s*Imagine\s+(?:you're|you are)\s+[^.!?\n]{1,700}[.!?]\s*",
+    re.IGNORECASE,
+)
+_COPYABLE_MODEL_ANSWER_RE = re.compile(
+    r"\s*(?:a\s+(?:better|stronger)\s+version\s+would\s+be|"
+    r"try\s+saying|you\s+can\s+say|say\s+it\s+like\s+this)[:,-]?\s*"
+    r"(?:\"[^\"\n]{1,700}\"|[^.!?\n]{1,700}[.!?])",
+    re.IGNORECASE,
+)
+_INFLATED_PRAISE_FRAGMENT_RE = re.compile(
+    r"\s*(?:[-\u2013\u2014]\s*)?"
+    r"(?:you(?:'ve|’ve| have)?\s+(?:hit|covered|included)\s+(?:all\s+)?(?:the\s+)?"
+    r"(?:right|key|important)\s+(?:points|areas|elements)|"
+    r"you(?:'ve|’ve| have)?\s+made\s+good\s+progress[^.!?]{0,180}|"
+    r"you(?:'ve|’ve| have)?\s+done\s+well(?:\s+(?:by|in))?[^.!?]{0,180}|"
+    r"you(?:'ve|’ve| have)?\s+hit\s+all\s+the\s+right\s+points|"
+    r"that\s+(?:covers|hits)\s+all\s+the\s+right\s+points)"
+    r"[.!?]?\s*",
+    re.IGNORECASE,
+)
+_UNRELATED_CAREER_SAMPLE_TERMS = (
+    "customer churn",
+    "sales",
+    "marketing",
+    "client deliverable",
+    "client-deliverable",
+    "retention dashboard",
+)
+_UNRELATED_CAREER_SAMPLE_SENTENCE_RE = re.compile(
+    r"[^.!?\n]*(?:customer\s+churn|sales|marketing|client[-\s]deliverable|"
+    r"retention\s+dashboard)[^.!?\n]*[.!?]?",
+    re.IGNORECASE,
+)
+_CAREER_REPEAT_OUTCOME_GAP_RE = (
+    re.compile(
+        r"\bbut\s+there(?:'s|’s| is)\s+still\s+room\s+for\s+including\s+"
+        r"a\s+specific\s+instance\s+where[^.!?]{1,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bTo\s+meet\s+our\s+goal,\s*focus\s+on\s+adding\s+concrete\s+"
+        r"evidence\s+of[^.!?]{1,220}[.!?]?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bfocus\s+on\s+adding\s+(?:a\s+)?specific\s+outcome[^.!?]{0,180}[.!?]?\s*",
+        re.IGNORECASE,
+    ),
+)
+_CAREER_REPEAT_WEAKNESS_GAP_RE = (
+    re.compile(
+        r"\b(?:however|but),?\s+ensure\s+you\s+explicitly\s+state\s+the\s+"
+        r"initial\s+weakness[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+step\s+is\s+to\s+start\s+by\s+naming\s+your\s+"
+        r"original\s+tendency[\s\S]{0,700}?(?:stakeholder\s+communication|these\s+elements)[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bHow\s+will\s+you\s+revise\s+your\s+answer\s+to\s+include\s+these\s+elements\?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:however|but),?\s+ensure\s+you\s+explicitly\s+contrast\s+your\s+"
+        r"initial\s+tendency[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFor\s+your\s+next\s+response,\s+reframe\s+the\s+opening\s+statement\s+"
+        r"to\s+directly\s+name\s+your\s+original\s+behavior[\s\S]{0,420}?"
+        r"(?:evolved|transition|contrast)[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+this\s+transition\s+clear\s+and\s+impactful[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bHow\s+would\s+you\s+revise\s+the\s+opening\s+to\s+highlight\s+this\s+contrast\?\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+step\s+is\s+to\s+revise\s+the\s+opening\s+to\s+name\s+"
+        r"your\s+original\s+behavior\s+more\s+directly[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+that\s+transition\s+as\s+clear\s+and\s+"
+        r"impactful\s+as\s+possible[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bRevisit\s+your\s+opening\s+statement\s+to\s+make\s+it\s+sharper\s+"
+        r"and\s+more\s+direct[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:but\s+there(?:'s| is)\s+still\s+room\s+for\s+)?tightening\s+up\s+"
+        r"each\s+segment[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bFocus\s+on\s+making\s+sure\s+that\s+when\s+you\s+transition\s+from\s+"
+        r"stating\s+your\s+weakness[\s\S]{0,420}?"
+        r"(?:overlaps?|redundanc(?:y|ies))[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bYour\s+next\s+task\s+is\s+to\s+deliver\s+this\s+three-part\s+answer"
+        r"[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:Practise|Practice)\s+delivering\s+the\s+three-part\s+weakness\s+"
+        r"answer[^.!?]{0,180}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:however,\s*)?let(?:'s| us)\s+revisit\s+the\s+original\s+task:?\s*"
+        r"name\s+a\s+real\s+weakness[^.!?]{0,240}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bTry\s+that\s+out\s+now[.!?]\s*",
+        re.IGNORECASE,
+    ),
+)
+_CAREER_REPEAT_WEAKNESS_REQUEST_RE = re.compile(
+    r"\b(?:initial\s+weakness|initial\s+tendency|original\s+behavior|"
+    r"original\s+tendency|opening\s+statement|reframe\s+the\s+opening|"
+    r"revise\s+the\s+opening|name\s+your\s+original|deliver\s+this\s+"
+    r"three-part\s+answer|three-part\s+weakness\s+answer|"
+    r"practi[cs]e\s+delivering|revisit\s+the\s+original\s+task|"
+    r"name\s+a\s+real\s+weakness|overlaps?\s+or\s+redundanc(?:y|ies)|smooth\s+flow)\b",
+    re.IGNORECASE,
+)
+_CAREER_REPEAT_FUTURE_GOAL_GAP_RE = (
+    re.compile(
+        r"\b(?:however|but),?\s+(?:the\s+)?future\s+goal[^.!?]{0,260}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:for\s+the\s+revision|task):?\s+[^.!?]{0,180}\b(?:future\s+goal|next\s+career\s+move|next\s+career\s+step)[^.!?]{0,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:focus\s+on|think\s+about|revisit)[^.!?]{0,160}\b(?:future\s+goal|career\s+goal|next\s+goal)[^.!?]{0,220}[.!?]\s*",
+        re.IGNORECASE,
+    ),
+)
+_OUTCOME_EVIDENCE_TERMS = (
+    "result", "outcome", "found", "avoided", "reduced", "improved", "increased",
+    "decreased", "measured", "metric", "metrics", "rollback", "support risk",
+    "confidence", "expanded", "saved", "faster", "slower rollout",
+)
+_WEAKNESS_SIGNAL_TERMS = (
+    "weakness", "tendency", "struggle", "improving", "under pressure",
+    "jumping straight", "technical details", "business impact",
+)
+_MITIGATION_SIGNAL_TERMS = (
+    "manage", "mitigate", "corrected", "correct", "habit", "strategy",
+    "decision criteria", "first stating", "phased", "compare options",
+)
+_WEAKNESS_CORE_CRITERIA = frozenset({
+    "real_weakness",
+    "mitigation_habit",
+    "progress_evidence",
+})
+_WEAKNESS_EXPLICIT_HISTORY_RE = re.compile(
+    r"\b(?:my\s+weakness|one\s+weakness|weakness\s+(?:is|was)|"
+    r"i\s+(?:used\s+to|tended\s+to|sometimes)\s+(?:lead|explain|jump|over[-\s]?explain|"
+    r"go\s+straight)|earlier[^.!?]{0,120}\bi\s+(?:led|tended|explained|jumped|"
+    r"over[-\s]?explained))\b",
+    re.IGNORECASE,
+)
+_WEAKNESS_CONCRETE_HISTORY_RE = re.compile(
+    r"\b(?:caught|found|avoided|reduced|improved|increased|measured|rollback|"
+    r"retry|latency|reconciliation|support[-\s]?ticket|revenue|product|week\s+one|"
+    r"one\s+meeting|metric|failure\s+rate)\b",
+    re.IGNORECASE,
+)
+_FUTURE_GOAL_TERMS = (
+    "next goal",
+    "next role",
+    "next step",
+    "i want to",
+    "i aim to",
+    "moving toward",
+    "want to own",
+    "grow into",
+    "looking to",
+)
 _GD_GENERIC_TOPIC_PHRASES = (
     "remote work policies",
     "mandatory daily check-ins",
+    "digital payments",
+    "digital payment methods",
+    "mandatory for all businesses",
     "remote work",
     "single-use plastics",
     "social media",
@@ -280,12 +492,18 @@ _GD_GENERIC_TOPIC_PHRASES = (
 _COACHING_STREAM_KINDS = frozenset(
     {"teach", "bridge", "strengthen", "challenge", "redirect", "clarify", "ease"}
 )
+_INCOMPLETE_COACH_END_RE = re.compile(
+    r"\b(?:for\s+instance|for\s+example|such\s+as|including|because|but|however|"
+    r"instead\s+of|while|whereas)\s*[:,;]?$",
+    re.IGNORECASE,
+)
 
 # Precomputed probe banks (Phase 4 Layer B) go stale as the learner's prep
 # weaknesses shift; a bank older than this is treated as a cache miss and the
 # TEST start regenerates. One week is long enough that a normal prep->test gap
 # reuses the precache, short enough that drifted weaknesses don't fossilize.
 TEST_ITEM_TTL = 7 * 24 * 3600  # seconds
+OPENING_STREAM_TIMEOUT_SECONDS = 18.0
 
 MASTERY_COMPLETE = 0.8       # node "mastered" (EMA) — kept for DB clean-flag only
 CLEAN_PASS_MAX_ATTEMPTS = 2  # mastered in <=2 scored answers == "clean"
@@ -356,10 +574,11 @@ def _sanitize_coaching_opening_praise(text: str, state: dict, spec_kind: str) ->
 
     score = _recent_score_for_tone(state)
     scaffolded = bool(state.get("last_graded_bridge"))
-    if spec_kind == "challenge" and not scaffolded and score is not None and score >= 0.85:
-        return text
-
     remainder = text[match.end():].lstrip()
+    if remainder:
+        marker = _ACTIONABLE_COACHING_MARKER_RE.search(remainder)
+        if marker and marker.start() > 0:
+            remainder = remainder[marker.start():].lstrip()
     if scaffolded:
         opener = "Good, that scaffolded step is in place - not the whole skill yet. "
     elif score is not None and score < PASS_SCORE:
@@ -451,6 +670,282 @@ def _sanitize_gd_topic_drift(text: str, state: dict) -> str:
     return cleaned
 
 
+def _sanitize_unrelated_career_sample_domain(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    node_id = str(state.get("competency_node") or "")
+    if not (node_id.startswith("int_") or node_id.startswith("gd_")):
+        return text
+    text_lower = text.lower()
+    found_terms = [term for term in _UNRELATED_CAREER_SAMPLE_TERMS if term in text_lower]
+    if not found_terms:
+        return text
+    context = state.get("career_context") or {}
+    allowed_context = " ".join(
+        [
+            _recent_user_feedback_text(state, limit=1600),
+            str(context.get("primary_role") or ""),
+            str(context.get("role_family") or ""),
+            " ".join(str(item) for item in context.get("resume_facts") or []),
+            " ".join(str(item) for item in context.get("gd_topics") or []),
+        ]
+    ).lower()
+    disallowed = [term for term in found_terms if term not in allowed_context]
+    if not disallowed:
+        return text
+    cleaned = _UNRELATED_CAREER_SAMPLE_SENTENCE_RE.sub(
+        " Keep the revision inside your own answer: make your action and result easier to hear. ",
+        text,
+    )
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+_ANCHOR_STOPWORDS = frozenset({
+    "about", "after", "again", "answer", "because", "before", "being", "could",
+    "their", "there", "these", "thing", "those", "through", "under", "would",
+    "your", "youre", "youve", "with", "without", "what", "when", "where",
+    "which", "while", "this", "that", "from", "into", "more", "need",
+    "needs", "make", "made", "work", "working", "story", "example",
+})
+
+
+def _latest_user_feedback_excerpt(state: dict, limit: int = 140) -> str:
+    current = " ".join(str(state.get("user_input") or "").split())
+    if current:
+        if len(current) <= limit:
+            return current
+        trimmed = current[: max(0, limit - 3)].rstrip()
+        if " " in trimmed:
+            trimmed = trimmed.rsplit(" ", 1)[0].rstrip()
+        return f"{trimmed}..."
+    for message in reversed(state.get("messages") or []):
+        if message.get("role") != "user":
+            continue
+        text = " ".join(str(message.get("content") or "").split())
+        if not text:
+            continue
+        if len(text) <= limit:
+            return text
+        trimmed = text[: max(0, limit - 3)].rstrip()
+        if " " in trimmed:
+            trimmed = trimmed.rsplit(" ", 1)[0].rstrip()
+            return f"{trimmed}..."
+    return ""
+
+
+def _recent_user_feedback_text(state: dict, *, max_messages: int = 4, limit: int = 1200) -> str:
+    parts: list[str] = []
+    current = " ".join(str(state.get("user_input") or "").split())
+    if current:
+        parts.append(current)
+    for message in reversed(state.get("messages") or []):
+        if len(parts) >= max_messages:
+            break
+        if message.get("role") != "user":
+            continue
+        text = " ".join(str(message.get("content") or "").split())
+        if not text or text in parts:
+            continue
+        parts.append(text)
+    combined = " ".join(parts)
+    return combined[:limit]
+
+
+def _meaningful_anchor_tokens(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if len(token) >= 5 and token not in _ANCHOR_STOPWORDS
+    }
+
+
+def _ensure_career_feedback_anchor(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    node_id = str(state.get("competency_node") or "")
+    if not (node_id.startswith("int_") or node_id.startswith("gd_")):
+        return text
+    latest = _latest_user_feedback_excerpt(state)
+    if not latest:
+        return text
+    text_tokens = _meaningful_anchor_tokens(text)
+    latest_tokens = _meaningful_anchor_tokens(latest)
+    topic = _gd_topic_phrase_for_state(state)
+    role = str((state.get("career_context") or {}).get("primary_role") or "").strip()
+    topic_or_role_anchored = bool(
+        (topic and topic.lower() in text.lower()) or
+        (role and role.lower() in text.lower())
+    )
+    if topic_or_role_anchored or len(text_tokens & latest_tokens) >= 2:
+        return text
+    return f"In your answer, you said \"{latest}\". {text}"
+
+
+def _sanitize_repeated_outcome_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    latest = _latest_user_feedback_excerpt(state, limit=260).lower()
+    if not latest:
+        return text
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in latest) >= 2
+    if not has_outcome:
+        return text
+    cleaned = text
+    for pattern in _CAREER_REPEAT_OUTCOME_GAP_RE:
+        cleaned = pattern.sub(
+            "Now tighten that outcome into one compact result sentence. ",
+            cleaned,
+            count=1,
+        )
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _rubric_covers_weakness_core(state: dict) -> bool:
+    result = state.get("last_rubric_result")
+    if not isinstance(result, dict):
+        return False
+    missing = {str(item) for item in (result.get("required_missing") or [])}
+    if missing & _WEAKNESS_CORE_CRITERIA:
+        return False
+    blockers = {str(item).lower() for item in (result.get("blockers") or [])}
+    for criterion_id in _WEAKNESS_CORE_CRITERIA:
+        if any(criterion_id in blocker for blocker in blockers):
+            return False
+    criteria = result.get("criteria") or []
+    met_by_id: dict[str, bool] = {}
+    for row in criteria:
+        if hasattr(row, "model_dump"):
+            row = row.model_dump()
+        if not isinstance(row, dict):
+            continue
+        criterion_id = str(row.get("id") or row.get("criterion_id") or "")
+        if criterion_id:
+            met_by_id[criterion_id] = bool(row.get("met"))
+    criteria_core_met = (
+        bool(met_by_id)
+        and all(met_by_id.get(criterion_id) for criterion_id in _WEAKNESS_CORE_CRITERIA)
+    )
+    return bool(result.get("pass_eligible")) or criteria_core_met
+
+
+def _text_covers_weakness_core(text: str) -> bool:
+    lower = str(text or "").lower()
+    if not lower:
+        return False
+    has_weakness = bool(_WEAKNESS_EXPLICIT_HISTORY_RE.search(lower))
+    has_mitigation = any(term in lower for term in _MITIGATION_SIGNAL_TERMS)
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in lower) >= 2
+    has_concrete_marker = bool(_WEAKNESS_CONCRETE_HISTORY_RE.search(lower))
+    return has_weakness and has_mitigation and has_outcome and has_concrete_marker
+
+
+def _history_covers_weakness_core(state: dict) -> bool:
+    for message in state.get("messages") or []:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        if _text_covers_weakness_core(str(message.get("content") or "")):
+            return True
+    return _text_covers_weakness_core(str(state.get("user_input") or ""))
+
+
+def _sanitize_repeated_weakness_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    if str(state.get("competency_node") or "") != "int_03_weakness_framing":
+        return text
+    recent = _recent_user_feedback_text(state).lower()
+    if not recent:
+        return text
+    has_weakness = any(term in recent for term in _WEAKNESS_SIGNAL_TERMS)
+    has_mitigation = any(term in recent for term in _MITIGATION_SIGNAL_TERMS)
+    has_outcome = sum(1 for term in _OUTCOME_EVIDENCE_TERMS if term in recent) >= 2
+    rubric_core_covered = _rubric_covers_weakness_core(state)
+    history_core_covered = _history_covers_weakness_core(state)
+    has_rubric_result = isinstance(state.get("last_rubric_result"), dict)
+    heuristic_core_covered = (
+        not has_rubric_result
+        and has_weakness
+        and has_mitigation
+        and has_outcome
+    )
+    if not (rubric_core_covered or history_core_covered or heuristic_core_covered):
+        return text
+
+    replacement = (
+        "You already have the weakness, the corrective habit, and a progress signal; "
+        "now pressure-test it against one realistic follow-up. "
+    )
+    cleaned = text
+    for pattern in _CAREER_REPEAT_WEAKNESS_GAP_RE:
+        cleaned = pattern.sub(replacement, cleaned, count=1)
+    if cleaned != text or _CAREER_REPEAT_WEAKNESS_REQUEST_RE.search(text):
+        return _deterministic_coach_repair_text(state)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _sanitize_repeated_future_goal_gap(text: str, state: dict, spec_kind: str) -> str:
+    if not text or state.get("task_type") in _TEST_TASK_TYPES:
+        return text
+    if spec_kind not in _COACHING_STREAM_KINDS:
+        return text
+    if str(state.get("competency_node") or "") != "int_01_elevator_pitch":
+        return text
+    latest = _latest_user_feedback_excerpt(state, limit=360).lower()
+    if not latest or not any(term in latest for term in _FUTURE_GOAL_TERMS):
+        return text
+    cleaned = text
+    replacement = (
+        "Your direction is present; now make the final sentence sharper by naming "
+        "the scope and impact you want next. "
+    )
+    for pattern in _CAREER_REPEAT_FUTURE_GOAL_GAP_RE:
+        cleaned = pattern.sub(replacement, cleaned, count=1)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _looks_incomplete_coach_text(text: str) -> bool:
+    clean = " ".join(str(text or "").split())
+    if not clean:
+        return True
+    if clean.endswith(("...", "…")):
+        return True
+    if _INCOMPLETE_COACH_END_RE.search(clean):
+        return True
+    return clean[-1] not in ".!?)]}\"'"
+
+
+def _deterministic_coach_repair_text(state: dict) -> str:
+    node_id = str(state.get("competency_node") or "")
+    if node_id == "int_03_weakness_framing":
+        return (
+            "That version now has the three-part shape: past tendency, corrective habit, "
+            "and measurable progress. Keep it as the interview answer. Next, pressure-test "
+            "it with one follow-up about tradeoffs, stakeholder pushback, or what changed "
+            "after the rollout."
+        )
+    if node_id.startswith("int_"):
+        return (
+            "Use your answer as the base; now make the strongest evidence easier to hear. "
+            "Rewrite it once with a clear situation, your action, and the result in your own words."
+        )
+    if node_id.startswith("gd_"):
+        topic = _gd_topic_phrase_for_state(state)
+        topic_clause = f" on {topic}" if topic else ""
+        return (
+            f"Keep the answer grounded in the motion; now make it sound like a group-discussion contribution{topic_clause}. "
+            "Give one clear stance, one reason, and one bridge to another participant's concern."
+        )
+    return "Use your answer as the base; now tighten it into one clear version in your own words."
+
+
 def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
     """Deterministically clean coaching text for weak/borderline turns.
 
@@ -460,15 +955,74 @@ def _sanitize_coaching_response(text: str, state: dict, spec_kind: str) -> str:
     """
     cleaned = _sanitize_coaching_opening_praise(text, state, spec_kind)
     if not _needs_full_coaching_sanitize(state, spec_kind):
-        return _sanitize_gd_topic_drift(cleaned, state)
+        cleaned = _sanitize_repeated_outcome_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_repeated_weakness_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_repeated_future_goal_gap(cleaned, state, spec_kind)
+        cleaned = _sanitize_unrelated_career_sample_domain(cleaned, state, spec_kind)
+        return _ensure_career_feedback_anchor(
+            _sanitize_gd_topic_drift(cleaned, state),
+            state,
+            spec_kind,
+        )
     cleaned = _COPYABLE_SCENARIO_RE.sub(" ", cleaned, count=1)
+    if str(state.get("competency_node") or "").startswith("gd_"):
+        cleaned = _COPYABLE_IMAGINE_RE.sub(" ", cleaned, count=1)
+    cleaned = _COPYABLE_MODEL_ANSWER_RE.sub(" Keep it in your own words.", cleaned, count=1)
     cleaned = _COPYABLE_EXAMPLE_RE.sub(
         " Keep it in your own words.",
         cleaned,
         count=1,
     )
+    cleaned = _INFLATED_PRAISE_FRAGMENT_RE.sub(" ", cleaned, count=1)
     cleaned = _sanitize_gd_topic_drift(cleaned, state)
-    return re.sub(r"\s{2,}", " ", cleaned).strip()
+    cleaned = _sanitize_repeated_outcome_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_repeated_weakness_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_repeated_future_goal_gap(cleaned, state, spec_kind)
+    cleaned = _sanitize_unrelated_career_sample_domain(cleaned, state, spec_kind)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return _ensure_career_feedback_anchor(cleaned, state, spec_kind)
+
+
+
+def _bridge_full_answer_task(state: dict) -> str:
+    node_id = str(state.get("competency_node") or "")
+    topic = _gd_topic_phrase_for_state(state)
+    if node_id.startswith("gd_") and topic:
+        return (
+            f"Now build back to the full skill: write one clear GD contribution on "
+            f"{topic} that commits to a side and adds one concrete safeguard or reason."
+        )
+    if node_id.startswith("int_"):
+        return (
+            "Now build back to the full skill: answer the interview prompt in your "
+            "own story with a clear action and result."
+        )
+    return "Now build back to the full skill in one clear answer using your own words."
+
+
+def _deterministic_closed_bridge_feedback(state: dict) -> str:
+    """Give fast, bounded feedback after a closed bridge answer.
+
+    Fill-blank and MCQ bridges are already graded by answer key. Calling the model
+    again here adds latency and can reintroduce generic examples, so same-node
+    closed-bridge follow-up text stays deterministic.
+    """
+    if not state.get("last_graded_bridge"):
+        return ""
+    score = _recent_score_for_tone(state)
+    if isinstance(score, (int, float)) and score >= PASS_SCORE:
+        return (
+            "Good, that scaffolded step is in place - not the whole skill yet. "
+            f"{_bridge_full_answer_task(state)}"
+        )
+
+    diagnosis = state.get("last_diagnosis") or {}
+    gap = str(diagnosis.get("next_focus") or "use the target move more clearly").strip()
+    return (
+        "Let's tighten this scaffold. "
+        f"The missing move is: {gap}. "
+        f"{_bridge_full_answer_task(state)}"
+    )
 
 
 async def _stream_coaching_generation(spec: GenSpec, state: dict) -> AsyncIterator[str]:
@@ -481,11 +1035,15 @@ async def _stream_coaching_generation(spec: GenSpec, state: dict) -> AsyncIterat
             yield tok
         return
 
-    if _needs_full_coaching_sanitize(state, spec.kind):
+    node_id = str(state.get("competency_node") or "")
+    professional_prep_node = node_id.startswith("int_") or node_id.startswith("gd_")
+    if professional_prep_node or _needs_full_coaching_sanitize(state, spec.kind):
         full: list[str] = []
         async for tok in stream_generation(spec):
             full.append(tok)
         text = _sanitize_coaching_response("".join(full), state, spec.kind)
+        if _looks_incomplete_coach_text(text):
+            text = _deterministic_coach_repair_text(state)
         if text:
             yield text
         return
@@ -624,6 +1182,20 @@ async def _record_opening_attempt(state: dict) -> None:
     )
 
 
+async def _mark_committed_opening_replayed(state: dict, opening_key: str) -> None:
+    """Replay a committed opening without leaving the session input-blocked."""
+    await _record_opening_attempt(state)
+    state["opening_streamed"] = True
+    pending_transition = state.get("pending_node_transition")
+    if isinstance(pending_transition, dict) and pending_transition.get("transition_id") == opening_key:
+        pending_transition["status"] = "committed"
+        state["pending_node_transition"] = None
+    if state.get("status", "active") == "active" and not state.get("pending_node_transition"):
+        state["input_allowed"] = True
+        state["block_reason"] = None
+    await _persist_runtime_state(state)
+
+
 def _hydrate_runtime_state(row: dict) -> dict:
     snapshot = dict(row.get("state_snapshot") or {})
     state = _new_state(
@@ -678,6 +1250,50 @@ async def get_session_state(session_id: str) -> dict | None:
         await _persist_runtime_state(state)
     SessionStore[session_id] = state
     return state
+
+
+async def get_resumable_active_session_for_start(
+    user_id: str,
+    node_id: str,
+    *,
+    test_mode: bool = False,
+) -> tuple[str, dict] | None:
+    """Return an active same-user/node/mode session for idempotent start/resume."""
+    if node_id not in all_node_ids():
+        return None
+    task_type = task_type_of(node_id, test_mode=test_mode).value
+    for session_id, state in list(SessionStore.items()):
+        if (
+            state.get("user_id") == user_id
+            and state.get("competency_node") == node_id
+            and state.get("task_type") == task_type
+            and state.get("status", "active") == "active"
+            and not state.get("session_over")
+        ):
+            if _expire_state_if_needed(state):
+                await _persist_runtime_state(state)
+                continue
+            return session_id, state
+
+    store = get_storage()
+    if not hasattr(store, "get_active_session_runtime_for_node"):
+        return None
+    row = await store.get_active_session_runtime_for_node(
+        user_id,
+        node_id,
+        task_type,
+        bool(test_mode),
+    )
+    if not row:
+        return None
+    state = _hydrate_runtime_state(row)
+    if state.get("session_over"):
+        return None
+    if _expire_state_if_needed(state):
+        await _persist_runtime_state(state)
+        return None
+    SessionStore[state["session_id"]] = state
+    return state["session_id"], state
 
 
 async def handoff_transition_to_session(
@@ -773,6 +1389,8 @@ def _new_state(
         # coaching sessions. Hydrated at TEST start from the precache or a
         # synchronous regeneration. Persisted (not a transient key).
         "probe_items": [],
+        "assessment_plan": None,
+        "assessment_events": [],
         "coverage_events": [],
         "pending_coverage_event": None,
         "visible_event_ledger": [],
@@ -780,6 +1398,14 @@ def _new_state(
         "floor_handoff_queue": [],
         "simulation_segments": [],
         "career_context": career_context or {},
+        "session_learning_delta": {
+            "strengths": [],
+            "active_gaps": [],
+            "repeated_issue_counts": {},
+            "growth_signals": [],
+            "resolved_candidates": [],
+            "latest_evidence_quotes": [],
+        },
         "scenario_config": scenario_config or {},
         "context_hash": context_hash or "default",
         "current_mastery": 0.0,
@@ -904,7 +1530,6 @@ async def touch_session_async(session_id: str, now: float | None = None) -> None
     store = get_storage()
     if hasattr(store, "touch_session_runtime"):
         await store.touch_session_runtime(session_id, state.get("status", "active"))
-    await _persist_runtime_state(state)
 
 
 async def cleanup_sessions(now: float | None = None) -> list[str]:
@@ -997,6 +1622,18 @@ async def start_session(
     await store.ensure_profile(user_id, learner_name)
     prof = await store.get_profile(user_id) or {}
     career_context = build_career_context(prof)
+    career_context_private = career_context.private_dict()
+    try:
+        career_context_private["career_memory_context"] = (
+            await CareerLearningProfileService(store).get_career_memory_context(user_id)
+        )
+    except Exception:
+        logger.warning(
+            "career memory context unavailable for user=%s; continuing without feed-forward context",
+            user_id,
+            exc_info=True,
+        )
+        career_context_private["career_memory_context"] = {}
     resolved_sim = resolve_simulation_config(
         task_type_enum,
         node_id,
@@ -1047,7 +1684,7 @@ async def start_session(
     if attempts > 0:
         for mem in memory_context:
             if mem.get("node_id") == node_id and mem.get("raw"):
-                last_summary = mem.get("raw")
+                last_summary = sanitize_memory_text(mem.get("raw"))
                 break
 
     # Seed the assessment topic from the node, sharpened by the learner's top
@@ -1068,11 +1705,19 @@ async def start_session(
         task_type,
         module_id,
         sim_topic,
-        career_context=career_context.private_dict(),
+        career_context=career_context_private,
         scenario_config=resolved_sim.public_dict(),
         personas=resolved_sim.persona_roster if is_test else None,
         context_hash=resolved_sim.context_hash,
     )
+    state["session_learning_delta"] = {
+        "strengths": [],
+        "active_gaps": [],
+        "repeated_issue_counts": {},
+        "growth_signals": [],
+        "resolved_candidates": [],
+        "latest_evidence_quotes": [],
+    }
     
     # Apply loaded progress
     state["current_mastery"] = current_mastery
@@ -1103,10 +1748,11 @@ async def start_session(
         state["probe_items"] = await _load_or_generate_probe_items(
             user_id,
             task_type,
-            career_context=career_context.private_dict(),
+            career_context=career_context_private,
             scenario_config=resolved_sim.private_dict(),
             context_hash=resolved_sim.context_hash,
         )
+        ensure_assessment_plan(state)
     await store.create_session(
         session_id,
         user_id,
@@ -1114,7 +1760,7 @@ async def start_session(
         module_id,
         node_id,
         test_mode=is_test,
-        career_context=career_context.private_dict(),
+        career_context=career_context_private,
         scenario_config=resolved_sim.private_dict(),
         persona_roster=resolved_sim.persona_roster if is_test else [],
         context_hash=resolved_sim.context_hash,
@@ -1133,6 +1779,191 @@ def _gd_sim_topic(state: dict) -> str:
     return ""
 
 
+def _opening_fallback_text(state: dict, node) -> str:
+    task_type = state.get("task_type")
+    if task_type == TaskType.GD_TEST.value:
+        topic = _gd_sim_topic(state) or "the assigned motion"
+        return (
+            f"Today's group discussion focuses on the motion: \"{topic}\". "
+            "State your position in one or two sentences, then give one concrete reason."
+        )
+    if task_type == TaskType.INTERVIEW_TEST.value:
+        role = str(
+            (state.get("scenario_config") or {}).get("role")
+            or (state.get("scenario_config") or {}).get("target_role")
+            or state.get("interview_role")
+            or "this role"
+        )
+        title = str(getattr(node, "title", "") or "").lower()
+        if "star" in title:
+            return (
+                f"Let's begin the {role} interview. Tell me about a specific project or situation using STAR: "
+                "what was the situation, what was your task, what actions did you take, and what changed as a result?"
+            )
+        if "weakness" in title:
+            return (
+                f"Let's begin the {role} interview. What is one real weakness you are working on, "
+                "and what evidence shows you are improving it?"
+            )
+        if "strength" in title:
+            return (
+                f"Let's begin the {role} interview. What is one strength you would bring to this role? "
+                "Back it with a specific example and result."
+            )
+        return (
+            f"Let's begin the {role} interview. Answer this as you would in a real interview: "
+            f"{getattr(node, 'title', 'Tell me about your experience')}."
+        )
+    if task_type == TaskType.GD_PREP.value:
+        topic = (
+            state.get("sim_topic")
+            or (state.get("scenario_config") or {}).get("topic")
+            or getattr(node, "title", "this skill")
+        )
+        return f"Let's practice {topic}. Give your first clear contribution now."
+    return f"Let's practice {getattr(node, 'title', 'this skill')}. Give your best attempt now."
+
+
+def _assessment_opening_text(state: dict, node) -> str:
+    """Return a deterministic first prompt for scored simulations.
+
+    Test-mode openings must never depend on a slow model stream. The actual
+    assessment turn still uses the structured model boundary after the learner
+    answers; this only makes the first visible prompt reliable and aligned with
+    the backend-owned plan.
+    """
+    task_type = state.get("task_type")
+    if task_type == TaskType.GD_TEST.value:
+        return _opening_fallback_text(state, node)
+    if task_type != TaskType.INTERVIEW_TEST.value:
+        return ""
+
+    plan = state.get("assessment_plan") if isinstance(state.get("assessment_plan"), dict) else {}
+    role = str(
+        plan.get("role")
+        or (state.get("scenario_config") or {}).get("target_role")
+        or "this role"
+    ).strip() or "this role"
+    title = str(getattr(node, "title", "") or "").lower()
+    if "star" in title:
+        prompt = (
+            f"Tell me about one specific {role} project or work situation using STAR. "
+            "What was the situation, what was your task, what action did you personally take, "
+            "and what changed as a result?"
+        )
+        prompt_id = "prompt_initial_star_story"
+        skill_id = "STRUCTURE_STAR_METHOD"
+    else:
+        probes = [probe for probe in (plan.get("probe_plan") or []) if isinstance(probe, dict)]
+        first_probe = next((probe for probe in probes if str(probe.get("prompt") or "").strip()), None)
+        if not first_probe:
+            return _opening_fallback_text(state, node)
+        prompt = str(first_probe.get("prompt") or "").strip()
+        prompt_id = str(first_probe.get("prompt_id") or first_probe.get("probe_id") or "").strip() or f"prompt_{uuid.uuid4().hex[:8]}"
+        skill_id = str(first_probe.get("skill_id") or first_probe.get("probe_id") or prompt_id).strip()
+    state["active_interview_probe_prompt"] = prompt
+    state["active_interview_probe_prompt_id"] = prompt_id
+    state["active_interview_probe_skill_id"] = skill_id
+    state["pending_coverage_event"] = {
+        "event_id": f"opening:{prompt_id}",
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "skill_id": skill_id,
+        "prompt_id": prompt_id,
+        "prompt_text": prompt,
+        "answered": False,
+    }
+    used = list(state.get("used_probe_prompts") or [])
+    used.append(prompt)
+    state["used_probe_prompts"] = used[-12:]
+    state["probe_cursor"] = max(1, int(state.get("probe_cursor") or 0))
+    learner = str(state.get("learner_name") or "").strip()
+    greeting = f"Welcome, {learner}. " if learner else "Welcome. "
+    return f"{greeting}We'll focus on {role}. {prompt}"
+
+
+def _append_opening_message_once(state: dict, message: dict) -> bool:
+    """Append an opening message only if this opening is not already visible.
+
+    Browser bootstrap can race a transcript restore against an opening retry. The
+    session state owns the authoritative transcript, so protect it here too:
+    same message_id wins, and for older persisted rows without message_id the
+    opening kind + node + transition + content tuple is treated as the identity.
+    """
+    messages = state.setdefault("messages", [])
+    message_id = str(message.get("message_id") or "").strip()
+    node_id = message.get("node_id")
+    transition_id = message.get("transition_id")
+    content = str(message.get("content") or "")
+    for existing in messages:
+        if not isinstance(existing, dict):
+            continue
+        if message_id and existing.get("message_id") == message_id:
+            return False
+        if (
+            existing.get("role") == "assistant"
+            and existing.get("message_kind") == "opening"
+            and existing.get("node_id") == node_id
+            and existing.get("transition_id") == transition_id
+            and str(existing.get("content") or "") == content
+        ):
+            if message_id and not existing.get("message_id"):
+                existing["message_id"] = message_id
+            return False
+    messages.append(message)
+    state["turn_count"] = int(state.get("turn_count") or 0) + 1
+    return True
+
+
+def _append_simulation_messages_once(state: dict, speaker_messages: list[dict]) -> int:
+    """Append streamed simulation messages without persisting adjacent duplicates.
+
+    The browser can reconnect or replay a just-completed stream while the same
+    persona text is already visible. Keep the transcript authoritative by
+    collapsing only identical adjacent assistant simulation turns from the same
+    speaker; different speakers or different text remain separate GD segments.
+    """
+    messages = state.setdefault("messages", [])
+    appended = 0
+    for message in speaker_messages:
+        text = " ".join(str(message.get("content") or "").split())
+        speaker_id = str(message.get("speaker_id") or "")
+        previous = messages[-1] if messages and isinstance(messages[-1], dict) else None
+        previous_text = " ".join(str((previous or {}).get("content") or "").split())
+        if (
+            previous
+            and previous.get("role") == "assistant"
+            and previous.get("message_kind") == "simulation_turn"
+            and str(previous.get("speaker_id") or "") == speaker_id
+            and previous_text == text
+        ):
+            continue
+        messages.append(message)
+        appended += 1
+    return appended
+
+
+async def _stream_generation_with_timeout(
+    spec: GenSpec,
+    timeout_seconds: float | None = None,
+) -> AsyncIterator[str]:
+    """Yield model tokens, but never let an opening hang the session shell."""
+    token_timeout = OPENING_STREAM_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    stream = stream_generation(spec).__aiter__()
+    while True:
+        try:
+            yield await asyncio.wait_for(stream.__anext__(), timeout=token_timeout)
+        except StopAsyncIteration:
+            break
+        except asyncio.TimeoutError:
+            aclose = getattr(stream, "aclose", None)
+            if callable(aclose):
+                try:
+                    await aclose()
+                except Exception:
+                    logger.debug("opening stream close after timeout failed", exc_info=True)
+            raise
+
+
 async def stream_opening(
     session_id: str,
     transition_id: str | None = None,
@@ -1147,7 +1978,7 @@ async def stream_opening(
     pending_transition = state.get("pending_node_transition")
     committed = state.setdefault("committed_openings", {})
     if transition_id and transition_id in committed:
-        await _record_opening_attempt(state)
+        await _mark_committed_opening_replayed(state, transition_id)
         yield committed[transition_id]
         return
     opening_key = (
@@ -1159,8 +1990,28 @@ async def stream_opening(
         raise ValueError("transition_id_mismatch")
 
     if opening_key in committed:
-        await _record_opening_attempt(state)
+        await _mark_committed_opening_replayed(state, opening_key)
         yield committed[opening_key]
+        return
+
+    deterministic_test_opening = _assessment_opening_text(state, node)
+    if deterministic_test_opening and not pending_transition:
+        message_id = f"{session_id}:opening:{opening_key}"
+        message = {
+            "message_id": message_id,
+            "role": "assistant",
+            "content": deterministic_test_opening,
+            "node_id": state["competency_node"],
+            "transition_id": None,
+            "message_kind": "opening",
+        }
+        _append_opening_message_once(state, message)
+        committed[opening_key] = deterministic_test_opening
+        state["last_opening_message_id"] = message_id
+        await _record_opening_attempt(state)
+        state["opening_streamed"] = True
+        await _persist_runtime_state(state)
+        yield deterministic_test_opening
         return
 
     if pending_transition:
@@ -1184,9 +2035,12 @@ async def stream_opening(
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
     try:
-        async for tok in stream_generation(spec):
+        async for tok in _stream_generation_with_timeout(spec):
             full.append(tok)
             yield tok
+    except asyncio.TimeoutError:
+        logger.warning("opening stream timed out; using fallback for session=%s", session_id)
+        full = []
     except Exception:
         if pending_transition and int(pending_transition.get("attempts") or 0) < 2:
             pending_transition["status"] = "opening_failed"
@@ -1196,7 +2050,7 @@ async def stream_opening(
         full = []
     text = "".join(full)
     if not text.strip():
-        text = "This skill is ready. Let's begin."
+        text = _opening_fallback_text(state, node)
         yield text
     message_id = f"{session_id}:opening:{opening_key}"
     message = {
@@ -1207,8 +2061,7 @@ async def stream_opening(
         "transition_id": pending_transition.get("transition_id") if pending_transition else None,
         "message_kind": "opening",
     }
-    state["messages"].append(message)
-    state["turn_count"] += 1
+    _append_opening_message_once(state, message)
     committed[opening_key] = text
     state["last_opening_message_id"] = message_id
     # Mark the opening as streamed so a reload rehydrates instead of replaying it.
@@ -1246,14 +2099,17 @@ async def _stream_node_opening(state: dict) -> AsyncIterator[str]:
     spec = GenSpec(provider="gemini", model=GEMINI_FLASH, prompt=prompt, kind="opening")
     full = []
     try:
-        async for tok in stream_generation(spec):
+        async for tok in _stream_generation_with_timeout(spec):
             full.append(tok)
             yield tok
+    except asyncio.TimeoutError:
+        logger.warning("node opening stream timed out; using fallback for session=%s", state.get("session_id"))
+        full = []
     except Exception:
         full = []
     text = "".join(full).strip()
     if not text:
-        text = "The next skill is ready. Let's begin."
+        text = _opening_fallback_text(state, node)
         yield text
     state["messages"].append({"role": "assistant", "content": text})
     state["turn_count"] += 1
@@ -1285,6 +2141,9 @@ def _append_user_turn_message(
     if client_turn_id:
         message["turn_id"] = client_turn_id
         message["message_id"] = f"{state['session_id']}:turn:{client_turn_id}:user"
+    assessment_action = state.get("client_assessment_action")
+    if isinstance(assessment_action, dict):
+        message["assessment_action"] = dict(assessment_action)
     state["messages"].append(message)
     return True
 
@@ -1293,6 +2152,7 @@ async def run_turn(
     session_id: str,
     user_input: str,
     client_turn_id: str | None = None,
+    assessment_action: dict | None = None,
 ) -> AsyncIterator[str]:
     """Process one learner answer: evaluate -> route -> stream the response.
 
@@ -1302,7 +2162,7 @@ async def run_turn(
     is held across yields, so concurrent turns on ONE session queue; different
     sessions are unaffected."""
     async with _lock_for(session_id):
-        async for tok in _run_turn_locked(session_id, user_input, client_turn_id):
+        async for tok in _run_turn_locked(session_id, user_input, client_turn_id, assessment_action):
             yield tok
 
 
@@ -1310,6 +2170,7 @@ async def _run_turn_locked(
     session_id: str,
     user_input: str,
     client_turn_id: str | None = None,
+    assessment_action: dict | None = None,
 ) -> AsyncIterator[str]:
     """run_turn body — always invoked under the session lock (see run_turn).
 
@@ -1325,12 +2186,21 @@ async def _run_turn_locked(
         raise SessionNotActiveError(block_reason)
     user_input = (user_input or "")[:MAX_INPUT_CHARS]
     state["user_input"] = user_input
+    if state.get("task_type") in _TEST_TASK_TYPES and assessment_action:
+        state["client_assessment_action"] = dict(assessment_action)
+    else:
+        state.pop("client_assessment_action", None)
+    client_action_kind = (
+        str((state.get("client_assessment_action") or {}).get("kind") or "")
+        if isinstance(state.get("client_assessment_action"), dict)
+        else ""
+    )
     is_test_end_control = state.get("task_type") in _TEST_TASK_TYPES and _is_session_end(user_input)
-    is_test_runtime_control = is_test_end_control
+    is_test_runtime_control = is_test_end_control or client_action_kind in {"clarify", "new_angle", "move_on"}
     if state.get("task_type") in _TEST_TASK_TYPES and not is_test_end_control:
         from app.services.simulation_service import is_simulation_control_input
 
-        is_test_runtime_control = is_simulation_control_input(
+        is_test_runtime_control = is_test_runtime_control or is_simulation_control_input(
             str(state.get("task_type") or ""),
             user_input,
         )
@@ -1393,7 +2263,6 @@ async def _run_turn_locked(
         return
 
     state["active_game_prompt"] = None
-    state["active_prompt_attempt_type"] = None
 
     # TEST-mode (assessment) turns run a multi-persona SIMULATION, not the
     # coaching graph: record the learner's contribution, stream the panel's next
@@ -1447,8 +2316,9 @@ async def _run_turn_locked(
             await _persist_runtime_state(state)
             raise
         flush_speaker_message()
-        state["messages"].extend(speaker_messages)
+        _append_simulation_messages_once(state, speaker_messages)
         state["turn_count"] += 1
+        state.pop("client_assessment_action", None)
         if not state.get("session_over"):
             _bump_session_version(state)
         _finish_active_turn(state, client_turn_id, "completed")
@@ -1542,6 +2412,7 @@ async def _run_turn_locked(
                 "hint": game.get("hint", ""),
                 "context": game.get("context", ""),
                 "options": game.get("options"),
+                "turn_id": client_turn_id,
             }
             yield GamePrompt(
                 type=public_game["type"],
@@ -1550,24 +2421,34 @@ async def _run_turn_locked(
                 context=public_game["context"],
                 answer_key=game.get("answer_key", ""),
                 options=public_game["options"],
+                turn_id=client_turn_id,
             )
             state["active_game_prompt"] = public_game
             # Record a minimal assistant turn so conversation history stays valid.
             state["messages"].append({
                 "role": "assistant",
                 "content": f"[Fill in the blank] {game.get('sentence', '')}",
+                "turn_id": client_turn_id,
             })
             state["turn_count"] += 1
             state["pending_game"] = None
         else:
             spec: GenSpec | None = state.get("pending")
+            bridge_feedback = (
+                _deterministic_closed_bridge_feedback(state)
+                if did_eval and state.get("last_graded_bridge")
+                else ""
+            )
             full = []
             fallback_text = (
                 "Sorry - I lost my train of thought for a second there. "
                 "Could you try that once more for me?"
             )
             fallback_message: dict | None = None
-            if spec is not None:
+            if bridge_feedback:
+                full.append(bridge_feedback)
+                yield bridge_feedback
+            elif spec is not None:
                 try:
                     async for tok in _stream_coaching_generation(spec, state):
                         full.append(tok)
@@ -1597,6 +2478,9 @@ async def _run_turn_locked(
             text = "".join(full).strip()
             if not text:
                 text = fallback_text
+                yield text
+            elif _looks_incomplete_coach_text(text):
+                text = _deterministic_coach_repair_text(state)
                 yield text
             assistant_message = {
                 "role": "assistant",
@@ -1753,7 +2637,7 @@ async def close_session(session_id: str) -> dict:
                 report.model_dump(), state.get("task_type", "")
             )
             state["simulation_report"] = report_dict
-            if report.validity_status == "final":
+            if report.validity_status != "invalid_simulation":
                 await CareerLearningProfileService(get_storage()).record_session_report(
                     user_id=state["user_id"],
                     session_id=session_id,
@@ -1772,6 +2656,7 @@ async def close_session(session_id: str) -> dict:
             summary = await summarize_session(node, state["messages"])
         except Exception:
             summary = ""
+        summary = sanitize_memory_text(summary)
 
     # Close + persist long-term memory. This is user history, not a cache; do
     # not silently drop it if storage fails.
@@ -1871,6 +2756,35 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
         and s.get("status", "active") == "active"
         and _state_module(s) == module_id
     ]
+    if not active:
+        if hasattr(store, "get_latest_active_session_runtime_for_module"):
+            row = await store.get_latest_active_session_runtime_for_module(
+                user_id,
+                module_id,
+                False,
+            )
+            if row:
+                resumed_state = _hydrate_runtime_state(row)
+                if not resumed_state.get("session_over") and _state_module(resumed_state) == module_id:
+                    if _expire_state_if_needed(resumed_state):
+                        await _persist_runtime_state(resumed_state)
+                    else:
+                        SessionStore[resumed_state["session_id"]] = resumed_state
+                        active.append(resumed_state)
+        if not active:
+            for node in module.nodes:
+                if is_voice_node(node.id):
+                    continue
+                resumed = await get_resumable_active_session_for_start(
+                    user_id,
+                    node.id,
+                    test_mode=False,
+                )
+                if resumed:
+                    _session_id, resumed_state = resumed
+                    if _state_module(resumed_state) == module_id:
+                        active.append(resumed_state)
+                        break
     primary_active = next((s for s in active if not s.get("reattempt")), None)
     curr_node = primary_active.get("competency_node") if primary_active else None
     curr_streak = primary_active.get("clean_streak", 0) if primary_active else 0
@@ -1933,7 +2847,7 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
         elif is_current:
             status = "active"
             found_active = True
-        elif not found_active:
+        elif not found_active and not curr_node:
             status = "active"
             found_active = True
         else:
@@ -2366,6 +3280,63 @@ def _passrate_below_floor(state: dict) -> bool:
     return (clean / len(history)) < PASSRATE_FLOOR
 
 
+def _append_unique_limited(items: list, value: str, *, limit: int = 8) -> None:
+    text = str(value or "").strip()
+    if not text or text in items:
+        return
+    items.append(text)
+    del items[:-limit]
+
+
+def _update_session_learning_delta(state: dict, rubric_result: dict, user_answer: str) -> None:
+    delta = state.setdefault("session_learning_delta", {
+        "strengths": [],
+        "active_gaps": [],
+        "repeated_issue_counts": {},
+        "growth_signals": [],
+        "resolved_candidates": [],
+        "latest_evidence_quotes": [],
+    })
+    delta["module_id"] = state.get("module_id") or _module_id_for_state(str(state.get("competency_node") or ""))
+    delta["task_type"] = state.get("task_type", "")
+    strengths = delta.setdefault("strengths", [])
+    active_gaps = delta.setdefault("active_gaps", [])
+    growth_signals = delta.setdefault("growth_signals", [])
+    resolved_candidates = delta.setdefault("resolved_candidates", [])
+    evidence_quotes = delta.setdefault("latest_evidence_quotes", [])
+    repeated = delta.setdefault("repeated_issue_counts", {})
+
+    for strength in rubric_result.get("strengths") or []:
+        _append_unique_limited(strengths, str(strength), limit=8)
+
+    gap = str(rubric_result.get("next_focus") or "").strip()
+    score = float(rubric_result.get("effective_score", rubric_result.get("score", 0.0)) or 0.0)
+    if gap and score < PASS_SCORE:
+        _append_unique_limited(active_gaps, gap, limit=8)
+        repeated[gap] = int(repeated.get(gap) or 0) + 1
+    elif gap and bool(rubric_result.get("pass_eligible")):
+        _append_unique_limited(growth_signals, gap, limit=8)
+    if gap and bool(rubric_result.get("mastery_eligible")):
+        _append_unique_limited(resolved_candidates, gap, limit=8)
+
+    for criterion_id in rubric_result.get("required_missing") or []:
+        criterion_key = f"criterion:{str(criterion_id or '').strip()}"
+        if criterion_key != "criterion:":
+            repeated[criterion_key] = int(repeated.get(criterion_key) or 0) + 1
+    for criterion in rubric_result.get("criteria") or []:
+        if not isinstance(criterion, dict):
+            continue
+        criterion_id = str(criterion.get("id") or "").strip()
+        if criterion_id and criterion.get("met") is False:
+            criterion_key = f"criterion:{criterion_id}"
+            repeated[criterion_key] = max(int(repeated.get(criterion_key) or 0), 1)
+        quote = str(criterion.get("evidence_quote") or "").strip()
+        if quote:
+            _append_unique_limited(evidence_quotes, quote[:260], limit=8)
+    if not evidence_quotes and user_answer:
+        _append_unique_limited(evidence_quotes, " ".join(user_answer.split())[:260], limit=8)
+
+
 async def _track_turn(state: dict, node_id: str) -> None:
     """Log the scored answer + aggregate a weakness, through the dispatcher.
 
@@ -2403,6 +3374,11 @@ async def _track_turn(state: dict, node_id: str) -> None:
     if rubric_result and hasattr(store, "record_turn_evaluation"):
         turn_id = state.get("active_turn_id") or state.get("last_turn_id")
         attempt_index = int(state.get("attempts") or 0)
+        _update_session_learning_delta(
+            state,
+            dict(rubric_result),
+            str(state.get("user_input") or ""),
+        )
         await store.record_turn_evaluation(
             evaluation_id=f"{state['session_id']}:{turn_id or attempt_index}:{node_id}",
             session_id=state["session_id"],
@@ -2601,18 +3577,31 @@ def _detect_frustration(user_input: str) -> bool:
 
 
 def _farewell(state: dict) -> str:
-    """Warm sign-off naming the learner and a micro-win, no scoring."""
+    """Evidence-calibrated sign-off naming the learner, no scoring claims."""
     name = (state.get("learner_name") or "").strip()
     who = f", {name}" if name else ""
-    streak = state.get("clean_streak", 0)
-    win = (
-        f" You strung together {streak} clean passes today — that's real progress."
-        if streak >= 1
-        else " You showed up and put in the work today, and that's how it starts."
+    streak = int(state.get("clean_streak") or 0)
+    score = float(state.get("last_eval_score") or state.get("current_mastery") or 0.0)
+    focus = (
+        (state.get("last_diagnosis") or {}).get("next_focus")
+        or state.get("next_focus")
+        or ""
     )
+    if streak >= 2:
+        note = f"You had {streak} clean passes today; keep proving that standard across harder prompts."
+    elif streak == 1:
+        note = "One clean pass landed today; next time we will check whether it holds without help."
+    elif state.get("needs_support") or score < 0.5:
+        note = (
+            f"The next useful focus is {focus.strip()}"
+            if focus
+            else "The next useful focus is one smaller, clearer revision."
+        )
+    else:
+        note = "You put in a real attempt; next time we will keep tightening the same skill."
     return (
-        f"Great session{who}.{win} Come back when you're ready and we'll pick up "
-        "right where we left off. 👋"
+        f"Session saved{who}. {note} Come back when you want to continue and "
+        "we'll pick up from this point."
     )
 
 

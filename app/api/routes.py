@@ -27,7 +27,7 @@ from app.storage import get_storage
 from app.billing.gate import resolve_gate, charge
 from app.billing.pricing import pack_list
 from app.services.session_service import GamePrompt
-from app.services.simulation_service import Speaker, SimulationState
+from app.services.simulation_service import Speaker, SimulationState, assessment_progress_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,8 @@ router = APIRouter(prefix="/session", tags=["session"])
 onboarding = APIRouter(tags=["onboarding"])
 _SSE_HEARTBEAT_SECONDS = 12.0
 _STREAM_SENTINEL = object()
+_BACKGROUND_STREAM_TASKS: set[asyncio.Task] = set()
+_ORPHANED_TURN_LATCH_GRACE_SECONDS = 5.0
 
 
 @onboarding.get("/modules")
@@ -93,6 +95,12 @@ def _accepted_frame(session_id: str, request_id: str, kind: str) -> str:
     )
 
 
+def _track_stream_task(task: asyncio.Task) -> None:
+    """Keep producer tasks alive after the SSE generator closes."""
+    _BACKGROUND_STREAM_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_STREAM_TASKS.discard)
+
+
 def _heartbeat_frame(session_id: str, request_id: str, kind: str) -> str:
     return _sse(
         json.dumps({
@@ -140,6 +148,11 @@ def _turn_request_hash(req: SessionTurnRequest) -> str:
         "session_id": req.session_id,
         "user_input": req.user_input,
         "expected_session_version": req.expected_session_version,
+        "assessment_action": (
+            req.assessment_action.model_dump()
+            if req.assessment_action is not None
+            else None
+        ),
     }
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -313,6 +326,7 @@ def _public_game_prompt(prompt: object) -> dict | None:
         "hint": prompt.get("hint", ""),
         "context": prompt.get("context", ""),
         "options": prompt.get("options"),
+        "turn_id": prompt.get("turn_id"),
     }
 
 
@@ -346,6 +360,8 @@ def _state_snapshot(state: dict) -> dict:
     return {
         "session_id": state["session_id"],
         "competency_node": state["competency_node"],
+        "task_type": state.get("task_type", ""),
+        "module_id": state.get("module_id") or module_of(str(state.get("competency_node") or "")),
         "node_title": get_node(state["competency_node"]).title,
         "current_mastery": round(state["current_mastery"], 4),
         "turn_count": state["turn_count"],
@@ -395,6 +411,17 @@ def _state_snapshot(state: dict) -> dict:
         "simulation_tension": float((state.get("blackboard") or {}).get("tension") or 0.0),
         "simulation_score": state.get("simulation_score"),
         "simulation_report": state.get("simulation_report"),
+        "assessment_state": (
+            {
+                "plan": state.get("assessment_plan"),
+                "validity_flags": list(state.get("assessment_validity_flags") or []),
+                "coverage_events": list(state.get("coverage_events") or [])[-12:],
+                "assessment_events": list(state.get("assessment_events") or [])[-12:],
+                "progress": assessment_progress_snapshot(state),
+            }
+            if state.get("task_type") in {"interview_test", "gd_test"}
+            else None
+        ),
         "session_version": int(state.get("session_version") or 1),
         "pending_transition": state.get("pending_node_transition"),
         "active_turn": (
@@ -442,6 +469,7 @@ def _turn_frame(tok: object) -> str:
                 "hint": tok.hint,
                 "context": tok.context,
                 "options": tok.options,
+                "turn_id": tok.turn_id,
             }),
             event="game_prompt",
         )
@@ -612,6 +640,32 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
                 },
             )
 
+    if (
+        not req.source_session_id
+        and not req.source_transition_id
+        and not req.reattempt_confirmed
+        and not (req.simulation_config or {})
+    ):
+        resumed = await svc.get_resumable_active_session_for_start(
+            user_id,
+            req.competency_node,
+            test_mode=req.test_mode,
+        )
+        if resumed:
+            session_id, state = resumed
+            node = get_node(state["competency_node"])
+            return SessionStartResponse(
+                session_id=session_id,
+                node_title=node.title,
+                first_message="",
+                current_mastery=float(state.get("current_mastery") or 0.0),
+                resumed=True,
+                display_status=str(state.get("display_status") or "active"),
+                node_mastered=bool(state.get("node_mastered", False)),
+                readiness_score=float(state.get("readiness_score") or 0.0),
+                best_independent_score=float(state.get("best_independent_score") or 0.0),
+            )
+
     _enforce_start_node_unlocked(req, progress, existing)
     await _validate_source_transition(req, user_id)
 
@@ -744,6 +798,10 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
         node_title=node.title,
         first_message="",  # opening is streamed via GET /session/{id}/opening
         current_mastery=state["current_mastery"],
+        display_status=str(state.get("display_status") or "active"),
+        node_mastered=bool(state.get("node_mastered", False)),
+        readiness_score=float(state.get("readiness_score") or 0.0),
+        best_independent_score=float(state.get("best_independent_score") or 0.0),
     )
     if req.client_start_id and hasattr(store, "complete_start_request") and start_latch:
         await store.complete_start_request(
@@ -898,6 +956,68 @@ async def opening(
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+def _runtime_can_release_orphaned_turn_latch(
+    state: dict, expected_session_version: int | None
+) -> bool:
+    if expected_session_version is None:
+        return False
+    if int(state.get("session_version") or 1) != expected_session_version:
+        return False
+    if state.get("status", "active") != "active":
+        return False
+    if state.get("active_turn_id"):
+        return False
+    if state.get("input_allowed") is False:
+        return False
+    if state.get("block_reason"):
+        return False
+    if state.get("pending_node_transition") or state.get("module_done") or state.get("session_over"):
+        return False
+    return True
+
+
+async def _release_orphaned_version_latch(
+    store: object,
+    req: SessionTurnRequest,
+    state: dict,
+    turn_latch: dict,
+) -> dict | None:
+    """Fail an abandoned in-progress version latch when runtime is ready.
+
+    Duplicate turns remain blocked while a turn is genuinely processing. This
+    repair only handles the orphaned case: the durable idempotency row still
+    says an older client turn owns this rendered version, but canonical runtime
+    state has no active turn and accepts learner input.
+    """
+    accepted_turn_id = turn_latch.get("accepted_client_turn_id")
+    accepted_age_seconds = float(turn_latch.get("accepted_age_seconds") or 0.0)
+    if (
+        turn_latch.get("status") != "version_consumed"
+        or turn_latch.get("accepted_status") != "in_progress"
+        or not accepted_turn_id
+        or accepted_age_seconds < _ORPHANED_TURN_LATCH_GRACE_SECONDS
+        or not _runtime_can_release_orphaned_turn_latch(state, req.expected_session_version)
+        or not hasattr(store, "complete_turn_request")
+        or not hasattr(store, "begin_turn_request")
+    ):
+        return None
+
+    await store.complete_turn_request(
+        req.session_id,
+        str(accepted_turn_id),
+        "failed",
+        [],
+        _state_snapshot(state),
+        "orphaned_in_progress",
+    )
+    return await store.begin_turn_request(
+        req.session_id,
+        req.client_turn_id,
+        _turn_request_hash(req),
+        req.expected_session_version,
+    )
+
+
 @router.post("/turn")
 async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
     # Ownership gate: the SessionTurnRequest body carries NO user_id, so identity
@@ -928,6 +1048,11 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                 status_code=409,
                 detail={"code": "client_turn_id_reused_with_different_payload"},
             )
+        if not turn_latch.get("accepted"):
+            released_latch = await _release_orphaned_version_latch(store, req, st, turn_latch)
+            if released_latch is not None:
+                turn_latch = released_latch
+
         if not turn_latch.get("accepted"):
             status = turn_latch.get("status")
             if status == "completed":
@@ -1011,6 +1136,11 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                     req.session_id,
                     req.user_input,
                     client_turn_id=req.client_turn_id,
+                    assessment_action=(
+                        req.assessment_action.model_dump()
+                        if req.assessment_action is not None
+                        else None
+                    ),
                 ):
                     frame = _turn_frame(tok)
                     frames.append(frame)
@@ -1050,6 +1180,8 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                     )
             done = _done_frame(req.session_id)
             frames.append(done)
+            await queue.put(done)
+            await queue.put(_STREAM_SENTINEL)
             if hasattr(store, "complete_turn_request"):
                 try:
                     await store.complete_turn_request(
@@ -1066,10 +1198,9 @@ async def turn(req: SessionTurnRequest, request: Request) -> StreamingResponse:
                         req.session_id,
                         req.client_turn_id,
                     )
-            await queue.put(done)
-            await queue.put(_STREAM_SENTINEL)
 
         task = asyncio.create_task(producer())
+        _track_stream_task(task)
 
         def _consume_task_result(done_task: asyncio.Task) -> None:
             try:
@@ -1115,7 +1246,9 @@ async def transcript(session_id: str, request: Request) -> dict:
     st = await _owned_state(session_id, request)
     messages = [
         {
-            "id": f"{session_id}-{i}",
+            "id": m.get("message_id") or f"{session_id}-{i}",
+            "message_id": m.get("message_id"),
+            "turn_id": m.get("turn_id"),
             "role": m.get("role", "assistant"),
             "content": m.get("content", ""),
             "speaker_name": m.get("speaker_name"),
@@ -1214,6 +1347,14 @@ async def _score_session_end_request(session_id: str) -> None:
             )
 
 
+async def _mark_test_session_scoring(st: dict) -> None:
+    st["session_over"] = True
+    st["input_allowed"] = False
+    st["block_reason"] = "scoring"
+    st["session_version"] = int(st.get("session_version") or 1) + 1
+    await svc._persist_runtime_state(st)
+
+
 @router.post("/{session_id}/end")
 async def end(session_id: str, request: Request, background_tasks: BackgroundTasks):
     # Ownership gate before terminating — otherwise an authenticated attacker
@@ -1254,6 +1395,7 @@ async def end(session_id: str, request: Request, background_tasks: BackgroundTas
                     {"status": "processing", "session_id": session_id},
                     status_code=202,
                 )
+        await _mark_test_session_scoring(st)
         background_tasks.add_task(_score_session_end_request, session_id)
         return JSONResponse(
             {"status": "processing", "session_id": session_id},

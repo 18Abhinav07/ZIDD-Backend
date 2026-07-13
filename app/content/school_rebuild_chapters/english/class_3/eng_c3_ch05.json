@@ -1,0 +1,425 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Focused schema, runtime hash, pedagogy quality, and key self-review for eng_c3_ch05 on 2026-07-12"
+  ],
+  "runtime_sha256": "7b1d028554af5aa1318997d49289ad63b57abef1e0b9c0fea615fddb3d0e54d6",
+  "chapter_id": "eng_c3_ch05",
+  "chapter_no": 5,
+  "title": "Talking Toys",
+  "book_title": "Santoor",
+  "unit_title": "Toys and Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa105.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "talking_toys_story_order",
+      "title": "Follow the toy-shop story",
+      "focus": "sequence story events",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Track where the story is happening, who enters, and which toy is chosen next.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In a toy-shop story, do not jump straight to the toy names. First find the place, then follow who comes in, then connect each child to a toy.",
+          "passage": "The shutters open in a busy market. Wooden toys, board games, balls, and soft toys wait on the shelves.",
+          "prompt": "Where does this story scene begin?",
+          "options": [
+            "toy shop",
+            "bus stop",
+            "garden",
+            "library"
+          ],
+          "accepted_answers": [
+            "toy shop",
+            "shop",
+            "market toy shop"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: a story place is usually the answer to 'where'. Here the shelves and toys point to a toy shop.",
+          "passage": "A child looks at dolls, trains, and games kept on racks.",
+          "prompt": "Which place has dolls, trains, and games on racks?",
+          "options": [
+            "toy shop",
+            "kitchen",
+            "river",
+            "farm"
+          ],
+          "accepted_answers": [
+            "toy shop",
+            "shop"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: rebuild the sequence with three questions: where are we, who enters, and what toy is chosen?",
+          "passage": "First a family enters the shop. The child points to a toy that runs on tracks.",
+          "prompt": "Which toy is the child likely choosing?",
+          "options": [
+            "train",
+            "pillow",
+            "plate",
+            "leaf"
+          ],
+          "accepted_answers": [
+            "train",
+            "toy train"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now follow a new toy-shop clue without hints.",
+          "passage": "A boy walks past the dolls and board games. He stops at the toy that has wheels and coaches.",
+          "prompt": "Which toy does the boy choose?",
+          "options": [],
+          "accepted_answers": [
+            "train",
+            "toy train"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the same clue-tracking strategy at a school exhibition: identify the place, follow the visitor, and connect the final action to the object chosen.",
+          "passage": "At the class craft fair, Nila passes clay pots and bead bracelets. She stops where a wooden figure moves when strings are pulled.",
+          "prompt": "What does Nila choose?",
+          "options": [],
+          "accepted_answers": ["puppet", "a puppet", "wooden puppet"]
+        }
+      }
+    },
+    {
+      "level_id": "talking_toys_toy_words",
+      "title": "Use toy words from context",
+      "focus": "use context to understand a word",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Use nearby clues to understand toy vocabulary instead of memorising a list.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A toy word becomes easier when you read the clue around it. If a toy can wear a frock and sit on a shelf, it may be a doll.",
+          "passage": "The toy with a pink frock and two ribbons sat beside a wooden elephant.",
+          "prompt": "Which toy is described by the pink frock clue?",
+          "options": [
+            "doll",
+            "kite",
+            "marbles",
+            "drum"
+          ],
+          "accepted_answers": [
+            "doll"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: match the clue to the toy. Frock and ribbons describe a doll, not a ball or a kite.",
+          "passage": "The child held the toy like a baby and combed its hair.",
+          "prompt": "Which toy fits this clue?",
+          "options": [
+            "doll",
+            "top",
+            "bat",
+            "train"
+          ],
+          "accepted_answers": [
+            "doll"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: some toys are chosen by how they are played with. Small round glass balls used in a game are marbles.",
+          "passage": "Two friends knelt on the floor and rolled small round balls in a game.",
+          "prompt": "Which toy word fits the clue?",
+          "options": [
+            "marbles",
+            "doll",
+            "aeroplane",
+            "puppet"
+          ],
+          "accepted_answers": [
+            "marbles"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the action clue without help.",
+          "passage": "The children rolled small round balls and tried to hit one with another.",
+          "prompt": "Which toy are they playing with?",
+          "options": [],
+          "accepted_answers": [
+            "marbles",
+            "marble"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Move the context clue strategy beyond a toy shop. Use what an object does, not its location, to name it.",
+          "passage": "During games period, Sana spins a round disc on a pointed end. It turns quickly before falling on its side.",
+          "prompt": "Name the object Sana spins.",
+          "options": [],
+          "accepted_answers": ["top", "spinning top", "a top"]
+        }
+      }
+    },
+    {
+      "level_id": "talking_toys_describing_words",
+      "title": "Add describing words",
+      "focus": "use describing words",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Connect a describing word to the naming word it tells more about.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A describing word tells more about a naming word. In 'red top', red tells what kind of top it is.",
+          "passage": "The child picked a red top from the shelf.",
+          "prompt": "Which word describes the top?",
+          "options": [
+            "red",
+            "child",
+            "picked",
+            "shelf"
+          ],
+          "accepted_answers": [
+            "red"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: first find the naming word. Then ask, 'What kind?' The answer is the describing word.",
+          "passage": "The soft bear sat near the green train.",
+          "prompt": "Which word describes the bear?",
+          "options": [
+            "soft",
+            "train",
+            "sat",
+            "near"
+          ],
+          "accepted_answers": [
+            "soft"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: a noun names the toy; a describing word adds detail. Use both to make the picture clearer.",
+          "passage": "Toy: elephant. Detail: soft.",
+          "prompt": "Which phrase uses the describing word correctly?",
+          "options": [
+            "soft elephant",
+            "elephant soft sat",
+            "soft quickly",
+            "elephant because"
+          ],
+          "accepted_answers": [
+            "soft elephant"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Choose details that help a reader picture a new toy, then put them in a complete sentence.",
+          "passage": "Toy: horse. Details: shiny, wooden. Action: stands by the window.",
+          "prompt": "Write one complete sentence describing the horse.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "toy", "description": "Names the horse.", "any_of": ["horse", "wooden horse"]},
+            {"id": "detail", "description": "Uses at least one given describing word.", "any_of": ["shiny", "wooden"]},
+            {"id": "action", "description": "States where the horse stands.", "any_of": ["by the window", "near the window", "stands by the window"]}
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Use the noun-and-description strategy for a real classroom object. Include enough detail for a listener to identify it.",
+          "passage": "Object: school bag. Details: blue, heavy. Place: under Rehan's desk.",
+          "prompt": "Write one complete sentence describing the bag.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "object", "description": "Names the bag.", "any_of": ["bag", "school bag"]},
+            {"id": "detail", "description": "Uses blue or heavy as a describing word.", "any_of": ["blue", "heavy"]},
+            {"id": "place", "description": "Gives the location under Rehan's desk.", "any_of": ["under rehan's desk", "under rehans desk", "beneath rehan's desk"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "talking_toys_plural_words",
+      "title": "Make plural toy words",
+      "focus": "make plural words",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Use s and es endings to show more than one toy or object.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A plural word means more than one. For many words, add s: one toy, two toys.",
+          "passage": "One toy is on the table. Many toys are in the basket.",
+          "prompt": "Write the plural of toy.",
+          "options": [
+            "toys",
+            "toyes",
+            "toyies",
+            "toy"
+          ],
+          "accepted_answers": [
+            "toys"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: if the word ends with x, add es. One box becomes boxes.",
+          "passage": "One box has blocks. Three boxes have toy cars.",
+          "prompt": "Write the plural of box.",
+          "options": [
+            "boxes",
+            "boxs",
+            "box",
+            "boxies"
+          ],
+          "accepted_answers": [
+            "boxes"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: choose the ending by the word. Simple toy words often take s. Words ending in x, ch, sh, or s often take es.",
+          "passage": "One brush is beside the puppet. Two brushes are beside the paints.",
+          "prompt": "Write the plural of brush.",
+          "options": [
+            "brushes",
+            "brushs",
+            "brush",
+            "brushies"
+          ],
+          "accepted_answers": [
+            "brushes"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Decide whether the ending needs s or es, then form the new plural without choices.",
+          "passage": "One bench holds a toy drum. Three of these seats hold painted tops.",
+          "prompt": "Write the plural of bench.",
+          "options": [],
+          "accepted_answers": ["benches"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the plural rule to a picnic list. Listen to the final sound before choosing s or es.",
+          "passage": "One dish has fruit. Four more are ready for sandwiches.",
+          "prompt": "Write the plural of dish.",
+          "options": [],
+          "accepted_answers": ["dishes"]
+        }
+      }
+    },
+    {
+      "level_id": "talking_toys_process_order",
+      "title": "Order making steps",
+      "focus": "order process steps",
+      "skill_ids": [
+        "grammar.sentence_order",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use sequence words to explain the order of making something.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Making activities need order. Words like first, next, then, and finally help a reader follow each step.",
+          "passage": "First, fold the paper. Next, tie the thread. Finally, fly the kite.",
+          "prompt": "Which word tells the first step?",
+          "options": [
+            "first",
+            "next",
+            "finally",
+            "fly"
+          ],
+          "accepted_answers": [
+            "first"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: the first step starts the work; finally tells the last step.",
+          "passage": "First, draw a face. Next, colour it. Finally, attach a handle.",
+          "prompt": "Which word tells the last step?",
+          "options": [
+            "finally",
+            "first",
+            "next",
+            "draw"
+          ],
+          "accepted_answers": [
+            "finally"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: process order is not only about memory. Ask what must happen before the next step can work.",
+          "passage": "A child cuts the puppet shape before colouring the face.",
+          "prompt": "Which action should happen earlier?",
+          "options": [
+            "cut the shape",
+            "pack the puppet",
+            "show the finished puppet",
+            "put it away"
+          ],
+          "accepted_answers": [
+            "cut the shape"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Build the whole instruction from an unseen set of ordered steps. Keep the action order unchanged.",
+          "passage": "Steps: wash the jar / dry it / add coloured paper stars.",
+          "prompt": "Write the three steps in order using first, next, and finally.",
+          "options": [],
+          "accepted_answers": [
+            "first wash the jar next dry it finally add coloured paper stars",
+            "first, wash the jar. next, dry it. finally, add coloured paper stars.",
+            "first wash the jar, next dry it, and finally add coloured paper stars"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use sequence language to explain a classroom routine instead of making a toy. Include all actions in a useful order.",
+          "passage": "Routine: choose a library book / write its number / place it in your bag.",
+          "prompt": "Write one or more complete sentences giving the routine in order.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "choose", "description": "Starts by choosing a library book.", "any_of": ["first choose", "choose a library book first", "first, choose"]},
+            {"id": "number", "description": "Then tells the reader to write the book number.", "any_of": ["next write its number", "then write its number", "write the book number"]},
+            {"id": "bag", "description": "Ends by placing the book in the bag.", "any_of": ["finally place it in your bag", "put it in your bag", "place the book in the bag"]}
+          ],
+          "ordered_concept_slot_ids": ["choose", "number", "bag"],
+          "min_response_words": 12
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id": "eng_c3_ch05_assess_01", "passage": "After closing time, a tin robot taps the shelf and a cloth rabbit whispers back. Soon every toy joins their midnight talk.", "prompt": "What is the paragraph mainly about?", "skill_ids": ["reading.paragraph_main_idea"], "options": ["toys talking after the shop closes", "children buying fruit", "a rabbit sleeping outdoors", "a robot fixing a shelf"], "accepted_answers": ["toys talking after the shop closes", "the toys talk at night", "talking toys"]},
+      {"item_id": "eng_c3_ch05_assess_02", "passage": "A wooden train boasts that it is fastest. The spinning top reminds it that every toy is good at a different game.", "prompt": "What lesson is the main idea?", "skill_ids": ["reading.paragraph_main_idea", "reading.sentence_comprehension"], "options": ["different toys have different strengths", "only fast toys matter", "tops can ride on tracks", "wood is always better"], "accepted_answers": ["different toys have different strengths", "each toy is good at something different"]},
+      {"item_id": "eng_c3_ch05_assess_03", "passage": "Ira winds the key on a metal bird. Its wings flap three times before it becomes still.", "prompt": "What happens after Ira winds the key?", "skill_ids": ["reading.sentence_comprehension"], "options": ["the bird's wings flap", "the bird drinks water", "the key disappears", "Ira leaves the room"], "accepted_answers": ["the bird's wings flap", "its wings flap", "the wings flap"]},
+      {"item_id": "eng_c3_ch05_assess_04", "passage": "The puppet bows when Aman pulls the front string, but it lifts one arm when he pulls the side string.", "prompt": "Which string makes the puppet lift an arm?", "skill_ids": ["reading.sentence_comprehension"], "options": [], "accepted_answers": ["the side string", "side string"]},
+      {"item_id": "eng_c3_ch05_assess_05", "passage": "The player strikes its round skin with two sticks, and a deep beat fills the room.", "prompt": "Which toy instrument fits the clue?", "skill_ids": ["vocab.chapter_word_usage"], "options": ["drum", "kite", "train", "puzzle"], "accepted_answers": ["drum", "a drum"]},
+      {"item_id": "eng_c3_ch05_assess_06", "passage": "Strings from the dancer's hands control the little cloth figure on a stage.", "prompt": "Name the figure.", "skill_ids": ["vocab.chapter_word_usage"], "options": [], "accepted_answers": ["puppet", "a puppet"]},
+      {"item_id": "eng_c3_ch05_assess_07", "passage": "The ___ scooter stood beside the door.", "prompt": "Choose the describing word.", "skill_ids": ["grammar.noun_verb_adjective"], "options": ["yellow", "rolled", "slowly", "and"], "accepted_answers": ["yellow"]},
+      {"item_id": "eng_c3_ch05_assess_08", "passage": "One watch is broken. Two ___ still tick.", "prompt": "Write the plural of watch.", "skill_ids": ["grammar.noun_verb_adjective", "writing.short_answer"], "options": [], "accepted_answers": ["watches"]},
+      {"item_id": "eng_c3_ch05_assess_09", "passage": "Object card: red fire engine | long ladder | parked beside the dollhouse.", "prompt": "Write one complete sentence describing the fire engine.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "engine", "description": "Names the fire engine.", "any_of": ["fire engine", "engine"]}, {"id": "detail", "description": "Uses red or long as a describing word.", "any_of": ["red", "long"]}, {"id": "place", "description": "Gives its place beside the dollhouse.", "any_of": ["beside the dollhouse", "next to the dollhouse", "near the dollhouse"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch05_assess_10", "passage": "Object card: tiny green kite | silver tail | hanging above the cupboard.", "prompt": "Write one complete sentence that helps a reader picture the kite.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "kite", "description": "Names the kite.", "any_of": ["kite"]}, {"id": "detail", "description": "Uses at least one given detail.", "any_of": ["tiny", "green", "silver tail"]}, {"id": "place", "description": "Gives its place above the cupboard.", "any_of": ["above the cupboard", "over the cupboard", "hanging above"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch05_assess_11", "passage": "One fox toy sits upright. Three more are packed in a carton.", "prompt": "Write the plural of fox.", "skill_ids": ["writing.short_answer"], "options": ["foxes", "foxs", "foxies", "fox"], "accepted_answers": ["foxes"]},
+      {"item_id": "eng_c3_ch05_assess_12", "passage": "One shelf is low. Two higher ones display puzzles.", "prompt": "Write the plural of shelf.", "skill_ids": ["writing.short_answer"], "options": [], "accepted_answers": ["shelves"]},
+      {"item_id": "eng_c3_ch05_assess_13", "passage": "Steps: press the clay flat / cut a star / leave it to dry.", "prompt": "Which action must happen before the star can dry?", "skill_ids": ["grammar.sentence_order"], "options": ["cut a star", "paint the dry star", "pack the star", "hang the star"], "accepted_answers": ["cut a star", "cut the star"]},
+      {"item_id": "eng_c3_ch05_assess_14", "passage": "Words: finally / display / the / model / we", "prompt": "Put the words in order.", "skill_ids": ["grammar.sentence_order"], "options": [], "accepted_answers": ["finally we display the model", "finally, we display the model.", "we finally display the model", "we finally display the model."]},
+      {"item_id": "eng_c3_ch05_assess_15", "passage": "Mohan repairs the loose wheel before racing the toy car.", "prompt": "Why does he repair the wheel first?", "skill_ids": ["reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "problem", "description": "Mentions the loose wheel or need for repair.", "any_of": ["loose wheel", "wheel was loose", "repair the wheel"]}, {"id": "result", "description": "Explains that the car can race, roll, or work safely after repair.", "any_of": ["car can race", "car can roll", "work properly", "race safely"]}], "min_response_words": 6},
+      {"item_id": "eng_c3_ch05_assess_16", "passage": "Zoya gives the younger children cloth balls instead of hard wooden ones for an indoor game.", "prompt": "Explain her choice.", "skill_ids": ["reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "choice", "description": "Mentions cloth or soft balls.", "any_of": ["cloth balls", "soft balls", "softer"]}, {"id": "reason", "description": "Gives a sensible indoor safety reason.", "any_of": ["safer", "will not hurt", "less likely to break", "soft"]}], "min_response_words": 6},
+      {"item_id": "eng_c3_ch05_assess_17", "passage": "The wind-up mouse bumps into a cup, turns around, and continues across the table.", "prompt": "Which event happens last?", "skill_ids": ["reading.sentence_comprehension", "grammar.sentence_order"], "options": ["it continues across the table", "it bumps the cup", "it is wound up", "it turns around"], "accepted_answers": ["it continues across the table", "continues across the table"]},
+      {"item_id": "eng_c3_ch05_assess_18", "passage": "A silent toy cannot make a sound. This one rings when it is shaken.", "prompt": "Which word best describes this toy?", "skill_ids": ["vocab.chapter_word_usage", "grammar.noun_verb_adjective"], "options": ["noisy", "silent", "empty", "square"], "accepted_answers": ["noisy", "loud"]},
+      {"item_id": "eng_c3_ch05_assess_19", "passage": "Plan: collect clean cartons / paint them / build a toy-town street.", "prompt": "Write the plan in order with sequence words.", "skill_ids": ["grammar.sentence_order", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "collect", "description": "Begins by collecting clean cartons.", "any_of": ["first collect", "collect clean cartons first"]}, {"id": "paint", "description": "Places painting after collecting.", "any_of": ["next paint", "then paint", "paint them next"]}, {"id": "build", "description": "Ends by building the street.", "any_of": ["finally build", "build a toy-town street", "build a toy town street"]}], "ordered_concept_slot_ids": ["collect", "paint", "build"], "min_response_words": 11},
+      {"item_id": "eng_c3_ch05_assess_20", "passage": "The toys argue about who should lead the parade. The small whistle listens to every idea and suggests that they take turns. The argument ends.", "prompt": "State the main idea and why the whistle's plan works.", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "idea", "description": "Identifies taking turns as the solution or main idea.", "any_of": ["take turns", "taking turns", "everyone gets a turn"]}, {"id": "reason", "description": "Explains that taking turns is fair or ends the argument.", "any_of": ["fair", "ends the argument", "everyone can lead", "no one is left out"]}], "min_response_words": 8}
+    ]
+  }
+}

@@ -1,0 +1,1087 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-content-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Original Zidd passages checked against the corrected NCERT title and chapter theme.",
+    "Every independent, transfer, and assessment scenario checked for stage freshness.",
+    "Masterclass checks verified deterministic with non-empty accepted answers.",
+    "Prompts, alternatives, misconceptions, age fit, and answer contracts reviewed item by item."
+  ],
+  "runtime_sha256": "e5cef653a44f3069323ffb2950c0ff4f3806c3a5ad961374b2b32fd2f05c7d33",
+  "content_version": "2026-07-12.2",
+  "chapter_id": "eng_c2_ch11",
+  "chapter_no": 11,
+  "title": "The Smart Monkey",
+  "book_title": "Mridang",
+  "unit_title": "Clean and Green",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr111.pdf",
+  "source_note": "NCERT structural and thematic alignment only. All teaching passages, checks, feedback, and assessment situations are original Zidd content.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch11_litter_sequence",
+      "title": "Follow the clean-up sequence",
+      "focus": "track what is used, dropped, noticed, and put away",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read an original market-break scene and connect each object with the action that changes the place.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Follow the object through the scene. Bought tells what came first; dropped tells what made the mess.",
+          "passage": "Nadia buys roasted corn at a market stall. After eating, she drops the paper sleeve beside a bench.",
+          "prompt": "What does Nadia drop?",
+          "options": [
+            "the paper sleeve",
+            "the corn",
+            "the bench",
+            "a bottle"
+          ],
+          "accepted_answers": [
+            "the paper sleeve",
+            "paper sleeve",
+            "a paper sleeve"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Now track who notices the litter. Do not choose the person who dropped it unless the sentence says so.",
+          "passage": "A monkey on the wall sees the sleeve. It carries its own fruit peel toward a green bin.",
+          "prompt": "Who carries a peel toward the bin?",
+          "options": [
+            "the monkey",
+            "Nadia",
+            "the stall owner"
+          ],
+          "accepted_answers": [
+            "the monkey",
+            "monkey"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Keep the final action separate from the lesson. First identify what the person physically does.",
+          "passage": "Nadia watches the monkey use the bin. She picks up her sleeve and places it inside too.",
+          "prompt": "What does Nadia put in the bin?",
+          "options": [],
+          "accepted_answers": [
+            "her paper sleeve",
+            "the paper sleeve",
+            "paper sleeve",
+            "her sleeve",
+            "the sleeve"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a new clean-up chain without choices. Match each object to its owner and final place.",
+          "passage": "After lunch, Zubin folds his foil. Lata gathers two orange peels. Both walk to the waste basket.",
+          "prompt": "What does Lata gather?",
+          "options": [],
+          "accepted_answers": [
+            "two orange peels",
+            "orange peels",
+            "the orange peels",
+            "peels"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer sequence tracking to a bus stop. Notice which action happens after the wind moves the paper.",
+          "passage": "A ticket slips from a pocket and blows under a seat. The passenger reaches down, picks it up, and uses the bin.",
+          "prompt": "What happens after the ticket blows under the seat?",
+          "options": [],
+          "accepted_answers": [
+            "the passenger picks it up",
+            "a passenger picks it up",
+            "it is picked up",
+            "the passenger reaches down and picks it up"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch11_example_lesson",
+      "title": "Learn from a smart example",
+      "focus": "infer how one responsible action changes another person's choice",
+      "skill_ids": [
+        "reading.inference_reason",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Connect the monkey's example with the observers' changed behaviour and the larger cleanliness message.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An example teaches through action. The observer changes only after seeing the responsible choice.",
+          "passage": "Two children leave cups on a step. A monkey carries its peel to the bin. The children look at one another and return for their cups.",
+          "prompt": "Why do the children return?",
+          "options": [
+            "The monkey's action reminds them to clean up.",
+            "They want another drink.",
+            "The cups are full.",
+            "The step is wet."
+          ],
+          "accepted_answers": [
+            "The monkey's action reminds them to clean up.",
+            "the monkey reminds them",
+            "they learn from the monkey",
+            "because they see the monkey use the bin"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Choose the main idea that covers both the example and the change. Avoid an answer about monkeys being better than people.",
+          "passage": "A vendor sorts waste into two bins. Nearby shoppers begin placing fruit scraps and paper in the matching bins.",
+          "prompt": "What is the main idea?",
+          "options": [
+            "A good example can guide others.",
+            "Markets sell only fruit.",
+            "Bins belong to vendors."
+          ],
+          "accepted_answers": [
+            "A good example can guide others.",
+            "good examples guide others",
+            "people can learn from a good example"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Smart here means making a sensible choice. It is not about tricks or getting a prize.",
+          "passage": "The monkey keeps the path safe by putting a slippery peel in the bin.",
+          "prompt": "Why is this a smart action?",
+          "options": [],
+          "accepted_answers": [
+            "it keeps the path safe",
+            "because it keeps the path safe",
+            "it prevents someone from slipping",
+            "because someone could slip on the peel"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the change in your own words. Include what is seen and what the observer does next.",
+          "passage": "Rakesh is about to leave a juice box on a wall. He sees a younger child carry paper to a bin, so he turns back and disposes of the box properly.",
+          "prompt": "How does the younger child influence Rakesh?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "example",
+              "description": "Mention the child using the bin.",
+              "any_of": [
+                "younger child",
+                "paper",
+                "bin",
+                "uses the bin"
+              ]
+            },
+            {
+              "id": "change",
+              "description": "Mention Rakesh changing his action.",
+              "any_of": [
+                "turns back",
+                "juice box",
+                "disposes",
+                "puts it in the bin"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer learning-by-example to saving water. State the model action and the copied action.",
+          "passage": "At a wash area, Ena closes the tap while soaping her hands. Her cousin notices and closes his tap too.",
+          "prompt": "What lesson does the cousin learn from Ena?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "model",
+              "description": "Identify Ena's water-saving action.",
+              "any_of": [
+                "closes",
+                "tap",
+                "while soaping",
+                "saves water"
+              ]
+            },
+            {
+              "id": "copy",
+              "description": "Show that the cousin follows the example.",
+              "any_of": [
+                "cousin",
+                "closes his tap",
+                "does the same",
+                "copies"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch11_cleanliness_words",
+      "title": "Understand clean-place words",
+      "focus": "use context to understand litter, empty, nearby, and ashamed",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Infer chapter words from visible actions and results rather than memorising isolated definitions.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Litter is waste left in the wrong place. The clue is that wrappers and cups are scattered on the ground.",
+          "passage": "After the fair, litter covers the grass: torn tickets, cups, and food wrappers lie everywhere.",
+          "prompt": "What does litter mean?",
+          "options": [
+            "waste left in a place",
+            "fresh food for sale",
+            "people waiting in line",
+            "a clean path"
+          ],
+          "accepted_answers": [
+            "waste left in a place",
+            "waste on the ground",
+            "rubbish left around",
+            "trash left in the wrong place"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Empty means nothing is left inside. Do not choose open; a box can be open and still contain things.",
+          "passage": "Mira tips the packet, but no nuts fall out. The packet is empty.",
+          "prompt": "Which meaning fits empty?",
+          "options": [
+            "nothing is inside",
+            "the packet is closed",
+            "the packet is heavy"
+          ],
+          "accepted_answers": [
+            "nothing is inside",
+            "has nothing inside",
+            "nothing left in it"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Nearby means not far away. Use the short walking distance as the clue.",
+          "passage": "The bin is nearby, only three steps from the bench.",
+          "prompt": "What does nearby mean?",
+          "options": [],
+          "accepted_answers": [
+            "not far away",
+            "close by",
+            "close",
+            "near"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Ashamed describes regret after knowing an action was wrong. It is different from being frightened by danger.",
+          "passage": "Punit sees a cleaner pick up the wrapper he dropped. He feels ashamed and apologises.",
+          "prompt": "What does ashamed mean here?",
+          "options": [],
+          "accepted_answers": [
+            "sorry about doing something wrong",
+            "feeling sorry for a wrong action",
+            "embarrassed about doing wrong",
+            "regretful"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use context in a new sports setting. The clue is that every drop has been drunk.",
+          "passage": "After practice, the water cooler is empty; not one cup can be filled.",
+          "prompt": "Which word describes the cooler?",
+          "options": [],
+          "accepted_answers": [
+            "empty"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch11_action_words",
+      "title": "Choose precise clean-up actions",
+      "focus": "use pick up, sort, wipe, and dispose in suitable situations",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Match each cleanliness action with the object and result it describes.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Pick up means lift something from a surface. It comes before carrying or throwing it away.",
+          "passage": "A wrapper lies by the gate. Please ____ it before the wind blows it away.",
+          "prompt": "Which action completes the instruction?",
+          "options": [
+            "pick up",
+            "spill",
+            "peel",
+            "forget"
+          ],
+          "accepted_answers": [
+            "pick up",
+            "pickup"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Sort means put different kinds into groups. Look for two bins or two categories.",
+          "passage": "We ____ paper and fruit scraps into separate bins.",
+          "prompt": "Choose the correct action word.",
+          "options": [
+            "sort",
+            "drop",
+            "drink"
+          ],
+          "accepted_answers": [
+            "sort"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Wipe is used for a wet or dirty surface. It does not mean sweep dry leaves with a broom.",
+          "passage": "Juice spills on the table, so Aman uses a cloth to ____ it.",
+          "prompt": "Write the missing word.",
+          "options": [],
+          "accepted_answers": [
+            "wipe",
+            "wipe up",
+            "clean"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Dispose of means put waste in the correct place. The object is no longer needed.",
+          "passage": "The snack packet is empty. We should ____ it in the marked bin.",
+          "prompt": "Complete the sentence.",
+          "options": [],
+          "accepted_answers": [
+            "dispose of",
+            "put",
+            "throw away",
+            "place"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply two clean-up actions at a picnic. Include handling the mess and using the right waste place.",
+          "passage": "After a picnic, crumbs remain on the mat and paper plates are beside it.",
+          "prompt": "Write a short clean-up instruction using two suitable actions.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "surface",
+              "description": "Include cleaning the mat.",
+              "any_of": [
+                "wipe",
+                "shake",
+                "sweep",
+                "clean",
+                "crumbs"
+              ]
+            },
+            {
+              "id": "waste",
+              "description": "Include collecting and binning the plates.",
+              "any_of": [
+                "pick up",
+                "plates",
+                "bin",
+                "dispose",
+                "collect"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch11_reasons_connectors",
+      "title": "Join actions with reasons",
+      "focus": "use because and but to explain clean choices and contrasts",
+      "skill_ids": [
+        "grammar.connectors_because_and_but"
+      ],
+      "teaching_goal": "Choose because for a reason and but for a contrast in cleanliness sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Because answers why. The second idea gives the safety reason for the first action.",
+          "passage": "We put the peel in the bin ____ someone could slip on it.",
+          "prompt": "Which connector completes the reason?",
+          "options": [
+            "because",
+            "but",
+            "and",
+            "then"
+          ],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "But joins two ideas that differ. One person leaves a mess; the other removes it.",
+          "passage": "A wrapper fell near the bench, ____ Sohan picked it up.",
+          "prompt": "Choose the connector that shows contrast.",
+          "options": [
+            "but",
+            "because",
+            "so"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Decide whether the blank introduces a reason or a different result. Here it explains why the bin is useful.",
+          "passage": "The path stays clear ____ everyone uses the bin.",
+          "prompt": "Write the connector.",
+          "options": [],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Do not use because when the second idea surprises or contrasts with the first.",
+          "passage": "The bin was close, ____ the visitor left the cup on the wall.",
+          "prompt": "Which connector fits?",
+          "options": [],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the connectors to caring for books. Write one reason sentence and one contrast sentence.",
+          "passage": "The library has a return box. Most children use it, while one book is left on the floor.",
+          "prompt": "Write two short sentences: one with because and one with but.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "reason",
+              "description": "Use because to explain a careful action.",
+              "any_of": [
+                "because"
+              ]
+            },
+            {
+              "id": "contrast",
+              "description": "Use but to contrast the book on the floor.",
+              "any_of": [
+                "but"
+              ]
+            },
+            {
+              "id": "context",
+              "description": "Refer to the return box or floor book.",
+              "any_of": [
+                "return box",
+                "book",
+                "floor",
+                "library"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch11_responsible_message",
+      "title": "Explain a responsible choice",
+      "focus": "write a short reason or friendly reminder about keeping a place clean",
+      "skill_ids": [
+        "writing.reason_answer",
+        "writing.friendly_message"
+      ],
+      "teaching_goal": "Write respectful, useful messages that name an action and its benefit without blaming a person.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A friendly reminder says what to do and gives a helpful reason. It does not call anyone dirty or careless.",
+          "passage": "The class snack area has a bin beside the door.",
+          "prompt": "Which reminder is respectful and useful?",
+          "options": [
+            "Please put wrappers in the bin so our room stays clean.",
+            "You always make a mess!",
+            "Wrappers are colourful."
+          ],
+          "accepted_answers": [
+            "Please put wrappers in the bin so our room stays clean.",
+            "please put wrappers in the bin so our room stays clean"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A reason answer links the action to a result. Choose the result that is supported by the scene.",
+          "passage": "Mehul moves a glass bottle away from the playground and into a recycling bin.",
+          "prompt": "Why is his choice responsible?",
+          "options": [
+            "It keeps the play area safer.",
+            "It makes the bottle heavier.",
+            "It hides the playground."
+          ],
+          "accepted_answers": [
+            "It keeps the play area safer.",
+            "it keeps the play area safer",
+            "because it keeps the playground safe",
+            "it prevents injury"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass check: use a calm request plus the exact action needed.",
+          "passage": "A friend is about to leave a banana peel under the table.",
+          "prompt": "What short reminder could you give?",
+          "options": [],
+          "accepted_answers": [
+            "Please put the peel in the bin.",
+            "please put the peel in the bin",
+            "Put the peel in the bin, please.",
+            "put the peel in the bin please"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write a flexible reason answer. Include the action and one safety or cleanliness benefit.",
+          "passage": "Sumi collects sharp can lids from a picnic spot and gives them to an adult for safe disposal.",
+          "prompt": "Why is Sumi's action responsible?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "Mention collecting or safely disposing of the lids.",
+              "any_of": [
+                "collects",
+                "can lids",
+                "adult",
+                "disposal"
+              ]
+            },
+            {
+              "id": "benefit",
+              "description": "Mention safety or cleanliness.",
+              "any_of": [
+                "safe",
+                "injury",
+                "clean",
+                "protects"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Write a friendly reminder for a new setting. Include a polite action and the benefit to everyone.",
+          "passage": "At a community garden, empty seed packets are blowing near the plants. A waste basket stands by the gate.",
+          "prompt": "Write a sign for garden visitors.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "request",
+              "description": "Ask visitors to use the basket or collect packets.",
+              "any_of": [
+                "please",
+                "basket",
+                "pick up",
+                "packets",
+                "use the bin"
+              ]
+            },
+            {
+              "id": "benefit",
+              "description": "State a benefit for the garden.",
+              "any_of": [
+                "clean",
+                "plants",
+                "safe",
+                "tidy",
+                "garden"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch11_assess_01",
+        "passage": "Gita unwraps a sandwich, folds the paper, and puts it in her bag until she finds a bin.",
+        "prompt": "Where does Gita keep the paper first?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "in her bag",
+          "under the bench",
+          "on the road",
+          "in a tree"
+        ],
+        "accepted_answers": [
+          "in her bag",
+          "her bag",
+          "bag"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_02",
+        "passage": "A boy drops a cup. His aunt picks it up and places it in the blue bin.",
+        "prompt": "Who picks up the cup?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "his aunt",
+          "the boy",
+          "a shopkeeper"
+        ],
+        "accepted_answers": [
+          "his aunt",
+          "the aunt",
+          "aunt"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_03",
+        "passage": "The cleaner gathers leaves before sweeping the path. She then carries the pile to a compost pit.",
+        "prompt": "Where does the leaf pile go?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the compost pit",
+          "compost pit",
+          "to a compost pit",
+          "into the compost pit"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_04",
+        "passage": "Arif rinses a reusable cup, dries it, and returns it to the shelf.",
+        "prompt": "What does Arif do after drying the cup?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "returns it to the shelf",
+          "puts it on the shelf",
+          "returns the cup",
+          "he returns it to the shelf"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_05",
+        "passage": "One student places scrap paper in a reuse tray. Others begin adding their unused sheets there too.",
+        "prompt": "Which statement best sums up the group's change?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "A responsible example can guide a group.",
+          "Paper should be thrown outdoors.",
+          "Only one student has paper.",
+          "Trays are expensive."
+        ],
+        "accepted_answers": [
+          "A responsible example can guide a group.",
+          "a good example guides others",
+          "others learn from a responsible example"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_06",
+        "passage": "A dog walker ties the waste bag and uses a public bin. Another walker sees this and does the same.",
+        "prompt": "Why does the second walker use the bin?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "The first walker sets an example.",
+          "The bin is colourful.",
+          "The dog runs away."
+        ],
+        "accepted_answers": [
+          "The first walker sets an example.",
+          "the first walker shows what to do",
+          "they learn from the first walker"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_07",
+        "passage": "An older child turns off the classroom fan before everyone leaves. Mira notices and checks the lights too.",
+        "prompt": "How does the older child's example affect Mira?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "example",
+            "description": "Mention switching off the fan.",
+            "any_of": [
+              "fan",
+              "turns off",
+              "switches off"
+            ]
+          },
+          {
+            "id": "change",
+            "description": "Mention Mira checking the lights.",
+            "any_of": [
+              "mira",
+              "lights",
+              "checks",
+              "turns off"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_08",
+        "passage": "A fruit seller keeps a basket for peels. Customers begin using it instead of dropping scraps.",
+        "prompt": "Explain the lesson shown by the scene.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "model",
+            "description": "Mention the basket or seller's example.",
+            "any_of": [
+              "seller",
+              "basket",
+              "peels"
+            ]
+          },
+          {
+            "id": "lesson",
+            "description": "Show customers changing to cleaner behaviour.",
+            "any_of": [
+              "customers",
+              "use",
+              "scraps",
+              "instead of dropping",
+              "clean"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_09",
+        "passage": "The jar is empty; every biscuit has been eaten.",
+        "prompt": "What does empty mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "nothing is inside",
+          "the lid is bright",
+          "the jar is new",
+          "the jar is full"
+        ],
+        "accepted_answers": [
+          "nothing is inside",
+          "has nothing inside",
+          "nothing left"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_10",
+        "passage": "The broom is nearby, just beside the door.",
+        "prompt": "Which meaning fits nearby?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "close by",
+          "very far away",
+          "hidden",
+          "broken"
+        ],
+        "accepted_answers": [
+          "close by",
+          "close",
+          "near",
+          "not far away"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_11",
+        "passage": "Litter collects along the fence: straws, paper bits, and wrappers.",
+        "prompt": "What does litter mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "waste left around",
+          "rubbish on the ground",
+          "trash left in a place",
+          "waste"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_12",
+        "passage": "After pushing into the queue, Sameer feels ashamed and says sorry.",
+        "prompt": "What does ashamed mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "sorry for doing wrong",
+          "feeling sorry about a wrong action",
+          "regretful",
+          "embarrassed by his action"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_13",
+        "passage": "Please ____ the paper pieces before they scatter.",
+        "prompt": "Choose the clean-up action.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "pick up",
+          "pour",
+          "peel",
+          "forget"
+        ],
+        "accepted_answers": [
+          "pick up",
+          "pickup"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_14",
+        "passage": "We ____ glass and paper into different boxes.",
+        "prompt": "Which word completes the sentence?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "sort",
+          "spill",
+          "hide"
+        ],
+        "accepted_answers": [
+          "sort"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_15",
+        "passage": "Mud is on the chair. Use a damp cloth to ____ it.",
+        "prompt": "Write the missing action.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "wipe",
+          "wipe off",
+          "clean"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_16",
+        "passage": "The carton is no longer useful. Please ____ it in the recycling box.",
+        "prompt": "Complete the instruction.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "dispose of",
+          "put",
+          "place",
+          "recycle"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_17",
+        "passage": "We sweep the steps ____ wet leaves can be slippery.",
+        "prompt": "Choose the connector that introduces the reason.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "because",
+          "but",
+          "then",
+          "and"
+        ],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_18",
+        "passage": "The basket was empty, ____ paper still lay on the floor.",
+        "prompt": "Which connector shows the contrast?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "but",
+          "because",
+          "so"
+        ],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_19",
+        "passage": "The room smells fresh ____ the windows are open.",
+        "prompt": "Write the reason connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_20",
+        "passage": "Ravi saw the wrapper, ____ he did not walk past it.",
+        "prompt": "Write the contrast connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_21",
+        "passage": "A broken cup is beside the play area. Nisha tells an adult and keeps others away.",
+        "prompt": "Which answer explains why Nisha acts responsibly?",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.friendly_message"
+        ],
+        "options": [
+          "She protects others from the sharp pieces.",
+          "She likes the cup's colour.",
+          "She wants a new game."
+        ],
+        "accepted_answers": [
+          "She protects others from the sharp pieces.",
+          "she protects others from the sharp pieces",
+          "she keeps people safe"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_22",
+        "passage": "A recycling box stands near the printer.",
+        "prompt": "Choose the most useful sign.",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.friendly_message"
+        ],
+        "options": [
+          "Please place used paper here so it can be recycled.",
+          "Paper is white.",
+          "Do not be bad."
+        ],
+        "accepted_answers": [
+          "Please place used paper here so it can be recycled.",
+          "please place used paper here so it can be recycled"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_23",
+        "passage": "At the beach, Varun gathers plastic rings and puts them in a covered bin.",
+        "prompt": "Why is Varun's choice responsible?",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "Mention collecting or binning plastic rings.",
+            "any_of": [
+              "gathers",
+              "plastic rings",
+              "covered bin",
+              "puts"
+            ]
+          },
+          {
+            "id": "benefit",
+            "description": "Mention protecting the beach or animals.",
+            "any_of": [
+              "clean",
+              "safe",
+              "animals",
+              "beach",
+              "protects"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch11_assess_24",
+        "passage": "Visitors leave paper cups near a museum bench. A bin is beside the exit.",
+        "prompt": "Write a friendly reminder for visitors.",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "request",
+            "description": "Use a polite clean-up request.",
+            "any_of": [
+              "please",
+              "pick up",
+              "cups",
+              "bin"
+            ]
+          },
+          {
+            "id": "benefit",
+            "description": "Mention keeping the museum clean or safe.",
+            "any_of": [
+              "museum",
+              "clean",
+              "safe",
+              "tidy"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      }
+    ]
+  }
+}

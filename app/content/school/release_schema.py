@@ -7,6 +7,7 @@ content belong to separate, approval-gated content packages.
 from __future__ import annotations
 
 from datetime import date
+import unicodedata
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
@@ -80,6 +81,17 @@ _MONTH_ORDER = {
 }
 
 
+def normalize_release_title(value: str) -> str:
+    """Normalize title formatting without changing authored words."""
+
+    without_punctuation = "".join(
+        character
+        for character in unicodedata.normalize("NFKC", str(value))
+        if not unicodedata.category(character).startswith("P")
+    )
+    return " ".join(without_punctuation.casefold().split())
+
+
 def _validate_official_ncert_url(
     url: HttpUrl,
     *,
@@ -134,12 +146,19 @@ class CurriculumModule(StrictReleaseModel):
     module_id: str = Field(pattern=r"^eng_c[2-5]_(?:u\d{2}_m\d{2}|ref\d{2})$")
     order: int = Field(ge=1)
     title: str = Field(min_length=1, max_length=160)
+    phase_0_public_display_title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=160,
+    )
     kind: ModuleKind
     source_genre: SourceGenre
 
-    @field_validator("title")
+    @field_validator("title", "phase_0_public_display_title")
     @classmethod
-    def _clean_title(cls, value: str) -> str:
+    def _clean_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("curriculum_module_title_empty")
@@ -154,6 +173,11 @@ class CurriculumModule(StrictReleaseModel):
             raise ValueError("special_module_source_genre_must_be_none")
         if self.kind == "reference" and self.source_genre != "reference":
             raise ValueError("reference_module_source_genre_must_be_reference")
+        if self.phase_0_public_display_title is not None and (
+            normalize_release_title(self.phase_0_public_display_title)
+            != normalize_release_title(self.title)
+        ):
+            raise ValueError("phase_0_public_display_title_mismatch")
         return self
 
 

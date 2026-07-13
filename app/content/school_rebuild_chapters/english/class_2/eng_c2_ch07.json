@@ -1,0 +1,807 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-substantive-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Item-by-item review for nested-place meaning, location accuracy, singular-plural agreement, fresh independent and assessment contexts, deterministic masterclass answers, and flexible writing evaluation."
+  ],
+  "runtime_sha256": "05d7ba86436eed9253a037488aa68bc7614a62d1197aad8ddf05c96b31519687",
+  "chapter_id": "eng_c2_ch07",
+  "chapter_no": 7,
+  "content_version": "2026-07-12.2",
+  "title": "This is My Town",
+  "book_title": "Mridang",
+  "unit_title": "Going Places",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr107.pdf",
+  "source_note": "Aligned to the NCERT chapter title and themes of towns, streets, houses, rooms, objects, and location language. All Zidd scenes, maps, prompts, and feedback are original.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch07_place_chain",
+      "title": "Follow places from big to small",
+      "focus": "understand how a street, house, room, and object fit inside one another",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Trace nested locations and answer where an object or person is found.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Places can fit inside larger places: a room is in a house, and a house is on a street. Follow the chain one link at a time. Do not skip straight from the town to the smallest object.",
+          "passage": "In Sun Town, Rose Street has a yellow house. The house has a reading room.",
+          "prompt": "Where is the reading room?",
+          "options": [
+            "in the yellow house",
+            "on Rose Street only",
+            "inside Sun Town hall"
+          ],
+          "accepted_answers": [
+            "in the yellow house",
+            "the yellow house",
+            "in the house"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Keep each location connected to the next. The object belongs in the room named just before it.",
+          "passage": "A flat stands on Lake Road. In the flat is a kitchen. A blue jug is on the kitchen shelf.",
+          "prompt": "Where is the blue jug?",
+          "options": [
+            "on the kitchen shelf",
+            "under Lake Road",
+            "inside a street"
+          ],
+          "accepted_answers": [
+            "on the kitchen shelf",
+            "the kitchen shelf",
+            "on the shelf"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Two objects may be in different rooms. Match the object to its own chain, not to the first room mentioned.",
+          "passage": "Maya's home has a bedroom and a study. Her pillow is on the bedroom cot; her atlas is on the study desk.",
+          "prompt": "Where is the atlas?",
+          "options": [
+            "on the bedroom cot",
+            "on the study desk",
+            "under the house"
+          ],
+          "accepted_answers": [
+            "on the study desk",
+            "the study desk",
+            "in the study"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Answer without choices. Follow the place chain backward from the object.",
+          "passage": "A lane leads to a courtyard. The courtyard has a shed. Rohan's red bicycle is inside the shed.",
+          "prompt": "Where is Rohan's bicycle?",
+          "options": [],
+          "accepted_answers": [
+            "inside the shed",
+            "in the shed",
+            "the shed"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use nested-place reading in a market, not a home. Identify the exact location, not only the larger area.",
+          "passage": "The fair has a food row. A juice stall stands in that row, and a water drum is behind the stall.",
+          "prompt": "Where is the water drum?",
+          "options": [],
+          "accepted_answers": [
+            "behind the juice stall",
+            "behind the stall",
+            "at the back of the juice stall"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch07_position_words",
+      "title": "Choose exact position words",
+      "focus": "use in, on, under, beside, and behind to describe location",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Select and use position words that match a clear spatial relationship.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Position words tell how two things are placed. In means inside; on means touching the top. Look at the picture made by the sentence.",
+          "passage": "The marbles are inside a glass jar.",
+          "prompt": "Which position word completes: The marbles are ___ the jar?",
+          "options": [
+            "in",
+            "on",
+            "behind"
+          ],
+          "accepted_answers": [
+            "in",
+            "inside"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Check whether the object touches the top or is lower than it. Under and on describe opposite positions.",
+          "passage": "A folded blanket rests on top of the wooden chest.",
+          "prompt": "Which word fits the blanket's position?",
+          "options": [
+            "under",
+            "on",
+            "beside"
+          ],
+          "accepted_answers": [
+            "on"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use the viewpoint in the sentence. Behind means at the back; beside means next to.",
+          "passage": "The small clinic stands at the back of the town library.",
+          "prompt": "Which word best describes the clinic?",
+          "options": [
+            "beside the library",
+            "behind the library",
+            "inside the library"
+          ],
+          "accepted_answers": [
+            "behind the library",
+            "behind"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Name the position word from the relationship. Give only the word or a short phrase.",
+          "passage": "A lamp and a clock stand next to each other on the table.",
+          "prompt": "Where is the lamp in relation to the clock?",
+          "options": [],
+          "accepted_answers": [
+            "beside the clock",
+            "next to the clock",
+            "beside",
+            "next to"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply position words to a playground plan. Use the bench as the reference point.",
+          "passage": "The drinking-water tap is directly below the shade roof and next to the green bench.",
+          "prompt": "Where is the tap in relation to the bench?",
+          "options": [],
+          "accepted_answers": [
+            "beside the bench",
+            "next to the bench",
+            "beside",
+            "next to"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch07_one_and_many",
+      "title": "Say what a place has",
+      "focus": "use there is for one and there are for more than one",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Build accurate place sentences with singular and plural naming words.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use there is for one thing and there are for two or more. Count the naming word before choosing. Do not let a plural place name change the count.",
+          "passage": "The square has one clock tower.",
+          "prompt": "Which arrangement makes a clear location sentence?",
+          "options": [
+            "There is a clock tower in the square.",
+            "There are a clock tower in the square.",
+            "There is two towers in the square."
+          ],
+          "accepted_answers": [
+            "There is a clock tower in the square.",
+            "there is one clock tower in the square"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look for the plural ending and the number word. More than one needs there are.",
+          "passage": "Three buses wait near the depot.",
+          "prompt": "Choose the matching sentence.",
+          "options": [
+            "There is three buses near the depot.",
+            "There are three buses near the depot.",
+            "There are one bus near the depot."
+          ],
+          "accepted_answers": [
+            "There are three buses near the depot.",
+            "there are buses near the depot"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A sentence may name one group but several things. Count the things after there is or there are.",
+          "passage": "The garden contains a pond and four benches.",
+          "prompt": "Which sentence is accurate?",
+          "options": [
+            "There is four benches by the pond.",
+            "There are four benches by the pond.",
+            "There are a pond by four bench."
+          ],
+          "accepted_answers": [
+            "There are four benches by the pond.",
+            "there are four benches"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Complete the sentence without choices. Match the verb to the plural noun.",
+          "passage": "Near the station, ___ two bicycle stands.",
+          "prompt": "Complete the nature-centre sentence with two words.",
+          "options": [],
+          "accepted_answers": [
+            "there are"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same number agreement in a nature centre.",
+          "passage": "Inside the glass case, ___ one large shell.",
+          "prompt": "Write the correct words.",
+          "options": [],
+          "accepted_answers": [
+            "there is"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch07_town_sentence_order",
+      "title": "Build a location sentence",
+      "focus": "put place words in an order that makes location clear",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Arrange naming, action, and position words into clear town sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A clear location sentence usually names the thing, gives is or are, then tells the place. Keep position words beside the place phrase they introduce.",
+          "passage": "Words: the / is / bank / market / beside / the",
+          "prompt": "Which sentence is correct?",
+          "options": [
+            "The bank is beside the market.",
+            "Beside is the bank the market.",
+            "The market beside the is bank."
+          ],
+          "accepted_answers": [
+            "The bank is beside the market.",
+            "the bank is beside the market"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Begin with the thing being described, not with a loose naming word. Then add the exact position phrase.",
+          "passage": "Words: two / are / trees / gate / near / the",
+          "prompt": "Choose the clear sentence.",
+          "options": [
+            "Two trees are near the gate.",
+            "Near two are the trees gate.",
+            "The gate are near two trees."
+          ],
+          "accepted_answers": [
+            "Two trees are near the gate.",
+            "two trees are near the gate"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Check both grammar and meaning. One basket needs is, and the location phrase must stay together.",
+          "passage": "Words: a / is / basket / bed / under / the",
+          "prompt": "Which arrangement works?",
+          "options": [
+            "A basket are under the bed.",
+            "A basket is under the bed.",
+            "Under a is basket the bed."
+          ],
+          "accepted_answers": [
+            "A basket is under the bed.",
+            "the basket is under the bed"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the words into one sentence. Add a capital letter and full stop if you can.",
+          "passage": "Words: our / has / town / wide / streets",
+          "prompt": "Write the sentence.",
+          "options": [],
+          "accepted_answers": [
+            "our town has wide streets",
+            "our town has wide streets."
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Build a sentence about a farmyard, away from the town setting.",
+          "passage": "Words: the / hens / are / behind / barn / the",
+          "prompt": "Write one correct sentence.",
+          "options": [],
+          "accepted_answers": [
+            "the hens are behind the barn",
+            "the hens are behind the barn."
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch07_neighbourhood_description",
+      "title": "Describe a neighbourhood clearly",
+      "focus": "write connected details about places and positions",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Create a concise description with a place, feature, and exact location word.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A useful description names the area and places one feature clearly. Choose the sentence that helps a listener picture the neighbourhood.",
+          "passage": "Map note: library on King Street; park opposite it.",
+          "prompt": "Which sentence describes the map accurately?",
+          "options": [
+            "The park is opposite the library on King Street.",
+            "The park is inside every library.",
+            "King Street is a book."
+          ],
+          "accepted_answers": [
+            "The park is opposite the library on King Street.",
+            "the park is opposite the library"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Combine two map facts without losing either location. Check each position word against the note.",
+          "passage": "Map note: clinic beside bus stop; fruit shop behind clinic.",
+          "prompt": "Which description keeps both facts?",
+          "options": [
+            "The clinic is beside the bus stop, and the fruit shop is behind the clinic.",
+            "The clinic is behind the fruit shop and bus stop.",
+            "The fruit shop is inside the bus."
+          ],
+          "accepted_answers": [
+            "The clinic is beside the bus stop, and the fruit shop is behind the clinic.",
+            "the clinic is next to the bus stop and the fruit shop is behind it"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A complete town description needs accurate number words as well as position words. Reject a sentence that changes one shop into many.",
+          "passage": "Scene: one bakery on Hill Lane; two benches outside it.",
+          "prompt": "Which sentence is complete and correct?",
+          "options": [
+            "There is a bakery on Hill Lane, and there are two benches outside it.",
+            "There are a bakery and one bench on Hill Lane.",
+            "The bakery is under two lanes."
+          ],
+          "accepted_answers": [
+            "There is a bakery on Hill Lane, and there are two benches outside it.",
+            "there is one bakery on hill lane with two benches outside"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write from a new mini-map. Include both places and their relationship. Any clear complete sentence is acceptable.",
+          "passage": "Mini-map: health centre on River Road; pharmacy beside the health centre.",
+          "prompt": "Describe the mini-map in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "health_centre",
+              "description": "Names the health centre and River Road.",
+              "any_of": [
+                "health centre on river road",
+                "health center on river road",
+                "river road has a health centre"
+              ]
+            },
+            {
+              "id": "pharmacy",
+              "description": "Names the pharmacy.",
+              "any_of": [
+                "pharmacy"
+              ]
+            },
+            {
+              "id": "position",
+              "description": "Places the pharmacy beside the health centre.",
+              "any_of": [
+                "pharmacy is beside the health centre",
+                "pharmacy next to the health centre",
+                "beside the health center"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer place description to a classroom plan. Include the number and both positions without inventing extra objects.",
+          "passage": "Classroom plan: one globe on teacher's table; three charts behind the table.",
+          "prompt": "Write one or two clear sentences.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "globe",
+              "description": "States that one globe is on the teacher's table.",
+              "any_of": [
+                "one globe on the teacher's table",
+                "a globe is on the teacher's table",
+                "globe on the teachers table"
+              ]
+            },
+            {
+              "id": "charts",
+              "description": "States that there are three charts.",
+              "any_of": [
+                "three charts",
+                "there are three charts"
+              ]
+            },
+            {
+              "id": "position",
+              "description": "Places the charts behind the table.",
+              "any_of": [
+                "charts behind the table",
+                "behind the teacher's table"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 10,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch07_assess_01",
+        "passage": "In Cedar Town, a lane has a blue house. The house has a balcony with two pots.",
+        "prompt": "Where are the pots?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "on the balcony",
+          "in the lane",
+          "under the town"
+        ],
+        "accepted_answers": [
+          "on the balcony",
+          "the balcony"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_02",
+        "passage": "A school contains a hall. A stage stands at the front of the hall, and a drum is on the stage.",
+        "prompt": "Where is the drum?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "on the stage",
+          "outside the school",
+          "behind the hall"
+        ],
+        "accepted_answers": [
+          "on the stage",
+          "the stage"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_03",
+        "passage": "A museum has a toy room. A wooden train is inside a case in that room.",
+        "prompt": "What holds the wooden train?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "a case",
+          "the case",
+          "a display case"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_04",
+        "passage": "The market has a flower row. A bucket is under the last flower table.",
+        "prompt": "Where is the bucket?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "under the last flower table",
+          "under the table",
+          "the last flower table"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_05",
+        "passage": "A red mat lies flat on top of the floor.",
+        "prompt": "Which word describes its position?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "on",
+          "in",
+          "behind"
+        ],
+        "accepted_answers": [
+          "on"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_06",
+        "passage": "The cycle stand is at the side of the post office.",
+        "prompt": "Which phrase means at the side of?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "beside",
+          "inside",
+          "above"
+        ],
+        "accepted_answers": [
+          "beside",
+          "next to"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_07",
+        "passage": "The cat sleeps lower than the bench, with the seat above it.",
+        "prompt": "Where is the cat?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "under the bench",
+          "below the bench",
+          "under"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_08",
+        "passage": "The notice board is fixed at the back of the guard's chair.",
+        "prompt": "Which position word fits?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "behind",
+          "at the back of"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_09",
+        "passage": "The pond has one small island.",
+      "prompt": "Choose the sentence that matches one island.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "There is one island in the pond.",
+          "There are one island in the pond.",
+          "There is three islands in the pond."
+        ],
+        "accepted_answers": [
+          "There is one island in the pond.",
+          "there is an island in the pond"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_10",
+        "passage": "Five lamps hang across the street.",
+      "prompt": "Choose the sentence that matches five lamps.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "There are five lamps across the street.",
+          "There is five lamps across the street.",
+          "There are one lamp across the street."
+        ],
+        "accepted_answers": [
+          "There are five lamps across the street.",
+          "there are five lamps"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_11",
+        "passage": "At the bus stop, ___ one empty seat.",
+      "prompt": "Complete the sentence about the single seat.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "there is"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_12",
+        "passage": "Near the pond, ___ six ducks.",
+      "prompt": "Complete the sentence about all six ducks.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "there are"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_13",
+        "passage": "Words: the / shop / is / corner / at / the",
+      "prompt": "Build a clear sentence about the shop.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the shop is at the corner",
+          "the shop is at the corner."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_14",
+        "passage": "Words: three / grow / trees / house / behind / the",
+      "prompt": "Build a clear sentence about the three trees.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "three trees grow behind the house",
+          "three trees grow behind the house."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_15",
+        "passage": "Words: a / near / is / station / bridge / the",
+      "prompt": "Select the clear station sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "A bridge is near the station.",
+          "Near a station the bridge is.",
+          "The is bridge station near a."
+        ],
+        "accepted_answers": [
+          "A bridge is near the station.",
+          "a bridge is near the station"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_16",
+        "passage": "Words: our / clean / has / town / parks",
+      "prompt": "Select the clear sentence about the town.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Our town has clean parks.",
+          "Clean has our parks town.",
+          "Parks our town clean has."
+        ],
+        "accepted_answers": [
+          "Our town has clean parks.",
+          "our town has clean parks"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_17",
+        "passage": "Map: police post beside the bank; bus shelter opposite both.",
+        "prompt": "Which sentence matches?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "The police post is beside the bank, and the bus shelter is opposite them.",
+          "The police post is inside the bank.",
+          "The bus shelter is behind every town."
+        ],
+        "accepted_answers": [
+          "The police post is beside the bank, and the bus shelter is opposite them."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_18",
+        "passage": "Scene: one fountain in the square; four seats around it.",
+        "prompt": "Which description is accurate?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "There is a fountain in the square, with four seats around it.",
+          "There are one fountain under four seats.",
+          "The square is inside the fountain."
+        ],
+        "accepted_answers": [
+          "There is a fountain in the square, with four seats around it.",
+          "there is one fountain and four seats around it"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_19",
+        "passage": "Mini-map: toy shop on Park Lane; cafe next to toy shop; post box outside cafe.",
+        "prompt": "Describe all three places in one or two sentences.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "toy_shop",
+            "description": "Places the toy shop on Park Lane.",
+            "any_of": [
+              "toy shop on park lane",
+              "park lane has a toy shop"
+            ]
+          },
+          {
+            "id": "cafe",
+            "description": "Places the cafe next to the toy shop.",
+            "any_of": [
+              "cafe next to the toy shop",
+              "cafe beside the toy shop"
+            ]
+          },
+          {
+            "id": "post_box",
+            "description": "Places the post box outside the cafe.",
+            "any_of": [
+              "post box outside the cafe",
+              "outside the cafe is a post box"
+            ]
+          }
+        ],
+        "min_response_words": 10
+      },
+      {
+        "item_id": "eng_c2_ch07_assess_20",
+        "passage": "Room plan: one desk by the window; two bags under the desk; a plant on the window ledge.",
+        "prompt": "Write a clear description.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "desk",
+            "description": "Places one desk by the window.",
+            "any_of": [
+              "desk by the window",
+              "one desk is beside the window"
+            ]
+          },
+          {
+            "id": "bags",
+            "description": "Places two bags under the desk.",
+            "any_of": [
+              "two bags under the desk",
+              "there are two bags under the desk"
+            ]
+          },
+          {
+            "id": "plant",
+            "description": "Places the plant on the window ledge.",
+            "any_of": [
+              "plant on the window ledge",
+              "a plant is on the window ledge"
+            ]
+          }
+        ],
+        "min_response_words": 10
+      }
+    ]
+  }
+}

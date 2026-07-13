@@ -18,7 +18,7 @@ from app.content.school.release_loader import (
     release_manifest_digest,
     verify_release_sources,
 )
-from app.content.school.release_schema import CurriculumReleaseManifest
+from app.content.school.release_schema import CurriculumModule, CurriculumReleaseManifest
 
 
 EXPECTED_BOOKS = {
@@ -207,6 +207,28 @@ def test_manifest_represents_units_special_modules_and_reference_structures():
         assert all(
             module.source_genre == "reference"
             for module in release.reference_modules
+        )
+
+
+def test_phase_zero_public_display_title_is_format_only_and_phase_bounded():
+    compatible = CurriculumModule(
+        module_id="eng_c3_u03_m03",
+        order=3,
+        title="Thank God",
+        phase_0_public_display_title="Thank God!",
+        kind="lesson",
+        source_genre="poem",
+    )
+
+    assert compatible.phase_0_public_display_title == "Thank God!"
+    with pytest.raises(ValidationError, match="phase_0_public_display_title_mismatch"):
+        CurriculumModule(
+            module_id="eng_c3_u03_m03",
+            order=3,
+            title="Thank God",
+            phase_0_public_display_title="A Different Lesson",
+            kind="lesson",
+            source_genre="poem",
         )
 
 

@@ -1,0 +1,917 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-substantive-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Item-by-item review for chapter alignment, age fit, stage progression, fresh independent and assessment passages, deterministic masterclass answers, and non-revealing prompts."
+  ],
+  "runtime_sha256": "b26da69e7112d2e9290f4b46ff7fedc873a625294249dc1aab580e4e08f1c9a7",
+  "chapter_id": "eng_c2_ch05",
+  "chapter_no": 5,
+  "content_version": "2026-07-12.2",
+  "title": "Come Back Soon",
+  "book_title": "Mridang",
+  "unit_title": "Going Places",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr105.pdf",
+  "source_note": "Aligned to the NCERT chapter title and themes of transport, distance, journeys, and returning. All Zidd passages, prompts, examples, and feedback are original.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch05_travel_details",
+      "title": "Pack the right travel details",
+      "focus": "find where a traveller goes and how the traveller moves",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Separate destination, vehicle, and return details in short original travel plans.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A travel sentence can tell us a place and a way to get there. Read the action first, then match each detail to the right question. If a place is chosen as a vehicle, reread the words after by.",
+          "passage": "Pihu visits the lake by bus and comes home before lunch.",
+          "prompt": "How does Pihu travel to the lake?",
+          "options": [
+            "by bus",
+            "to the lake",
+            "before lunch"
+          ],
+          "accepted_answers": [
+            "by bus",
+            "bus"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Now find two details without labels. Ask where? and how? before choosing. Do not let the nearest word replace the detail the question asks for.",
+          "passage": "Kabir rides a train to Jaipur. His uncle meets him at the station.",
+          "prompt": "Which pair gives the destination and the vehicle?",
+          "options": [
+            "Jaipur and train",
+            "uncle and station",
+            "train and uncle"
+          ],
+          "accepted_answers": [
+            "Jaipur and train",
+            "jaipur, train"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Read the whole plan because the outward trip and return trip use different vehicles. Track the action named in the question.",
+          "passage": "Meera sails to the island on a ferry and returns on a small plane.",
+          "prompt": "How does Meera return?",
+          "options": [
+            "on a ferry",
+            "on a plane",
+            "to the island"
+          ],
+          "accepted_answers": [
+            "on a plane",
+            "plane",
+            "by plane"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Work without choices. Locate the reason before naming it; a time and a cause are different details.",
+          "passage": "Arun waited under the roof. The boat arrived late because thick fog covered the river.",
+          "prompt": "Why did the boat arrive late?",
+          "options": [],
+          "accepted_answers": [
+            "because of thick fog",
+            "thick fog",
+            "fog",
+            "the river was covered by thick fog"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same detail-finding skill in a school outing, not a family journey. Answer only what the question asks.",
+          "passage": "Class 2 visits a pottery centre. The children cycle there in pairs and carry water bottles.",
+          "prompt": "How do the children reach the pottery centre?",
+          "options": [],
+          "accepted_answers": [
+            "by bicycle",
+            "by bicycles",
+            "on bicycles",
+            "they cycle",
+            "cycle"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch05_transport_groups",
+      "title": "Sort vehicles by where they move",
+      "focus": "classify familiar transport as land, water, or air travel",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use movement clues to group vehicles and explain a simple transport choice.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Vehicles can move on land, on water, or in the air. Look at the surface in the clue. Wheels alone do not decide every answer.",
+          "passage": "A raft floats on a river while a truck rolls beside it.",
+          "prompt": "Where does the raft move?",
+          "options": [
+            "on water",
+            "on land",
+            "in the air"
+          ],
+          "accepted_answers": [
+            "on water",
+            "water"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use the movement word as your clue, then name the group. Floating points to water; flying points to air.",
+          "passage": "The helicopter rises above the hills to carry a doctor quickly.",
+          "prompt": "Which transport group fits the helicopter?",
+          "options": [
+            "air transport",
+            "water transport",
+            "land transport"
+          ],
+          "accepted_answers": [
+            "air transport",
+            "air"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Some vehicles stop on land but travel elsewhere. Classify the place where the vehicle moves during the trip.",
+          "passage": "A ship leaves the harbour and crosses the sea overnight.",
+          "prompt": "Is the ship land, water, or air transport?",
+          "options": [
+            "land transport",
+            "water transport",
+            "air transport"
+          ],
+          "accepted_answers": [
+            "water transport",
+            "water"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Name the transport group without choices. Think about the track or surface named in the sentence.",
+          "passage": "A metro enters a tunnel and follows steel rails under the city.",
+          "prompt": "Which transport group does the metro belong to?",
+          "options": [],
+          "accepted_answers": [
+            "land transport",
+            "land"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the sorting idea to a rescue scene. Classify the vehicle by where it travels.",
+          "passage": "After the flood, a rescue canoe carries food across the village pond.",
+          "prompt": "Which transport group does the canoe belong to?",
+          "options": [],
+          "accepted_answers": [
+            "water transport",
+            "water"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch05_distance_words",
+      "title": "Use near, far, leave, and return",
+      "focus": "work out and use travel words from context",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Infer simple distance and journey words from nearby time and place clues.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Nearby words can show a travel word's meaning. A short walk suggests near; many hours suggest far. Check the whole clue, not only one number.",
+          "passage": "The clinic is near Ria's house, so she walks there in three minutes.",
+          "prompt": "What does near mean here?",
+          "options": [
+            "not far away",
+            "very high",
+            "hard to find"
+          ],
+          "accepted_answers": [
+            "not far away",
+            "close",
+            "close by"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Compare the two places before deciding. The clue may show meaning through contrast.",
+          "passage": "The park is close, but the fort is far and takes four hours to reach.",
+          "prompt": "Which word means a long distance away?",
+          "options": [
+            "close",
+            "far",
+            "reach"
+          ],
+          "accepted_answers": [
+            "far"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Time words can reveal whether a traveller is going or coming back. Follow the direction of movement.",
+          "passage": "Naman leaves home at eight and returns after the match at noon.",
+          "prompt": "What does returns mean?",
+          "options": [
+            "comes back",
+            "starts a trip",
+            "waits outside"
+          ],
+          "accepted_answers": [
+            "comes back",
+            "comes home again",
+            "goes back"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the result in the second sentence to infer the word. Give a short meaning, not a copied sentence.",
+          "passage": "The hill path was distant. We packed lunch because the walk would take most of the day.",
+          "prompt": "What does distant mean?",
+          "options": [],
+          "accepted_answers": [
+            "far away",
+            "far",
+            "a long way away",
+            "not near"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply context clues to a delivery, not a holiday. Use the direction of the action.",
+          "passage": "The baker sends a cart to the market. After selling the bread, the driver heads back to the bakery.",
+          "prompt": "Which word means heads back?",
+          "options": [],
+          "accepted_answers": [
+            "returns",
+            "comes back",
+            "goes back"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch05_journey_order",
+      "title": "Put a journey in a clear order",
+      "focus": "sequence travel events and build ordered sentences",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Use time clues to arrange travel events from departure to return.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A journey has an order. Begin with the event marked first, then follow the time words. If the ending comes first, check the time clues again.",
+          "passage": "First, Tara buys a ticket. Next, she boards the bus. At last, she reaches the museum.",
+          "prompt": "What happens after Tara buys a ticket?",
+          "options": [
+            "she boards the bus",
+            "she reaches the museum",
+            "she returns home"
+          ],
+          "accepted_answers": [
+            "she boards the bus",
+            "boards the bus"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "When time words are missing, use what must happen before travel can begin. A vehicle cannot arrive after a passenger has already reached the place.",
+          "passage": "Events: The train arrives. Dev gets on. The train leaves the station.",
+          "prompt": "Which order makes sense?",
+          "options": [
+            "train arrives, Dev gets on, train leaves",
+            "Dev gets on, train leaves, train arrives",
+            "train leaves, train arrives, Dev gets on"
+          ],
+          "accepted_answers": [
+            "train arrives, Dev gets on, train leaves",
+            "the train arrives, dev gets on, the train leaves"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Follow both direction and time. The return event belongs after the visit, even if it is mentioned near the start.",
+          "passage": "Lina came home at five. Earlier, she toured the zoo after taking a taxi from school.",
+          "prompt": "Which event happened first?",
+          "options": [
+            "Lina came home",
+            "Lina toured the zoo",
+            "Lina took a taxi from school"
+          ],
+          "accepted_answers": [
+            "Lina took a taxi from school",
+            "took a taxi from school",
+            "she took a taxi"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the jumbled words into one clear sentence. Keep the doer before the action.",
+          "passage": "Words: crosses / the / blue / bridge / our / bus",
+          "prompt": "Write the sentence in the correct order.",
+          "options": [],
+          "accepted_answers": [
+            "our bus crosses the blue bridge",
+            "our bus crosses the blue bridge."
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use sentence order in a parcel-delivery context. Keep the time word at the beginning or end without changing the meaning.",
+          "passage": "Words: at noon / reaches / the van / the bakery",
+          "prompt": "Write one correct sentence.",
+          "options": [],
+          "accepted_answers": [
+            "the van reaches the bakery at noon",
+            "the van reaches the bakery at noon.",
+            "at noon the van reaches the bakery",
+            "at noon, the van reaches the bakery."
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch05_travel_message",
+      "title": "Write a useful travel message",
+      "focus": "write complete travel information for another person",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Write concise messages that include the needed place, transport, or return detail.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A useful travel message tells the key fact in a complete sentence. Include who, the action, and the needed detail. Do not add a detail that the note does not give.",
+          "passage": "Note: Sana; library; auto-rickshaw; 4 p.m.",
+          "prompt": "Which message gives Sana's plan clearly?",
+          "options": [
+            "Sana will go to the library by auto-rickshaw at 4 p.m.",
+            "Sana likes books and yellow autos.",
+            "The library is a place."
+          ],
+          "accepted_answers": [
+            "Sana will go to the library by auto-rickshaw at 4 p.m.",
+            "sana will go to the library by auto rickshaw at 4 pm"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Turn the travel card into one sentence. Check that the destination and return time both belong to the same traveller.",
+          "passage": "Travel card: Omar - sports ground - bus - back by 6 p.m.",
+          "prompt": "Choose the complete message.",
+          "options": [
+            "Omar will take a bus to the sports ground and return by 6 p.m.",
+            "The bus is large and the ground is green.",
+            "Omar at six."
+          ],
+          "accepted_answers": [
+            "Omar will take a bus to the sports ground and return by 6 p.m.",
+            "omar takes a bus to the sports ground and returns by 6 pm"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Select the message that is complete and accurate. A polished sentence must not invent a companion or change the vehicle.",
+          "passage": "Plan: Isha goes to the science fair by metro and comes back after lunch.",
+          "prompt": "Which message keeps every important detail correct?",
+          "options": [
+            "Isha visits the science fair by metro and returns after lunch.",
+            "Isha and her cousin drive to the fair.",
+            "Isha returns before breakfast."
+          ],
+          "accepted_answers": [
+            "Isha visits the science fair by metro and returns after lunch.",
+            "isha goes to the science fair by metro and comes back after lunch"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write from a fresh trip card. Include the traveller, destination, vehicle, and return time. Any clear wording that carries all four details can succeed.",
+          "passage": "Trip card: Neel | bird park | bicycle | home by 11 a.m.",
+          "prompt": "Write one complete message for Neel's family.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "traveller",
+              "description": "Names Neel as the traveller.",
+              "any_of": [
+                "neel"
+              ]
+            },
+            {
+              "id": "destination",
+              "description": "States that Neel goes to the bird park.",
+              "any_of": [
+                "bird park",
+                "goes to the bird park",
+                "visits the bird park"
+              ]
+            },
+            {
+              "id": "transport",
+              "description": "States that Neel travels by bicycle.",
+              "any_of": [
+                "by bicycle",
+                "rides a bicycle",
+                "cycles"
+              ]
+            },
+            {
+              "id": "return_time",
+              "description": "States that Neel will be home by 11 a.m.",
+              "any_of": [
+                "home by 11",
+                "returns by 11",
+                "back by 11"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer message writing to a library-book van. State where it will stop and when it will leave so readers can act on the notice.",
+          "passage": "Notice facts: book van | community gate | arrives 3 p.m. | leaves 4 p.m.",
+          "prompt": "Write one clear notice sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "vehicle",
+              "description": "Names the book van.",
+              "any_of": [
+                "book van"
+              ]
+            },
+            {
+              "id": "place",
+              "description": "Gives the community gate as the stop.",
+              "any_of": [
+                "community gate",
+                "at the community gate"
+              ]
+            },
+            {
+              "id": "arrival",
+              "description": "Gives the 3 p.m. arrival.",
+              "any_of": [
+                "arrives at 3",
+                "comes at 3",
+                "at 3 p.m."
+              ]
+            },
+            {
+              "id": "departure",
+              "description": "Gives the 4 p.m. departure.",
+              "any_of": [
+                "leaves at 4",
+                "goes at 4",
+                "until 4 p.m."
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 10,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch05_assess_01",
+        "passage": "Vani takes a taxi to the railway station. Her train goes to Agra.",
+        "prompt": "Which vehicle takes Vani to the station?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "taxi",
+          "train",
+          "boat"
+        ],
+        "accepted_answers": [
+          "taxi",
+          "a taxi"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_02",
+        "passage": "Rohit flies to Kochi and comes home on an overnight bus.",
+        "prompt": "How does Rohit come home?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "by plane",
+          "by bus",
+          "by taxi"
+        ],
+        "accepted_answers": [
+          "by bus",
+          "bus",
+          "on a bus"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_03",
+        "passage": "The school van stopped because a herd of goats was crossing the road.",
+        "prompt": "Why did the van stop?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "goats were crossing the road",
+          "a herd of goats crossed the road",
+          "because of the goats",
+          "the goats"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_04",
+        "passage": "Mili reaches the aquarium at ten. She leaves it after the dolphin show at noon.",
+        "prompt": "Where is Mili at ten?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "at the aquarium",
+          "the aquarium",
+          "aquarium"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_05",
+        "passage": "A glider moves quietly through the air without an engine.",
+        "prompt": "Which transport group fits a glider?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "air transport",
+          "land transport",
+          "water transport"
+        ],
+        "accepted_answers": [
+          "air transport",
+          "air"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_06",
+        "passage": "The fishing boat carries baskets from one riverbank to the other.",
+        "prompt": "Where does this vehicle travel?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "on water",
+          "on land",
+          "in the air"
+        ],
+        "accepted_answers": [
+          "on water",
+          "water"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_07",
+        "passage": "A tram follows rails along a busy city street.",
+        "prompt": "Name its transport group.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "land transport",
+          "land"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_08",
+        "passage": "A seaplane rises from the lake and then flies above the coast.",
+        "prompt": "Which group describes where it travels after rising?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "air transport",
+          "air"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_09",
+        "passage": "The kiosk is close enough for Aadi to reach it in two minutes.",
+        "prompt": "What does close mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "near",
+          "far",
+          "closed"
+        ],
+        "accepted_answers": [
+          "near",
+          "not far away",
+          "nearby"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_10",
+        "passage": "The family began the return trip after sunset.",
+        "prompt": "What does return trip mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a trip back",
+          "the first trip out",
+          "a short rest"
+        ],
+        "accepted_answers": [
+          "a trip back",
+          "going back",
+          "journey home"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_11",
+        "passage": "The village is remote, so the doctor travels for six hours to get there.",
+        "prompt": "What does remote mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "far away",
+          "far",
+          "a long way away",
+          "not nearby"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_12",
+        "passage": "The passengers depart when the whistle sounds and the bus pulls away.",
+        "prompt": "What does depart mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "leave",
+          "go away",
+          "start the journey",
+          "set off"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_13",
+        "passage": "Words: slowly / the / ferry / moves / across / lake / the",
+        "prompt": "Put the words in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the ferry moves slowly across the lake",
+          "the ferry moves slowly across the lake."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_14",
+        "passage": "Words: our / at dawn / journey / begins",
+        "prompt": "Make one correct sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "our journey begins at dawn",
+          "our journey begins at dawn.",
+          "at dawn our journey begins",
+          "at dawn, our journey begins."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_15",
+        "passage": "Events: We reach the platform. We buy tickets. We board the train.",
+        "prompt": "Which order is sensible?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "buy tickets, reach the platform, board the train",
+          "reach the platform, buy tickets, board the train",
+          "board the train, buy tickets, reach the platform"
+        ],
+        "accepted_answers": [
+          "reach the platform, buy tickets, board the train"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_16",
+        "passage": "Events: The bus leaves town. It stops at the fort. It returns to town.",
+        "prompt": "Which event belongs last?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "the bus leaves town",
+          "it stops at the fort",
+          "it returns to town"
+        ],
+        "accepted_answers": [
+          "it returns to town",
+          "the bus returns to town"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_17",
+        "passage": "Travel facts: Alia | cousin's farm | jeep | Sunday morning.",
+        "prompt": "Write one complete sentence about Alia's trip.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "traveller",
+            "description": "Names Alia.",
+            "any_of": [
+              "alia"
+            ]
+          },
+          {
+            "id": "destination",
+            "description": "Gives the cousin's farm as the destination.",
+            "any_of": [
+              "cousin's farm",
+              "cousins farm",
+              "farm"
+            ]
+          },
+          {
+            "id": "transport",
+            "description": "States that she travels by jeep.",
+            "any_of": [
+              "by jeep",
+              "takes a jeep",
+              "rides in a jeep"
+            ]
+          },
+          {
+            "id": "time",
+            "description": "Gives Sunday morning.",
+            "any_of": [
+              "sunday morning",
+              "on sunday morning"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_18",
+        "passage": "Journey note: Danish | planetarium | metro | returns after 2 p.m.",
+        "prompt": "Write a message that keeps all four facts.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "traveller",
+            "description": "Names Danish.",
+            "any_of": [
+              "danish"
+            ]
+          },
+          {
+            "id": "destination",
+            "description": "Gives the planetarium.",
+            "any_of": [
+              "planetarium",
+              "to the planetarium"
+            ]
+          },
+          {
+            "id": "transport",
+            "description": "Gives the metro.",
+            "any_of": [
+              "by metro",
+              "takes the metro",
+              "rides the metro"
+            ]
+          },
+          {
+            "id": "return",
+            "description": "Gives the return after 2 p.m.",
+            "any_of": [
+              "returns after 2",
+              "back after 2",
+              "comes home after 2"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_19",
+        "passage": "A friend asks how to reach the reading club. Facts: take bus 8; get off at Rose Park; walk to the red gate.",
+        "prompt": "Give the directions in one or two clear sentences.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "bus",
+            "description": "Tells the friend to take bus 8.",
+            "any_of": [
+              "take bus 8",
+              "bus number 8",
+              "ride bus 8"
+            ]
+          },
+          {
+            "id": "stop",
+            "description": "Tells where to get off.",
+            "any_of": [
+              "get off at rose park",
+              "leave the bus at rose park",
+              "rose park stop"
+            ]
+          },
+          {
+            "id": "walk",
+            "description": "Tells the friend to walk to the red gate.",
+            "any_of": [
+              "walk to the red gate",
+              "go to the red gate"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch05_assess_20",
+        "passage": "Return notice facts: art bus | school gate | leaves at 1 p.m. | everyone carries lunch.",
+        "prompt": "Write one useful notice sentence.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "vehicle",
+            "description": "Names the art bus.",
+            "any_of": [
+              "art bus"
+            ]
+          },
+          {
+            "id": "place",
+            "description": "Gives the school gate.",
+            "any_of": [
+              "school gate",
+              "from the school gate",
+              "at the school gate"
+            ]
+          },
+          {
+            "id": "time",
+            "description": "Gives the 1 p.m. leaving time.",
+            "any_of": [
+              "leaves at 1",
+              "at 1 p.m.",
+              "departs at 1"
+            ]
+          },
+          {
+            "id": "lunch",
+            "description": "Says that everyone should carry lunch.",
+            "any_of": [
+              "carry lunch",
+              "bring lunch",
+              "everyone carries lunch"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      }
+    ]
+  }
+}

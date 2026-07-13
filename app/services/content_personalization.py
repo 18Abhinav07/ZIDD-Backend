@@ -175,12 +175,11 @@ def render_gd_bridge_exercise(
             }
         )
     if exercise.type == "spoken" and node_id in _SPOKEN:
-        answer = _MCQ_OPTIONS.get(node_id, (exercise.answer_key,))[0].format(**values)
         return exercise.model_copy(
             update={
                 "sentence": _SPOKEN[node_id].format(**values),
                 "context": f"Free production practice on the active GD topic: {pack.canonical_topic}.",
-                "answer_key": answer,
+                "answer_key": exercise.answer_key,
                 "accept": None,
                 "options": None,
             }

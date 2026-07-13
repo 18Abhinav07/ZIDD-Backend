@@ -1,0 +1,1162 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-content-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Original Zidd passages checked against the corrected NCERT title and chapter theme.",
+    "Every independent, transfer, and assessment scenario checked for stage freshness.",
+    "Masterclass checks verified deterministic with non-empty accepted answers.",
+    "Prompts, alternatives, misconceptions, age fit, and answer contracts reviewed item by item."
+  ],
+  "runtime_sha256": "f36d3eab173078220517eb33ba20dab498d6bb467fd68971bdab956427e006c8",
+  "content_version": "2026-07-12.2",
+  "chapter_id": "eng_c2_ch12",
+  "chapter_no": 12,
+  "title": "Little Drops of Water",
+  "book_title": "Mridang",
+  "unit_title": "Growing Together",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr112.pdf",
+  "source_note": "NCERT structural and thematic alignment only. All teaching passages, checks, feedback, and assessment situations are original Zidd content.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch12_small_to_large",
+      "title": "See how little parts grow",
+      "focus": "identify how many small parts can make something large",
+      "skill_ids": [
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Join examples of drops, grains, minutes, and deeds into the chapter's cumulative main idea.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea covers every sentence. One drop is small, but repeated drops change the amount.",
+          "passage": "Meera adds one spoon of water to a jar each morning. By the end of the week, the jar holds enough water for three plants.",
+          "prompt": "Which idea fits the whole passage?",
+          "options": [
+            "Small amounts can build into a useful amount.",
+            "Plants need a new jar each day.",
+            "One spoon fills every jar at once.",
+            "Water should be hidden."
+          ],
+          "accepted_answers": [
+            "Small amounts can build into a useful amount.",
+            "small amounts build into a useful amount",
+            "little amounts add up"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look for repeated small parts and the larger result. Do not focus only on who brings the first part.",
+          "passage": "Each child brings a handful of soil. Together, the handfuls fill the new planter.",
+          "prompt": "What is the larger result?",
+          "options": [
+            "The planter is filled.",
+            "One child carries everything.",
+            "The soil disappears."
+          ],
+          "accepted_answers": [
+            "The planter is filled.",
+            "the planter is filled",
+            "they fill the planter",
+            "the soil fills the planter"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "The same pattern works with time. Many short practice periods can create progress.",
+          "passage": "Asha reads for five minutes every evening. After a month, she can finish a short book by herself.",
+          "prompt": "What main idea does this example show?",
+          "options": [],
+          "accepted_answers": [
+            "small efforts can lead to progress",
+            "little efforts add up",
+            "regular practice builds skill",
+            "short practice can make a big difference"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain both the small repeated action and the larger result. Wording may differ, but both parts are needed.",
+          "passage": "Every day, a family saves one clean bottle for recycling. At month's end, they take a full sack to the collection centre.",
+          "prompt": "How do the family's small actions add up?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "small_action",
+              "description": "Mention saving one bottle each day.",
+              "any_of": [
+                "one bottle",
+                "each day",
+                "daily",
+                "saves bottles"
+              ]
+            },
+            {
+              "id": "large_result",
+              "description": "Mention the full sack or recycling collection.",
+              "any_of": [
+                "full sack",
+                "collection centre",
+                "many bottles",
+                "recycling"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the cumulative idea to money for a class goal. Include the repeated saving and the final purchase.",
+          "passage": "A club places two coins in a box after every meeting. Months later, there is enough money to buy a magnifying glass.",
+          "prompt": "Explain how the club reaches its goal.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "small_action",
+              "description": "Mention adding two coins repeatedly.",
+              "any_of": [
+                "two coins",
+                "every meeting",
+                "saves",
+                "adds coins"
+              ]
+            },
+            {
+              "id": "goal",
+              "description": "Mention buying the magnifying glass.",
+              "any_of": [
+                "magnifying glass",
+                "enough money",
+                "buy"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch12_effect_chain",
+      "title": "Connect a small action to its effect",
+      "focus": "infer how one repeated choice helps or harms over time",
+      "skill_ids": [
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Use cause-and-effect clues to explain why small choices matter when repeated.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Find the repeated cause and the later effect. A single day is not the whole explanation.",
+          "passage": "Ira loosens the soil around a sapling for two minutes each day. New roots spread more easily, and the plant becomes stronger.",
+          "prompt": "Why does the sapling become stronger?",
+          "options": [
+            "Ira loosens the soil regularly.",
+            "The roots stop growing.",
+            "The sapling moves indoors.",
+            "Two minutes is a long time."
+          ],
+          "accepted_answers": [
+            "Ira loosens the soil regularly.",
+            "ira loosens the soil every day",
+            "because the soil is loosened each day",
+            "regular care helps the roots"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Small harmful actions also add up. Choose the cause that happens repeatedly.",
+          "passage": "Someone leaves one plastic straw near the pond each afternoon. Soon many straws block the water's edge.",
+          "prompt": "What causes the edge to become blocked?",
+          "options": [
+            "Straws are left there again and again.",
+            "Fish swim near the pond.",
+            "The afternoon is warm."
+          ],
+          "accepted_answers": [
+            "Straws are left there again and again.",
+            "people keep leaving straws",
+            "the repeated littering",
+            "one straw is left each afternoon"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Kindness can have a chain effect. Identify the first small act that changes what happens next.",
+          "passage": "Mukul moves aside so an elderly passenger can sit. Another child notices and makes room for a parent with a baby.",
+          "prompt": "What starts the chain of helpful actions?",
+          "options": [],
+          "accepted_answers": [
+            "mukul makes room",
+            "Mukul gives up his place",
+            "Mukul lets the elderly passenger sit",
+            "his helpful example"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the cause and effect without copying the passage. Include the repeated habit and the result.",
+          "passage": "Lina writes one new spelling on a card every day and reviews the cards on Sunday. After several weeks, she spells many more words correctly.",
+          "prompt": "Why does Lina's spelling improve?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "habit",
+              "description": "Mention the repeated card practice.",
+              "any_of": [
+                "every day",
+                "cards",
+                "reviews",
+                "practice"
+              ]
+            },
+            {
+              "id": "effect",
+              "description": "Mention improved spelling.",
+              "any_of": [
+                "spell",
+                "correctly",
+                "improves",
+                "more words"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Apply cause and effect to sleep habits. Name the small repeated choice and the daytime result.",
+          "passage": "For a week, Jai goes to bed ten minutes earlier. He begins waking on time and feels alert in class.",
+          "prompt": "How does Jai's small change help him?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "change",
+              "description": "Mention going to bed earlier repeatedly.",
+              "any_of": [
+                "bed",
+                "earlier",
+                "ten minutes",
+                "for a week"
+              ]
+            },
+            {
+              "id": "result",
+              "description": "Mention waking on time or feeling alert.",
+              "any_of": [
+                "wakes on time",
+                "alert",
+                "class",
+                "not tired"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch12_little_words",
+      "title": "Understand words about amount and care",
+      "focus": "use context for drop, grain, deed, mighty, and shared",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Infer small-amount and kindness words from concrete clues, including an explicit target whenever shared is assessed.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A drop is a very small amount of liquid. The clue is that it hangs at the tip before falling.",
+          "passage": "One clear drop hangs from the tap and falls into the cup.",
+          "prompt": "What does drop mean here?",
+          "options": [
+            "a tiny amount of liquid",
+            "a full bucket",
+            "a dry seed",
+            "a kind act"
+          ],
+          "accepted_answers": [
+            "a tiny amount of liquid",
+            "small amount of liquid",
+            "a little bit of water",
+            "tiny bit of liquid"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A grain is one tiny piece of a dry food or material. The many rice pieces provide the clue.",
+          "passage": "One grain of rice slips from the spoon; hundreds remain in the bowl.",
+          "prompt": "Which meaning fits grain?",
+          "options": [
+            "one tiny piece",
+            "a large cooking pot",
+            "a water wave"
+          ],
+          "accepted_answers": [
+            "one tiny piece",
+            "a tiny piece of rice",
+            "one small piece"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A deed is something a person does. A kind deed is a helpful action, not merely a kind thought.",
+          "passage": "Holding the gate for a neighbour is a small deed that makes carrying bags easier.",
+          "prompt": "What does deed mean?",
+          "options": [],
+          "accepted_answers": [
+            "an action",
+            "something someone does",
+            "a helpful act",
+            "act"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Shared must have a clear target. Here the art tools are shared because every table may use the same box.",
+          "passage": "The class has one shared box of crayons. Children from every table take turns using it and return it for the next group.",
+          "prompt": "What does shared tell us about the crayon box?",
+          "options": [],
+          "accepted_answers": [
+            "every table may use it",
+            "everyone can use it",
+            "the class uses it together",
+            "it is for all the children",
+            "children take turns using it"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the word mighty to a transport scene. The result shows great strength, not large size alone.",
+          "passage": "The small engine pulls six heavy coaches up the hill. It is mighty despite its size.",
+          "prompt": "What does mighty mean here?",
+          "options": [],
+          "accepted_answers": [
+            "very strong",
+            "powerful",
+            "strong"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch12_kind_deeds",
+      "title": "Choose words for small helpful acts",
+      "focus": "use deed, kindness, gather, and together in meaningful sentences",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Select a chapter word by the action and result in the sentence, not by rhyme or familiarity.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A deed is an action. When the action helps someone, kind describes the deed.",
+          "passage": "Carrying a neighbour's parcel is a helpful ____.",
+          "prompt": "Which word names this helpful action?",
+          "options": [
+            "deed",
+            "drop",
+            "grain",
+            "ocean"
+          ],
+          "accepted_answers": [
+            "deed",
+            "act"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Gather means bring separate things together. It fits before the objects form one collection.",
+          "passage": "The children ____ fallen seeds into one bowl.",
+          "prompt": "Choose the action word.",
+          "options": [
+            "gather",
+            "forget",
+            "spill"
+          ],
+          "accepted_answers": [
+            "gather",
+            "collect"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Together shows people joining their efforts. It is not the same as each person working alone in a different place.",
+          "passage": "The two teams work ____ to carry the long mat.",
+          "prompt": "Which action finishes the juice clean-up?",
+          "options": [],
+          "accepted_answers": [
+            "together"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Kindness names caring behaviour. The clue is the comfort given to another person.",
+          "passage": "A warm note to a lonely friend shows ____.",
+          "prompt": "Which words tell how to handle the empty packet?",
+          "options": [],
+          "accepted_answers": [
+            "kindness",
+            "care"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use two chapter words in a new emergency-drive context. Show many people combining small contributions.",
+          "passage": "Families each bring one soap bar for a relief box. Soon the box is full.",
+          "prompt": "Write one sentence about the collection using two suitable chapter words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "joining",
+              "description": "Use a word for combined effort.",
+              "any_of": [
+                "together",
+                "gather",
+                "collect"
+              ]
+            },
+            {
+              "id": "small_parts",
+              "description": "Refer to the small contributions building up.",
+              "any_of": [
+                "each",
+                "one",
+                "soap",
+                "full",
+                "many"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch12_reason_contrast",
+      "title": "Link little actions and results",
+      "focus": "use because for causes and but for surprising contrasts",
+      "skill_ids": [
+        "grammar.connectors_because_and_but"
+      ],
+      "teaching_goal": "Join chapter ideas with because or but according to the relationship between them.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Because introduces the cause. The second part explains why the pot fills.",
+          "passage": "The pot fills slowly ____ one cup is added every day.",
+          "prompt": "Which connector belongs in the blank?",
+          "options": [
+            "because",
+            "but",
+            "or",
+            "after"
+          ],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "But shows a contrast: small size is followed by a large effect.",
+          "passage": "The seed is tiny, ____ it can grow into a tall plant.",
+          "prompt": "Choose the connector.",
+          "options": [
+            "but",
+            "because",
+            "so"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Ask whether the second part is a reason. Here it explains why the shelf has many books.",
+          "passage": "The reading shelf grows ____ each family adds one storybook.",
+          "prompt": "Write the missing connector.",
+          "options": [],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use but when the result is stronger than the small beginning might suggest.",
+          "passage": "The note was short, ____ it cheered Maya all afternoon.",
+          "prompt": "Which connector shows the short note's surprising effect?",
+          "options": [],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer both links to a health routine. Use because for the reason and but for the small-to-large contrast.",
+          "passage": "Rohan stretches for a few minutes every morning. After many days, bending feels easier.",
+          "prompt": "Write two connected sentences, one with because and one with but.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "because",
+              "description": "Use because to link practice and improvement.",
+              "any_of": [
+                "because"
+              ]
+            },
+            {
+              "id": "but",
+              "description": "Use but to contrast a few minutes with the larger effect.",
+              "any_of": [
+                "but"
+              ]
+            },
+            {
+              "id": "context",
+              "description": "Refer to stretching or easier bending.",
+              "any_of": [
+                "stretch",
+                "minutes",
+                "bending",
+                "easier"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch12_own_words",
+      "title": "Summarize the little-things message",
+      "focus": "state how small acts add up and give a relevant example",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Write a short original summary with the cumulative idea and one supported example.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A summary gives the big idea, not every detail. Choose the sentence that joins repeated small parts and a larger result.",
+          "passage": "One bead is added to a string each day. At the end of the month, the class has a long decoration.",
+          "prompt": "Which sentence is the best summary?",
+          "options": [
+            "Small daily additions can make something large.",
+            "The string is blue.",
+            "Only one bead matters.",
+            "The month has days."
+          ],
+          "accepted_answers": [
+            "Small daily additions can make something large.",
+            "small daily additions can make something large",
+            "little additions add up"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A reason answer explains why a little act matters. Select the effect supported by the passage.",
+          "passage": "Anu greets the new child each morning. Soon the child enters class with a smile.",
+          "prompt": "Why do Anu's greetings matter?",
+          "options": [
+            "They help the new child feel welcome.",
+            "They make the morning longer.",
+            "They change the classroom door."
+          ],
+          "accepted_answers": [
+            "They help the new child feel welcome.",
+            "they help the new child feel welcome",
+            "the child feels welcome",
+            "they make the child feel welcome"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass check: include both the small action and its larger effect in a concise sentence.",
+          "passage": "Each neighbour plants one marigold along the lane. In a few weeks, flowers line the whole path.",
+          "prompt": "What does this example teach?",
+          "options": [],
+          "accepted_answers": [
+            "Small actions can make a big difference.",
+            "small actions can make a big difference",
+            "Little actions add up.",
+            "little actions add up",
+            "Many small acts create a big result."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Summarize in your own words. State the little-things idea and use the given reading example as support.",
+          "passage": "Navi reads one page aloud to his brother each night. By summer, they have enjoyed an entire storybook together.",
+          "prompt": "Write a one-sentence summary of the lesson in this scene.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "idea",
+              "description": "State that small repeated efforts add up.",
+              "any_of": [
+                "small",
+                "little",
+                "add up",
+                "each night",
+                "regular"
+              ]
+            },
+            {
+              "id": "example",
+              "description": "Mention pages building into a whole book.",
+              "any_of": [
+                "page",
+                "storybook",
+                "whole book",
+                "entire story"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the chapter message to a new digital habit. Include the repeated action and its useful result.",
+          "passage": "Sana learns one keyboard shortcut each Friday. After a term, she can finish her computer work more quickly.",
+          "prompt": "Explain how this new context shows the chapter's message.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "small_action",
+              "description": "Mention learning one shortcut regularly.",
+              "any_of": [
+                "one shortcut",
+                "each friday",
+                "regularly",
+                "learns"
+              ]
+            },
+            {
+              "id": "result",
+              "description": "Mention faster computer work.",
+              "any_of": [
+                "quickly",
+                "faster",
+                "computer work",
+                "finish"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch12_assess_01",
+        "passage": "One tile is painted each afternoon. After two weeks, the wall has a bright border.",
+        "prompt": "Which statement captures what the daily painting achieves?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Small repeated work can create a larger result.",
+          "A wall must be painted in one day.",
+          "Tiles cannot form a border.",
+          "Afternoons are bright."
+        ],
+        "accepted_answers": [
+          "Small repeated work can create a larger result.",
+          "small repeated work creates a larger result",
+          "little efforts add up"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_02",
+        "passage": "Each student learns one line of a song. Together, the class can perform the whole song.",
+        "prompt": "What do the separate lines allow the class to do?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "The class performs the whole song.",
+          "One child sings every line.",
+          "The song becomes shorter."
+        ],
+        "accepted_answers": [
+          "The class performs the whole song.",
+          "the class performs the song",
+          "they sing the whole song"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_03",
+        "passage": "A gardener adds a little compost every Saturday. Months later, the soil is dark and rich.",
+        "prompt": "Explain how the small actions add up.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "small_action",
+            "description": "Mention adding a little compost regularly.",
+            "any_of": [
+              "compost",
+              "every saturday",
+              "little",
+              "regularly"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "Mention the improved soil.",
+            "any_of": [
+              "soil",
+              "dark",
+              "rich",
+              "improves"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_04",
+        "passage": "The class writes one thank-you card each week. By term end, every helper has received one.",
+        "prompt": "State the main idea in your own words.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "idea",
+            "description": "State that repeated small acts reach a larger goal.",
+            "any_of": [
+              "each week",
+              "small",
+              "add up",
+              "regular"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "Mention all helpers receiving thanks.",
+            "any_of": [
+              "every helper",
+              "thank",
+              "cards",
+              "received"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_05",
+        "passage": "Naman practises tying one knot every evening. Soon he can secure the tent rope by himself.",
+        "prompt": "Why can Naman secure the rope?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "He practises regularly.",
+          "The rope becomes shorter.",
+          "The tent moves away.",
+          "Evenings are long."
+        ],
+        "accepted_answers": [
+          "He practises regularly.",
+          "he practices every evening",
+          "because he practises tying knots",
+          "regular practice"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_06",
+        "passage": "A dripping tap loses a little water each minute. By morning, the bucket below is full.",
+        "prompt": "What causes the bucket to fill?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "The tap keeps dripping.",
+          "The bucket grows.",
+          "Morning water appears."
+        ],
+        "accepted_answers": [
+          "The tap keeps dripping.",
+          "the repeated drops",
+          "water drips all night",
+          "the tap drips each minute"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_07",
+        "passage": "Every visitor steps off the path to take a shortcut. After many visits, the young grass is flattened.",
+        "prompt": "Explain why the grass becomes flat.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "cause",
+            "description": "Mention repeated footsteps or shortcuts.",
+            "any_of": [
+              "every visitor",
+              "steps",
+              "shortcut",
+              "many visits"
+            ]
+          },
+          {
+            "id": "effect",
+            "description": "Mention the grass being flattened or damaged.",
+            "any_of": [
+              "grass",
+              "flat",
+              "flattened",
+              "damaged"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_08",
+        "passage": "Priya smiles at one nervous speaker. The speaker relaxes and finishes the poem aloud.",
+        "prompt": "How does Priya's small act help?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "act",
+            "description": "Mention Priya's encouraging smile.",
+            "any_of": [
+              "smile",
+              "priya",
+              "encourages"
+            ]
+          },
+          {
+            "id": "effect",
+            "description": "Mention the speaker relaxing or finishing.",
+            "any_of": [
+              "relaxes",
+              "finishes",
+              "poem",
+              "confidence"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_09",
+        "passage": "One grain of sand sticks to the wet shell; many more cover the beach.",
+        "prompt": "What does grain mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "one tiny piece",
+          "a large wave",
+          "a beach chair",
+          "a kind action"
+        ],
+        "accepted_answers": [
+          "one tiny piece",
+          "tiny piece of sand",
+          "small piece"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_10",
+        "passage": "The small tugboat is mighty enough to pull a huge ship.",
+        "prompt": "Which meaning fits mighty?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "very strong",
+          "very quiet",
+          "very young"
+        ],
+        "accepted_answers": [
+          "very strong",
+          "powerful",
+          "strong"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_11",
+        "passage": "Offering your seat to someone who needs it is a caring deed.",
+        "prompt": "In this example, what kind of thing is a deed?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "an action",
+          "something a person does",
+          "an act",
+          "helpful action"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_12",
+        "passage": "The garden hose is shared: every family on the lane may borrow it and returns it after use.",
+        "prompt": "What does shared mean for the hose?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "every family may use it",
+          "all families can borrow it",
+          "it is for everyone on the lane",
+          "families take turns using it"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_13",
+        "passage": "Helping a younger child carry books is a kind ____.",
+        "prompt": "Choose the chapter word.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "deed",
+          "grain",
+          "drop",
+          "ocean"
+        ],
+        "accepted_answers": [
+          "deed",
+          "act"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_14",
+        "passage": "The scouts ____ dry leaves into a compost sack.",
+        "prompt": "Which action completes the sentence?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "gather",
+          "scatter",
+          "forget"
+        ],
+        "accepted_answers": [
+          "gather",
+          "collect"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_15",
+        "passage": "The players lift the net ____.",
+        "prompt": "Write the word that means as one group.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "together"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_16",
+        "passage": "Listening patiently to a worried friend shows ____.",
+        "prompt": "Complete the sentence with a caring word.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "kindness",
+          "care"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_17",
+        "passage": "The tank rises slowly ____ rainwater enters through a pipe.",
+        "prompt": "Choose the reason connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "because",
+          "but",
+          "or",
+          "then"
+        ],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_18",
+        "passage": "The ladybird is tiny, ____ it eats many plant pests.",
+        "prompt": "Which connector shows contrast?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "but",
+          "because",
+          "so"
+        ],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_19",
+        "passage": "The song grows louder ____ another voice joins each verse.",
+        "prompt": "Write the connector that introduces the cause.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_20",
+        "passage": "The patch is small, ____ it keeps the water bag from leaking.",
+        "prompt": "Which word links the small patch to its strong effect?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_21",
+        "passage": "Every evening, Ben adds one puzzle piece. At last, the complete picture covers the board.",
+        "prompt": "Choose the best summary.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.reason_answer"
+        ],
+        "options": [
+          "Small daily steps can complete a large task.",
+          "The board is made of wood.",
+          "One piece is the whole picture."
+        ],
+        "accepted_answers": [
+          "Small daily steps can complete a large task.",
+          "small daily steps complete a large task",
+          "little steps add up"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_22",
+        "passage": "Leela waves to the crossing guard each day. The guard feels noticed and smiles back.",
+        "prompt": "Why does Leela's small act matter?",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.reason_answer"
+        ],
+        "options": [
+          "It helps the guard feel appreciated.",
+          "It changes the road.",
+          "It makes the day shorter."
+        ],
+        "accepted_answers": [
+          "It helps the guard feel appreciated.",
+          "it makes the guard feel appreciated",
+          "the guard feels noticed",
+          "it shows appreciation"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_23",
+        "passage": "A team folds one paper flower at every club meeting. Soon they have enough to decorate the hall.",
+        "prompt": "Summarize the lesson in this scene.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "idea",
+            "description": "State that small repeated work adds up.",
+            "any_of": [
+              "small",
+              "one",
+              "every meeting",
+              "add up",
+              "regular"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "Mention enough flowers to decorate the hall.",
+            "any_of": [
+              "flowers",
+              "decorate",
+              "hall",
+              "enough"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch12_assess_24",
+        "passage": "Kiran puts one useful fact on a study card each day. Before the quiz, he has a full set to review.",
+        "prompt": "Explain how this example shows the chapter's message.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "small_action",
+            "description": "Mention adding one fact daily.",
+            "any_of": [
+              "one fact",
+              "each day",
+              "study card",
+              "daily"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "Mention the full review set.",
+            "any_of": [
+              "full set",
+              "review",
+              "quiz",
+              "many cards"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      }
+    ]
+  }
+}

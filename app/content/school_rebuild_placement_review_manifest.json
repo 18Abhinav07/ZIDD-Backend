@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "content_version": "placement-bank-v1",
+  "scope": "English placement content for target Classes 2-5",
+  "engineering_qa_status": "passed",
+  "engineering_qa_basis": "Automated authored-bank contract, leakage, immutability, normalization, and compatibility tests",
+  "human_pedagogical_review_status": "pending",
+  "launch_status": "blocked_pending_human_review",
+  "reviewed_on": "2026-07-12"
+}

@@ -95,6 +95,20 @@ class SessionStartResponse(BaseModel):
     first_message: str
     current_mastery: float
     resumed: bool = False
+    display_status: str = "active"
+    node_mastered: bool = False
+    readiness_score: float = 0.0
+    best_independent_score: float = 0.0
+
+
+class AssessmentClientAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["ask_panelist", "clarify", "new_angle", "move_on"]
+    speaker_id: Optional[str] = None
+    speaker_name: Optional[str] = None
+    label: Optional[str] = None
+    source: Literal["quick_action", "typed_control"] = "quick_action"
 
 
 class SessionTurnRequest(BaseModel):
@@ -102,6 +116,7 @@ class SessionTurnRequest(BaseModel):
     user_input: str
     client_turn_id: Optional[str] = None
     expected_session_version: Optional[int] = None
+    assessment_action: Optional[AssessmentClientAction] = None
 
 
 class PlacementRequest(BaseModel):
@@ -139,6 +154,7 @@ class GamePromptFrame(BaseModel):
     hint: str           # grammar/vocab category label
     context: str        # why this gap targets the teaching focus
     options: list[str] | None = None
+    turn_id: str | None = None
 
 
 class NodeAdvanceFrame(BaseModel):
@@ -194,6 +210,8 @@ class DoneFrame(BaseModel):
     """event: done — always the final frame; full post-turn state snapshot."""
     session_id: str
     competency_node: str
+    task_type: str = ""
+    module_id: str = ""
     node_title: str
     current_mastery: float
     turn_count: int

@@ -1,0 +1,91 @@
+{
+  "book_code": "eesa1",
+  "book_title": "Santoor",
+  "chapter_count": 10,
+  "chapters": [
+    {
+      "chapter_id": "eng_c5_ch01",
+      "chapter_no": 1,
+      "chapter_title": "Papa's Spectacles",
+      "selector_ref": "eesa1=1-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=1-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa101.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch02",
+      "chapter_no": 2,
+      "chapter_title": "Gone with the Scooter",
+      "selector_ref": "eesa1=2-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=2-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa102.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch03",
+      "chapter_no": 3,
+      "chapter_title": "The Rainbow",
+      "selector_ref": "eesa1=3-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=3-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa103.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch04",
+      "chapter_no": 4,
+      "chapter_title": "The Wise Parrot",
+      "selector_ref": "eesa1=4-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=4-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa104.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch05",
+      "chapter_no": 5,
+      "chapter_title": "The Frog",
+      "selector_ref": "eesa1=5-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=5-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa105.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch06",
+      "chapter_no": 6,
+      "chapter_title": "What a Tank!",
+      "selector_ref": "eesa1=6-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=6-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa106.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch07",
+      "chapter_no": 7,
+      "chapter_title": "Gilli Danda",
+      "selector_ref": "eesa1=7-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=7-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa107.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch08",
+      "chapter_no": 8,
+      "chapter_title": "The Decision of the Panchayat",
+      "selector_ref": "eesa1=8-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=8-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa108.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch09",
+      "chapter_no": 9,
+      "chapter_title": "Vocation",
+      "selector_ref": "eesa1=9-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=9-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa109.pdf"
+    },
+    {
+      "chapter_id": "eng_c5_ch10",
+      "chapter_no": 10,
+      "chapter_title": "Glass Bangles",
+      "selector_ref": "eesa1=10-10",
+      "selector_url": "https://ncert.nic.in/textbook.php?eesa1=10-10",
+      "pdf_url": "https://ncert.nic.in/textbook/pdf/eesa110.pdf"
+    }
+  ],
+  "class_no": 5,
+  "source_url": "https://ncert.nic.in/textbook.php",
+  "structural_note": "NCERT selector metadata only. Zidd stores original teaching content and does not copy textbook body text.",
+  "subject_id": "english"
+}

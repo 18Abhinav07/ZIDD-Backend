@@ -1,0 +1,460 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Focused schema, runtime hash, pedagogy quality, and key self-review for eng_c3_ch08 on 2026-07-12"
+  ],
+  "runtime_sha256": "69468f04eab7695e1d3459911b3174e4a623ed338efb525f785add206fa19bf2",
+  "chapter_id": "eng_c3_ch08",
+  "chapter_no": 8,
+  "title": "Thank God!",
+  "book_title": "Santoor",
+  "unit_title": "Good Food",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa108.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "thank_god_fruit_choice",
+      "title": "Choose the lighter gift",
+      "focus": "infer a practical reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Understand why a character chooses one fruit over another by using journey and weight clues.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In this story, a farmer wants to carry a fruit gift over a long distance. Grapes and watermelons are both good fruits, but the lighter fruit is easier to carry.",
+          "passage": "The farmer has sweet grapes and large watermelons. The palace is far away, so he chooses the fruit that is easier to carry.",
+          "prompt": "Which fruit does the farmer choose for the journey?",
+          "options": [
+            "grapes",
+            "watermelons",
+            "pumpkins",
+            "coconuts"
+          ],
+          "accepted_answers": [
+            "grapes",
+            "grape"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: compare weight. A basket of grapes is lighter than a heavy watermelon.",
+          "passage": "The farmer leaves the heavy fruit at home and carries the lighter fruit.",
+          "prompt": "Which fruit is lighter to carry?",
+          "options": [
+            "grapes",
+            "watermelon",
+            "stone",
+            "sack"
+          ],
+          "accepted_answers": [
+            "grapes",
+            "grape"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: a reason answer needs both the choice and the reason. He chose grapes because grapes were light.",
+          "passage": "The road is long. The farmer must carry the gift by hand.",
+          "prompt": "Which answer gives the clearest reason?",
+          "options": [
+            "grapes were light",
+            "grapes were loud",
+            "watermelons were tiny",
+            "the road was asleep"
+          ],
+          "accepted_answers": [
+            "grapes were light",
+            "because grapes were light"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Compare a new pair of choices and explain how the journey changes the sensible decision.",
+          "passage": "Farah must walk to a hilltop picnic. She can carry a clay water pot or a light steel bottle. Both hold enough water.",
+          "prompt": "Which container should Farah choose, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "choice", "description": "Chooses the steel bottle.", "any_of": ["steel bottle", "light bottle", "bottle"]},
+            {"id": "reason", "description": "Explains that it is lighter or easier to carry on the walk.", "any_of": ["lighter", "easier to carry", "long walk", "walk uphill"]}
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer practical comparison to a school task. Use both the load and the distance in the reason.",
+          "passage": "The art room is upstairs. Neha can take one large glass jar or six empty paper cups to hold paintbrushes.",
+          "prompt": "What should Neha carry upstairs, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "choice", "description": "Chooses the paper cups.", "any_of": ["paper cups", "six cups", "empty cups"]},
+            {"id": "reason", "description": "Explains that they are light, easier, or safer to carry upstairs.", "any_of": ["lighter", "easier to carry", "safer", "will not break"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "thank_god_story_reason",
+      "title": "Understand the joke",
+      "focus": "infer story reason",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Infer why the farmer is thankful when a small grape hits him.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The funny turn in this story depends on comparison. A grape is small. A watermelon is heavy. The farmer feels lucky that he brought the smaller fruit.",
+          "passage": "The playful king tosses grapes. The farmer thinks about the heavy fruit he did not bring.",
+          "prompt": "Which fruit would have hurt much more?",
+          "options": [
+            "watermelons",
+            "grapes",
+            "plums",
+            "bananas"
+          ],
+          "accepted_answers": [
+            "watermelons",
+            "watermelon"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: ask which fruit is heavier. A heavy fruit would hurt more if thrown.",
+          "passage": "A grape taps the farmer lightly. He imagines a much heavier fruit instead.",
+          "prompt": "Which fruit is the farmer glad he did not bring?",
+          "options": [
+            "watermelon",
+            "grape",
+            "pear",
+            "peach"
+          ],
+          "accepted_answers": [
+            "watermelon",
+            "watermelons"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: the answer should explain the farmer's thinking. He thanks God because watermelons would hurt more than grapes.",
+          "passage": "The farmer smiles after the grape hits him because he imagines a heavy watermelon being thrown.",
+          "prompt": "Which reason explains his words?",
+          "options": [
+            "watermelons would hurt more",
+            "grapes are too heavy",
+            "the king was sleeping",
+            "the farm had no fruit"
+          ],
+          "accepted_answers": [
+            "watermelons would hurt more",
+            "watermelon would hurt more"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Find the contrast that creates a funny lucky escape, then explain the character's reaction.",
+          "passage": "A coconut drops beside Ravi's foot. Ravi looks at the tiny seedpod that actually landed on his shoe and laughs with relief.",
+          "prompt": "Why does Ravi feel lucky?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "actual", "description": "Mentions that only the tiny seedpod landed on his shoe.", "any_of": ["tiny seedpod", "seedpod landed", "small seedpod"]},
+            {"id": "danger", "description": "Explains that the coconut would have hurt more.", "any_of": ["coconut would hurt", "heavy coconut", "coconut missed", "could have hit him"]}
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Use contrast to explain humour in a new everyday scene. State what happened and the worse possibility avoided.",
+          "passage": "During cleanup, one drop of blue paint lands on Manu's old apron. The full paint jar had nearly fallen on his white uniform.",
+          "prompt": "Why does Manu smile at the small stain?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "actual", "description": "Mentions the small stain on the old apron.", "any_of": ["small stain", "one drop", "old apron"]},
+            {"id": "avoided", "description": "Explains that the full jar could have stained the white uniform.", "any_of": ["full jar", "white uniform", "bigger stain", "could have fallen"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "thank_god_opposites",
+      "title": "Use opposite words",
+      "focus": "use opposites",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Use common opposite pairs such as heavy/light and long/short.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Opposite words show contrast. Heavy and light are opposites; long and short are opposites.",
+          "passage": "A watermelon is heavy. A grape is light.",
+          "prompt": "What is the opposite of heavy?",
+          "options": [
+            "light",
+            "round",
+            "sweet",
+            "ripe"
+          ],
+          "accepted_answers": [
+            "light"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: think of what is easier to lift. Easy to lift means light.",
+          "passage": "The bag is not heavy. It is easy to lift.",
+          "prompt": "Which opposite word fits?",
+          "options": [
+            "light",
+            "thick",
+            "slow",
+            "royal"
+          ],
+          "accepted_answers": [
+            "light"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: use the pair. Heavy/light is about weight. Long/short is about length or distance.",
+          "passage": "The palace journey is long, but the walk to the tree is not long.",
+          "prompt": "What is the opposite of long?",
+          "options": [
+            "short",
+            "light",
+            "soft",
+            "round"
+          ],
+          "accepted_answers": [
+            "short"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the opposite without hints.",
+          "passage": "A long road takes more time. A short road takes less time.",
+          "prompt": "Write the opposite of long.",
+          "options": [],
+          "accepted_answers": [
+            "short"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use an opposite pair in a weather report rather than a food comparison. Keep the meaning category the same.",
+          "passage": "The morning wind was gentle, but by afternoon it became strong.",
+          "prompt": "Write the opposite of gentle from the passage.",
+          "options": [],
+          "accepted_answers": ["strong"]
+        }
+      }
+    },
+    {
+      "level_id": "thank_god_is_are",
+      "title": "Choose is or are",
+      "focus": "use is and are",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use is for one person or thing and are for more than one.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use is when the naming word is one. Use are when the naming word means more than one.",
+          "passage": "These grapes ___ sweet.",
+          "prompt": "Which word completes the sentence?",
+          "options": [
+            "are",
+            "is",
+            "am",
+            "was"
+          ],
+          "accepted_answers": [
+            "are"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: these grapes means many grapes, so use are.",
+          "passage": "The fruits ___ in the basket.",
+          "prompt": "Which word fits many fruits?",
+          "options": [
+            "are",
+            "is",
+            "am",
+            "has"
+          ],
+          "accepted_answers": [
+            "are"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: one table is. Many tables are. One book is. Many books are.",
+          "passage": "The basket ___ on the floor.",
+          "prompt": "Which word fits one basket?",
+          "options": [
+            "is",
+            "are",
+            "were",
+            "am"
+          ],
+          "accepted_answers": [
+            "is"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use subject number to build a complete new sentence, not just fill one blank.",
+          "passage": "Subject: the green melon. Detail: heavy. Place: beside the basket.",
+          "prompt": "Write one complete sentence using is.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "subject", "description": "Names the green melon.", "any_of": ["green melon", "melon"]},
+            {"id": "verb", "description": "Uses is with the singular subject.", "any_of": ["is"]},
+            {"id": "detail", "description": "Says the melon is heavy.", "any_of": ["heavy"]},
+            {"id": "place", "description": "Gives its place beside the basket.", "any_of": ["beside the basket", "next to the basket", "near the basket"]}
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer singular-plural agreement to classroom objects and write the whole sentence clearly.",
+          "passage": "Subject: the new maps. Detail: colourful. Place: on the back wall.",
+          "prompt": "Write one complete sentence using are.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "subject", "description": "Names the maps.", "any_of": ["maps", "new maps"]},
+            {"id": "verb", "description": "Uses are with the plural subject.", "any_of": ["are"]},
+            {"id": "detail", "description": "Describes the maps as colourful.", "any_of": ["colourful", "colorful"]},
+            {"id": "place", "description": "Gives their place on the back wall.", "any_of": ["on the back wall", "at the back wall"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "thank_god_salad_sequence",
+      "title": "Order salad steps",
+      "focus": "sequence process steps",
+      "skill_ids": [
+        "grammar.sentence_order",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use sequence words to order steps in making a simple fruit salad.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A recipe or making activity must happen in order. First starts the process; finally ends it.",
+          "passage": "First, take banana slices. Next, add papaya cubes. Finally, squeeze lemon juice.",
+          "prompt": "Which word tells the starting step?",
+          "options": [
+            "first",
+            "next",
+            "finally",
+            "juice"
+          ],
+          "accepted_answers": [
+            "first"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: the first step comes before all other actions.",
+          "passage": "First, wash the fruit. Then, cut it. Finally, mix it.",
+          "prompt": "Which word marks the first action?",
+          "options": [
+            "first",
+            "then",
+            "finally",
+            "mix"
+          ],
+          "accepted_answers": [
+            "first"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: sequence words are signals. First begins, next continues, then continues, finally closes.",
+          "passage": "First add banana. Next add grapes. Then mix. Finally add salt.",
+          "prompt": "Which word should introduce the last step?",
+          "options": [
+            "finally",
+            "first",
+            "next",
+            "then"
+          ],
+          "accepted_answers": [
+            "finally"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Turn an unseen recipe note into ordered instructions. Keep preparation before mixing and serving.",
+          "passage": "Steps: peel the banana / slice it / mix it with curd / serve in two bowls.",
+          "prompt": "Write the steps in order using sequence words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "peel", "description": "Begins by peeling the banana.", "any_of": ["first peel", "peel the banana first"]},
+            {"id": "slice", "description": "Places slicing after peeling.", "any_of": ["next slice", "then slice", "slice it next"]},
+            {"id": "mix", "description": "Places mixing with curd after slicing.", "any_of": ["mix it with curd", "then mix", "next mix"]},
+            {"id": "serve", "description": "Ends by serving in two bowls.", "any_of": ["finally serve", "serve in two bowls", "last, serve"]}
+          ],
+          "ordered_concept_slot_ids": ["peel", "slice", "mix", "serve"],
+          "min_response_words": 15
+        },
+        "transfer_check": {
+          "teaching_block": "Use ordered instruction writing for a hygiene routine instead of food preparation. Include every action once.",
+          "passage": "Routine: wet your hands / rub with soap / rinse well / dry with a clean towel.",
+          "prompt": "Write the routine in order using first, next, then, and finally.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "wet", "description": "Begins by wetting the hands.", "any_of": ["first wet", "wet your hands first"]},
+            {"id": "soap", "description": "Then tells the reader to rub with soap.", "any_of": ["rub with soap", "next use soap", "soap your hands"]},
+            {"id": "rinse", "description": "Places rinsing after soap.", "any_of": ["rinse well", "then rinse", "rinse your hands"]},
+            {"id": "dry", "description": "Ends with drying using a clean towel.", "any_of": ["finally dry", "clean towel", "dry with a towel"]}
+          ],
+          "ordered_concept_slot_ids": ["wet", "soap", "rinse", "dry"],
+          "min_response_words": 14
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id": "eng_c3_ch08_assess_01", "passage": "A porter can carry either one heavy trunk or two light cloth bags up a steep path. Both choices hold the same supplies.", "prompt": "Which choice is easier, and why?", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "choice", "description": "Chooses the cloth bags.", "any_of": ["cloth bags", "two light bags", "bags"]}, {"id": "reason", "description": "Explains that they are lighter or easier on the steep path.", "any_of": ["lighter", "easier to carry", "steep path", "less heavy"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch08_assess_02", "passage": "For a long bus ride, Keshav chooses a small box of dates instead of a large pot of soup.", "prompt": "Which reason best supports his choice?", "skill_ids": ["reading.inference_reason"], "options": ["the dates are easier to carry without spilling", "the soup box is dry", "the bus ride is very short", "dates are heavier than a pot"], "accepted_answers": ["the dates are easier to carry without spilling", "dates are easier to carry", "they will not spill"]},
+      {"item_id": "eng_c3_ch08_assess_03", "passage": "A pebble taps Noor's helmet just after a brick slides to the ground behind her. Noor laughs with relief.", "prompt": "Why does Noor feel lucky?", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "actual", "description": "Mentions the pebble or helmet tap.", "any_of": ["pebble", "tapped her helmet", "small stone"]}, {"id": "avoided", "description": "Explains that the brick could have hit or hurt her more.", "any_of": ["brick could have hit", "brick would hurt", "heavy brick", "brick missed"]}], "min_response_words": 8},
+      {"item_id": "eng_c3_ch08_assess_04", "passage": "One grape bounces off the farmer's cap. He remembers the heavy melons left at home and starts laughing.", "prompt": "What is the main idea of this moment?", "skill_ids": ["reading.paragraph_main_idea"], "options": ["the farmer feels lucky that the lighter fruit was thrown", "the farmer wants a new cap", "the grapes are heavier than melons", "the farmer forgot his home"], "accepted_answers": ["the farmer feels lucky that the lighter fruit was thrown", "he is glad it was a grape", "the grape hurt less"]},
+      {"item_id": "eng_c3_ch08_assess_05", "passage": "Mina complains about a tiny scratch until she sees that her bicycle stopped just before a deep ditch.", "prompt": "Which idea best sums up the scene?", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": ["a small problem can seem lucky beside a worse one", "every scratch breaks a bicycle", "ditches are good bicycle paths", "Mina wants a deeper scratch"], "accepted_answers": ["a small problem can seem lucky beside a worse one", "she avoided a worse accident", "the small scratch was better than falling"]},
+      {"item_id": "eng_c3_ch08_assess_06", "passage": "The empty basket is light; the basket filled with pumpkins is ___.", "prompt": "Choose the opposite of light.", "skill_ids": ["vocab.chapter_word_usage"], "options": ["heavy", "short", "quiet", "smooth"], "accepted_answers": ["heavy"]},
+      {"item_id": "eng_c3_ch08_assess_07", "passage": "The first path is narrow, but the second path is ___.", "prompt": "Write the opposite of narrow.", "skill_ids": ["vocab.chapter_word_usage", "writing.short_answer"], "options": [], "accepted_answers": ["wide", "broad"]},
+      {"item_id": "eng_c3_ch08_assess_08", "passage": "The mangoes ___ ripe.", "prompt": "Choose the correct word.", "skill_ids": ["grammar.noun_verb_adjective"], "options": ["are", "is", "am", "was"], "accepted_answers": ["are"]},
+      {"item_id": "eng_c3_ch08_assess_09", "passage": "The basket ___ beside the gate.", "prompt": "Write is or are.", "skill_ids": ["grammar.noun_verb_adjective", "writing.short_answer"], "options": [], "accepted_answers": ["is"]},
+      {"item_id": "eng_c3_ch08_assess_10", "passage": "Subject: three red apples. Detail: fresh. Place: in the lunch box.", "prompt": "Turn the plural notes into one complete sentence with are.", "skill_ids": ["grammar.noun_verb_adjective", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "subject", "description": "Names the three red apples.", "any_of": ["three red apples", "apples"]}, {"id": "verb", "description": "Uses are.", "any_of": ["are"]}, {"id": "detail", "description": "Says they are fresh.", "any_of": ["fresh"]}, {"id": "place", "description": "Gives their place in the lunch box.", "any_of": ["in the lunch box", "inside the lunch box", "in the lunchbox"]}], "min_response_words": 9},
+      {"item_id": "eng_c3_ch08_assess_11", "passage": "Subject: one clay cup. Detail: empty. Place: near the tap.", "prompt": "Turn the singular notes into one complete sentence with is.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "subject", "description": "Names the clay cup.", "any_of": ["clay cup", "cup"]}, {"id": "verb", "description": "Uses is.", "any_of": ["is"]}, {"id": "detail", "description": "Says the cup is empty.", "any_of": ["empty"]}, {"id": "place", "description": "Gives its place near the tap.", "any_of": ["near the tap", "beside the tap", "next to the tap"]}], "min_response_words": 8},
+      {"item_id": "eng_c3_ch08_assess_12", "passage": "Steps: wash the guava / cut it into pieces / sprinkle salt.", "prompt": "Which action comes immediately before sprinkling salt?", "skill_ids": ["grammar.sentence_order"], "options": ["cut it into pieces", "wash the plate", "eat the guava", "buy more salt"], "accepted_answers": ["cut it into pieces", "cut the guava"]},
+      {"item_id": "eng_c3_ch08_assess_13", "passage": "Words: finally / the / juice / pour / into / glasses", "prompt": "Put the words in order.", "skill_ids": ["grammar.sentence_order"], "options": [], "accepted_answers": ["finally pour the juice into glasses", "finally, pour the juice into glasses.", "pour the juice into glasses finally", "pour the juice into glasses finally."]},
+      {"item_id": "eng_c3_ch08_assess_14", "passage": "Recipe plan: grate one carrot / add curd / stir well / serve cold.", "prompt": "Write the recipe in order using sequence words.", "skill_ids": ["grammar.sentence_order", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "grate", "description": "Begins by grating the carrot.", "any_of": ["first grate", "grate one carrot first"]}, {"id": "curd", "description": "Adds curd after grating.", "any_of": ["next add curd", "then add curd", "add curd"]}, {"id": "stir", "description": "Places stirring after adding curd.", "any_of": ["stir well", "then stir", "next stir"]}, {"id": "serve", "description": "Ends by serving cold.", "any_of": ["finally serve", "serve cold", "last serve"]}], "ordered_concept_slot_ids": ["grate", "curd", "stir", "serve"], "min_response_words": 14},
+      {"item_id": "eng_c3_ch08_assess_15", "passage": "The farmer carries a covered basket because dusty wind blows across the road.", "prompt": "Why is the basket covered?", "skill_ids": ["writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "action", "description": "Mentions covering or protecting the basket.", "any_of": ["basket is covered", "cover protects", "keeps the fruit covered"]}, {"id": "reason", "description": "Explains that the cover keeps dust off the fruit.", "any_of": ["keep dust off", "protect from dust", "dusty wind", "fruit stays clean"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch08_assess_16", "passage": "The host gives children small fruit bowls instead of one deep glass dish during an outdoor picnic.", "prompt": "Give a practical reason for the choice.", "skill_ids": ["writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "choice", "description": "Mentions small or separate bowls.", "any_of": ["small bowls", "separate bowls", "each child has a bowl"]}, {"id": "reason", "description": "Gives a sensible sharing, carrying, or safety reason.", "any_of": ["easier to carry", "easier to share", "safer", "glass will not break", "everyone gets some"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch08_assess_17", "passage": "The road to the orchard is rough, while the path beside the canal is smooth.", "prompt": "Which opposite pair appears?", "skill_ids": ["vocab.chapter_word_usage"], "options": ["rough and smooth", "road and path", "orchard and canal", "beside and while"], "accepted_answers": ["rough and smooth", "smooth and rough"]},
+      {"item_id": "eng_c3_ch08_assess_18", "passage": "A boy ducks when a soft leaf brushes his cap, then notices a heavy branch has fallen behind him.", "prompt": "Explain why the leaf now seems lucky.", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "small", "description": "Mentions that only the soft leaf touched him.", "any_of": ["soft leaf", "leaf brushed", "only a leaf"]}, {"id": "worse", "description": "Explains that the heavy branch could have hit or hurt him.", "any_of": ["heavy branch", "branch could have hit", "would hurt more", "branch missed"]}], "min_response_words": 8},
+      {"item_id": "eng_c3_ch08_assess_19", "passage": "Routine: open the lunch mat / place the plates / share the food / clean the area.", "prompt": "Write the routine in order.", "skill_ids": ["grammar.sentence_order", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "mat", "description": "Begins by opening the mat.", "any_of": ["first open", "open the lunch mat first"]}, {"id": "plates", "description": "Places the plates next.", "any_of": ["next place the plates", "then place plates"]}, {"id": "share", "description": "Shares food after setting plates.", "any_of": ["share the food", "then share"]}, {"id": "clean", "description": "Ends by cleaning the area.", "any_of": ["finally clean", "clean the area", "last clean"]}], "ordered_concept_slot_ids": ["mat", "plates", "share", "clean"], "min_response_words": 14},
+      {"item_id": "eng_c3_ch08_assess_20", "passage": "One crate is heavy. The empty bags ___ light.", "prompt": "Write the word that agrees with bags.", "skill_ids": ["grammar.noun_verb_adjective", "writing.short_answer"], "options": [], "accepted_answers": ["are"]}
+    ]
+  }
+}

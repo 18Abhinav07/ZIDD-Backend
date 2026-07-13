@@ -15,7 +15,7 @@ from .release_schema import CurriculumRelease, CurriculumReleaseManifest
 RELEASES_DIR = Path(__file__).resolve().parent / "releases"
 _RELEASE_ID = re.compile(r"^[a-z0-9_]+$")
 TRUSTED_MANIFEST_DIGESTS = {
-    "english_cbse_2026_27": "9e493e73007d640762854b8d3adf5d72b2daf9601eb4833828051b0f29982a0b",
+    "english_cbse_2026_27": "4176645667f79edb3cc07ab42dee10771c7cc631aabc0ba1fa4da9cab5a6eeea",
 }
 
 
@@ -38,6 +38,7 @@ class ReleaseSourceVerification:
 def _canonical_digest(payload: dict) -> str:
     unsigned = dict(payload)
     unsigned.pop("manifest_sha256", None)
+    unsigned = _omit_empty_phase_0_display_titles(unsigned)
     encoded = json.dumps(
         unsigned,
         ensure_ascii=True,
@@ -45,6 +46,18 @@ def _canonical_digest(payload: dict) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _omit_empty_phase_0_display_titles(value):
+    if isinstance(value, dict):
+        return {
+            key: _omit_empty_phase_0_display_titles(item)
+            for key, item in value.items()
+            if not (key == "phase_0_public_display_title" and item is None)
+        }
+    if isinstance(value, list):
+        return [_omit_empty_phase_0_display_titles(item) for item in value]
+    return value
 
 
 def release_manifest_digest(manifest: CurriculumReleaseManifest) -> str:

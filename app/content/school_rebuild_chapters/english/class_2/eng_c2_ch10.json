@@ -1,0 +1,1110 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-content-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Original Zidd passages checked against the corrected NCERT title and chapter theme.",
+    "Every independent, transfer, and assessment scenario checked for stage freshness.",
+    "Masterclass checks verified deterministic with non-empty accepted answers.",
+    "Prompts, alternatives, misconceptions, age fit, and answer contracts reviewed item by item."
+  ],
+  "runtime_sha256": "4f83043bf8908715868b04bf650c87308e103d90ee5595bfa8a3fcc09de261ae",
+  "content_version": "2026-07-12.2",
+  "chapter_id": "eng_c2_ch10",
+  "chapter_no": 10,
+  "title": "The Crow",
+  "book_title": "Mridang",
+  "unit_title": "Life Around Us",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr110.pdf",
+  "source_note": "NCERT structural and thematic alignment only. All teaching passages, checks, feedback, and assessment situations are original Zidd content.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch10_poem_events",
+      "title": "Track the crow's choices",
+      "focus": "follow what the crow wants, finds, and does",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read original scenes inspired by The Crow and connect each action to the correct bird or object.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Track one action at a time. Wanted tells us a wish; found tells us what appeared later. Do not mix the wish with the result.",
+          "passage": "A black crow wishes for a brighter look. Near the pond, he spots a blue feather.",
+          "prompt": "What does the crow spot?",
+          "options": [
+            "a blue feather",
+            "a silver bell",
+            "a green leaf",
+            "a yellow flower"
+          ],
+          "accepted_answers": [
+            "a blue feather",
+            "blue feather",
+            "the blue feather"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Follow the next action. The object comes after the action word fixes; the body part tells where it goes.",
+          "passage": "The crow fixes the feather beside his tail and studies his reflection in the water.",
+          "prompt": "Where does he put the feather?",
+          "options": [
+            "beside his tail",
+            "under a stone",
+            "inside a nest"
+          ],
+          "accepted_answers": [
+            "beside his tail",
+            "by his tail",
+            "near his tail"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Several birds may appear. Match laughed, spoke, and listened with the correct doer.",
+          "passage": "Two young crows giggle at the odd decoration. An older crow calmly tells them to stop.",
+          "prompt": "Who tells the young crows to stop?",
+          "options": [],
+          "accepted_answers": [
+            "an older crow",
+            "the older crow",
+            "older crow"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Answer from a fresh scene without choices. Look for the final action, not the first detail.",
+          "passage": "A myna carries three shiny threads to her nest. One thread slips, so she flies down and picks it up.",
+          "prompt": "What does the myna pick up?",
+          "options": [],
+          "accepted_answers": [
+            "a shiny thread",
+            "the shiny thread",
+            "one thread",
+            "thread"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer event tracking to getting dressed for a play. Keep who, object, and place connected.",
+          "passage": "For the school play, Rehan pins a paper star on his cap. His sister ties a ribbon around her wrist.",
+          "prompt": "What does Rehan put on his cap?",
+          "options": [],
+          "accepted_answers": [
+            "a paper star",
+            "paper star",
+            "the paper star",
+            "star"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch10_self_worth",
+      "title": "Find the poem's caring message",
+      "focus": "identify how friends value the crow as he is",
+      "skill_ids": [
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use repeated details about appearance and friendship to state a main idea about self-acceptance.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea joins the important details. Here, the friends notice the crow's worry and value him without a costume.",
+          "passage": "Kalu hides his dark wings under bright scraps. His flock says, 'Your strong wings and helpful nature already make you special.'",
+          "prompt": "Which idea best joins both sentences?",
+          "options": [
+            "Friends value Kalu as he is.",
+            "Bright scraps help birds fly.",
+            "Every bird needs a costume.",
+            "Dark wings are weak."
+          ],
+          "accepted_answers": [
+            "Friends value Kalu as he is.",
+            "friends value kalu as he is",
+            "his friends accept him as he is"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Separate the message from a small detail. The feather is a detail; accepting oneself is the larger idea.",
+          "passage": "Mili thinks her plain brown feathers are dull. Her friend points out how well they hide her among dry branches.",
+          "prompt": "What is the larger message?",
+          "options": [
+            "A natural feature can have value.",
+            "Dry branches should be painted.",
+            "Brown birds cannot be seen."
+          ],
+          "accepted_answers": [
+            "A natural feature can have value.",
+            "natural features have value",
+            "what we naturally have can be useful"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Choose a statement supported by the whole paragraph, not a judgment about one colour.",
+          "passage": "The crows have black feathers, clear calls, and watchful eyes. They work together to warn the flock of danger.",
+          "prompt": "Which sentence states the main idea?",
+          "options": [],
+          "accepted_answers": [
+            "The crows have useful qualities.",
+            "crows have useful qualities",
+            "the crows have many useful qualities",
+            "crows are useful"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "State the message in your own words. Mention both the worry and the friend's accepting response.",
+          "passage": "A parrot feels embarrassed because one tail feather is bent. Its friend says the bend does not change its cheerful song or kind nature.",
+          "prompt": "What lesson can the parrot learn?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "acceptance",
+              "description": "Express acceptance despite the bent feather.",
+              "any_of": [
+                "as it is",
+                "still special",
+                "accept",
+                "does not change"
+              ]
+            },
+            {
+              "id": "quality",
+              "description": "Mention a valued inner quality.",
+              "any_of": [
+                "song",
+                "kind",
+                "kindness",
+                "cheerful"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the message to a new human situation. Show that ability and character matter more than matching others.",
+          "passage": "At sports day, Ina worries because her shoes are older than her teammates' shoes. She still runs steadily and encourages everyone.",
+          "prompt": "What helpful message could a teammate give Ina?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "acceptance",
+              "description": "Reassure Ina that the old shoes do not reduce her worth.",
+              "any_of": [
+                "shoes do not",
+                "old shoes",
+                "still",
+                "doesn't matter"
+              ]
+            },
+            {
+              "id": "strength",
+              "description": "Name a real strength shown in the scene.",
+              "any_of": [
+                "runs steadily",
+                "encourages",
+                "kind teammate",
+                "supports everyone"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch10_feelings_reasons",
+      "title": "Explain changing feelings",
+      "focus": "infer why pride, embarrassment, or relief follows an event",
+      "skill_ids": [
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Link a character's feeling to evidence before and after the flock responds.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Feelings have clues in actions and words. Showing off suggests pride; hiding after laughter suggests embarrassment.",
+          "passage": "The crow spreads his borrowed feathers and struts in a circle. He expects every bird to admire him.",
+          "prompt": "How does the crow probably feel?",
+          "options": [
+            "proud",
+            "sleepy",
+            "afraid",
+            "hungry"
+          ],
+          "accepted_answers": [
+            "proud",
+            "pleased",
+            "excited"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Read what changes the feeling. The cause should explain the result, not merely repeat the feeling word.",
+          "passage": "Some birds laugh at the crow's uneven feathers. He folds his wings and looks at the ground.",
+          "prompt": "Why does he look down?",
+          "options": [
+            "He feels embarrassed by the laughter.",
+            "He is searching for grain.",
+            "He wants to sleep."
+          ],
+          "accepted_answers": [
+            "He feels embarrassed by the laughter.",
+            "because he is embarrassed",
+            "the birds laugh at him",
+            "because the birds laugh"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use the final words as evidence. Support from friends can replace shame with relief.",
+          "passage": "His flock says that his black feathers suit him and that they want him beside them. The crow lifts his head again.",
+          "prompt": "What makes the crow feel better?",
+          "options": [],
+          "accepted_answers": [
+            "his flock accepts him",
+            "the flock accepts him",
+            "his friends accept him",
+            "his friends support him",
+            "the crows accept him"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain a feeling with one clear cause. Include evidence from the scene rather than guessing.",
+          "passage": "A bulbul sings alone at first. When the other birds join its tune, it hops closer and sings more loudly.",
+          "prompt": "How does the bulbul's feeling change, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "change",
+              "description": "Name the positive change in feeling.",
+              "any_of": [
+                "happier",
+                "confident",
+                "less lonely",
+                "glad"
+              ]
+            },
+            {
+              "id": "cause",
+              "description": "Connect the change to the other birds joining.",
+              "any_of": [
+                "join",
+                "sing with",
+                "other birds",
+                "together"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer feeling-and-cause reasoning to teamwork. Name the feeling and the supportive action that causes it.",
+          "passage": "Ravi's poster has a smudged corner. His group says the drawing is clear and helps him mount it neatly.",
+          "prompt": "How might Ravi feel after the group helps? Explain.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "feeling",
+              "description": "Name a supported positive feeling.",
+              "any_of": [
+                "relieved",
+                "better",
+                "happy",
+                "confident"
+              ]
+            },
+            {
+              "id": "cause",
+              "description": "Mention the group's words or help.",
+              "any_of": [
+                "group",
+                "helps",
+                "drawing is clear",
+                "mount"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch10_poem_words",
+      "title": "Use clues for bird words",
+      "focus": "understand feather, strut, admire, and flock in context",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Infer bird-related words from actions, then use the best word in a new sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use the body-part clue. A feather is one light piece covering a bird; wings are the whole flying parts.",
+          "passage": "One soft feather floats from the pigeon's wing and lands by the bench.",
+          "prompt": "What is a feather?",
+          "options": [
+            "one light part covering a bird",
+            "the bird's whole wing",
+            "a bird call",
+            "a nest"
+          ],
+          "accepted_answers": [
+            "one light part covering a bird",
+            "a light part covering a bird",
+            "part of a bird's covering"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Notice the proud walking action. Strut does not mean fly or hide.",
+          "passage": "The rooster struts across the yard, lifting its feet and holding its head high.",
+          "prompt": "Which meaning fits struts?",
+          "options": [
+            "walks proudly",
+            "sleeps quietly",
+            "flies quickly"
+          ],
+          "accepted_answers": [
+            "walks proudly",
+            "walk proudly",
+            "walks in a proud way"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A flock is a group, not one bird. Check whether the verb refers to several birds together.",
+          "passage": "At sunset, a flock of parrots crosses the orange sky together.",
+          "prompt": "What does flock mean?",
+          "options": [],
+          "accepted_answers": [
+            "a group of birds",
+            "group of birds",
+            "many birds together"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the context clue to supply a chapter word. The watchers respect the kite's smooth flight.",
+          "passage": "The children ____ the kite as it circles without flapping.",
+          "prompt": "Write the word that means look at with approval.",
+          "options": [],
+          "accepted_answers": [
+            "admire"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use bird vocabulary in a new science-club context. The blank asks for one part, not the entire animal.",
+          "passage": "The nature guide shows the group a striped ____ found on the path.",
+          "prompt": "Which chapter word completes the sentence?",
+          "options": [],
+          "accepted_answers": [
+            "feather"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch10_word_jobs",
+      "title": "Tell what each word does",
+      "focus": "distinguish naming, action, and describing words in bird sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Classify a word by its job in a sentence, not by its position or length.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A naming word names a person, place, animal, or thing. In this sentence crow names the animal; black tells what kind.",
+          "passage": "The black crow rests.",
+          "prompt": "Which word is a naming word?",
+          "options": [
+            "crow",
+            "black",
+            "rests"
+          ],
+          "accepted_answers": [
+            "crow"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "An action word shows what happens. Do not choose the nearby describing word.",
+          "passage": "The colourful bird dances proudly.",
+          "prompt": "Which word shows the action?",
+          "options": [
+            "dances",
+            "colourful",
+            "bird"
+          ],
+          "accepted_answers": [
+            "dances"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A describing word tells what kind or how something looks. Feather names the thing; bright describes it.",
+          "passage": "A bright feather lies on the path.",
+          "prompt": "Which word describes the feather?",
+          "options": [],
+          "accepted_answers": [
+            "bright"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Classify the target word in a new sentence. Ask whether it names, acts, or describes.",
+          "passage": "Three sparrows chirp beside the wall.",
+          "prompt": "What job does chirp do?",
+          "options": [],
+          "accepted_answers": [
+            "action word",
+            "an action word",
+            "verb",
+            "it shows an action"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer word jobs to an art label. Colour words can describe when they tell what kind of object is shown.",
+          "passage": "The poster shows a silver moon.",
+          "prompt": "Which word is the describing word?",
+          "options": [],
+          "accepted_answers": [
+            "silver"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch10_kind_reason",
+      "title": "Give a reason about real beauty",
+      "focus": "answer with a claim and a supporting quality",
+      "skill_ids": [
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Write a brief reason that values actions or character instead of judging appearance.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A reason answer has an idea plus evidence. Because should introduce a quality shown in the scene.",
+          "passage": "Nora the crow brings twigs to repair a neighbour's nest.",
+          "prompt": "Which answer explains why Nora is a good friend?",
+          "options": [
+            "Nora is a good friend because she helps repair the nest.",
+            "Nora has black feathers.",
+            "The nest has twigs."
+          ],
+          "accepted_answers": [
+            "Nora is a good friend because she helps repair the nest.",
+            "nora is a good friend because she helps repair the nest"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Choose evidence about behaviour. A colour or size detail does not prove kindness.",
+          "passage": "A crow calls loudly to warn smaller birds about a cat.",
+          "prompt": "Which reply gives a supported reason?",
+          "options": [
+            "The crow is caring because it warns the birds.",
+            "The crow is dark because it calls.",
+            "The cat is small."
+          ],
+          "accepted_answers": [
+            "The crow is caring because it warns the birds.",
+            "the crow is caring because it warns the birds"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass check: state the quality and the action in one deterministic sentence.",
+          "passage": "Bela shares her umbrella with a classmate during rain.",
+          "prompt": "Why is Bela thoughtful?",
+          "options": [],
+          "accepted_answers": [
+            "Bela is thoughtful because she shares her umbrella.",
+            "bela is thoughtful because she shares her umbrella",
+            "because she shares her umbrella",
+            "she shares her umbrella"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write a natural reason. Name the quality and the action that proves it; many sentence forms are valid.",
+          "passage": "A plain grey pigeon stays beside an injured bird until help arrives.",
+          "prompt": "What makes the pigeon admirable?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "quality",
+              "description": "Name a positive quality.",
+              "any_of": [
+                "caring",
+                "kind",
+                "loyal",
+                "helpful"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "Mention staying with the injured bird.",
+              "any_of": [
+                "stays",
+                "injured bird",
+                "waits",
+                "help arrives"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Use the idea in a new classroom context. Focus on the child's action, not clothes or looks.",
+          "passage": "Keshav wears an old sweater. He notices a new student sitting alone and invites her into the game.",
+          "prompt": "Explain one good quality Keshav shows.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "quality",
+              "description": "Name a fitting quality.",
+              "any_of": [
+                "kind",
+                "friendly",
+                "caring",
+                "welcoming"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "Mention inviting the new student.",
+              "any_of": [
+                "invites",
+                "new student",
+                "game",
+                "sitting alone"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch10_assess_01",
+        "passage": "A crow finds a red thread and tucks it above one eye.",
+        "prompt": "What does the crow find?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a red thread",
+          "a blue shell",
+          "a seed",
+          "a feather"
+        ],
+        "accepted_answers": [
+          "a red thread",
+          "red thread",
+          "the red thread"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_02",
+        "passage": "A pigeon drops a pale feather. A child places it in a nature tray.",
+        "prompt": "Who places the feather in the tray?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a child",
+          "the pigeon",
+          "a crow"
+        ],
+        "accepted_answers": [
+          "a child",
+          "the child",
+          "child"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_03",
+        "passage": "The raven lifts a ribbon, but the wind carries it into a bush.",
+        "prompt": "Where does the ribbon land?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "in a bush",
+          "the bush",
+          "bush"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_04",
+        "passage": "A hoopoe opens its crest, then folds the feathers flat before flying.",
+        "prompt": "What does the bird do before flying?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "folds the feathers flat",
+          "folds its feathers",
+          "folds its crest",
+          "it folds the feathers flat"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_05",
+        "passage": "Titu dislikes his short tail. His flock praises his sharp warning call and quick help.",
+        "prompt": "What is the main message?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Titu has valuable qualities as he is.",
+          "Only long tails are useful.",
+          "The flock needs a new call.",
+          "Short birds cannot help."
+        ],
+        "accepted_answers": [
+          "Titu has valuable qualities as he is.",
+          "titu has valuable qualities as he is",
+          "his qualities matter more than his tail"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_06",
+        "passage": "A duck wishes for a swan's neck. Her family reminds her that her broad feet make her a strong swimmer.",
+        "prompt": "Which idea joins the details?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Different features have different strengths.",
+          "Every duck should look like a swan.",
+          "Swimming changes a bird's neck."
+        ],
+        "accepted_answers": [
+          "Different features have different strengths.",
+          "different features have strengths",
+          "each bird has its own strengths"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_07",
+        "passage": "Rupa hides her freckles in a photograph. Her friend says her warm smile is what everyone remembers.",
+        "prompt": "State the message in your own words.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "acceptance",
+            "description": "Express acceptance of Rupa as she is.",
+            "any_of": [
+              "freckles",
+              "as she is",
+              "does not need to hide",
+              "still"
+            ]
+          },
+          {
+            "id": "quality",
+            "description": "Mention the valued quality.",
+            "any_of": [
+              "smile",
+              "warm smile",
+              "friendly"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_08",
+        "passage": "A clay cup is not shiny, but it keeps water cool and is used every day.",
+        "prompt": "What larger idea does this example show?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "appearance",
+            "description": "Note that shine is not the only value.",
+            "any_of": [
+              "not shiny",
+              "plain",
+              "looks"
+            ]
+          },
+          {
+            "id": "value",
+            "description": "Mention usefulness.",
+            "any_of": [
+              "useful",
+              "keeps water cool",
+              "used every day",
+              "value"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_09",
+        "passage": "The peahen steps onto the stage and shows her painting while everyone claps.",
+        "prompt": "How does she probably feel?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "proud",
+          "angry",
+          "sleepy",
+          "lost"
+        ],
+        "accepted_answers": [
+          "proud",
+          "happy",
+          "pleased",
+          "confident"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_10",
+        "passage": "A sparrow's paper crown falls apart. Her friends help remake it, and she smiles again.",
+        "prompt": "Why does the sparrow smile?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "Her friends help her.",
+          "The crown is heavy.",
+          "She wants to leave."
+        ],
+        "accepted_answers": [
+          "Her friends help her.",
+          "her friends help her",
+          "because her friends remake the crown",
+          "because her friends help"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_11",
+        "passage": "Nikhil drops his drawing when two children tease it. The teacher displays it and points out its careful details.",
+        "prompt": "How might Nikhil's feeling change? Explain.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "change",
+            "description": "Name a positive feeling change.",
+            "any_of": [
+              "better",
+              "proud",
+              "confident",
+              "relieved"
+            ]
+          },
+          {
+            "id": "cause",
+            "description": "Connect it to the teacher valuing the drawing.",
+            "any_of": [
+              "teacher",
+              "displays",
+              "careful details",
+              "praises"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_12",
+        "passage": "A koel is nervous about singing alone. The class hums softly with her.",
+        "prompt": "Why might the koel become less nervous?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "feeling",
+            "description": "Show reduced nervousness.",
+            "any_of": [
+              "less nervous",
+              "calmer",
+              "confident",
+              "brave"
+            ]
+          },
+          {
+            "id": "support",
+            "description": "Mention the class joining.",
+            "any_of": [
+              "class",
+              "hums",
+              "with her",
+              "joins"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_13",
+        "passage": "A flock of geese flies in a V shape.",
+        "prompt": "Which choice explains flock in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "a group of birds",
+          "one long feather",
+          "a bird's food",
+          "a loud sound"
+        ],
+        "accepted_answers": [
+          "a group of birds",
+          "group of birds",
+          "birds together"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_14",
+        "passage": "The child admires the kingfisher's bright blue back and watches it quietly.",
+        "prompt": "Which meaning fits admires?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "looks at with approval",
+          "runs away from",
+          "covers with paper"
+        ],
+        "accepted_answers": [
+          "looks at with approval",
+          "likes and respects",
+          "looks at with respect"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_15",
+        "passage": "The hen ____ across the yard with her head held high.",
+        "prompt": "Write the word that means walks proudly.",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "struts"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_16",
+        "passage": "One white ____ rests beside the empty nest.",
+        "prompt": "Complete the sentence with a bird word.",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "feather"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_17",
+        "passage": "The quick crow catches a seed.",
+        "prompt": "Which word is an action word?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "catches",
+          "quick",
+          "crow",
+          "seed"
+        ],
+        "accepted_answers": [
+          "catches"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_18",
+        "passage": "A noisy parrot greets us.",
+        "prompt": "Which word describes the parrot?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "noisy",
+          "parrot",
+          "greets",
+          "us"
+        ],
+        "accepted_answers": [
+          "noisy"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_19",
+        "passage": "The eagle circles above the hill.",
+        "prompt": "What job does eagle do?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "naming word",
+          "a naming word",
+          "noun",
+          "it names a bird"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_20",
+        "passage": "The tiny nest sways.",
+        "prompt": "Write the describing word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "tiny"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_21",
+        "passage": "A crow leads a thirsty pup to a water bowl.",
+        "prompt": "Which answer explains why the crow is helpful?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "The crow is helpful because it shows the pup water.",
+          "The crow has wings.",
+          "The bowl is round."
+        ],
+        "accepted_answers": [
+          "The crow is helpful because it shows the pup water.",
+          "the crow is helpful because it shows the pup water"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_22",
+        "passage": "Pallavi includes every classmate in her game.",
+        "prompt": "Choose the supported reason.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "Pallavi is fair because she includes everyone.",
+          "Pallavi is tall because she plays.",
+          "The game is outside."
+        ],
+        "accepted_answers": [
+          "Pallavi is fair because she includes everyone.",
+          "pallavi is fair because she includes everyone"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_23",
+        "passage": "A brown hen gathers her chicks under her wings during rain.",
+        "prompt": "Explain one admirable quality the hen shows.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "quality",
+            "description": "Name a fitting quality.",
+            "any_of": [
+              "caring",
+              "protective",
+              "kind",
+              "helpful"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "Mention sheltering the chicks.",
+            "any_of": [
+              "chicks",
+              "wings",
+              "rain",
+              "protects",
+              "shelters"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "eng_c2_ch10_assess_24",
+        "passage": "Mita's bag is faded. She lends her new classmate a notebook and shows him the classroom.",
+        "prompt": "What makes Mita a good classmate?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "quality",
+            "description": "Name a positive quality.",
+            "any_of": [
+              "kind",
+              "helpful",
+              "friendly",
+              "welcoming"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "Mention one helpful action.",
+            "any_of": [
+              "notebook",
+              "shows",
+              "classroom",
+              "lends",
+              "new classmate"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      }
+    ]
+  }
+}

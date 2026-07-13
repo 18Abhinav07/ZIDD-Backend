@@ -187,6 +187,46 @@ def test_gd_prep_support_requires_concrete_support_marker():
     assert any("concrete support" in error for error in gated.errors)
 
 
+def test_simulation_message_append_collapses_adjacent_duplicate_persona_turns():
+    from app.services import session_service as svc
+
+    state = {
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "I would prioritize safeguards before speed.",
+                "speaker_id": "consensus_builder",
+                "speaker_name": "Consensus Builder",
+                "message_kind": "simulation_turn",
+            }
+        ]
+    }
+
+    appended = svc._append_simulation_messages_once(
+        state,
+        [
+            {
+                "role": "assistant",
+                "content": "I would prioritize safeguards before speed.",
+                "speaker_id": "consensus_builder",
+                "speaker_name": "Consensus Builder",
+                "message_kind": "simulation_turn",
+            },
+            {
+                "role": "assistant",
+                "content": "The metric should be decision latency.",
+                "speaker_id": "data_driven_analyst",
+                "speaker_name": "Data-Driven Analyst",
+                "message_kind": "simulation_turn",
+            },
+        ],
+    )
+
+    assert appended == 1
+    assert len(state["messages"]) == 2
+    assert state["messages"][-1]["speaker_id"] == "data_driven_analyst"
+
+
 def test_interview_star_complete_answer_gets_clean_pass_floor():
     from app.ai.schemas import DiagnosisEval
     from app.graph.nodes import evaluate as eval_node
@@ -419,6 +459,36 @@ def test_coaching_sanitizer_removes_effectively_highlighted_praise_on_weak_turn(
     assert demonstrates_sanitized.startswith("Let's tighten this.")
 
 
+def test_interview_pitch_sanitizer_does_not_repeat_future_goal_gap_when_present():
+    from app.services.session_service import _sanitize_coaching_response
+
+    state = {
+        "task_type": "interview_prep",
+        "competency_node": "int_01_elevator_pitch",
+        "last_eval_score": 0.43,
+        "last_clean_pass_score": 0.43,
+        "last_graded_bridge": False,
+        "user_input": (
+            "I'm a backend engineer focused on reliable APIs. My next goal is to "
+            "own larger distributed systems and mentor engineers on operational discipline."
+        ),
+    }
+
+    sanitized = _sanitize_coaching_response(
+        "Your pitch clearly outlines your current role. However, the future goal "
+        "you mentioned needs to be more clearly defined and specific. Task: Revisit "
+        "your pitch and refine it so that your future goal is explicitly stated "
+        "with a clear description of the role or project you wish to take on next "
+        "in your career.",
+        state,
+        "teach",
+    )
+
+    assert "future goal you mentioned needs" not in sanitized.lower()
+    assert "revisit your pitch" not in sanitized.lower()
+    assert "your direction is present" in sanitized.lower()
+
+
 def test_coaching_stream_removes_imagine_sample_after_scaffolded_recovery():
     from app.services.session_service import _sanitize_coaching_response
 
@@ -484,7 +554,7 @@ def test_gd_topic_with_profile_forces_full_response_sanitizer():
     )
 
 
-def test_coaching_stream_keeps_earned_challenge_praise_for_high_score():
+def test_coaching_stream_keeps_challenge_praise_measured_even_for_high_score():
     from app.services.session_service import _sanitize_coaching_opening_praise
 
     text = "Great job, Raptor! Now let's make this harder."
@@ -495,7 +565,11 @@ def test_coaching_stream_keeps_earned_challenge_praise_for_high_score():
         "last_graded_bridge": False,
     }
 
-    assert _sanitize_coaching_opening_praise(text, state, "challenge") == text
+    sanitized = _sanitize_coaching_opening_praise(text, state, "challenge")
+
+    assert "Great job" not in sanitized
+    assert sanitized.startswith("That answer is on the right track.")
+    assert "make this harder" in sanitized
 
 
 def test_coach_block_treats_borderline_pass_as_refinement_not_celebration():
@@ -591,7 +665,144 @@ async def test_opening_fallback_does_not_praise_without_model_text(monkeypatch):
 
     assert "nice work" not in text
     assert "great job" not in text
-    assert "ready" in text or "begin" in text
+    assert "practice" in text
+
+
+@pytest.mark.asyncio
+async def test_opening_stream_times_out_to_fallback_when_model_hangs(monkeypatch):
+    from app.services import session_service as svc
+
+    async def hung_stream_generation(_spec):
+        await asyncio.sleep(1)
+        if False:
+            yield "never"
+
+    monkeypatch.setattr(svc, "OPENING_STREAM_TIMEOUT_SECONDS", 0.01, raising=False)
+    monkeypatch.setattr(svc, "stream_generation", hung_stream_generation)
+
+    session_id, state = await svc.start_session("user-1", "int_01_elevator_pitch")
+    chunks = await asyncio.wait_for(
+        _collect_stream(svc.stream_opening(session_id)),
+        timeout=0.2,
+    )
+    text = "".join(chunks).lower()
+
+    assert "practice" in text
+    assert state["opening_streamed"] is True
+
+
+@pytest.mark.asyncio
+async def test_interview_test_opening_fallback_asks_real_first_question(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def no_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", no_probe_items)
+
+    session_id, _state = await svc.start_session(
+        "user-1",
+        "int_04_star_behavioral",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "technical_project",
+            "pressure": "standard",
+        },
+    )
+    chunks = await _collect_stream(svc.stream_opening(session_id))
+    text = "".join(chunks).lower()
+
+    assert "backend software engineer" in text
+    assert "star" in text
+    assert "what was the situation" in text
+    assert "what changed as a result" in text
+
+
+@pytest.mark.asyncio
+async def test_interview_test_tell_me_about_yourself_opening_uses_scenario_probe(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def technical_probe_items(*_args, **_kwargs):
+        return [
+            {
+                "skill_id": "SPECIFICITY_EXAMPLES",
+                "prompt": (
+                    "Walk me through one technical project relevant to Backend Software Engineer. "
+                    "What was the problem, what did you own, and what changed because of your work?"
+                ),
+                "aim": "Generic technical fallback.",
+            }
+        ]
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", technical_probe_items)
+
+    session_id, _state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "hr",
+            "pressure": "standard",
+        },
+    )
+    chunks = await _collect_stream(svc.stream_opening(session_id))
+    text = "".join(chunks)
+
+    assert "Tell me about yourself" in text
+    assert "current role" in text
+    assert "direction you want next" in text
+    assert "technical project" not in text
+
+
+@pytest.mark.asyncio
+async def test_initial_opening_replay_without_committed_cache_does_not_append_duplicate(monkeypatch):
+    from app.services import session_service as svc
+
+    async def empty_stream_generation(_spec):
+        if False:
+            yield ""
+
+    async def no_probe_items(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(svc, "stream_generation", empty_stream_generation)
+    monkeypatch.setattr(svc, "_load_or_generate_probe_items", no_probe_items)
+
+    session_id, state = await svc.start_session(
+        "user-1",
+        "int_01_elevator_pitch",
+        test_mode=True,
+        simulation_config={
+            "target_role": "Backend Software Engineer",
+            "interview_type": "hr",
+            "pressure": "standard",
+        },
+    )
+
+    first = await _collect_stream(svc.stream_opening(session_id))
+    state["committed_openings"] = {}
+    state["opening_streamed"] = False
+    second = await _collect_stream(svc.stream_opening(session_id))
+
+    opening_messages = [
+        message
+        for message in state["messages"]
+        if message.get("role") == "assistant" and message.get("message_kind") == "opening"
+    ]
+    assert first == second
+    assert len(opening_messages) == 1
 
 
 @pytest.mark.asyncio
@@ -685,6 +896,74 @@ async def test_same_node_generation_failure_persists_fallback_without_progress(m
         for m in state["messages"]
     )
     assert ("user-1", "int_01_elevator_pitch") not in store.mastery
+
+
+@pytest.mark.asyncio
+async def test_incomplete_career_coach_text_is_repaired_before_persist(monkeypatch, store):
+    from app.services import session_service as svc
+
+    class FakeGraph:
+        async def ainvoke(self, _state):
+            return {
+                "last_eval_score": 0.82,
+                "last_clean_pass_score": 0.82,
+                "last_diagnosis": {
+                    "english": True,
+                    "on_task": True,
+                    "affect": "confident",
+                },
+                "last_rubric_result": _passing_prep_rubric_result("independent"),
+                "current_mastery": 0.72,
+                "attempts": 5,
+                "pending": svc.GenSpec(
+                    provider="gemini",
+                    model="test-model",
+                    prompt="coach the learner",
+                    kind="teach",
+                ),
+            }
+
+    async def incomplete_generation(_spec):
+        yield "Your approach is solid. For instance,"
+
+    monkeypatch.setattr(svc, "get_graph", lambda: FakeGraph())
+    monkeypatch.setattr(svc, "stream_generation", incomplete_generation)
+    await store.ensure_profile("user-1")
+
+    session_id, state = await svc.start_session("user-1", "int_03_weakness_framing")
+    state["opening_streamed"] = True
+    state["turn_count"] = 1
+    state["messages"].append({
+        "role": "user",
+        "content": (
+            "My weakness is leading with technical detail before business impact. "
+            "I now use decision criteria first."
+        ),
+    })
+
+    chunks = await _collect_stream(
+        svc.run_turn(
+            session_id,
+            "A phased payment rollout caught two retry edge cases and avoided a full rollback.",
+            client_turn_id="turn-1",
+        )
+    )
+    text_chunks = [chunk for chunk in chunks if isinstance(chunk, str)]
+
+    assert not any("For instance," in chunk for chunk in text_chunks)
+    assert any("three-part shape" in chunk for chunk in text_chunks)
+    assert any("pressure-test" in chunk for chunk in text_chunks)
+    assert not any("under 45 seconds" in chunk for chunk in text_chunks)
+    assert state["active_turn_id"] is None
+    assert state["block_reason"] is None
+    assert state["input_allowed"] is True
+    assert any(
+        m.get("role") == "assistant"
+        and "three-part shape" in m.get("content", "")
+        and "pressure-test" in m.get("content", "")
+        and "under 45 seconds" not in m.get("content", "")
+        for m in state["messages"]
+    )
 
 
 @pytest.mark.asyncio
@@ -930,7 +1209,17 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
     )
     state["opening_streamed"] = True
     state["messages"] = [
-        {"role": "assistant", "content": "[Fill in the blank] I owned ___."}
+        {
+            "role": "user",
+            "content": "I explain the weakness with a concrete example.",
+            "turn_id": "game-producing-turn",
+            "message_id": f"{session_id}:turn:game-producing-turn:user",
+        },
+        {
+            "role": "assistant",
+            "content": "[Fill in the blank] I owned ___.",
+            "turn_id": "game-producing-turn",
+        },
     ]
     state["active_game_prompt"] = {
         "type": "fill_blank",
@@ -938,6 +1227,7 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
         "hint": "ownership",
         "context": "Practice specific ownership language.",
         "options": None,
+        "turn_id": "game-producing-turn",
         "answer_key": "the mistake",
     }
     svc.SessionStore[session_id] = state
@@ -947,6 +1237,10 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
     response = client.get(f"/session/{session_id}/transcript", headers=AUTH)
 
     assert response.status_code == 200
+    assert response.json()["state"]["task_type"] == "interview_prep"
+    assert response.json()["state"]["module_id"] == "interview"
+    assert response.json()["messages"][0]["turn_id"] == "game-producing-turn"
+    assert response.json()["messages"][1]["turn_id"] == "game-producing-turn"
     prompt = response.json()["game_prompt"]
     assert prompt == {
         "type": "fill_blank",
@@ -954,8 +1248,29 @@ def test_transcript_restores_active_game_prompt_without_answer_key(store):
         "hint": "ownership",
         "context": "Practice specific ownership language.",
         "options": None,
+        "turn_id": "game-producing-turn",
     }
     assert "answer_key" not in prompt
+
+
+def test_game_prompt_sse_frame_carries_producing_turn_id():
+    from app.api.routes import _turn_frame
+    from app.services.session_service import GamePrompt
+
+    frame = _turn_frame(
+        GamePrompt(
+            type="fill_blank",
+            sentence="I owned ___.",
+            hint="ownership",
+            context="Practice specific ownership language.",
+            answer_key="the mistake",
+            turn_id="game-producing-turn",
+        )
+    )
+
+    assert "event: game_prompt" in frame
+    assert '"turn_id": "game-producing-turn"' in frame
+    assert "answer_key" not in frame
 
 
 def test_state_snapshot_includes_opening_streamed_for_retry_ui():
@@ -974,6 +1289,45 @@ def test_state_snapshot_includes_opening_streamed_for_retry_ui():
     snapshot = _state_snapshot(state)
 
     assert snapshot["opening_streamed"] is False
+
+
+def test_state_snapshot_exposes_backend_owned_assessment_progress_counts():
+    from app.api.routes import _state_snapshot
+    from app.services import session_service as svc
+    from app.services.assessment_plan import ensure_assessment_plan
+
+    state = svc._new_state(
+        "test_user",
+        "assessment-progress-state-session",
+        "gd_01_stake_position",
+        [],
+        task_type="gd_test",
+        personas=[
+            {"speaker_id": "moderator_timekeeper", "name": "Moderator", "role_type": "moderator"},
+            {"speaker_id": "data_driven_analyst", "name": "Data-Driven Analyst", "role_type": "debater"},
+        ],
+    )
+    state["assessment_plan"] = ensure_assessment_plan(state)
+    state["messages"] = [
+        item
+        for idx in range(6)
+        for item in (
+            {"role": "assistant", "content": f"Prompt {idx}", "speaker_name": "Data-Driven Analyst"},
+            {"role": "user", "content": f"Answer {idx}", "message_kind": "learner_answer"},
+        )
+    ]
+    state["assessment_events"] = [
+        {"event_type": "analysis", "task_type": "gd_test", "scorable": True}
+        for _idx in range(3)
+    ]
+
+    snapshot = _state_snapshot(state)
+
+    progress = snapshot["assessment_state"]["progress"]
+    assert progress["scorable_turn_count"] == 6
+    assert progress["min_scorable_turns"] == 5
+    assert progress["coverage_map"]["event_count"] == 6
+    assert progress["coverage_map"]["source"] == "typed_events_with_transcript_fallback"
 
 
 def test_test_mode_turn_persists_each_speaker_for_reload(monkeypatch, store):
@@ -1041,6 +1395,45 @@ def test_test_mode_turn_persists_each_speaker_for_reload(monkeypatch, store):
             "I would add one careful example.",
         ),
     ]
+
+
+def test_gd_ask_panelist_action_persists_user_turn_as_scorable_answer(monkeypatch, store):
+    from app.services import session_service as svc
+    from app.services.simulation_service import Speaker
+    import asyncio
+
+    async def fake_simulation_round(_state):
+        yield Speaker(speaker_id="aggressive_challenger", name="Aggressive Challenger")
+        yield "The strongest risk is weaker mentorship and visibility for new hires."
+
+    monkeypatch.setattr(svc, "stream_simulation_round", fake_simulation_round)
+
+    session_id = "ask-panelist-scorable-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "gd_01_stake_position",
+        [],
+        task_type="gd_test",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    asyncio.run(_collect_stream(svc.run_turn(
+        session_id,
+        "Aggressive Challenger, what is the strongest risk here?",
+        assessment_action={
+            "kind": "ask_panelist",
+            "speaker_id": "aggressive_challenger",
+            "speaker_name": "Aggressive Challenger",
+            "source": "quick_action",
+        },
+    )))
+
+    user_message = next(message for message in state["messages"] if message.get("role") == "user")
+    assert user_message["message_kind"] == "learner_answer"
+    assert user_message["assessment_action"]["kind"] == "ask_panelist"
 
 
 @pytest.mark.asyncio
@@ -1407,7 +1800,15 @@ async def test_gd_stream_replaces_repeated_panel_demand_before_delivery(monkeypa
     chunks = await _collect_stream(sim.stream_simulation_round(state))
     visible_text = "".join(item for item in chunks if isinstance(item, str)).lower()
 
-    assert "new angle" in visible_text or "trade-off" in visible_text
+    assert any(
+        marker in visible_text
+        for marker in ("rollout risk", "exception path", "adoption and harm", "promise")
+    )
+    assert "ai in hiring" in visible_text
+    assert "new angle" not in visible_text
+    assert not visible_text.strip().endswith("?")
+    assert "give " not in visible_text
+    assert "provide " not in visible_text
     assert "give indian pilot evidence" not in visible_text
     assert "case study before moving forward" not in visible_text
 
@@ -1563,6 +1964,50 @@ def test_transcript_exposes_active_turn_recovery_state(store):
     assert body["block_reason"] == "turn_processing"
 
 
+@pytest.mark.parametrize("route_suffix", ["state", "transcript"])
+def test_read_recovery_routes_do_not_replace_runtime_messages(monkeypatch, store, route_suffix):
+    from app.services import session_service as svc
+    import asyncio
+
+    session_id = f"read-only-{route_suffix}-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["messages"].append({
+        "role": "assistant",
+        "content": "Opening prompt",
+        "message_kind": "opening",
+    })
+    svc.SessionStore[session_id] = state
+    asyncio.run(store.ensure_profile("test_user"))
+
+    calls = {"upsert": 0, "replace": 0, "touch": 0}
+
+    async def spy_upsert(*_args, **_kwargs):
+        calls["upsert"] += 1
+
+    async def spy_replace(*_args, **_kwargs):
+        calls["replace"] += 1
+
+    async def spy_touch(*_args, **_kwargs):
+        calls["touch"] += 1
+
+    monkeypatch.setattr(store, "upsert_session_runtime", spy_upsert)
+    monkeypatch.setattr(store, "replace_session_messages", spy_replace)
+    monkeypatch.setattr(store, "touch_session_runtime", spy_touch)
+
+    client = TestClient(app)
+    response = client.get(f"/session/{session_id}/{route_suffix}", headers=AUTH)
+
+    assert response.status_code == 200
+    assert calls == {"upsert": 0, "replace": 0, "touch": 1}
+
+
 def test_turn_route_rejects_different_client_turn_id_for_same_session_version(monkeypatch, store):
     from app.services import session_service as svc
     import asyncio
@@ -1618,6 +2063,131 @@ def test_turn_route_rejects_different_client_turn_id_for_same_session_version(mo
     assert second.json()["detail"]["code"] == "turn_version_consumed"
     assert second.json()["detail"]["accepted_client_turn_id"] == "client-turn-a"
     assert calls["count"] == 1
+
+
+def test_turn_route_releases_orphaned_in_progress_version_latch(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(session_id, user_input, **_kwargs):
+        calls["count"] += 1
+        state = svc.get_state(session_id)
+        assert state is not None
+        state["messages"].append({"role": "user", "content": user_input})
+        state["messages"].append({"role": "assistant", "content": "Recovered coach response."})
+        state["turn_count"] += 1
+        svc._bump_session_version(state)
+        yield "Recovered coach response."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-orphaned-version-latch-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+    state["active_turn_id"] = None
+    state["active_turn_status"] = "completed"
+    svc.SessionStore[session_id] = state
+    store.turn_requests[(session_id, "abandoned-turn")] = {
+        "session_id": session_id,
+        "client_turn_id": "abandoned-turn",
+        "request_hash": "old-hash",
+        "expected_version": 1,
+        "status": "in_progress",
+        "transcript_delta": [],
+        "done_snapshot": None,
+        "error_code": None,
+        "created_at": time.time() - 10,
+        "updated_at": time.time() - 10,
+    }
+    asyncio.run(store.ensure_profile("test_user"))
+
+    response = TestClient(app).post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "The weakness is leading with technical detail before business impact.",
+            "client_turn_id": "fresh-turn-after-orphan",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert "Recovered coach response." in response.text
+    assert calls["count"] == 1
+    assert store.turn_requests[(session_id, "abandoned-turn")]["status"] == "failed"
+    assert (
+        store.turn_requests[(session_id, "abandoned-turn")]["error_code"]
+        == "orphaned_in_progress"
+    )
+    assert store.turn_requests[(session_id, "fresh-turn-after-orphan")]["status"] == "completed"
+
+
+def test_turn_route_does_not_release_fresh_in_progress_version_latch(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(*_args, **_kwargs):
+        calls["count"] += 1
+        yield "This producer must not run."
+
+    calls = {"count": 0}
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+
+    session_id = "turn-fresh-version-latch-session"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_03_weakness_framing",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    state["input_allowed"] = True
+    state["block_reason"] = None
+    state["active_turn_id"] = None
+    svc.SessionStore[session_id] = state
+    now = time.time()
+    store.turn_requests[(session_id, "accepted-but-not-started")] = {
+        "session_id": session_id,
+        "client_turn_id": "accepted-but-not-started",
+        "request_hash": "first-hash",
+        "expected_version": 1,
+        "status": "in_progress",
+        "transcript_delta": [],
+        "done_snapshot": None,
+        "error_code": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    asyncio.run(store.ensure_profile("test_user"))
+
+    response = TestClient(app).post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "A duplicate request from the same rendered version.",
+            "client_turn_id": "concurrent-second-turn",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "turn_version_consumed"
+    assert calls["count"] == 0
+    assert store.turn_requests[(session_id, "accepted-but-not-started")]["status"] == "in_progress"
 
 
 def test_turn_route_accepts_next_turn_only_after_session_version_advances(monkeypatch, store):
@@ -2102,6 +2672,244 @@ def test_session_start_replays_duplicate_client_start_id(monkeypatch, store):
     assert calls["count"] == 1
 
 
+@pytest.mark.asyncio
+async def test_replace_session_messages_takes_advisory_lock_before_delete():
+    from app.db import repo
+
+    class FakeSession:
+        def __init__(self):
+            self.sql: list[str] = []
+            self.commits = 0
+
+        async def execute(self, statement, *_args, **_kwargs):
+            self.sql.append(str(statement))
+
+        async def commit(self):
+            self.commits += 1
+
+    session = FakeSession()
+
+    await repo.replace_session_messages(
+        session,
+        "deadlock-safe-session",
+        [{"role": "assistant", "content": "Opening prompt"}],
+    )
+
+    assert session.commits == 1
+    assert "pg_advisory_xact_lock" in session.sql[0]
+    delete_index = next(index for index, sql in enumerate(session.sql) if "DELETE FROM session_messages" in sql)
+    assert delete_index > 0
+
+
+def test_session_start_resumes_active_same_node_after_reload(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    calls = {"count": 0}
+
+    async def fake_start(*_args, **_kwargs):
+        calls["count"] += 1
+        raise AssertionError("active same-node sessions should be resumed, not restarted")
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+
+    state = svc._new_state(
+        "test_user",
+        "active-prep-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["current_mastery"] = 0.42
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="active-prep-session",
+        user_id="test_user",
+        current_node="int_01_elevator_pitch",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("active-prep-session", None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "fresh-after-reload",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "active-prep-session"
+    assert response.json()["resumed"] is True
+    assert response.json()["current_mastery"] == 0.42
+    assert response.json()["display_status"] == "active"
+    assert response.json()["node_mastered"] is False
+    assert response.json()["readiness_score"] == 0.0
+    assert calls["count"] == 0
+
+
+def test_session_start_does_not_resume_stale_active_session_for_ready_career_node(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+
+    async def fake_start(*_args, **_kwargs):
+        raise AssertionError("completed career nodes should require reattempt confirmation")
+
+    monkeypatch.setattr(svc, "start_session", fake_start)
+    asyncio.run(store.ensure_profile("test_user"))
+    asyncio.run(store.set_demo_unlimited("test_user", True))
+    asyncio.run(store.upsert_mastery(
+        user_id="test_user",
+        node_id="int_01_elevator_pitch",
+        ema=0.85,
+        attempts=3,
+        clean_pass=True,
+        node_completed=True,
+        node_mastered=False,
+        display_status="ready_to_advance",
+    ))
+
+    state = svc._new_state(
+        "test_user",
+        "stale-active-prep-session",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["current_mastery"] = 0.26
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="stale-active-prep-session",
+        user_id="test_user",
+        current_node="int_01_elevator_pitch",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("stale-active-prep-session", None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/session/start",
+        json={
+            "competency_node": "int_01_elevator_pitch",
+            "client_start_id": "stale-ready-start",
+        },
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "completed_node"
+
+
+def test_progression_map_uses_durable_active_session_after_reload(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+    for node_id in ("int_01_elevator_pitch", "int_02_strength_with_evidence"):
+        asyncio.run(store.upsert_mastery(
+            user_id="test_user",
+            node_id=node_id,
+            ema=0.82,
+            attempts=3,
+            clean_pass=True,
+            node_completed=True,
+            display_status="ready_to_advance",
+        ))
+
+    state = svc._new_state(
+        "test_user",
+        "active-map-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["status"] = "active"
+    asyncio.run(store.upsert_session_runtime(
+        session_id="active-map-session",
+        user_id="test_user",
+        current_node="int_04_star_behavioral",
+        module_id="interview",
+        task_type="interview_prep",
+        test_mode=False,
+        status="active",
+        state_snapshot=state,
+        pending_transition=None,
+        session_version=1,
+    ))
+    svc.SessionStore.pop("active-map-session", None)
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+
+    assert active_ids == ["int_04_star_behavioral"]
+
+
+def test_progression_map_uses_latest_durable_active_session_across_module(store):
+    from app.services import session_service as svc
+    import asyncio
+
+    asyncio.run(store.ensure_profile("test_user"))
+
+    older = svc._new_state(
+        "test_user",
+        "older-active-map-session",
+        "int_02_strength_with_evidence",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    newer = svc._new_state(
+        "test_user",
+        "newer-active-map-session",
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    for state in (older, newer):
+        state["status"] = "active"
+        asyncio.run(store.upsert_session_runtime(
+            session_id=state["session_id"],
+            user_id="test_user",
+            current_node=state["competency_node"],
+            module_id="interview",
+            task_type="interview_prep",
+            test_mode=False,
+            status="active",
+            state_snapshot=state,
+            pending_transition=None,
+            session_version=1,
+        ))
+        svc.SessionStore.pop(state["session_id"], None)
+
+    store.session_runtime["older-active-map-session"]["updated_at"] = 100.0
+    store.session_runtime["newer-active-map-session"]["updated_at"] = 200.0
+
+    nodes = asyncio.run(svc.get_progression_map("test_user", "interview"))
+    active_ids = [node["node_id"] for node in nodes if node["display_status"] == "active"]
+
+    assert active_ids == ["int_04_star_behavioral"]
+
+
 def test_next_skill_start_hands_off_pending_source_transition(monkeypatch, store):
     from app.services import session_service as svc
     import asyncio
@@ -2569,6 +3377,49 @@ def test_completed_opening_request_replays_persisted_message_after_cold_hydrate(
     assert opening_calls["count"] == 0
 
 
+@pytest.mark.asyncio
+async def test_committed_opening_replay_unlocks_and_persists_session(store):
+    from app.services import session_service as svc
+
+    session_id = "committed-opening-unlocks-session"
+    node_id = "int_01_elevator_pitch"
+    opening_key = f"initial:{node_id}"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        node_id,
+        [],
+        task_type="interview_prep",
+    )
+    state["committed_openings"] = {opening_key: "Committed opening."}
+    state["opening_streamed"] = False
+    state["input_allowed"] = False
+    state["block_reason"] = "opening_streaming"
+    state["messages"] = [
+        {
+            "message_id": f"{session_id}:opening:{opening_key}",
+            "role": "assistant",
+            "content": "Committed opening.",
+            "node_id": node_id,
+            "message_kind": "opening",
+        }
+    ]
+    svc.SessionStore[session_id] = state
+
+    chunks = [chunk async for chunk in svc.stream_opening(session_id)]
+
+    assert chunks == ["Committed opening."]
+    assert state["opening_streamed"] is True
+    assert state["input_allowed"] is True
+    assert state["block_reason"] is None
+    persisted = await store.get_session_runtime(session_id)
+    assert persisted is not None
+    snapshot = persisted["state_snapshot"]
+    assert snapshot["opening_streamed"] is True
+    assert snapshot["input_allowed"] is True
+    assert snapshot["block_reason"] is None
+
+
 def test_completed_opening_replay_does_not_double_meter_attempt(monkeypatch, store):
     from app.content import registry
     from app.services import session_service as svc
@@ -2692,6 +3543,57 @@ def test_turn_done_frame_survives_latch_completion_failure(monkeypatch, store):
     assert "event: done" in response.text
 
 
+def test_turn_done_frame_is_not_blocked_by_slow_latch_completion(monkeypatch, store):
+    from app.services import session_service as svc
+    import asyncio
+    import time
+
+    async def fake_run_turn(*_args, **_kwargs):
+        yield "Tutor reply before slow latch."
+
+    async def slow_complete_turn_request(*_args, **_kwargs):
+        await asyncio.sleep(0.3)
+
+    monkeypatch.setattr(svc, "run_turn", fake_run_turn)
+    monkeypatch.setattr(
+        store,
+        "complete_turn_request",
+        slow_complete_turn_request,
+        raising=False,
+    )
+    asyncio.run(store.ensure_profile("test_user"))
+
+    session_id = "turn-done-before-slow-latch"
+    state = svc._new_state(
+        "test_user",
+        session_id,
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+    )
+    state["opening_streamed"] = True
+    svc.SessionStore[session_id] = state
+
+    client = TestClient(app, raise_server_exceptions=False)
+    started = time.perf_counter()
+    response = client.post(
+        "/session/turn",
+        json={
+            "session_id": session_id,
+            "user_input": "My answer",
+            "client_turn_id": "turn-latch-slow-1",
+            "expected_session_version": 1,
+        },
+        headers=AUTH,
+    )
+    elapsed = time.perf_counter() - started
+
+    assert response.status_code == 200
+    assert "Tutor reply before slow latch." in response.text
+    assert "event: done" in response.text
+    assert elapsed < 0.25
+
+
 def test_test_mode_end_starts_async_scoring_and_report_endpoint_replays_result(monkeypatch, store):
     from app.services import session_service as svc
     import asyncio
@@ -2743,6 +3645,9 @@ def test_test_mode_end_starts_async_scoring_and_report_endpoint_replays_result(m
 
     assert end_response.status_code == 202
     assert end_response.json()["status"] == "processing"
+    assert state["session_over"] is True
+    assert state["input_allowed"] is False
+    assert state["block_reason"] == "scoring"
 
     report_response = client.get(f"/session/{session_id}/report", headers=AUTH)
 
@@ -2913,31 +3818,6 @@ async def test_failed_test_session_start_does_not_create_attempt_row(monkeypatch
         await svc.start_session("test_user", "int_01_elevator_pitch", test_mode=True)
 
     assert store.sessions == {}
-
-
-def test_school_progress_includes_lesson_statuses(store):
-    import asyncio
-    from fastapi.testclient import TestClient
-
-    asyncio.run(store.ensure_profile("test_user"))
-    asyncio.run(
-        store.upsert_mastery(
-            "test_user",
-            "c2_ch01_l1_new_words",
-            ema=0.0,
-            attempts=3,
-            clean_pass=False,
-            node_completed=True,
-        )
-    )
-
-    client = TestClient(app)
-    response = client.get("/school/progress?class_no=2", headers=AUTH)
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["lesson_progress"]["c2_ch01_l1_new_words"] == "completed"
-    assert body["passed_tests"] == []
 
 
 def test_session_message_schema_uses_numeric_sequence_for_reload_order():
@@ -3263,6 +4143,7 @@ async def test_simulation_director_sees_current_user_turn(monkeypatch):
     state["opening_streamed"] = True
     state["input_allowed"] = True
     state["block_reason"] = None
+    state["assessment_plan"] = None
 
     chunks = []
     async for item in svc.run_turn(
@@ -3485,6 +4366,7 @@ async def test_interview_test_probe_cursor_advances_without_repeating(monkeypatc
         "int_01_elevator_pitch",
         test_mode=True,
     )
+    state["assessment_plan"] = None
     state["probe_items"] = [
         {"prompt": "Ask about project tradeoffs.", "aim": "names a tradeoff"},
         {"prompt": "Ask about teammate disagreement.", "aim": "shows collaboration"},
@@ -3576,6 +4458,7 @@ async def test_interview_test_honors_move_on_request_when_director_repeats(monke
             "interview_type": "mixed",
         },
     )
+    state["assessment_plan"] = None
     state["probe_items"] = []
     state["messages"] = [
         {"role": "assistant", "content": "[Interviewer]: Explain Singleton and Factory design patterns."},
@@ -3620,8 +4503,12 @@ async def test_test_item_generation_times_out_to_fallback(monkeypatch, store):
     from app.ai import test_gen
     from app.content.task_types import TaskType
 
+    slow_completed = False
+
     async def slow_structured(*_args, **_kwargs):
+        nonlocal slow_completed
         await asyncio.sleep(0.2)
+        slow_completed = True
         raise AssertionError("slow local model should have been timed out")
 
     monkeypatch.setattr(test_gen, "PROBE_GENERATION_TIMEOUT_SECONDS", 0.01, raising=False)
@@ -3640,9 +4527,16 @@ async def test_test_item_generation_times_out_to_fallback(monkeypatch, store):
     )
     elapsed = time.perf_counter() - started
 
-    assert elapsed < 0.12
+    assert elapsed < 0.25
+    assert slow_completed is False
     assert items
     assert "Backend Software Engineer" in items[0].prompt
+
+
+def test_test_item_generation_timeout_is_bounded_for_start_ux():
+    from app.ai import test_gen
+
+    assert test_gen.PROBE_GENERATION_TIMEOUT_SECONDS <= 15.0
 
 
 @pytest.mark.asyncio
@@ -3682,6 +4576,7 @@ async def test_gd_test_confusion_gets_moderator_guidance(monkeypatch):
         test_mode=True,
         simulation_config={"topic": "AI in hiring"},
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
         {"role": "user", "content": "I don't understand what is going on here."},
@@ -3756,6 +4651,7 @@ async def test_gd_test_honors_move_on_request(monkeypatch):
         test_mode=True,
         simulation_config={"topic": "Remote work for engineering teams"},
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Data-Driven Analyst]: Give Indian pilot evidence."},
         {"role": "user", "content": "I already covered that evidence. Can we move on to a different angle?"},
@@ -3833,6 +4729,7 @@ async def test_gd_test_honors_requested_quiet_expert(monkeypatch):
             "personas": ["quiet_expert", "aggressive_challenger", "data_driven_analyst"],
         },
     )
+    state["assessment_plan"] = None
     state["messages"] = [
         {"role": "assistant", "content": "[Aggressive Challenger]: Make your point stronger."},
         {"role": "user", "content": "Can we hear from the Expert now?"},
@@ -3848,7 +4745,8 @@ async def test_gd_test_honors_requested_quiet_expert(monkeypatch):
 
     output = "".join(chunks).lower()
     assert speakers[0] == "Quiet Expert"
-    assert "quiet expert" in output
+    assert "quiet expert," not in output
+    assert "implementation quality" in output
     assert "push the learner again" not in output
 
 
@@ -4321,6 +5219,37 @@ def test_gd_prep_followup_prompts_lock_to_selected_topic():
         assert "remote work" not in prompt.lower()
 
 
+def test_challenge_prompt_avoids_mastery_and_celebration_language():
+    from app.ai.prompts import build_challenge_prompt
+    from app.content.registry import get_node
+
+    prompt = build_challenge_prompt(
+        get_node("int_01_elevator_pitch"),
+        messages=[
+            {
+                "role": "user",
+                "content": "I am a backend engineer who improved checkout reliability.",
+            }
+        ],
+        diagnosis={
+            "understanding": "The learner gave a usable concise answer.",
+            "strengths": ["clear role"],
+            "errors": [],
+            "next_focus": "pressure-test with a sharper transfer variant",
+            "affect": "focused",
+        },
+        memory_context=[],
+    )
+    challenge_tail = prompt.split("Recent conversation:", 1)[-1].lower()
+
+    assert "near-mastered" not in challenge_tail
+    assert "near mastery" not in challenge_tail
+    assert "mastered" not in challenge_tail
+    assert "celebrate" not in challenge_tail
+    assert "harder transfer check" in challenge_tail
+    assert "acknowledge briefly" in challenge_tail
+
+
 def test_interview_prep_followup_prompts_lock_to_role_and_recent_thread():
     from app.ai.prompts import build_challenge_prompt, build_strengthen_prompt
     from app.content.registry import get_node
@@ -4451,24 +5380,28 @@ async def test_interview_report_flags_repeated_prompts_as_assessment_caveat(monk
         "blackboard": {"qualities": [0.8, 0.78, 0.76, 0.75]},
         "messages": [
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "I used Redis for caching and Memcached for simple ephemeral lookups."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "I think I covered that. Could we discuss disagreement with a teammate?"},
             {"role": "assistant", "speaker_name": "Interviewer", "content": repeated},
-            {"role": "user", "content": "Again, Redis handled richer data structures and persistence tradeoffs."},
+            {"role": "user", "content": "I used Redis for richer data structures and persistence tradeoffs."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a teammate disagreement."},
             {"role": "user", "content": "I disagreed with microservices for a small CRUD tool and explained why a modular monolith fit better."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about a production failure."},
             {"role": "user", "content": "I caused a migration lock, helped rollback, and added traffic-window checks."},
             {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about leadership."},
             {"role": "user", "content": "I mentored two juniors until they needed only minor review notes."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about prioritization."},
+            {"role": "user", "content": "I delayed a dashboard polish task so the team could fix checkout errors before launch."},
+            {"role": "assistant", "speaker_name": "Interviewer", "content": "Tell me about handling ambiguity."},
+            {"role": "user", "content": "I split an unclear compliance request into reversible milestones and got legal review on the risky pieces first."},
         ],
     }
 
     report = await score_session(state)
 
     assert report.assessment_caveats
-    assert "repeated" in report.assessment_caveats[0].lower()
+    assert any("repeated" in caveat.lower() for caveat in report.assessment_caveats)
+    assert report.simulator_integrity_notes
+    assert "unanswered prompt" in report.simulator_integrity_notes[0].lower()
     assert all("elaborate further" not in item.lower() for item in report.improvements)
 
 

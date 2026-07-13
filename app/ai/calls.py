@@ -21,6 +21,7 @@ from app.ai.clients import get_gemini_client, get_groq_client
 from app.ai.local import ollama_complete, ollama_stream, ollama_structured
 from app.ai.behaviors import BehaviorPack, behavior_for
 from app.ai.prompts import (
+    build_assessment_turn_prompt,
     build_director_prompt,
     build_eval_prompt,
     build_prep_eval_prompt,
@@ -31,6 +32,7 @@ from app.ai.prompts import (
     build_teach_game_prompt,
 )
 from app.ai.schemas import (
+    AssessmentTurnCall,
     DiagnosisEval,
     DirectorDecision,
     FillBlankGame,
@@ -43,6 +45,7 @@ from app.ai.structured import call_with_structured_output
 from app.config import get_settings
 from app.content.schema import Concept
 from app.content.task_types import TaskType
+from app.services.school.open_answer_ai import evaluate_school_open_answer
 from app.services.rubric_engine import RubricResult, apply_caps, build_evaluation_packet
 from app.services.rubrics import get_rubric
 
@@ -186,6 +189,29 @@ async def direct_simulation(
             return await ollama_structured(prompt, DirectorDecision)
         client = get_gemini_client()
         return await call_with_structured_output(client, prompt, DirectorDecision)
+
+
+async def evaluate_assessment_turn(
+    *,
+    plan: dict,
+    visible_ledger: list[dict],
+    transcript: str,
+    learner_turn: str,
+    turn_context: dict | None = None,
+) -> AssessmentTurnCall:
+    """Single structured model call for one test-mode learner turn."""
+    prompt = build_assessment_turn_prompt(
+        plan=plan,
+        visible_ledger=visible_ledger,
+        transcript=transcript,
+        learner_turn=learner_turn,
+        turn_context=turn_context,
+    )
+    async with llm_semaphore:
+        if _local():
+            return await ollama_structured(prompt, AssessmentTurnCall)
+        client = get_gemini_client()
+        return await call_with_structured_output(client, prompt, AssessmentTurnCall)
 
 
 async def select_next_content(

@@ -173,7 +173,7 @@
           "modules": [
             {"module_id": "eng_c3_u03_m01", "order": 1, "title": "Picture Reading", "kind": "picture_reading", "source_genre": "none"},
             {"module_id": "eng_c3_u03_m02", "order": 2, "title": "The Big Laddoo", "kind": "lesson", "source_genre": "story"},
-            {"module_id": "eng_c3_u03_m03", "order": 3, "title": "Thank God", "kind": "lesson", "source_genre": "poem"},
+            {"module_id": "eng_c3_u03_m03", "order": 3, "title": "Thank God", "phase_0_public_display_title": "Thank God!", "kind": "lesson", "source_genre": "poem"},
             {"module_id": "eng_c3_u03_m04", "order": 4, "title": "Madhu's Wish", "kind": "lesson", "source_genre": "story"}
           ]
         },
@@ -245,7 +245,7 @@
           "modules": [
             {"module_id": "eng_c4_u01_m01", "order": 1, "title": "Together We Can", "kind": "lesson", "source_genre": "poem"},
             {"module_id": "eng_c4_u01_m02", "order": 2, "title": "The Tinkling Bells", "kind": "lesson", "source_genre": "story"},
-            {"module_id": "eng_c4_u01_m03", "order": 3, "title": "Be Smart Be Safe", "kind": "lesson", "source_genre": "informational"}
+            {"module_id": "eng_c4_u01_m03", "order": 3, "title": "Be Smart Be Safe", "phase_0_public_display_title": "Be Smart, Be Safe", "kind": "lesson", "source_genre": "informational"}
           ]
         },
         {
@@ -264,7 +264,7 @@
           "order": 3,
           "title": "Fun with Games",
           "modules": [
-            {"module_id": "eng_c4_u03_m01", "order": 1, "title": "Fit Body Fit Mind Fit Nation", "kind": "lesson", "source_genre": "informational"},
+            {"module_id": "eng_c4_u03_m01", "order": 1, "title": "Fit Body Fit Mind Fit Nation", "phase_0_public_display_title": "Fit Body, Fit Mind, Fit Nation", "kind": "lesson", "source_genre": "informational"},
             {"module_id": "eng_c4_u03_m02", "order": 2, "title": "The Lagori Champions", "kind": "lesson", "source_genre": "story"},
             {"module_id": "eng_c4_u03_m03", "order": 3, "title": "Hekko", "kind": "lesson", "source_genre": "informational"}
           ]
@@ -381,5 +381,5 @@
       ]
     }
   ],
-  "manifest_sha256": "9e493e73007d640762854b8d3adf5d72b2daf9601eb4833828051b0f29982a0b"
+  "manifest_sha256": "4176645667f79edb3cc07ab42dee10771c7cc631aabc0ba1fa4da9cab5a6eeea"
 }

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.content.registry import module_of
-from app.services.learning_profile import CareerLearningProfileService
+from app.services.learning_profile import CareerLearningProfileService, build_career_memory_context
 from app.storage import get_storage
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -74,7 +74,7 @@ def _career_public(profile: dict[str, Any] | None) -> dict[str, Any]:
 def _home_for_profile(profile: dict[str, Any]) -> str:
     if not profile.get("onboarding_completed_at"):
         return "/onboarding"
-    return "/subjects" if profile.get("primary_motive") == "school" else "/career"
+    return "/school" if profile.get("primary_motive") == "school" else "/career"
 
 
 def _is_career_node(node_id: object) -> bool:
@@ -245,14 +245,14 @@ async def activity(request: Request) -> dict:
                 "kind": "school",
                 "title": "Review your focus areas",
                 "body": ", ".join(school_weak[:3]).replace("_", " "),
-                "href": "/subjects",
+                "href": "/school",
             })
         else:
             recommendations.append({
                 "kind": "school",
-                "title": "Open English curriculum",
-                "body": "Pick any available class and continue the NCERT English path.",
-                "href": "/subjects",
+                "title": "Open school prep",
+                "body": "Set up your class and start with a readiness check.",
+                "href": "/school",
             })
     if not career_ready:
         recommendations.append({
@@ -314,6 +314,7 @@ async def learning_graph(request: Request) -> dict:
         "profiles": _activity_rows(graph.get("profiles")),
         "reports": _activity_rows(graph.get("reports")),
         "events": _activity_rows(graph.get("events")),
+        "memory_context": build_career_memory_context(graph),
         "degraded": degraded,
     }
 

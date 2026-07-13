@@ -11,10 +11,12 @@ injected as a private directive block the model acts on but never reads aloud.
 See `coach_view` (builds the dict from state) and `_coach_block` (renders it).
 """
 import json
+import re
 
 from app.ai.behaviors import BehaviorPack, behavior_for
 from app.content.schema import Concept
 from app.content.task_types import TaskType
+from app.services.school.open_answer_prompt import build_school_open_answer_prompt
 
 TUTOR_PERSONA = (
     "You are Zidd, a warm, sharp personal communication coach — the kind of "
@@ -34,6 +36,67 @@ TUTOR_PERSONA = (
 _HISTORY_CHAR_BUDGET = 6000
 
 
+_MEMORY_COPYABLE_ANSWER_RE = re.compile(
+    r"\b(?:a\s+better|a\s+stronger|the\s+better|the\s+stronger)\s+version\s+would\s+be:?\s*"
+    r"(?:\"[^\"]+\"|'[^']+'|[^.?!]+[.?!])",
+    re.I,
+)
+_MEMORY_TRY_SAYING_RE = re.compile(
+    r"\b(?:try\s+saying|you\s+can\s+say|say\s+it\s+like\s+this):?\s*"
+    r"(?:\"[^\"]+\"|'[^']+'|[^.?!]+[.?!])",
+    re.I,
+)
+_MEMORY_PRAISE_OPENING_RE = re.compile(
+    r"^\s*(?:great\s+job|great\s+session|well\s+done|excellent|strong\s+answer|"
+    r"strong\s+interview\s+close|solid\s+answer|nice\s+work)\b"
+    r"[^.?!]*(?:[.?!]\s*)?",
+    re.I,
+)
+_MEMORY_ALL_RIGHT_RE = re.compile(
+    r"\byou\s+(?:hit|covered)\s+all\s+(?:of\s+)?the\s+right\s+points\b[^.?!]*(?:[.?!])?",
+    re.I,
+)
+_MEMORY_GENERIC_PRAISE_RE = re.compile(
+    r"\b(?:great\s+job|great\s+session|strong\s+answer|strong\s+interview\s+close|"
+    r"well\s+done|excellent|nice\s+work)\b",
+    re.I,
+)
+_MEMORY_READY_CLAIM_RE = re.compile(
+    r"\b(?:you(?:'re| are)?\s+)?ready(?:\s+(?:for|to)\b[^.?!]*)?(?:[.?!])?",
+    re.I,
+)
+_MEMORY_MASTERY_CLAIM_RE = re.compile(
+    r"\b(?:you(?:'ve| have| are)?\s+)?(?:mastered|mastery)\b[^.?!]*(?:[.?!])?",
+    re.I,
+)
+
+
+def _sanitize_memory_text(value: object) -> str:
+    """Remove praise/model-answer residue before memory is injected into prompts."""
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return ""
+    text = _MEMORY_COPYABLE_ANSWER_RE.sub(
+        "Use the learner's own facts to add the missing result or evidence.",
+        text,
+    )
+    text = _MEMORY_TRY_SAYING_RE.sub(
+        "Ask for a revision using the learner's own facts.",
+        text,
+    )
+    text = _MEMORY_PRAISE_OPENING_RE.sub("", text)
+    text = _MEMORY_ALL_RIGHT_RE.sub("The answer had usable material.", text)
+    text = _MEMORY_GENERIC_PRAISE_RE.sub("The answer had usable material.", text)
+    text = _MEMORY_READY_CLAIM_RE.sub("Keep re-testing before advancing.", text)
+    text = _MEMORY_MASTERY_CLAIM_RE.sub("Keep re-testing before calling this sustained mastery.", text)
+    return " ".join(text.split()).strip()
+
+
+def sanitize_memory_text(value: object) -> str:
+    """Public wrapper for service code that persists or replays learner memory."""
+    return _sanitize_memory_text(value)
+
+
 def _history_block(
     messages: list[dict], limit: int = 8, max_chars: int | None = None
 ) -> str:
@@ -49,6 +112,78 @@ def _history_block(
         while len(lines) > 1 and len("\n".join(lines)) > max_chars:
             lines.pop(0)
     return "\n".join(lines)
+
+
+def _clean_prompt_list(values: object, *, limit: int = 4, item_limit: int = 140) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = " ".join(str(value or "").split()).strip()
+        if not text:
+            continue
+        text = _sanitize_memory_text(text)[:item_limit]
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _hot_delta_prompt_view(state: dict) -> dict:
+    task_type = str(state.get("task_type") or "")
+    node_id = str(state.get("competency_node") or "")
+    if task_type not in {TaskType.INTERVIEW_PREP.value, TaskType.GD_PREP.value}:
+        return {}
+    if not (node_id.startswith("int_") or node_id.startswith("gd_")):
+        return {}
+    delta = state.get("session_learning_delta")
+    if not isinstance(delta, dict):
+        return {}
+    delta_module = str(delta.get("module_id") or "").strip()
+    if delta_module and delta_module != str(state.get("module_id") or "").strip():
+        return {}
+    delta_task = str(delta.get("task_type") or "").strip()
+    if delta_task and delta_task != task_type:
+        return {}
+    repeated_raw = delta.get("repeated_issue_counts")
+    repeated: dict[str, int] = {}
+    if isinstance(repeated_raw, dict):
+        for key, value in list(repeated_raw.items())[:5]:
+            text = _sanitize_memory_text(key)[:120]
+            if not text:
+                continue
+            try:
+                count = int(value)
+            except (TypeError, ValueError):
+                continue
+            if count > 0:
+                repeated[text] = count
+    view = {
+        "active_gaps": _clean_prompt_list(delta.get("active_gaps"), limit=3),
+        "growth_signals": _clean_prompt_list(delta.get("growth_signals"), limit=3),
+        "resolved_candidates": _clean_prompt_list(delta.get("resolved_candidates"), limit=3),
+        "latest_evidence_quotes": _clean_prompt_list(delta.get("latest_evidence_quotes"), limit=2),
+        "repeated_issue_counts": repeated,
+    }
+    return view if any(view.values()) else {}
+
+
+def _career_context_for_node(node: "Concept", career_context: dict | None) -> dict:
+    if not career_context:
+        return {}
+    scoped = dict(career_context)
+    node_id = str(getattr(node, "id", "") or "")
+    if node_id.startswith("int_"):
+        scoped.pop("gd_topics", None)
+        scoped.pop("custom_gd_topics", None)
+    elif node_id.startswith("gd_"):
+        scoped.pop("interview_goals", None)
+    return scoped
 
 
 def _memory_block(
@@ -92,9 +227,9 @@ def _memory_block(
             label = "Most recent session" if i == 1 else f"{i} sessions ago"
             node = row.get("node_id", "")
             score = row.get("score")
-            strengths = row.get("strengths", "").strip()
-            watch = row.get("watch", "").strip()
-            next_focus = row.get("next_focus", "").strip()
+            strengths = _sanitize_memory_text(row.get("strengths", ""))
+            watch = _sanitize_memory_text(row.get("watch", ""))
+            next_focus = _sanitize_memory_text(row.get("next_focus", ""))
             date = row.get("date", "")
             if strengths or watch or next_focus:
                 score_str = f" (score {score:.2f})" if score else ""
@@ -107,7 +242,9 @@ def _memory_block(
                 date_str = f" on {date}" if date else ""
                 lines.append(f"  [{label}{date_str}]{node_str} {detail}")
             else:
-                lines.append(f"  [{label}] {row.get('raw', '')}")
+                raw = _sanitize_memory_text(row.get("raw", ""))
+                if raw:
+                    lines.append(f"  [{label}] {raw}")
         parts.append("\n".join(lines) + "\n")
 
     rows = weaknesses or []
@@ -161,6 +298,8 @@ def coach_view(state: dict) -> dict:
         # coach, so re-teaching read identically to first-time teaching.
         "level_kind": level_kind(state),
         "remediation": bool(state.get("remediation", False)),
+        "tutor_turn_plan": state.get("tutor_turn_plan") or {},
+        "hot_session_delta": _hot_delta_prompt_view(state),
     }
 
 
@@ -186,6 +325,74 @@ def _coach_block(coach: dict | None) -> str:
             "to keep things personal — not in every line, and not as a forced "
             "opener; plain 'you' is fine most of the time."
         )
+    tutor_plan = coach.get("tutor_turn_plan") if isinstance(coach.get("tutor_turn_plan"), dict) else {}
+    plan_verdict = str(tutor_plan.get("verdict") or "").strip()
+    if tutor_plan:
+        next_action = str(tutor_plan.get("next_action") or "").strip()
+        focus = str(tutor_plan.get("focus") or "").strip()
+        stage = str(tutor_plan.get("stage") or "").strip()
+        tone_policy = str(tutor_plan.get("tone_policy") or "").strip()
+        parts.append(
+            "Latest enforced tutor plan: "
+            f"verdict={plan_verdict or 'unknown'}, "
+            f"next_action={next_action or 'continue'}, "
+            f"stage={stage or 'practice'}, "
+            f"tone_policy={tone_policy or 'measured'}, "
+            f"focus={focus or 'continue the active skill'}."
+        )
+        if plan_verdict == "independent_pass":
+            parts.append(
+                "The required criteria are already covered. Do NOT ask for missing "
+                "required evidence, do NOT request another same-skill rewrite, and "
+                "do NOT imply the answer failed. Give measured feedback, then set "
+                "one delivery, transfer, pressure, or polishing task based on the "
+                "tutor plan focus."
+            )
+        elif plan_verdict in {"partial", "not_yet"}:
+            parts.append(
+                "A required part is still missing. Keep the feedback corrective and "
+                "specific: name only the missing criterion from the tutor plan focus "
+                "and ask for one targeted revision."
+            )
+        elif plan_verdict == "guided_success":
+            parts.append(
+                "This was scaffolded success, not mastery. Rebuild the same skill "
+                "without the scaffold and avoid celebratory mastery language."
+            )
+    hot_delta = coach.get("hot_session_delta") if isinstance(coach.get("hot_session_delta"), dict) else {}
+    if hot_delta:
+        hot_parts: list[str] = ["Hot session learning delta"]
+        active_gaps = hot_delta.get("active_gaps") if isinstance(hot_delta.get("active_gaps"), list) else []
+        growth = hot_delta.get("growth_signals") if isinstance(hot_delta.get("growth_signals"), list) else []
+        quotes = (
+            hot_delta.get("latest_evidence_quotes")
+            if isinstance(hot_delta.get("latest_evidence_quotes"), list)
+            else []
+        )
+        repeated = (
+            hot_delta.get("repeated_issue_counts")
+            if isinstance(hot_delta.get("repeated_issue_counts"), dict)
+            else {}
+        )
+        if active_gaps:
+            hot_parts.append("active gaps: " + "; ".join(active_gaps[:3]))
+        if repeated:
+            pairs = [
+                f"{str(key)} x{int(value)}"
+                for key, value in list(repeated.items())[:3]
+                if str(key).strip()
+            ]
+            if pairs:
+                hot_parts.append("repeated gaps: " + "; ".join(pairs))
+        if growth:
+            hot_parts.append("growth signals: " + "; ".join(growth[:3]))
+        if quotes:
+            hot_parts.append("latest evidence: " + "; ".join(quotes[:2]))
+        hot_parts.append(
+            "Use this same-session evidence to choose the next micro-task, but "
+            "do not call this mastery and do not read these private notes aloud."
+        )
+        parts.append(" | ".join(hot_parts))
     streak = coach.get("clean_streak", 0)
     need = coach.get("advance_streak", 2)
     # Only surface progress once a streak has actually started. Telling a fresh or
@@ -213,7 +420,11 @@ def _coach_block(coach: dict | None) -> str:
             "then give one small next step. If you acknowledge effort, make it "
             "specific and separate from answer quality."
         )
-    elif isinstance(recent_score, (int, float)) and recent_score < 0.85:
+    elif (
+        isinstance(recent_score, (int, float))
+        and recent_score < 0.85
+        and plan_verdict != "independent_pass"
+    ):
         parts.append(
             "The last answer was a borderline pass, not a polished answer. Do not "
             "open with celebratory praise such as 'Great job', 'Great start', "
@@ -295,7 +506,9 @@ def _career_context_block(career_context: dict | None) -> str:
     resume_facts = [
         str(v).strip() for v in career_context.get("resume_facts", []) if str(v).strip()
     ][:8]
-    if not any([role_family, primary_role, target_roles, goals, gd_topics, resume_facts]):
+    memory = career_context.get("career_memory_context")
+    memory = memory if isinstance(memory, dict) else {}
+    if not any([role_family, primary_role, target_roles, goals, gd_topics, resume_facts, memory]):
         return ""
     lines = ["Career personalization context (private; use it, never read it aloud):"]
     if role_family:
@@ -317,6 +530,61 @@ def _career_context_block(career_context: dict | None) -> str:
             "or choose realistic constraints; never claim them as your own "
             "experience or speak in first person as if they happened to you."
         )
+    if memory:
+        lines.append("- prior learning memory to adapt this session:")
+        for label, key in (
+            ("active gaps", "active_gaps"),
+            ("improving gaps", "improving_gaps"),
+            ("resolved gaps", "resolved_gaps"),
+            ("mastered skills", "mastered_skills"),
+        ):
+            items = memory.get(key) if isinstance(memory.get(key), list) else []
+            rendered = []
+            for item in items[:4]:
+                if not isinstance(item, dict):
+                    continue
+                skill = str(item.get("skill_id") or item.get("gap") or "").strip()
+                action = _sanitize_memory_text(item.get("recommended_next_action") or "")
+                evidence = _sanitize_memory_text(item.get("latest_evidence") or "")
+                missing = [
+                    _sanitize_memory_text(v)
+                    for v in item.get("missing_criteria", [])
+                    if _sanitize_memory_text(v)
+                ][:3]
+                blockers = [
+                    _sanitize_memory_text(v)
+                    for v in item.get("blockers", [])
+                    if _sanitize_memory_text(v)
+                ][:3]
+                bits = [skill]
+                if action:
+                    bits.append(f"next: {action}")
+                if missing:
+                    bits.append(f"missing: {', '.join(missing)}")
+                if blockers:
+                    bits.append(f"blockers: {', '.join(blockers)}")
+                if evidence:
+                    bits.append(f"evidence: {evidence[:120]}")
+                rendered.append(" | ".join(bit for bit in bits if bit))
+            if rendered:
+                lines.append(f"  - {label}: " + " ; ".join(rendered))
+        repeats = memory.get("repeated_issue_counts")
+        if isinstance(repeats, dict) and repeats:
+            pairs = [
+                f"{_sanitize_memory_text(key)[:120]} x{int(value)}"
+                for key, value in list(repeats.items())[:6]
+                if _sanitize_memory_text(key)
+            ]
+            if pairs:
+                lines.append("  - repeated issue counts: " + ", ".join(pairs))
+        reports = memory.get("recent_reports") if isinstance(memory.get("recent_reports"), list) else []
+        summaries = [
+            _sanitize_memory_text(report.get("summary") or "")[:160]
+            for report in reports[:3]
+            if isinstance(report, dict) and _sanitize_memory_text(report.get("summary") or "")
+        ]
+        if summaries:
+            lines.append("  - recent report summaries: " + " ; ".join(summaries))
     lines.append(
         "Use this for examples, follow-ups, bridge exercises, and challenge "
         "constraints. Never invent projects, employers, metrics, or history."
@@ -398,15 +666,26 @@ def _simulation_context_block(
         ])
         return "\n".join(lines) + "\n\n" + _scenario_block(scenario_config)
 
+    active_role = (
+        str(scenario.get("target_role") or "").strip()
+        or str((career_context or {}).get("primary_role") or "").strip()
+        or "the target role"
+    )
     slim_context = dict(career_context or {})
     slim_context.pop("gd_topics", None)
     slim_context.pop("custom_gd_topics", None)
+    if active_role:
+        slim_context["primary_role"] = active_role
+        slim_context["target_roles"] = [active_role]
     lines = [
+        "Scored interview assessment context (private; selected scenario role wins over profile defaults):\n",
+        f"- AUTHORITATIVE active interview role: {active_role}\n",
+        "- Use this exact role in the visible opening, prompts, scoring context, and report focus.\n",
+        "- If career profile roles differ, treat them only as background history, never as the interview target.\n\n",
         _career_context_block(slim_context),
         _scenario_block(scenario_config),
         (
-            "Scored interview assessment context (private): use role/resume facts "
-            "only to ask realistic interview probes. Do not mention or use GD "
+            "Use role/resume facts only to ask realistic interview probes. Do not mention or use GD "
             "topic preferences in interview mode.\n\n"
         ),
     ]
@@ -569,10 +848,11 @@ def build_eval_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     return (
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
-        f"{_career_context_block(career_context)}"
+        f"{_career_context_block(scoped_context)}"
         f"Skill being assessed: {node.skill}\n"
         f"What a mastered answer looks like: {node.success_criteria}\n\n"
         f"{_exemplar_block(node)}"
@@ -758,7 +1038,7 @@ def build_simulation_score_prompt(
         "composed.\n"
         "Return JSON with:\n"
         "- score: 0.0-1.0 on the scale above\n"
-        "- summary: one short paragraph the learner can read\n"
+        "- summary: one short paragraph the learner can read. It must explain what evidence was actually shown and what coverage/validity limits remain. Do not use generic praise such as 'Great job', 'Strong answer', 'Strong interview', or 'Strong discussion'. Do not claim the learner is ready or has mastered the skill. Do not provide copyable sample answers.\n"
         "- strengths: list of what genuinely landed (empty list if none)\n"
         "- improvements: list of the few most useful things to work on next\n"
         "- participation_score: 0.0-1.0\n"
@@ -771,7 +1051,7 @@ def build_simulation_score_prompt(
         "- topic: GD topic if this was a GD, otherwise the interview focus\n"
         "- observed_skill_gaps: list of concrete weak skills observed\n"
         "- recommended_next_nodes: list of short next practice labels\n"
-        "- assessment_caveats: simulator-side validity issues, not learner weaknesses, or []"
+        "- assessment_caveats: learner-evidence caveats only, such as insufficient answered turns, narrow competency coverage, or an unanswered final prompt. Do not include simulator repair/internal validity notes here; the backend adds those separately."
     )
 
 
@@ -877,6 +1157,123 @@ def build_director_prompt(
         "Also pick the single action that best fits your move "
         "(probe_deeper, pivot_topic, escalate_pressure, or wind_down).\n"
         "Return your decision as the structured fields requested."
+    )
+
+
+def build_assessment_turn_prompt(
+    *,
+    plan: dict,
+    visible_ledger: list[dict],
+    transcript: str,
+    learner_turn: str,
+    turn_context: dict | None = None,
+) -> str:
+    """Prompt for the one-call assessment turn engine.
+
+    The model both evaluates the learner's latest turn and drafts the next
+    visible simulator response, but the backend still validates the returned
+    speaker/action/text against the immutable plan and visible event ledger.
+    """
+    mode = str(plan.get("mode") or plan.get("task_type") or "")
+    roster = plan.get("active_personas") or plan.get("roster") or []
+    roster_lines = []
+    for persona in roster:
+        if not isinstance(persona, dict):
+            continue
+        role = persona.get("role_type") or persona.get("role") or persona.get("stance") or "participant"
+        roster_lines.append(
+            f"- {persona.get('speaker_id')}: {persona.get('name')} ({role})"
+        )
+    ledger_lines = []
+    for event in visible_ledger[-12:]:
+        if not isinstance(event, dict):
+            continue
+        speaker = event.get("speaker_name") or event.get("speaker_id") or "Assistant"
+        content = " ".join(str(event.get("content") or "").split())[:360]
+        event_id = event.get("event_id") or "unknown"
+        ledger_lines.append(f"- {event_id} [{speaker}]: {content}")
+    if mode == TaskType.GD_TEST.value:
+        analysis_contract = (
+            "analysis must be GDAnalysis with mode='gd_test'. "
+            "routing_case is reply_only, reply_and_request, point_only, "
+            "request_only, clarification_request, or move_on. Only set "
+            "requested_next_speaker when the learner explicitly asks a roster "
+            "voice to respond. A phrase like 'senior expert can review' is an "
+            "argument, not a request for Quiet Expert unless the learner names "
+            "Quiet Expert or an exact roster voice. addressed_event_ids must "
+            "come only from the visible event ledger below."
+        )
+        visible_response_contract = (
+            "- GD panelist text must first contribute to the discussion: take a stance, "
+            "challenge a claim, add evidence, synthesize positions, build consensus, "
+            "or directly answer the learner's requested question.\n"
+            "- GD panelist text must not turn into learner-facing evidence demands "
+            "such as 'Can you provide metrics?' or 'What study proves that?'. "
+            "If proof is weak, the panelist should state the missing proof as a "
+            "discussion objection or counterpoint, not interview the learner.\n"
+            "- GD panelists must not ask direct follow-up questions, cross-examine "
+            "the learner, or hand the floor to another panelist. Convert questions "
+            "into spoken claims: name the risk, condition, metric, or synthesis "
+            "as the panelist's own contribution.\n"
+            "- Moderator text may steer, summarize, repair an unavailable speaker request, "
+            "or pivot the angle, but must keep the active topic visible.\n"
+            "- If the learner explicitly requested a panelist, that panelist must answer "
+            "the extracted question instead of echoing it back.\n"
+        )
+    else:
+        active_probe = (turn_context or {}).get("answered_probe") or {}
+        next_probe = (turn_context or {}).get("next_probe") or {}
+        analysis_contract = (
+            "analysis must be InterviewAnalysis with mode='interview_test'. "
+            "Use answer_kind='clarification_request' only when the learner asks "
+            "what the question means; use 'move_on_request' only when they ask "
+            "to switch topics. Do not score clarification or move-on controls. "
+            f"For normal answers, evaluate answered_probe.prompt_id='{active_probe.get('prompt_id', '')}' "
+            f"and set analysis.active_probe_id to that exact prompt_id. Use criteria from answered_probe only. "
+            "Name missing criteria that are actually missing from the learner's latest answer. "
+            f"The next visible interviewer question must ask next_probe.prompt_id='{next_probe.get('prompt_id', '')}' "
+            "unless the learner asked for clarification or move-on. Do not repeat recent prompts."
+        )
+        visible_response_contract = (
+            "- Interviewer text must ask or clarify one question. It must not answer "
+            "the question for the learner.\n"
+            "- Interviewer text must not re-ask a recent or already-covered prompt. "
+            "Use the backend-authorized next_probe for normal answers.\n"
+        )
+    assessment_persona = (
+        "You are Zidd's scored assessment operator. Evaluate the learner's latest "
+        "turn semantically, keep the active assessment contract, and write only "
+        "the next in-simulation response for the authorized speaker."
+    )
+    return (
+        f"{assessment_persona}\n"
+        "You are running a scored assessment turn. Make exactly one structured "
+        "decision for the learner's latest turn. This is not coaching: do not "
+        "give model answers, rubric explanations, or private scoring text to "
+        "the learner.\n\n"
+        "Immutable assessment plan JSON:\n"
+        f"{json.dumps(plan, ensure_ascii=False)}\n\n"
+        "Active roster (you may choose only these speaker_id values):\n"
+        f"{chr(10).join(roster_lines) or '(no roster)'}\n\n"
+        "Visible event ledger (only these prior assistant turns are visible):\n"
+        f"{chr(10).join(ledger_lines) or '(none yet)'}\n\n"
+        "Backend-authorized turn context JSON:\n"
+        f"{json.dumps(turn_context or {}, ensure_ascii=False)}\n\n"
+        f"Transcript tail:\n{transcript}\n\n"
+        f"Learner latest turn:\n\"{learner_turn}\"\n\n"
+        f"{analysis_contract}\n\n"
+        "Return JSON with exactly:\n"
+        "- analysis: the semantic read described above\n"
+        "- next_action: speaker_id, action_type, intent, should_close\n"
+        "- visible_response: speaker_id and learner-visible text\n\n"
+        "Rules for visible_response:\n"
+        "- speaker_id must match next_action.speaker_id.\n"
+        "- Use only active topic/role/personas from the plan.\n"
+        "- Never self-label inside the text; the UI already labels the speaker.\n"
+        "- Never say another speaker made a prior point unless that speaker has "
+        "a visible ledger event above.\n"
+        f"{visible_response_contract}"
+        "- Keep the response concise enough for a live simulator turn."
     )
 
 
@@ -1024,6 +1421,7 @@ def build_persona_prompt(
         elif "interviewer" in role_markers:
             context_task_type = TaskType.INTERVIEW_TEST
     is_moderator = _is_moderator_persona(persona)
+    is_gd_context = context_task_type == TaskType.GD_TEST
     interview_guard = ""
     if "interviewer" in role_markers:
         interview_guard = (
@@ -1033,12 +1431,33 @@ def build_persona_prompt(
             "candidate must produce the answer.\n"
         )
     if is_moderator:
+        if is_gd_context:
+            turn_discipline = (
+                "Stay fully in facilitator character. This is a live group "
+                "discussion assessment, not a lesson or interview: keep the group "
+                "clear, manage the floor, summarize shifts, and set one concrete "
+                "discussion task. Do not promise an immediate second speaker; name "
+                "the angle or kind of panel response needed instead. Do NOT argue a "
+                "side, do NOT coach, do NOT grade, do NOT give feedback, and do "
+                "NOT break character.\n"
+            )
+        else:
+            turn_discipline = (
+                "Stay fully in facilitator character. This is a live assessment, "
+                "not a lesson: keep the exchange clear, manage the floor, "
+                "summarize shifts, and set one concrete next step. Do NOT argue a "
+                "side, do NOT coach, do NOT grade, do NOT give feedback, and do "
+                "NOT break character.\n"
+            )
+    elif is_gd_context:
         turn_discipline = (
-            "Stay fully in facilitator character. This is a live assessment, not "
-            "a lesson: keep the group clear, manage the floor, summarize shifts, "
-            "draw in the right panelist, and ask the learner one clear next "
-            "question. Do NOT argue a side, do NOT coach, do NOT grade, do NOT "
-            "give feedback, and do NOT break character.\n"
+            "Stay fully in GD participant character. This is a live group "
+            "discussion, not an interview: contribute a stance, challenge, "
+            "evidence point, trade-off, synthesis move, or direct answer to a "
+            "panelist request. Do not ask follow-up questions or hand the floor "
+            "to another panelist; turn questions into clear claims or conditions. "
+            "Do NOT coach, do NOT grade, do NOT give feedback, and do NOT break "
+            "character.\n"
         )
     else:
         turn_discipline = (
@@ -1073,6 +1492,7 @@ def build_test_gen_prompt(
     n_items: int = 4,
     career_context: dict | None = None,
     scenario_config: dict | None = None,
+    task_type: TaskType | str | None = None,
 ) -> str:
     """Generate a bank of assessment probe items for a TEST-mode session.
 
@@ -1101,7 +1521,7 @@ def build_test_gen_prompt(
     return (
         f"{_persona(behavior)}\n"
         f"{_strictness_gate(behavior)}\n"
-        f"{_simulation_context_block(None, scenario_config, career_context)}"
+        f"{_simulation_context_block(task_type, scenario_config, career_context)}"
         f"{weakness_block}"
         f"Produce exactly {n_items} assessment probe items for this task. Each "
         "item must make the learner produce real spoken/written English under "
@@ -1158,10 +1578,11 @@ def build_opening_prompt(
             topic=node.title,
         )
     else:
+        scoped_context = _career_context_for_node(node, career_context)
         context_block = (
-            f"{_career_context_block(career_context)}"
-            f"{_interview_prep_context_guard(node, career_context)}"
-            f"{_gd_topic_guard(career_context)}"
+            f"{_career_context_block(scoped_context)}"
+            f"{_interview_prep_context_guard(node, scoped_context)}"
+            f"{_gd_topic_guard(scoped_context)}"
             f"{_scenario_block(scenario_config)}"
         )
     base = (
@@ -1191,11 +1612,18 @@ def build_opening_prompt(
     # the whole assessment on that phantom backstory. Force it to elicit a real
     # example from the candidate instead of assuming one.
     if interview_test:
+        active_role = str((scenario_config or {}).get("target_role") or "").strip()
+        role_line = (
+            f"Open with {active_role} as the focus. "
+            if active_role
+            else "Open with the selected target role as the focus. "
+        )
         return base + (
             "This is a live interview assessment, not a lesson. You are the "
             "interviewer and you have NOT heard the candidate yet. Do NOT invent "
-            "or assume any of their history, employer, projects, or metrics. Open "
-            "in 1-2 sentences: name the focus of this round, then ask the "
+            "or assume any of their history, employer, projects, or metrics. "
+            f"{role_line}"
+            "Open in 1-2 sentences: name the focus of this round, then ask the "
             "candidate to give you a concrete example FROM THEIR OWN EXPERIENCE "
             "for you to probe. End with that ask."
         )
@@ -1249,23 +1677,42 @@ def build_teach_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    is_career_context = bool(
+        (career_context or {}).get("primary_role")
+        or (career_context or {}).get("target_roles")
+        or (career_context or {}).get("role_family")
+        or (career_context or {}).get("gd_topics")
+    )
+    scoped_context = _career_context_for_node(node, career_context)
+    feedback_contract = (
+        "Give short, targeted career-coaching feedback (2-4 sentences). Required shape: "
+        "anchor to the learner's actual answer, name the exact missing gap, then set ONE "
+        "targeted revision task. Rewrite or pressure-test their own answer; Do not introduce "
+        "a different domain, unrelated sample story, unrelated company example, or generic "
+        "model answer. For GD prep, stay on the active GD topic. For interview prep, stay "
+        "inside the learner's own story/role context. End with the revision task.\n"
+        if is_career_context
+        else (
+            "Give a short, targeted teaching move (2-4 sentences) as a recast "
+            "sandwich: first acknowledge what genuinely worked, then gently recast "
+            "the single most important error by modelling the correct form ON A "
+            "DIFFERENT EXAMPLE (do not scold or just label it wrong), then set the "
+            "next small production task. End with the task.\n"
+        )
+    )
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nTeaching focus: {node.teach_focus}\n\n"
         f"{_exemplar_block(node)}"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
-        "Give a short, targeted teaching move (2-4 sentences) as a recast "
-        "sandwich: first acknowledge what genuinely worked, then gently recast "
-        "the single most important error by modelling the correct form ON A "
-        "DIFFERENT EXAMPLE (do not scold or just label it wrong), then set the "
-        "next small production task. End with the task.\n" + _NO_GIVEAWAY
+        f"{feedback_contract}" + _NO_GIVEAWAY
     )
 
 
@@ -1282,10 +1729,11 @@ def build_teach_game_prompt(
     preamble — so qwen spends its token budget on the structured output, not
     prose framing. Instructions live here (not in schema field descriptions)
     to comply with the Flash-Lite council rule."""
+    scoped_context = _career_context_for_node(node, career_context)
     coach_text = _coach_block(coach)
-    career_text = _career_context_block(career_context)
-    interview_context_guard = _interview_prep_context_guard(node, career_context)
-    gd_topic_guard = _gd_topic_guard(career_context)
+    career_text = _career_context_block(scoped_context)
+    interview_context_guard = _interview_prep_context_guard(node, scoped_context)
+    gd_topic_guard = _gd_topic_guard(scoped_context)
     focus = diagnosis.get("next_focus") or node.teach_focus
     errors = diagnosis.get("errors", [])
     error_line = (
@@ -1350,13 +1798,14 @@ def build_bridge_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\n"
         f"Easier sub-step to scaffold down to: {node.bridge_focus}\n\n"
@@ -1378,13 +1827,14 @@ def build_strengthen_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\nSuccess looks like: {node.success_criteria}\n\n"
         f"{_exemplar_block(node)}"
@@ -1407,20 +1857,22 @@ def build_challenge_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
-        f"Skill (now near-mastered): {node.skill}\n\n"
+        f"Skill (ready for a harder transfer check): {node.skill}\n\n"
         f"Recent conversation:\n{_history_block(messages)}\n\n"
         f"{_diagnosis_block(diagnosis)}"
-        "The learner is near mastery. Celebrate the win briefly, then push them: "
-        "give a harder, more realistic variant of the task that stretches the "
-        "same skill. Keep it to 2-3 sentences. End with the harder task."
+        "The learner is ready for a harder transfer check, not durable mastery. "
+        "Acknowledge briefly, then push them: give a harder, more realistic "
+        "variant of the task that stretches the same skill. Keep it to 2-3 "
+        "sentences. End with the harder task."
     )
 
 
@@ -1435,6 +1887,7 @@ def build_redirect_prompt(
     model_answer: bool = False,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     # After repeated steer-backs (model_answer), stop merely re-asking — the
     # learner is stuck in a loop. Model a correct answer so they see exactly what
     # is wanted, then give a fresh small task (Wave 1.2b stall-loop break).
@@ -1454,9 +1907,9 @@ def build_redirect_prompt(
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
@@ -1477,6 +1930,7 @@ def build_clarify_prompt(
     model_answer: bool = False,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     # After two stuck turns (model_answer), a young/low-fluency learner re-asked
     # the same way just stalls (live: 9 turns on the same letter 'B'). Give them a
     # complete example to copy instead of asking them to self-produce again
@@ -1499,9 +1953,9 @@ def build_clarify_prompt(
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill being practised: {node.skill}\n"
         f"The task / success criteria: {node.success_criteria}\n\n"
@@ -1521,13 +1975,14 @@ def build_ease_prompt(
     weaknesses: list | None = None,
     career_context: dict | None = None,
 ) -> str:
+    scoped_context = _career_context_for_node(node, career_context)
     return (
         f"{_persona(behavior)}\n"
         f"{_memory_block(memory_context, weaknesses)}\n"
         f"{_coach_block(coach)}"
-        f"{_career_context_block(career_context)}"
-        f"{_interview_prep_context_guard(node, career_context)}"
-        f"{_gd_topic_guard(career_context)}"
+        f"{_career_context_block(scoped_context)}"
+        f"{_interview_prep_context_guard(node, scoped_context)}"
+        f"{_gd_topic_guard(scoped_context)}"
         f"{_stance_block(behavior)}"
         f"Skill: {node.skill}\n"
         f"Easiest sub-step: {node.bridge_focus}\n\n"
@@ -1546,9 +2001,13 @@ def build_ease_prompt(
 
 def build_summary_prompt(node: Concept, messages: list[dict]) -> str:
     return (
-        "Write a short, warm end-of-session note for the learner in <=180 "
+        "Write a short, measured end-of-session note for the learner in <=180 "
         "tokens. It doubles as a memory note for the next session, so name "
-        "things precisely. Write in the second person (\"you\"). Output EXACTLY "
+        "things precisely. Write in the second person (\"you\"). Do not use generic praise. "
+        "Do not claim readiness. Do not claim mastery. Avoid phrases like "
+        "\"Great job\", \"Great session\", \"Strong answer\", \"mastered\", or "
+        "\"ready for the next level\" unless the transcript explicitly proves sustained "
+        "independent performance; if evidence is mixed, name the gap plainly. Output EXACTLY "
         "three labelled lines and nothing else:\n"
         "Strengths: <1-2 things they did well>\n"
         "Watch: <1-2 recurring errors to keep an eye on>\n"

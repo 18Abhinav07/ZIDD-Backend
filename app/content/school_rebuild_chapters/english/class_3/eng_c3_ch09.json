@@ -1,0 +1,1014 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: chapter theme, pedagogy stages, deterministic keys, unseen passages, assessment coverage, age fit, and source independence"
+  ],
+  "runtime_sha256": "f9a5f41b548da2663d10c73b02ba3041e7fcd69fef3820116398437054fcd616",
+  "chapter_id": "eng_c3_ch09",
+  "chapter_no": 9,
+  "title": "Madhu's Wish",
+  "book_title": "Santoor",
+  "unit_title": "Good Food",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa109.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and assessment scenes instead of copying textbook prose.",
+  "levels": [
+    {
+      "level_id": "madhu_wish_main_idea",
+      "title": "A wish and a wiser need",
+      "focus": "identify a story's main idea",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Connect Madhu's generous action, food wish, and thirst to the main idea that wants and needs are different.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea joins the important events. Madhu shares food, receives a food wish, and later discovers that a mountain of snacks cannot solve thirst. These events point to learning what is truly needed.",
+          "passage": "Madhu gives half his lunch to a tired traveller. Later, every food he names appears, but no drink does. After tasting salty treats, he longs for water.",
+          "prompt": "Which idea connects the whole scene?",
+          "options": [
+            "A need can matter more than a want.",
+            "Travellers dislike lunch.",
+            "Salty food is always bad.",
+            "Magic solves every problem."
+          ],
+          "accepted_answers": [
+            "A need can matter more than a want.",
+            "a need can matter more than a want"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the idea in three steps: kind action, exciting wish, unexpected problem. The problem often reveals the lesson.",
+          "passage": "First, Ishan shares his snack. Next, he wishes for endless sweets. Finally, he becomes thirsty.",
+          "prompt": "Which event reveals the problem?",
+          "options": [
+            "He becomes thirsty.",
+            "He shares his snack.",
+            "He makes a wish.",
+            "He smiles at first."
+          ],
+          "accepted_answers": [
+            "He becomes thirsty.",
+            "he becomes thirsty"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is choosing one detail as the main idea. 'There were sweets' is only a detail. The main idea must explain why the wish did not fully help.",
+          "passage": "Madhu can call for fruit, laddoos, and savoury snacks. Still, his dry throat makes him unhappy.",
+          "prompt": "Which answer states an idea rather than one food detail?",
+          "options": [
+            "Having many treats does not meet every need.",
+            "Madhu sees a laddoo.",
+            "A guava is a fruit.",
+            "The plate is round."
+          ],
+          "accepted_answers": [
+            "Having many treats does not meet every need.",
+            "having many treats does not meet every need"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the new story moment and state its main idea without choices.",
+          "passage": "Rupa fills her bag with toys for a long walk. Halfway home, the bag feels heavy, and she wishes she had carried a water bottle instead.",
+          "prompt": "What main idea does Rupa's experience show?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "want",
+              "description": "Name the less important want.",
+              "any_of": [
+                "toys",
+                "bag of toys"
+              ]
+            },
+            {
+              "id": "need",
+              "description": "Name the more useful need.",
+              "any_of": [
+                "water",
+                "water bottle"
+              ]
+            },
+            {
+              "id": "lesson",
+              "description": "State that a need may matter more than a want.",
+              "any_of": [
+                "need matters",
+                "needs are more important",
+                "choose what is useful",
+                "useful things first"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the wants-and-needs idea in a school setting.",
+          "passage": "For art day, Neel packs six glitter pens but forgets his plain pencil. When the teacher asks the class to sketch first, Neel cannot begin.",
+          "prompt": "Explain what Neel learns from this situation.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "want",
+              "description": "Identify the extra item Neel wanted.",
+              "any_of": [
+                "glitter pens",
+                "pens"
+              ]
+            },
+            {
+              "id": "need",
+              "description": "Identify the item needed for the task.",
+              "any_of": [
+                "pencil",
+                "plain pencil"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "Explain why the needed item mattered.",
+              "any_of": [
+                "sketch",
+                "begin",
+                "start the work",
+                "draw first"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "madhu_wish_event_order",
+      "title": "Follow the wish step by step",
+      "focus": "sequence story events",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Use time clues to arrange the wish, the feast, the thirst, and the request for water in a sensible order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sequence words show order. First Madhu helps someone. Next he receives a wish. Then food appears. Finally he asks for water.",
+          "passage": "(1) Madhu shares lunch. (2) He is offered a wish. (3) Bowls of food appear. (4) He asks for water.",
+          "prompt": "Which event happens just before Madhu asks for water?",
+          "options": [
+            "Bowls of food appear.",
+            "Madhu shares lunch.",
+            "He meets his teacher.",
+            "The bowls disappear."
+          ],
+          "accepted_answers": [
+            "Bowls of food appear.",
+            "bowls of food appear"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the starting event, then the result. A wish must be made before its result can appear.",
+          "passage": "Kavi says, 'I wish for mangoes.' A basket of mangoes appears.",
+          "prompt": "Which happens first?",
+          "options": [
+            "Kavi makes the wish.",
+            "The basket appears.",
+            "Kavi drinks water.",
+            "The mangoes vanish."
+          ],
+          "accepted_answers": [
+            "Kavi makes the wish.",
+            "kavi makes the wish"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not arrange events by sentence length. Use cause and time: thirst comes after eating salty food, so asking for water comes later.",
+          "passage": "Madhu tastes a salty snack. His throat feels dry. He calls for water.",
+          "prompt": "Which order is correct?",
+          "options": [
+            "tastes, feels thirsty, calls for water",
+            "calls for water, tastes, feels thirsty",
+            "feels thirsty, calls, tastes",
+            "calls, feels thirsty, tastes"
+          ],
+          "accepted_answers": [
+            "tastes, feels thirsty, calls for water"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Put the unseen events in a sensible order.",
+          "passage": "Words: asks for water / eats spicy peanuts / feels thirsty",
+          "prompt": "Write the three actions in order.",
+          "options": [],
+          "accepted_answers": [
+            "eats spicy peanuts, feels thirsty, asks for water",
+            "eats spicy peanuts feels thirsty asks for water",
+            "eats spicy peanuts then feels thirsty then asks for water"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Sequence a different cause-and-result chain.",
+          "passage": "Words: opens umbrella / dark clouds gather / rain begins",
+          "prompt": "Write the events from first to last.",
+          "options": [],
+          "accepted_answers": [
+            "dark clouds gather, rain begins, opens umbrella",
+            "dark clouds gather rain begins opens umbrella",
+            "dark clouds gather then rain begins then opens umbrella"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "madhu_wish_food_clues",
+      "title": "Taste clues unlock words",
+      "focus": "infer food word meanings from context",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use taste, texture, and situation clues to understand and use food words such as savoury, feast, and refreshing.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A nearby clue can explain a new word. In 'The savoury kachori tasted salty and spicy,' the words salty and spicy explain savoury.",
+          "passage": "The savoury snack was crisp, salty, and filled with peas.",
+          "prompt": "What does savoury mean here?",
+          "options": [
+            "salty or spicy, not sweet",
+            "full of sugar",
+            "cold and watery",
+            "hard to carry"
+          ],
+          "accepted_answers": [
+            "salty or spicy, not sweet",
+            "salty or spicy",
+            "not sweet"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look on both sides of the new word. A large meal with many dishes is called a feast.",
+          "passage": "The family spread rice, vegetables, fruit, and sweets for a feast.",
+          "prompt": "Which clue helps explain feast?",
+          "options": [
+            "many dishes",
+            "one empty cup",
+            "a closed door",
+            "two pencils"
+          ],
+          "accepted_answers": [
+            "many dishes",
+            "many different dishes"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not choose a meaning because it sounds familiar. Check the sentence. Refreshing describes something that makes a tired or thirsty person feel better.",
+          "passage": "After the hot walk, the cool lemon water was refreshing.",
+          "prompt": "What does refreshing mean in this sentence?",
+          "options": [
+            "making someone feel fresh again",
+            "making someone noisier",
+            "covered with salt",
+            "difficult to open"
+          ],
+          "accepted_answers": [
+            "making someone feel fresh again",
+            "makes someone feel fresh again"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the context clue in the new sentence.",
+          "passage": "The hikers were famished, so they quickly finished every sandwich in the box.",
+          "prompt": "What does famished mean?",
+          "options": [],
+          "accepted_answers": [
+            "very hungry",
+            "extremely hungry",
+            "hungry"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a context clue outside a food-wish story.",
+          "passage": "After football practice, Meera took a long sip from her bottle and felt refreshed.",
+          "prompt": "What does refreshed mean here?",
+          "options": [],
+          "accepted_answers": [
+            "fresh again",
+            "less tired",
+            "better after a drink",
+            "rested"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "madhu_wish_connectors",
+      "title": "Join the feast ideas",
+      "focus": "choose and, but, and because",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use and to add, but to contrast, and because to attach a clear reason.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Connectors show how ideas relate. 'Madhu ate fruit and sweets' adds. 'He had food, but he wanted water' contrasts. 'He drank because he was thirsty' gives a reason.",
+          "passage": "Madhu found bananas ___ guavas on the table.",
+          "prompt": "Which connector adds a second fruit?",
+          "options": [
+            "and",
+            "but",
+            "because",
+            "before"
+          ],
+          "accepted_answers": [
+            "and"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Ask what the second idea does. If it is surprising or different, use but.",
+          "passage": "The tray was full of food, ___ the jug was empty.",
+          "prompt": "Which joining word marks the unexpected difference?",
+          "options": [
+            "but",
+            "and",
+            "because",
+            "after"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is putting because before a result instead of a reason. In 'He drank water because he was thirsty,' thirst is the reason.",
+          "passage": "Madhu reached for the jug ___ his throat felt dry.",
+          "prompt": "Which connector correctly introduces the reason?",
+          "options": [
+            "because",
+            "but",
+            "and",
+            "next"
+          ],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Choose the connector without a hint.",
+          "passage": "The soup smelled good, ___ it was too hot to taste.",
+          "prompt": "Write the missing connector.",
+          "options": [],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Join two ideas in a new context with a complete sentence.",
+          "passage": "The class moved indoors. Rain began heavily.",
+          "prompt": "Write one complete sentence that joins the ideas with because.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "State that the class moved or went indoors.",
+              "any_of": [
+                "class moved indoors",
+                "class went indoors",
+                "students moved indoors",
+                "students went inside"
+              ]
+            },
+            {
+              "id": "connector",
+              "description": "Use the reason connector.",
+              "any_of": [
+                "because"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "State that heavy rain began.",
+              "any_of": [
+                "rain began",
+                "it began to rain",
+                "heavy rain",
+                "raining heavily"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    },
+    {
+      "level_id": "madhu_wish_reasoned_writing",
+      "title": "Write a thoughtful wish",
+      "focus": "write a reason and a brief lesson",
+      "skill_ids": [
+        "writing.reason_answer",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Write a meaningful wish with a reason, then summarize what a character learns in one or two clear sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A thoughtful wish names what is wanted and why it helps. Worked example: 'I wish for a shaded water station because walkers could drink and rest.'",
+          "passage": "A neighbourhood playground has no drinking tap, and children carry empty bottles home.",
+          "prompt": "Which wish includes a useful reason?",
+          "options": [
+            "I wish for a water tap because children need safe drinking water.",
+            "I wish for something nice.",
+            "Water tap, blue.",
+            "Because the playground."
+          ],
+          "accepted_answers": [
+            "I wish for a water tap because children need safe drinking water.",
+            "i wish for a water tap because children need safe drinking water"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the answer in two parts: wish + because + benefit. Check that the words after because explain the wish.",
+          "passage": "Wish: a fruit basket for the clinic. Benefit: waiting children can have a healthy snack.",
+          "prompt": "Which ending gives the benefit?",
+          "options": [
+            "because waiting children can have a healthy snack",
+            "but the basket is round",
+            "and fruit is a word",
+            "because baskets have handles"
+          ],
+          "accepted_answers": [
+            "because waiting children can have a healthy snack"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not retell every event when asked for a lesson. A summary keeps the change: Madhu wanted endless food, faced thirst, and learned to value water.",
+          "passage": "Madhu enjoys a magical feast, becomes thirsty, and finally asks for water.",
+          "prompt": "Which summary keeps the important change?",
+          "options": [
+            "Madhu's food wish teaches him that water is an important need.",
+            "Madhu sees plates, bowls, spoons, and a tree.",
+            "Madhu likes mangoes.",
+            "Food has many colours."
+          ],
+          "accepted_answers": [
+            "Madhu's food wish teaches him that water is an important need.",
+            "madhu's food wish teaches him that water is an important need"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write a useful wish for the unseen situation and explain it in your own words.",
+          "passage": "The small library becomes very dark whenever clouds cover the sun. Children stop reading even though books are available.",
+          "prompt": "Write one wish that could help the library and give a reason.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "wish",
+              "description": "Propose a useful improvement.",
+              "any_of": [
+                "lamp",
+                "lights",
+                "electric light",
+                "solar light",
+                "brighter windows",
+                "reading lights"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "Explain how it helps readers.",
+              "any_of": [
+                "children can read",
+                "read on cloudy days",
+                "see the books",
+                "library will be bright",
+                "continue reading"
+              ]
+            },
+            {
+              "id": "connection",
+              "description": "Connect wish and reason clearly.",
+              "any_of": [
+                "because",
+                "so that"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Summarize a lesson from a different kind of wish.",
+          "passage": "Tara wishes to win a race without practising. She tires halfway. The next morning, she begins short daily runs.",
+          "prompt": "Write the lesson of Tara's experience in one or two sentences.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "mistake",
+              "description": "Mention wishing to win without practice.",
+              "any_of": [
+                "without practising",
+                "without practice",
+                "only wished",
+                "wish alone"
+              ]
+            },
+            {
+              "id": "change",
+              "description": "Mention that Tara starts practising.",
+              "any_of": [
+                "daily runs",
+                "begins to practise",
+                "starts practising",
+                "trains"
+              ]
+            },
+            {
+              "id": "lesson",
+              "description": "State that effort or practice is needed.",
+              "any_of": [
+                "practice is needed",
+                "effort matters",
+                "wishes need work",
+                "work towards a goal"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3c9_main_01",
+        "passage": "Aman spends all his coins on stickers. At lunchtime, he has no money left for fruit.",
+        "prompt": "Which main idea fits Aman's experience?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Plan for needs before extra wants.",
+          "Stickers are hard to find.",
+          "Fruit should have pictures.",
+          "Coins are only for games."
+        ],
+        "accepted_answers": [
+          "Plan for needs before extra wants.",
+          "plan for needs before extra wants"
+        ]
+      },
+      {
+        "item_id": "c3c9_main_02",
+        "passage": "Sia carries three storybooks to the park but forgets the cap she needs in the bright sun.",
+        "prompt": "State the main idea of Sia's problem.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "want",
+            "description": "Name the extra item.",
+            "any_of": [
+              "storybooks",
+              "books"
+            ]
+          },
+          {
+            "id": "need",
+            "description": "Name the useful item.",
+            "any_of": [
+              "cap",
+              "sun cap"
+            ]
+          },
+          {
+            "id": "idea",
+            "description": "State that a need should come before extras.",
+            "any_of": [
+              "need first",
+              "needs matter",
+              "pack useful things",
+              "remember what is needed"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c9_infer_01",
+        "passage": "Kabir divides his last orange with a new student who has no snack.",
+        "prompt": "What quality does Kabir show?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "kindness",
+          "carelessness",
+          "anger",
+          "pride"
+        ],
+        "accepted_answers": [
+          "kindness",
+          "kind"
+        ]
+      },
+      {
+        "item_id": "c3c9_infer_02",
+        "passage": "Mili brings a spare bottle for her friend after hearing that the water cooler is closed.",
+        "prompt": "Explain why Mili's action is thoughtful.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "Mention the spare bottle.",
+            "any_of": [
+              "spare bottle",
+              "extra bottle",
+              "brings water"
+            ]
+          },
+          {
+            "id": "need",
+            "description": "Mention the friend's need.",
+            "any_of": [
+              "friend needs water",
+              "cooler is closed",
+              "no water"
+            ]
+          },
+          {
+            "id": "quality",
+            "description": "Name thoughtfulness or care.",
+            "any_of": [
+              "thoughtful",
+              "caring",
+              "helpful",
+              "kind"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c9_read_01",
+        "passage": "First Nia washes the grapes. Next she places them in a bowl. Last she serves them.",
+        "prompt": "What does Nia do after washing the grapes?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "places them in a bowl",
+          "serves them first",
+          "throws them away",
+          "cuts a notebook"
+        ],
+        "accepted_answers": [
+          "places them in a bowl",
+          "she places them in a bowl"
+        ]
+      },
+      {
+        "item_id": "c3c9_read_02",
+        "passage": "The picnic basket holds sandwiches and apples, but the water bottles remain on the kitchen shelf.",
+        "prompt": "Name the item left on the shelf.",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "water bottles",
+          "the water bottles",
+          "bottles"
+        ]
+      },
+      {
+        "item_id": "c3c9_order_01",
+        "passage": "A child peels a banana, eats it, and puts the peel in a bin.",
+        "prompt": "Which action happens last?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "puts the peel in a bin",
+          "peels the banana",
+          "eats the banana",
+          "buys a basket"
+        ],
+        "accepted_answers": [
+          "puts the peel in a bin",
+          "put the peel in a bin"
+        ]
+      },
+      {
+        "item_id": "c3c9_order_02",
+        "passage": "Words: shares the slices / cuts the melon / washes the melon",
+        "prompt": "Arrange the actions from first to last.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "washes the melon, cuts the melon, shares the slices",
+          "washes the melon cuts the melon shares the slices"
+        ]
+      },
+      {
+        "item_id": "c3c9_context_01",
+        "passage": "The crisp papad broke with a light crunch.",
+        "prompt": "What does crisp mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "firm and easy to crunch",
+          "soft and wet",
+          "very sweet",
+          "too heavy"
+        ],
+        "accepted_answers": [
+          "firm and easy to crunch",
+          "crunchy",
+          "firm and crunchy"
+        ]
+      },
+      {
+        "item_id": "c3c9_context_02",
+        "passage": "After missing breakfast, Rohan was ravenous and ate two bowls of rice.",
+        "prompt": "What does ravenous mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "very hungry",
+          "extremely hungry",
+          "hungry"
+        ]
+      },
+      {
+        "item_id": "c3c9_vocab_01",
+        "passage": "The celebration table holds rice, curry, breads, fruit, and sweets.",
+        "prompt": "Which word names this large special meal?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "feast",
+          "sip",
+          "crumb",
+          "seed"
+        ],
+        "accepted_answers": [
+          "feast",
+          "a feast"
+        ]
+      },
+      {
+        "item_id": "c3c9_vocab_02",
+        "passage": "A salty snack and a sugary dessert are placed on separate plates.",
+        "prompt": "Write the word for the salty, non-sweet kind of food.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "savoury",
+          "savory"
+        ]
+      },
+      {
+        "item_id": "c3c9_connector_01",
+        "passage": "Leena packed juice ___ forgot the cups.",
+        "prompt": "Which connector shows the contrast?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "but",
+          "and",
+          "because",
+          "then"
+        ],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "c3c9_connector_02",
+        "passage": "The players drank water ___ the afternoon was hot.",
+        "prompt": "Write the missing reason connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "c3c9_sentence_01",
+        "passage": "The community fridge is empty. Neighbours decide to donate food.",
+        "prompt": "Which is a complete sentence about their action?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The neighbours donate food.",
+          "Because the empty fridge.",
+          "Neighbours and.",
+          "Food on."
+        ],
+        "accepted_answers": [
+          "The neighbours donate food.",
+          "the neighbours donate food"
+        ]
+      },
+      {
+        "item_id": "c3c9_sentence_02",
+        "passage": "The school garden needs water during the holiday.",
+        "prompt": "Write one complete sentence suggesting a helpful action.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "person",
+            "description": "Name someone who can act.",
+            "any_of": [
+              "students",
+              "children",
+              "teacher",
+              "guard",
+              "families",
+              "we"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "Suggest watering or arranging water.",
+            "any_of": [
+              "water the garden",
+              "water the plants",
+              "arrange water",
+              "set up watering"
+            ]
+          },
+          {
+            "id": "complete",
+            "description": "Use a complete thought with a subject and action.",
+            "any_of": [
+              "students can",
+              "we can",
+              "teacher can",
+              "families can",
+              "guard can"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c9_reason_01",
+        "passage": "A roadside water pot is empty on a hot afternoon.",
+        "prompt": "Which response gives a useful wish and reason?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "I wish it were filled because travellers need drinking water.",
+          "I wish for nice things.",
+          "The pot is brown.",
+          "Because the road."
+        ],
+        "accepted_answers": [
+          "I wish it were filled because travellers need drinking water.",
+          "i wish it were filled because travellers need drinking water"
+        ]
+      },
+      {
+        "item_id": "c3c9_reason_02",
+        "passage": "The class snack box has biscuits but no fruit.",
+        "prompt": "Suggest one helpful wish and explain why.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "wish",
+            "description": "Wish for fruit or a healthy choice.",
+            "any_of": [
+              "fruit",
+              "bananas",
+              "apples",
+              "healthy snack"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "Explain a health or variety benefit.",
+            "any_of": [
+              "healthy",
+              "good for us",
+              "more variety",
+              "balanced snack"
+            ]
+          },
+          {
+            "id": "link",
+            "description": "Connect the reason.",
+            "any_of": [
+              "because",
+              "so that"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c3c9_summary_01",
+        "passage": "Varun wishes for a room full of games. When the power fails, he notices that a simple torch would help his family more.",
+        "prompt": "Which summary best captures Varun's learning?",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Varun learns that a useful need can matter more than extra games.",
+          "Varun owns a room.",
+          "The power is a game.",
+          "Torches are always green."
+        ],
+        "accepted_answers": [
+          "Varun learns that a useful need can matter more than extra games.",
+          "varun learns that a useful need can matter more than extra games"
+        ]
+      },
+      {
+        "item_id": "c3c9_summary_02",
+        "passage": "Pihu asks for a giant cake, eats one slice, and then shares the rest with families at a shelter.",
+        "prompt": "Summarize Pihu's change in one or two sentences.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "start",
+            "description": "Mention the giant cake wish.",
+            "any_of": [
+              "giant cake",
+              "large cake",
+              "wished for cake"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "Mention sharing the remaining cake.",
+            "any_of": [
+              "shares the rest",
+              "shared the cake",
+              "gives cake"
+            ]
+          },
+          {
+            "id": "change",
+            "description": "Show movement from wanting for herself to helping others.",
+            "any_of": [
+              "helps others",
+              "becomes generous",
+              "thinks of others",
+              "shares with families"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      }
+    ]
+  }
+}

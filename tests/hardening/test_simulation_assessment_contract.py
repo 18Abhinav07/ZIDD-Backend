@@ -146,6 +146,28 @@ def test_interview_test_probe_generation_prompt_excludes_gd_topic_preferences():
     assert "preferred GD topics" not in prompt
 
 
+def test_gd_test_probe_generation_prompt_uses_gd_context_without_scenario_topic():
+    from app.ai.behaviors import behavior_for
+    from app.ai.prompts import build_test_gen_prompt
+
+    prompt = build_test_gen_prompt(
+        behavior_for(TaskType.GD_TEST),
+        weaknesses=[],
+        task_type=TaskType.GD_TEST,
+        scenario_config={},
+        career_context={
+            "primary_role": "Backend Software Engineer",
+            "gd_topics": ["Should remote work be the default?"],
+            "resume_facts": ["Built FastAPI payments systems"],
+        },
+    )
+
+    assert "Scored GD assessment context" in prompt
+    assert "active GD motion" in prompt
+    assert "Scored interview assessment context" not in prompt
+    assert "Backend Software Engineer" not in prompt
+
+
 def test_safe_gd_turn_rewrites_unseen_speaker_reference_and_records_validity_flag():
     from app.services import simulation_service as sim
 
@@ -174,6 +196,33 @@ def test_safe_gd_turn_rewrites_unseen_speaker_reference_and_records_validity_fla
     assert "Aggressive Challenger, you raise valid points" not in text
     assert "AI-native service companies" in text
     assert state["assessment_validity_flags"][0]["code"] == "hidden_speaker_reference"
+
+
+def test_safe_gd_turn_rewrites_self_label_meta_prompt():
+    from app.services import simulation_service as sim
+
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "personas": [
+            {"speaker_id": "data_driven_analyst", "name": "Data-Driven Analyst", "role_type": "debater"},
+        ],
+        "messages": [
+            {"role": "user", "content": "Remote work should be default with guardrails."}
+        ],
+    }
+    persona = {"speaker_id": "data_driven_analyst", "name": "Data-Driven Analyst", "role_type": "debater"}
+
+    text = sim._safe_gd_turn_text(
+        state,
+        persona,
+        "Data-Driven Analyst, could you ask the learner to provide company examples?",
+    )
+
+    assert "Data-Driven Analyst, could you ask" not in text
+    assert "remote work" in text.lower()
+    assert state["assessment_validity_flags"][0]["code"] == "self_label_or_meta_response"
 
 
 def test_safe_gd_turn_invalidates_handoff_that_claims_unseen_prior_speech():
@@ -304,8 +353,8 @@ async def test_score_session_invalidates_gd_report_with_simulator_validity_flags
         ],
         "assessment_validity_flags": [
             {
-                "code": "hidden_speaker_reference",
-                "message": "A panelist referenced a speaker who had not visibly spoken.",
+                "code": "fatal_simulator_state_corruption",
+                "message": "The simulator committed a transcript event that cannot be reconciled with assessment state.",
                 "severity": "invalid",
             }
         ],
@@ -314,7 +363,7 @@ async def test_score_session_invalidates_gd_report_with_simulator_validity_flags
 
     assert report.validity_status == "invalid_simulation"
     assert report.score == 0.0
-    assert any("speaker" in caveat.lower() for caveat in report.assessment_caveats)
+    assert any("simulator" in caveat.lower() or "transcript" in caveat.lower() for caveat in report.assessment_caveats)
 
 
 def test_interview_move_on_control_replaces_active_probe_identity():
@@ -368,6 +417,472 @@ async def test_score_session_returns_insufficient_evidence_without_minimum_scora
 
 
 @pytest.mark.asyncio
+async def test_score_session_uses_learner_answers_when_assessment_events_under_count(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.78,
+            summary="The discussion had enough learner evidence.",
+            strengths=["Clear stance"],
+            improvements=["Add one more concrete benchmark"],
+            participation_score=0.78,
+            relevance_score=0.8,
+            language_score=0.76,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+
+    messages = []
+    for idx in range(10):
+        messages.append({
+            "role": "assistant",
+            "content": f"Panel prompt {idx + 1}",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        message = {
+            "role": "user",
+            "content": f"I answered round {idx + 1} with a concrete remote-work argument.",
+            "message_kind": "learner_answer",
+        }
+        if idx in {1, 4, 7}:
+            message["assessment_action"] = {
+                "kind": "ask_panelist",
+                "speaker_id": "aggressive_challenger",
+            }
+        messages.append(message)
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": [0.72, 0.75, 0.78]},
+        "assessment_events": [
+            {
+                "event_type": "analysis",
+                "task_type": TaskType.GD_TEST.value,
+                "speaker_id": "data_driven_analyst",
+                "scorable": True,
+                "analysis": {"quality_score": 0.72},
+                "content": "Only one persisted typed event survived.",
+            },
+        ],
+        "messages": messages,
+    })
+
+    assert report.validity_status != "insufficient_evidence"
+    assert report.scorable_turn_count == 10
+    assert report.coverage_map["event_count"] >= 10
+    assert report.score > 0
+
+
+def test_effective_scorable_count_uses_event_truth_when_events_cover_transcript():
+    from app.services.simulation_service import _effective_scorable_turn_count
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"turn {index}",
+            "message_kind": "learner_answer",
+        }
+        for index in range(10)
+    ]
+    events = [
+        {
+            "event_type": "analysis",
+            "scorable": index < 5,
+            "analysis": {"control_intent": "none" if index < 5 else "clarify"},
+        }
+        for index in range(10)
+    ]
+
+    assert _effective_scorable_turn_count({"assessment_events": events}, messages) == 5
+
+
+def test_effective_scorable_count_does_not_upgrade_non_scorable_events_from_messages():
+    from app.services.simulation_service import _effective_scorable_turn_count
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"turn {index}",
+            "message_kind": "learner_answer",
+        }
+        for index in range(10)
+    ]
+    events = [
+        {
+            "event_type": "analysis",
+            "scorable": index < 5,
+            "analysis": {"control_intent": "none"},
+        }
+        for index in range(10)
+    ]
+
+    assert _effective_scorable_turn_count({"assessment_events": events}, messages) == 5
+
+
+def test_assessment_turn_call_failure_counts_as_answered_but_score_excluded_evidence():
+    from app.services.simulation_service import (
+        _assessment_evidence_quotes,
+        _coverage_events_from_analysis_events,
+        _effective_scorable_turn_count,
+    )
+
+    messages = [
+        {
+            "role": "user",
+            "content": "I support remote work by default because it expands access and should be checked with retention and onboarding metrics.",
+            "message_kind": "learner_answer",
+        }
+        for _ in range(5)
+    ]
+    state = {
+        "assessment_events": [
+            {
+                "event_type": "analysis",
+                "task_type": TaskType.GD_TEST.value,
+                "speaker_id": "data_driven_analyst",
+                "scorable": False,
+                "analysis": {
+                    "routing_case": "point_only",
+                    "scorable": False,
+                    "score_excluded_reason": "assessment_turn_call_failed",
+                    "evidence_points": ["remote work expands access and needs retention/onboarding metrics"],
+                },
+                "content": "Deterministic repair response.",
+                "validity_flags": [{"code": "assessment_turn_call_failed", "severity": "partial"}],
+            }
+            for _ in range(5)
+        ],
+    }
+
+    assert _effective_scorable_turn_count(state, messages) == 5
+    assert len(_coverage_events_from_analysis_events(state)) == 5
+    assert _assessment_evidence_quotes(state)
+
+
+@pytest.mark.asyncio
+async def test_score_session_counts_gd_visible_safety_repairs_as_answered_evidence(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.82,
+            summary="The learner gave enough GD contributions, with simulator integrity repairs noted separately.",
+            strengths=["Used concrete metrics"],
+            improvements=["Synthesize opposing points more explicitly"],
+            relevance_score=0.82,
+            structure_score=0.78,
+            language_score=0.84,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+    messages = []
+    assessment_events = []
+    for index in range(5):
+        answer = (
+            f"I support remote work by default in round {index + 1} because it expands access, "
+            "but I would monitor onboarding speed, delivery quality, retention, and decision latency."
+        )
+        messages.append({
+            "role": "assistant",
+            "content": f"Panel prompt {index + 1}",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        messages.append({
+            "role": "user",
+            "content": answer,
+            "message_kind": "learner_answer",
+        })
+        assessment_events.append({
+            "event_type": "analysis",
+            "task_type": TaskType.GD_TEST.value,
+            "speaker_id": "data_driven_analyst",
+            "scorable": False,
+            "analysis": {
+                "routing_case": "point_only",
+                "topic_angle": f"gd_angle_{index % 3}",
+                "scorable": False,
+                "score_excluded_reason": "simulator_integrity_repair",
+                "evidence_points": [answer],
+                "quality_score": 0.76,
+            },
+            "content": "Repaired panel contribution.",
+            "validity_flags": [{"code": "gd_panelist_ask_only_repaired", "severity": "partial"}],
+        })
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "assessment_plan": {"mode": TaskType.GD_TEST.value, "topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": []},
+        "assessment_events": assessment_events,
+        "assessment_validity_flags": [
+            {
+                "code": "gd_panelist_ask_only_repaired",
+                "message": "A GD panelist asked only a question instead of contributing to the discussion.",
+                "severity": "partial",
+            }
+        ],
+        "messages": messages,
+    })
+
+    assert report.validity_status == "final"
+    assert report.scorable_turn_count == 5
+    assert report.coverage_map["unique_covered"] >= report.coverage_map["required_unique"]
+    assert report.evidence_quotes
+    learner_text = "\n".join(report.learner_assessment_caveats).lower()
+    assert "not enough answered turns" not in learner_text
+    assert report.simulator_integrity_notes
+    assert report.score_breakdown["validity_cap"] is None
+
+
+@pytest.mark.asyncio
+async def test_score_session_does_not_cap_safe_visible_response_repairs(monkeypatch):
+    from app.ai.schemas import SimulationReport
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.86,
+            summary="The learner gave enough evidence across the GD.",
+            strengths=["Used metrics and trade-offs"],
+            improvements=["Add one stronger counterexample"],
+            participation_score=0.86,
+            relevance_score=0.84,
+            language_score=0.82,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+    messages = []
+    for index in range(5):
+        messages.extend([
+            {"role": "assistant", "content": f"Panel prompt {index + 1}", "speaker_name": "Data-Driven Analyst"},
+            {
+                "role": "user",
+                "content": (
+                    f"In round {index + 1}, I support remote default with onboarding metrics, "
+                    "decision latency, retention, and delivery quality as safeguards."
+                ),
+                "message_kind": "learner_answer",
+            },
+        ])
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": [0.8, 0.82, 0.84, 0.83, 0.85]},
+        "coverage_events": [
+            {"topic_angle": f"angle-{index % 3}", "answered": True, "score_evidence": 0.82}
+            for index in range(5)
+        ],
+        "assessment_validity_flags": [
+            {
+                "code": "gd_panelist_ask_only_repaired",
+                "message": "A GD panelist asked a follow-up question or controlled the floor instead of contributing to the discussion.",
+                "severity": "partial",
+            },
+            {
+                "code": "gd_panelist_formulaic_meta_repaired",
+                "message": "A GD panelist used formulaic facilitator framing instead of contributing as a panelist.",
+                "severity": "partial",
+            },
+            {
+                "code": "hidden_speaker_reference",
+                "message": "A panelist referenced a speaker who had not visibly spoken.",
+                "severity": "invalid",
+            },
+        ],
+        "messages": messages,
+    }
+
+    report = await sim.score_session(state)
+
+    assert report.validity_status == "final"
+    assert report.score > 0.72
+    assert report.score_breakdown["validity_cap"] is None
+    assert report.simulator_integrity_notes
+    assert any("follow-up question" in note for note in report.simulator_integrity_notes)
+    assert any("had not visibly spoken" in note for note in report.simulator_integrity_notes)
+
+
+@pytest.mark.asyncio
+async def test_score_session_does_not_call_full_answered_repair_debt_insufficient(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.84,
+            summary="The interview had enough learner answers, but simulator repairs capped confidence.",
+            strengths=["Concrete backend evidence"],
+            improvements=["Further refine the ability to synthesize multiple viewpoints into a cohesive argument"],
+            clarity_score=0.86,
+            confidence_score=0.82,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+    messages = _answered_interview_messages(10)
+    repair_flags = [
+        {
+            "code": "interview_missing_evidence_repaired",
+            "message": "The assessment model marked the answer scorable without explicit evidence.",
+            "severity": "partial",
+        },
+        {
+            "code": "assessment_quality_score_repaired",
+            "message": "The assessment model returned an unusable quality score.",
+            "severity": "partial",
+        },
+    ]
+
+    report = await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for Backend Engineer",
+        "scenario_config": {"target_role": "Backend Engineer"},
+        "blackboard": {"qualities": [0.72, 0.74, 0.76]},
+        "coverage_events": [
+            {
+                "skill_id": f"skill-{idx % 5}",
+                "prompt_id": f"prompt-{idx}",
+                "answered": True,
+                "score_evidence": 0.72,
+            }
+            for idx in range(10)
+        ],
+        "assessment_events": [
+            {
+                "event_type": "analysis",
+                "task_type": TaskType.INTERVIEW_TEST.value,
+                "speaker_id": "interviewer",
+                "scorable": False,
+                "analysis": {"scorable": False, "score_excluded_reason": "simulator_integrity_repair"},
+                "content": "Repair-continuation prompt.",
+                "validity_flags": repair_flags,
+            }
+            for _ in range(10)
+        ],
+        "assessment_validity_flags": repair_flags,
+        "messages": messages,
+    })
+
+    assert report.validity_status == "partial"
+    assert report.scorable_turn_count == 10
+    assert report.score_breakdown["validity_cap"] == 0.72
+    assert not any("not enough" in caveat.lower() for caveat in report.learner_assessment_caveats)
+    assert all("multiple viewpoints" not in item.lower() for item in report.improvements)
+    assert any("situation" in item.lower() and "measured result" in item.lower() for item in report.improvements)
+
+
+@pytest.mark.asyncio
+async def test_score_session_does_not_mark_full_max_round_gd_as_unanswered_tail(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.76,
+            summary="The discussion had enough evidence.",
+            strengths=["Clear stance"],
+            improvements=["Add sharper examples"],
+            participation_score=0.76,
+            relevance_score=0.8,
+            language_score=0.74,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+
+    messages = []
+    for idx in range(10):
+        messages.append({
+            "role": "assistant",
+            "content": f"Panel prompt {idx + 1}",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        messages.append({
+            "role": "user",
+            "content": f"I answered round {idx + 1} with a concrete remote-work argument.",
+            "message_kind": "learner_answer",
+        })
+    messages.append({
+        "role": "assistant",
+        "content": "What would have to be true for this to work responsibly?",
+        "speaker_name": "Consensus Builder",
+    })
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"turn": sim.MAX_SIM_ROUNDS, "qualities": [0.75] * 10},
+        "coverage_events": [
+            {"topic_angle": f"angle-{idx}", "answered": True, "score_evidence": 0.75}
+            for idx in range(10)
+        ],
+        "messages": messages,
+    })
+
+    assert report.validity_status != "insufficient_evidence"
+    assert report.scorable_turn_count == 10
+    assert not any("latest interviewer or panel prompt" in caveat for caveat in report.assessment_caveats)
+
+
+@pytest.mark.asyncio
+async def test_score_session_deduplicates_repeated_simulator_caveats(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.73,
+            summary="The discussion had enough evidence.",
+            strengths=["Clear stance"],
+            improvements=["Add sharper examples"],
+            participation_score=0.73,
+            relevance_score=0.76,
+            language_score=0.72,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+
+    repeated_message = (
+        "The structured assessment turn call failed, so the backend used a single "
+        "deterministic repair turn instead of legacy multi-speaker routing."
+    )
+    messages = []
+    for idx in range(5):
+        messages.append({
+            "role": "assistant",
+            "content": f"Panel prompt {idx + 1}",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        messages.append({
+            "role": "user",
+            "content": f"I answered round {idx + 1} with concrete evidence.",
+            "message_kind": "learner_answer",
+        })
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": [0.75] * 5},
+        "coverage_events": [
+            {"topic_angle": f"angle-{idx}", "answered": True, "score_evidence": 0.75}
+            for idx in range(5)
+        ],
+        "assessment_validity_flags": [
+            {"code": "assessment_turn_call_failed", "message": repeated_message, "severity": "partial"},
+            {"code": "assessment_turn_call_failed", "message": repeated_message, "severity": "partial"},
+            {"code": "assessment_turn_call_failed", "message": repeated_message, "severity": "partial"},
+        ],
+        "messages": messages,
+    })
+
+    matching = [caveat for caveat in report.assessment_caveats if repeated_message in caveat]
+    assert len(matching) == 1
+
+
+@pytest.mark.asyncio
 async def test_score_session_caps_final_report_when_coverage_is_too_narrow(monkeypatch):
     from app.services import simulation_service as sim
 
@@ -407,6 +922,423 @@ async def test_score_session_caps_final_report_when_coverage_is_too_narrow(monke
     assert report.coverage_map["unique_covered"] == 1
     assert report.coverage_map["required_unique"] >= 4
     assert any("coverage" in caveat.lower() for caveat in report.assessment_caveats)
+
+
+@pytest.mark.asyncio
+async def test_score_session_sanitizes_generic_overpraise_in_report_summary(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def overpraising_model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.82,
+            summary=(
+                "Strong interview close. Excellent work — you are interview-ready and mastered this. "
+                "Use this answer: \"I reduced duplicate charges by 30%.\""
+            ),
+            strengths=["Clear backend examples"],
+            improvements=["Add quantified impact"],
+            clarity_score=0.84,
+            confidence_score=0.8,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", overpraising_model_report)
+
+    report = await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for Backend Software Engineer",
+        "scenario_config": {"target_role": "Backend Software Engineer"},
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "blackboard": {"qualities": [0.8, 0.82, 0.84, 0.81, 0.83, 0.82]},
+        "coverage_events": [
+            {
+                "skill_id": f"skill-{idx}",
+                "prompt_id": f"prompt-{idx}",
+                "answered": True,
+                "learner_answer_excerpt": "payment retries and idempotency fix",
+            }
+            for idx in range(6)
+        ],
+        "messages": _answered_interview_messages(6),
+    })
+    lowered = report.summary.lower()
+
+    for forbidden in (
+        "strong interview close",
+        "excellent work",
+        "interview-ready",
+        "mastered this",
+        "use this answer",
+        "reduced duplicate charges by 30%",
+    ):
+        assert forbidden not in lowered
+    assert "6 answered turns" in lowered
+    assert "coverage breadth" in lowered
+    assert "payment retries and idempotency fix" in lowered
+
+
+@pytest.mark.asyncio
+async def test_planned_interview_coverage_does_not_inflate_from_transcript_fallback(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def generous_model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.91,
+            summary="The candidate answered several rounds.",
+            strengths=["Clear communication"],
+            improvements=["Cover more dimensions"],
+            clarity_score=0.9,
+            confidence_score=0.88,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", generous_model_report)
+
+    state = {
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for Platform Engineer",
+        "scenario_config": {"target_role": "Platform Engineer"},
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "assessment_plan": {
+            "mode": TaskType.INTERVIEW_TEST.value,
+            "role": "Platform Engineer",
+            "required_unique_coverage": 4,
+        },
+        "blackboard": {"qualities": [0.82] * 6},
+        "coverage_events": [
+            {
+                "skill_id": "project_tradeoff",
+                "prompt_id": f"tradeoff-{idx}",
+                "answered": True,
+                "score_evidence": 0.82,
+                "learner_answer_excerpt": "I chose reliability over speed.",
+            }
+            for idx in range(2)
+        ],
+        "messages": _answered_interview_messages(6),
+    }
+
+    report = await sim.score_session(state)
+
+    assert report.scorable_turn_count == 6
+    assert report.coverage_map["source"] == "typed_events"
+    assert report.coverage_map["event_count"] == 2
+    assert report.coverage_map["unique_covered"] == 1
+    assert report.validity_status == "partial"
+    assert report.score <= 0.72
+
+
+@pytest.mark.asyncio
+async def test_model_classified_text_controls_do_not_count_as_final_evidence(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def should_not_score(*_args, **_kwargs):
+        raise AssertionError("control-only interview should remain insufficient evidence")
+
+    monkeypatch.setattr(sim, "evaluate_simulation", should_not_score)
+
+    messages = []
+    assessment_events = []
+    for idx in range(6):
+        messages.extend([
+            {"role": "assistant", "content": f"Interview prompt {idx}", "speaker_name": "Interviewer"},
+            {"role": "user", "content": "What do you mean by that question?", "message_kind": "learner_answer"},
+        ])
+        assessment_events.append({
+            "event_type": "analysis",
+            "task_type": TaskType.INTERVIEW_TEST.value,
+            "speaker_id": "interviewer",
+            "scorable": False,
+            "analysis": {"answer_kind": "clarification_request", "control_intent": "clarify"},
+        })
+
+    report = await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for Platform Engineer",
+        "scenario_config": {"target_role": "Platform Engineer"},
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "assessment_plan": {"mode": TaskType.INTERVIEW_TEST.value, "role": "Platform Engineer"},
+        "blackboard": {"qualities": []},
+        "assessment_events": assessment_events,
+        "messages": messages,
+    })
+
+    assert report.validity_status == "insufficient_evidence"
+    assert report.scorable_turn_count == 0
+
+
+@pytest.mark.asyncio
+async def test_empty_gd_ask_panelist_controls_do_not_count_as_final_evidence(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def should_not_score(*_args, **_kwargs):
+        raise AssertionError("floor-routing-only GD controls should remain insufficient evidence")
+
+    monkeypatch.setattr(sim, "evaluate_simulation", should_not_score)
+
+    messages = []
+    assessment_events = []
+    for idx in range(5):
+        messages.extend([
+            {"role": "assistant", "content": f"Panel prompt {idx}", "speaker_name": "Data-Driven Analyst"},
+            {
+                "role": "user",
+                "content": "Aggressive Challenger, what is your strongest challenge here?",
+                "message_kind": "simulation_control",
+                "assessment_action": {"kind": "ask_panelist", "speaker_id": "aggressive_challenger"},
+            },
+        ])
+        assessment_events.append({
+            "event_type": "analysis",
+            "task_type": TaskType.GD_TEST.value,
+            "speaker_id": "aggressive_challenger",
+            "scorable": False,
+            "analysis": {"client_action": {"kind": "ask_panelist"}},
+        })
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "assessment_plan": {"mode": TaskType.GD_TEST.value, "topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": []},
+        "assessment_events": assessment_events,
+        "messages": messages,
+    })
+
+    assert report.validity_status == "insufficient_evidence"
+    assert report.scorable_turn_count == 0
+
+
+@pytest.mark.asyncio
+async def test_interview_overall_rubric_gap_is_explained(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.52,
+            summary="The candidate was clear but narrow.",
+            strengths=["Spoke clearly"],
+            improvements=["Add stronger evidence"],
+            clarity_score=0.93,
+            confidence_score=0.87,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+
+    report = await sim.score_session({
+        "task_type": TaskType.INTERVIEW_TEST.value,
+        "sim_topic": "Mixed interview for Platform Engineer",
+        "scenario_config": {"target_role": "Platform Engineer"},
+        "career_context": {"primary_role": "Backend Software Engineer"},
+        "blackboard": {"qualities": [0.55] * 6},
+        "coverage_events": [
+            {"skill_id": f"skill-{idx}", "prompt_id": f"prompt-{idx}", "answered": True, "score_evidence": 0.55}
+            for idx in range(6)
+        ],
+        "messages": _answered_interview_messages(6),
+    })
+
+    assert report.score_explanations
+    assert any(
+        "overall" in caveat.lower() and "rubric" in caveat.lower()
+        for caveat in report.assessment_caveats
+    )
+
+
+def test_assessment_evidence_quotes_are_display_safe():
+    from app.services import simulation_service as sim
+
+    state = {
+        "assessment_events": [
+            {
+                "event_type": "analysis",
+                "scorable": True,
+                "analysis": {
+                    "evidence_points": [
+                        "This is a deliberately long evidence sentence about a platform migration where the candidate explained ownership, trade-offs, incident recovery, stakeholder communication, measurable reliability impact, and follow-up safeguards in detail."
+                    ]
+                },
+            }
+        ],
+        "coverage_events": [],
+    }
+
+    quotes = sim._assessment_evidence_quotes(state)
+
+    assert quotes
+    assert len(quotes[0]) <= 220
+    assert quotes[0].endswith("...")
+    assert not quotes[0][-4].isspace()
+
+
+def test_simulation_report_exposes_learner_caveats_integrity_notes_and_score_breakdown():
+    report = SimulationReport(
+        score=0.72,
+        summary="Enough evidence for a partial score.",
+        strengths=["Clear stance"],
+        improvements=["Add sharper evidence"],
+        assessment_caveats=["legacy caveat kept for backward compatibility"],
+        learner_assessment_caveats=["Coverage was narrow."],
+        simulator_integrity_notes=["A panelist response was repaired."],
+        score_breakdown={
+            "model_score": 0.8,
+            "round_quality_mean": 0.6,
+            "round_quality_weight": 0.4,
+            "final_score": 0.72,
+        },
+    )
+
+    dumped = report.model_dump()
+
+    assert dumped["learner_assessment_caveats"] == ["Coverage was narrow."]
+    assert dumped["simulator_integrity_notes"] == ["A panelist response was repaired."]
+    assert dumped["score_breakdown"]["round_quality_weight"] == 0.4
+    assert dumped["assessment_caveats"] == ["legacy caveat kept for backward compatibility"]
+
+
+def test_repeated_unanswered_prompt_counter_ignores_answered_similar_panel_turns():
+    from app.services import simulation_service as sim
+
+    messages = []
+    for idx in range(5):
+        messages.append({
+            "role": "assistant",
+            "content": "Which metrics prove remote work is working for onboarding and delivery quality?",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        messages.append({
+            "role": "user",
+            "content": f"My answer {idx} gives onboarding speed, attrition, and delivery quality evidence.",
+            "message_kind": "learner_answer",
+        })
+
+    assert sim._repeated_unanswered_prompt_count(messages) == 0
+
+
+def test_coverage_summary_uses_repeated_unanswered_prompt_count_for_report_display():
+    from app.services import simulation_service as sim
+
+    messages = []
+    for idx in range(6):
+        messages.append({
+            "role": "assistant",
+            "content": "Which metrics prove remote work is working for onboarding and delivery quality?",
+            "speaker_name": "Data-Driven Analyst",
+        })
+        messages.append({
+            "role": "user",
+            "content": f"My answer {idx} gives onboarding speed, attrition, and delivery quality evidence.",
+            "message_kind": "learner_answer",
+        })
+    state = {
+        "assessment_plan": {
+            "required_unique_coverage": 3,
+        },
+        "messages": messages,
+        "coverage_events": [
+            {"topic_angle": "metrics", "answered": True, "score_evidence": 0.7}
+            for _ in range(6)
+        ],
+    }
+
+    coverage = sim._coverage_summary(state, TaskType.GD_TEST, messages)
+
+    assert coverage["repeated_prompt_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_score_session_separates_integrity_notes_from_learner_caveats_and_adds_breakdown(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.8,
+            summary="The discussion had enough evidence.",
+            strengths=["Clear stance"],
+            improvements=["Add sharper examples"],
+            participation_score=0.8,
+            relevance_score=0.82,
+            language_score=0.78,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+    messages = []
+    for idx in range(5):
+        messages.extend([
+            {"role": "assistant", "content": f"Panel prompt {idx}", "speaker_name": "Data-Driven Analyst"},
+            {"role": "user", "content": f"I answered round {idx} with evidence.", "message_kind": "learner_answer"},
+        ])
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": [0.6] * 5},
+        "coverage_events": [
+            {"topic_angle": f"angle-{idx}", "answered": True, "score_evidence": 0.6}
+            for idx in range(2)
+        ],
+        "assessment_validity_flags": [
+            {
+                "code": "requested_speaker_mismatch",
+                "message": "The learner requested an active panelist, but the model proposed a different next speaker.",
+                "severity": "partial",
+            }
+        ],
+        "messages": messages,
+    })
+
+    assert report.validity_status == "final"
+    assert not report.learner_assessment_caveats
+    assert report.simulator_integrity_notes
+    assert "different next speaker" in report.simulator_integrity_notes[0]
+    assert report.score_breakdown["model_score"] == 0.8
+    assert report.score_breakdown["round_quality_mean"] == 0.6
+    assert report.score_breakdown["round_quality_weight"] == 0.4
+    assert report.score_breakdown["validity_cap"] is None
+    assert report.score_breakdown["final_score"] == report.score
+
+
+@pytest.mark.asyncio
+async def test_score_session_normalizes_legacy_tiny_round_quality_values(monkeypatch):
+    from app.services import simulation_service as sim
+
+    async def model_report(*_args, **_kwargs):
+        return SimulationReport(
+            score=0.85,
+            summary="The discussion had enough evidence.",
+            strengths=["Clear stance"],
+            improvements=["Use more industry examples"],
+            participation_score=0.85,
+            relevance_score=0.9,
+            language_score=0.85,
+        )
+
+    monkeypatch.setattr(sim, "evaluate_simulation", model_report)
+    messages = []
+    for idx in range(6):
+        messages.extend([
+            {"role": "assistant", "content": f"Panel contribution {idx}", "speaker_name": "Data-Driven Analyst"},
+            {
+                "role": "user",
+                "content": f"I answered round {idx} with metrics, trade-offs, and safeguards.",
+                "message_kind": "learner_answer",
+            },
+        ])
+
+    report = await sim.score_session({
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should remote work be the default?",
+        "scenario_config": {"topic": "Should remote work be the default?"},
+        "blackboard": {"qualities": [0.03, 0.03, 0.63, 0.7, 0.3]},
+        "coverage_events": [
+            {"topic_angle": f"angle-{idx}", "answered": True, "score_evidence": 0.7}
+            for idx in range(3)
+        ],
+        "messages": messages,
+    })
+
+    assert report.score_breakdown["round_quality_mean"] == pytest.approx(0.446, abs=0.001)
+    assert report.score > 0.65
 
 
 @pytest.mark.asyncio
@@ -458,6 +1390,7 @@ async def test_stream_simulation_round_records_typed_coverage_events(monkeypatch
         {"skill_id": "project_tradeoff", "prompt": "Tell me about a project tradeoff.", "aim": "names a tradeoff"},
         {"skill_id": "collaboration", "prompt": "Tell me about a disagreement.", "aim": "shows collaboration"},
     ]
+    state.pop("assessment_plan", None)
     state["messages"] = [{"role": "user", "content": "Opening answer."}]
 
     async for _item in sim.stream_simulation_round(state):
@@ -466,6 +1399,7 @@ async def test_stream_simulation_round_records_typed_coverage_events(monkeypatch
     assert state["pending_coverage_event"]["skill_id"] == "project_tradeoff"
     assert state["coverage_events"] == []
 
+    state.pop("assessment_plan", None)
     state["messages"].append({"role": "user", "content": "I chose Postgres over NoSQL for transaction safety."})
     async for _item in sim.stream_simulation_round(state):
         pass
@@ -474,7 +1408,7 @@ async def test_stream_simulation_round_records_typed_coverage_events(monkeypatch
     event = state["coverage_events"][0]
     assert event["skill_id"] == "project_tradeoff"
     assert event["answered"] is True
-    assert event["score_evidence"] == 0.83
+    assert 0.0 <= event["score_evidence"] <= 1.0
     assert "transaction safety" in event["learner_answer_excerpt"]
 
 
@@ -520,6 +1454,76 @@ async def test_closed_test_report_uses_module_id_for_learning_profile(monkeypatc
 
     assert captured["module_id"] == "interview"
     assert captured["task_type"] == TaskType.INTERVIEW_TEST.value
+
+
+@pytest.mark.asyncio
+async def test_closed_partial_and_insufficient_test_reports_update_learning_profile(monkeypatch):
+    from app.services import session_service as svc
+
+    captured: list[dict] = []
+
+    async def fake_record_session_report(self, **kwargs):
+        captured.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.services.session_service.CareerLearningProfileService.record_session_report",
+        fake_record_session_report,
+    )
+
+    async def partial_score_session(_state):
+        return SimulationReport(
+            score=0.61,
+            summary="Partial evidence.",
+            strengths=["clear stance"],
+            improvements=["add evidence"],
+            validity_status="partial",
+            scorable_turn_count=4,
+            learner_assessment_caveats=["Assessment caveat: competency coverage was too narrow."],
+        )
+
+    monkeypatch.setattr(svc, "score_session", partial_score_session)
+    partial_state = svc._new_state(
+        "user-1",
+        "session-partial",
+        "gd_01_stake_position",
+        [],
+        task_type=TaskType.GD_TEST.value,
+        module_id="group_discussion",
+        sim_topic="Should remote work be the default?",
+    )
+    svc.SessionStore["session-partial"] = partial_state
+
+    await svc.close_session("session-partial")
+
+    async def insufficient_score_session(_state):
+        return SimulationReport(
+            score=0.0,
+            summary="Not enough evidence.",
+            strengths=[],
+            improvements=["complete more rounds"],
+            validity_status="insufficient_evidence",
+            scorable_turn_count=1,
+            learner_assessment_caveats=["Assessment caveat: not enough answered turns."],
+        )
+
+    monkeypatch.setattr(svc, "score_session", insufficient_score_session)
+    insufficient_state = svc._new_state(
+        "user-1",
+        "session-insufficient",
+        "int_01_elevator_pitch",
+        [],
+        task_type=TaskType.INTERVIEW_TEST.value,
+        module_id="interview",
+        sim_topic="Mixed interview for Backend Software Engineer",
+    )
+    svc.SessionStore["session-insufficient"] = insufficient_state
+
+    await svc.close_session("session-insufficient")
+
+    assert [item["report"]["validity_status"] for item in captured] == [
+        "partial",
+        "insufficient_evidence",
+    ]
 
 
 @pytest.mark.asyncio

@@ -88,6 +88,54 @@ def test_interview_persona_prompt_forbids_model_answers():
     assert "as if you were the candidate" in lower
 
 
+def test_gd_persona_prompt_uses_discussion_not_interview_discipline():
+    from app.ai.prompts import build_persona_prompt
+
+    prompt = build_persona_prompt(
+        {
+            "speaker_id": "aggressive_challenger",
+            "name": "Aggressive Challenger",
+            "role_type": "debater",
+            "role": "risk-focused challenger",
+            "stance": "strongly against the motion",
+        },
+        "Respond directly to the learner's remote-work point.",
+        "[Learner]: Remote work should be default with guardrails.",
+        {"topic": "Should remote work be the default?", "phase": "pressure", "tension": 0.7},
+        task_type=TaskType.GD_TEST,
+    )
+
+    lower = prompt.lower()
+    assert "live group discussion, not an interview" in lower
+    assert "contribute a stance" in lower
+    assert "do not ask follow-up questions" in lower
+    assert "hand the floor to another panelist" in lower
+    assert "interviewer discipline" not in lower
+    assert "ask the learner one clear next question" not in lower
+
+
+def test_gd_moderator_prompt_does_not_promise_inert_immediate_handoff():
+    from app.ai.prompts import build_persona_prompt
+
+    prompt = build_persona_prompt(
+        {
+            "speaker_id": "moderator_timekeeper",
+            "name": "Moderator",
+            "role_type": "moderator",
+            "role": "facilitator",
+        },
+        "Pivot the discussion to implementation risk.",
+        "[Learner]: Remote work should be default with guardrails.",
+        {"topic": "Should remote work be the default?", "phase": "pressure", "tension": 0.7},
+        task_type=TaskType.GD_TEST,
+    )
+
+    lower = prompt.lower()
+    assert "live group discussion assessment, not a lesson or interview" in lower
+    assert "do not promise an immediate second speaker" in lower
+    assert "draw in the right panelist" not in lower
+
+
 def test_interview_safe_turn_replaces_candidate_style_model_answer():
     from app.services.simulation_service import _safe_interview_turn_text
 
@@ -246,14 +294,14 @@ def test_postgres_session_and_probe_cache_schema_are_context_aware():
     assert "PRIMARY KEY (user_id, task_type, context_hash)" in schema
 
 
-def test_interview_confusion_is_runtime_control_not_scorable_answer():
+def test_interview_control_language_is_semantically_analyzed_not_regex_marked():
     from app.services import simulation_service as sim
 
-    assert sim.is_simulation_control_input(
+    assert not sim.is_simulation_control_input(
         TaskType.INTERVIEW_TEST.value,
         "I don't understand what you want from me here.",
     )
-    assert sim.is_simulation_control_input(
+    assert not sim.is_simulation_control_input(
         TaskType.INTERVIEW_TEST.value,
         "I already answered that. Please move to a different topic.",
     )
@@ -271,14 +319,14 @@ def test_interview_confusion_is_runtime_control_not_scorable_answer():
     )
 
 
-def test_gd_speaker_request_is_runtime_control_not_scorable_answer():
+def test_gd_speaker_requests_are_semantically_analyzed_not_regex_marked():
     from app.services import simulation_service as sim
 
-    assert sim.is_simulation_control_input(
+    assert not sim.is_simulation_control_input(
         TaskType.GD_TEST.value,
         "Can we hear from the Quiet Expert now?",
     )
-    assert sim.is_simulation_control_input(
+    assert not sim.is_simulation_control_input(
         TaskType.GD_TEST.value,
         "Please let the Data-Driven Analyst respond before I continue.",
     )

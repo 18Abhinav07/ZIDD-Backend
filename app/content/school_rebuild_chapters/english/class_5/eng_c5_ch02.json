@@ -1,0 +1,1782 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex School English launch-content QA",
+  "reviewed_at": "2026-07-12T12:00:00+05:30",
+  "review_evidence": [
+    "tests/hardening/test_school_rebuild_class5_ch01_ch03_launch_contract.py",
+    "scripts/audit_school_rebuild_content.py --class 5",
+    "Original Zidd-authored English content; NCERT structural alignment reviewed against the source map"
+  ],
+  "runtime_sha256": "c49b44040f144ea3e952ff73811106c38b2664b560d7a712fc619628c6ba7c61",
+  "chapter_id": "eng_c5_ch02",
+  "chapter_no": 2,
+  "title": "Gone with the Scooter",
+  "book_title": "Santoor",
+  "unit_title": "Let's Have Fun",
+  "source_url": "https://ncert.nic.in/textbook/pdf/eesa102.pdf",
+  "source_note": "NCERT structural alignment only. All teaching passages, prompts, examples, answers, and rubrics are original Zidd-authored content and do not copy the textbook body.",
+  "levels": [
+    {
+      "level_id": "scooter_event_sequence",
+      "title": "Follow a chain of events",
+      "focus": "track event order and identify the main idea",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use time clues and linked actions to explain what happened first, next, and finally.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sequence words such as first, next, and finally show the order of events. Find the action that follows the first event.",
+          "passage": "First, Mira tied labels to the sports bags. Next, she placed them beside the court. Finally, the coach checked each label.",
+          "prompt": "What did Mira do after tying the labels?",
+          "options": [
+            "She placed the bags beside the court.",
+            "She checked each label.",
+            "She opened the school gate.",
+            "She carried the coach's whistle."
+          ],
+          "accepted_answers": [
+            "She placed the bags beside the court.",
+            "placed the bags beside the court",
+            "put the bags beside the court"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "When time words are absent, follow cause and result. The object changes hands in a logical order.",
+          "passage": "A whistle rolled under a bench. Dev spotted it and gave it to the announcer. The announcer returned it to the games teacher.",
+          "prompt": "Name the first event and the final event in the whistle's journey.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "whistle_first_event",
+              "description": "States that the whistle rolled under a bench.",
+              "any_of": [
+                "whistle rolled under a bench",
+                "the whistle rolled under the bench",
+                "it rolled under a bench",
+                "a whistle went under the bench"
+              ]
+            },
+            {
+              "id": "whistle_final_event",
+              "description": "States that the announcer returned the whistle to the games teacher.",
+              "any_of": [
+                "announcer returned it to the games teacher",
+                "announcer gave the whistle to the games teacher",
+                "it was returned to the games teacher",
+                "the games teacher got the whistle back"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "Dev kept the whistle",
+            "the teacher lost the whistle"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A main idea joins the most important events instead of listing every small detail. Link the ball's movement to the unexpected result.",
+          "passage": "At a community court, a foam ball bounced through an open gate. It dropped into the rear crate of a delivery scooter. The rider left before the players noticed where the ball had gone.",
+          "prompt": "State the main idea and give two events that build it.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "ball_main_idea",
+              "description": "Explains that linked events caused the ball to leave with the scooter.",
+              "any_of": [
+                "ball accidentally left with the scooter",
+                "ball was carried away by a scooter",
+                "a chain of events took the ball away",
+                "foam ball went away in the scooter crate"
+              ]
+            },
+            {
+              "id": "ball_gate_event",
+              "description": "Names the ball bouncing through the open gate.",
+              "any_of": [
+                "bounced through an open gate",
+                "ball went through the gate",
+                "foam ball crossed the open gate",
+                "it bounced out through the gate"
+              ]
+            },
+            {
+              "id": "ball_crate_event",
+              "description": "Names the ball landing in the scooter crate before the rider left.",
+              "any_of": [
+                "dropped into the scooter crate",
+                "landed in the rear crate",
+                "fell into the delivery scooter",
+                "scooter carried it away",
+                "rider left with the ball in the crate"
+              ]
+            }
+          ],
+          "min_response_words": 16,
+          "forbidden_phrases": [
+            "the rider stole the ball",
+            "the players put it there"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read this new scene without choices. Reconstruct the order from the actions and their results.",
+          "passage": "A library return card slipped from Anaya's notebook. A gust pushed it across the footpath, and it caught in the basket of a parked bicycle. The librarian found it there after lunch.",
+          "prompt": "Retell the card's journey in the correct three-step order.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "card_slipped",
+              "description": "Begins with the card slipping from the notebook.",
+              "any_of": [
+                "card slipped from Anaya's notebook",
+                "return card fell from the notebook",
+                "it slipped out of Anaya's notebook",
+                "the card came out of the notebook"
+              ]
+            },
+            {
+              "id": "card_blew",
+              "description": "Continues with the gust pushing the card across the footpath.",
+              "any_of": [
+                "gust pushed it across the footpath",
+                "wind blew the card across the path",
+                "a gust carried it across the footpath",
+                "it blew across the path"
+              ]
+            },
+            {
+              "id": "card_found",
+              "description": "Ends with the card in the bicycle basket and the librarian finding it.",
+              "any_of": [
+                "caught in a bicycle basket",
+                "landed in the bicycle basket",
+                "librarian found it in the basket",
+                "it was found in a parked bicycle's basket"
+              ]
+            }
+          ],
+          "min_response_words": 16,
+          "ordered_concept_slot_ids": [
+            "card_slipped",
+            "card_blew",
+            "card_found"
+          ],
+          "forbidden_phrases": [
+            "librarian found it first",
+            "Anaya put it in the basket"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply sequence thinking to an unfamiliar setting. Keep only the cause, movement, and outcome.",
+          "passage": "During a picnic, Rafi set his cap on a low wall. A sudden breeze lifted it onto the roof rack of a waiting bus. The bus moved to the next parking lane before anyone saw the cap.",
+          "prompt": "Summarize how the cap changed place from beginning to end.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "cap_start",
+              "description": "Identifies the cap's starting place on the wall.",
+              "any_of": [
+                "cap was on a low wall",
+                "Rafi set his cap on the wall",
+                "cap started on the wall",
+                "it rested on a low wall"
+              ]
+            },
+            {
+              "id": "cap_cause",
+              "description": "Identifies the breeze carrying the cap to the bus.",
+              "any_of": [
+                "breeze lifted it onto the bus",
+                "wind blew the cap to the roof rack",
+                "sudden breeze carried it",
+                "it landed on the bus roof rack"
+              ]
+            },
+            {
+              "id": "cap_outcome",
+              "description": "Identifies the bus moving away with the cap.",
+              "any_of": [
+                "bus moved with the cap",
+                "cap went to the next lane on the bus",
+                "bus carried it away",
+                "it left on the bus roof rack"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "ordered_concept_slot_ids": [
+            "cap_start",
+            "cap_cause",
+            "cap_outcome"
+          ],
+          "forbidden_phrases": [
+            "Rafi threw the cap",
+            "the driver took the cap"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "scooter_inference_and_fair_choice",
+      "title": "Infer a fair choice",
+      "focus": "use evidence to explain motives and responsible actions",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Infer why a character acts responsibly and support the reason with a detail from the scene.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An inference combines a character's action with a sensible reason. A name label is evidence about ownership.",
+          "passage": "Ishaan found a badminton racket beside the stairs. He read the name label and carried the racket to the school office.",
+          "prompt": "Why was taking the racket to the office a responsible choice?",
+          "options": [
+            "The office could return it to the named owner.",
+            "The racket was too heavy to carry home.",
+            "The stairs were closed for cleaning.",
+            "Ishaan wanted a different game."
+          ],
+          "accepted_answers": [
+            "The office could return it to the named owner.",
+            "the office could return it",
+            "so it could reach its owner"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A fair check uses a detail that the true owner is likely to know. Explain both the action and its purpose.",
+          "passage": "Two pupils said a lunch box was theirs. Farah asked each pupil to describe the sticker hidden underneath before she handed it over.",
+          "prompt": "Why did Farah ask about the hidden sticker?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "sticker_owner_check",
+              "description": "Explains that the hidden sticker could identify the real owner.",
+              "any_of": [
+                "identify the real owner",
+                "find out whose lunch box it was",
+                "check who truly owned it",
+                "the owner would know the sticker",
+                "only the real owner might describe it"
+              ]
+            },
+            {
+              "id": "sticker_fairness",
+              "description": "Explains that Farah wanted to avoid giving the box to the wrong person.",
+              "any_of": [
+                "avoid giving it to the wrong pupil",
+                "hand it to the correct person",
+                "make a fair decision",
+                "not choose between them by guessing"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "Farah wanted the lunch box",
+            "the sticker did not matter"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Strong reasoning separates evidence from assumption. Name what the character did and what that action protected.",
+          "passage": "Kavya noticed a scooter key near the market gate. She gave it to the security guard and described the exact spot, but she did not post a photograph of the key online.",
+          "prompt": "What can you infer about Kavya's purpose? Support your answer with two details.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "key_safe_return",
+              "description": "Infers that Kavya wanted the key returned safely to its owner.",
+              "any_of": [
+                "wanted to return the key safely",
+                "wanted the owner to get the key back",
+                "tried to protect the lost key",
+                "helped find the true owner"
+              ]
+            },
+            {
+              "id": "key_guard_evidence",
+              "description": "Uses giving the key to security as evidence.",
+              "any_of": [
+                "gave it to the security guard",
+                "handed the key to security",
+                "left it with the guard",
+                "security guard could keep it safe"
+              ]
+            },
+            {
+              "id": "key_photo_evidence",
+              "description": "Uses withholding the photograph as evidence that claimants must prove ownership.",
+              "any_of": [
+                "did not post a photograph",
+                "kept the key's appearance private",
+                "owner would need to describe the key",
+                "a false claimant could not copy the photo"
+              ]
+            }
+          ],
+          "min_response_words": 18,
+          "forbidden_phrases": [
+            "Kavya kept the key",
+            "Kavya wanted online attention"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer the motive in a fresh situation. Pair the responsible action with direct evidence from the passage.",
+          "passage": "On a crowded bus, Naman saw a woollen scarf on an empty seat. He told the conductor the seat number and left the scarf with her instead of carrying it away.",
+          "prompt": "Why did Naman leave the scarf with the conductor, and which detail supports your reason?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "scarf_return_reason",
+              "description": "Explains that the conductor could help return the scarf to the passenger.",
+              "any_of": [
+                "conductor could return the scarf",
+                "help the owner get it back",
+                "keep it safe for the passenger",
+                "owner might ask the conductor",
+                "lost property should stay on the bus"
+              ]
+            },
+            {
+              "id": "scarf_seat_evidence",
+              "description": "Uses Naman reporting the seat number or leaving the scarf as evidence.",
+              "any_of": [
+                "told the conductor the seat number",
+                "reported where he found it",
+                "left it with the conductor",
+                "did not carry it away"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": [
+            "Naman wanted the scarf",
+            "the conductor lost it"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer fair-reason thinking beyond lost objects. Explain why checking evidence is better than guessing.",
+          "passage": "After a gardening activity, three seedling trays had missing labels. Sana compared leaf shapes with the class observation chart before replacing the labels.",
+          "prompt": "Explain why Sana checked the chart before labelling the trays.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "seedling_evidence_reason",
+              "description": "Explains that the chart provided evidence for identifying each seedling.",
+              "any_of": [
+                "chart helped identify the seedlings",
+                "leaf shapes could be matched",
+                "observation chart provided evidence",
+                "she could compare the leaves with the chart"
+              ]
+            },
+            {
+              "id": "seedling_avoid_guess",
+              "description": "Explains that checking prevented incorrect or guessed labels.",
+              "any_of": [
+                "avoid guessing the labels",
+                "prevent wrong labels",
+                "label the trays accurately",
+                "make sure each label was correct"
+              ]
+            }
+          ],
+          "min_response_words": 11,
+          "forbidden_phrases": [
+            "leaf shapes were useless",
+            "Sana labelled them randomly"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "scooter_context_vocabulary",
+      "title": "Unlock action words",
+      "focus": "infer word meanings from context and use precise vocabulary",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use nearby action and result clues to infer meanings and apply precise words in new sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A context clue can be a sound, action, or result near an unfamiliar word. Loose objects that knock again and again rattle.",
+          "passage": "As the scooter crossed the rough lane, an empty bottle rattled inside its metal crate.",
+          "prompt": "What does rattled mean in this sentence?",
+          "options": [
+            "made repeated knocking sounds",
+            "shone with a bright light",
+            "fell apart completely",
+            "moved without any sound"
+          ],
+          "accepted_answers": [
+            "made repeated knocking sounds",
+            "made a repeated knocking sound",
+            "made quick clattering sounds"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Look at the movement around the word. A rider who turns quickly to avoid something swerves.",
+          "passage": "Leela swerved around a deep puddle, then guided her bicycle back into a straight line.",
+          "prompt": "Which meaning of swerved fits the passage?",
+          "options": [
+            "turned suddenly to one side",
+            "stopped for a long rest",
+            "rode faster in a straight line",
+            "lifted the bicycle overhead"
+          ],
+          "accepted_answers": [
+            "turned suddenly to one side",
+            "turned quickly to one side",
+            "changed direction suddenly"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Prove a meaning with the result in the sentence. If an object cannot slide or fall, it has been secured.",
+          "passage": "Meera secured the parcel with two straps. Even on the bumpy road, it stayed firmly in the carrier.",
+          "prompt": "Explain what secured means and name the clue that proves it.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "secured_meaning",
+              "description": "Explains that secured means fastened or made safe from moving.",
+              "any_of": [
+                "fastened firmly",
+                "tied safely",
+                "made safe from moving",
+                "fixed the parcel in place",
+                "held tightly with straps"
+              ]
+            },
+            {
+              "id": "secured_result_clue",
+              "description": "Uses the parcel staying firm on the bumpy road as evidence.",
+              "any_of": [
+                "stayed firmly in the carrier",
+                "did not move on the bumpy road",
+                "straps kept it in place",
+                "remained firm even on bumps"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "secured means opened",
+            "the parcel fell out"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer a new word without choices. Use both the action and what happened immediately after it.",
+          "passage": "The kitten darted beneath the chair when the tray clanged. In less than a second, only its tail was visible.",
+          "prompt": "What does darted mean here, and which detail supports your meaning?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "darted_meaning",
+              "description": "Explains that darted means moved very quickly or suddenly.",
+              "any_of": [
+                "moved very quickly",
+                "ran suddenly",
+                "rushed beneath the chair",
+                "moved fast",
+                "quickly hid under the chair"
+              ]
+            },
+            {
+              "id": "darted_time_clue",
+              "description": "Uses the less-than-a-second detail as evidence.",
+              "any_of": [
+                "in less than a second",
+                "only its tail was visible",
+                "it disappeared almost at once",
+                "the passage says less than a second"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "darted means slept",
+            "the kitten moved slowly"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Carry the meaning into your own sentence. First infer fastened, then use the related word secure accurately.",
+          "passage": "Before the van left, Omar fastened the folding ramp with a strong latch and tugged it twice to check it.",
+          "prompt": "Explain fastened in this context, then write a new sentence using secure with the same general meaning.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "fastened_context_meaning",
+              "description": "Explains that fastened means fixed or closed firmly.",
+              "any_of": [
+                "fixed firmly",
+                "closed tightly",
+                "attached safely",
+                "locked the ramp in place",
+                "held it with the latch"
+              ]
+            },
+            {
+              "id": "secure_new_usage",
+              "description": "Uses secure in a new sentence about making an object safe or firm.",
+              "any_of": [
+                "secure the box",
+                "secured the box",
+                "secure my bag",
+                "secured her bag",
+                "secure the bicycle",
+                "secured the bicycle",
+                "secure the gate",
+                "secured the gate",
+                "secure the parcel",
+                "secured the parcel"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": [
+            "secure means lose",
+            "left the latch open"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "scooter_connectors_complete_sentences",
+      "title": "Connect reasons and contrasts",
+      "focus": "use because and but to build complete linked sentences",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose and use connectors that show reason or contrast while keeping every sentence complete.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Because introduces a reason. The words after because should explain why the first action happened.",
+          "passage": "Aarav slowed the scooter ___ a puppy was crossing the lane.",
+          "prompt": "Which connector completes the sentence with a reason?",
+          "options": [
+            "because",
+            "but",
+            "or",
+            "although"
+          ],
+          "accepted_answers": [
+            "because"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "But joins contrasting ideas. The second idea is different from what the first idea leads us to expect.",
+          "passage": "The basket looked full, ___ there was still room for the small parcel.",
+          "prompt": "Which connector shows the contrast?",
+          "options": [
+            "but",
+            "because",
+            "so",
+            "and"
+          ],
+          "accepted_answers": [
+            "but"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A strong linked sentence can contain both a reason and a contrast. Check that each connector expresses the intended relationship.",
+          "passage": "Ria wanted to cycle home. Rain had started. She wore a raincoat. She still waited until the road was safe.",
+          "prompt": "Combine the ideas into one complete sentence using because for the reason and but for the contrast.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "rain_reason_connector",
+              "description": "Uses because to connect the rain with wearing a raincoat.",
+              "any_of": [
+                "wore a raincoat because rain had started",
+                "wore her raincoat because it was raining",
+                "because the rain had started she wore a raincoat",
+                "because it started raining Ria wore a raincoat"
+              ]
+            },
+            {
+              "id": "safety_contrast_connector",
+              "description": "Uses but to contrast wanting to cycle with waiting for safety.",
+              "any_of": [
+                "but she waited until the road was safe",
+                "wanted to cycle but waited for a safe road",
+                "but Ria still waited for safety",
+                "but did not leave until the road was safe"
+              ]
+            }
+          ],
+          "min_response_words": 13,
+          "forbidden_phrases": [
+            "because the road was safe she waited",
+            "but rain caused the raincoat"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Build a complete reason sentence from a new context. Include who acted, what they did, and why.",
+          "passage": "Clouds covered the sky before the science club's rooftop observation. The teacher moved the telescope into the covered corridor.",
+          "prompt": "Write one complete sentence using because to explain the teacher's action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "telescope_action",
+              "description": "States that the teacher moved the telescope to the covered corridor.",
+              "any_of": [
+                "teacher moved the telescope into the covered corridor",
+                "teacher took the telescope to the covered corridor",
+                "telescope was moved into the covered corridor",
+                "moved the telescope under cover"
+              ]
+            },
+            {
+              "id": "cloud_reason",
+              "description": "Uses because to connect the action to the cloudy sky.",
+              "any_of": [
+                "because clouds covered the sky",
+                "because the sky was cloudy",
+                "because of the clouds",
+                "because clouds had gathered"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "because the corridor was uncovered",
+            "the clouds moved the telescope"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use both relationships in an unfamiliar sports scene: because for the cause and but for the unexpected response.",
+          "passage": "The relay began late because the track was wet. The team did not stop preparing; they continued their warm-up under the shelter.",
+          "prompt": "Write one complete sentence about the delay and the team's response using both because and but.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "relay_wet_reason",
+              "description": "Uses because to explain that the wet track delayed the relay.",
+              "any_of": [
+                "relay began late because the track was wet",
+                "relay was delayed because of the wet track",
+                "because the track was wet the relay began late",
+                "because rain left the track wet the relay was delayed"
+              ]
+            },
+            {
+              "id": "team_warmup_contrast",
+              "description": "Uses but to show that the team kept warming up despite the delay.",
+              "any_of": [
+                "but the team continued warming up",
+                "but they kept preparing under the shelter",
+                "but the runners did not stop their warm-up",
+                "but the team stayed ready"
+              ]
+            }
+          ],
+          "min_response_words": 13,
+          "forbidden_phrases": [
+            "the team stopped preparing",
+            "the track was dry"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "scooter_precise_grammar",
+      "title": "Build precise event sentences",
+      "focus": "control word roles, past tense, and sentence order",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "grammar.tense_usage",
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Arrange nouns, verbs, adjectives, and time clues into clear sentences about completed events.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An adjective describes a noun. In the phrase silver scooter, silver tells us more about the scooter.",
+          "passage": "A silver scooter waited beside the narrow gate.",
+          "prompt": "Which word describes the scooter?",
+          "options": [
+            "silver",
+            "waited",
+            "beside",
+            "gate"
+          ],
+          "accepted_answers": [
+            "silver"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A past-tense verb shows an action that is complete. Look for the word that tells what the subject already did.",
+          "passage": "Rohan checked the loose mirror before yesterday's ride.",
+          "prompt": "Which word is the past-tense action verb?",
+          "options": [
+            "checked",
+            "loose",
+            "mirror",
+            "yesterday's"
+          ],
+          "accepted_answers": [
+            "checked"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A clear order is subject, action, then useful detail. Place the adverb close to the action it describes.",
+          "passage": "carefully / the courier / closed / the metal box",
+          "prompt": "Put the words in order to make one complete sentence.",
+          "options": [],
+          "accepted_answers": [
+            "The courier carefully closed the metal box.",
+            "The courier carefully closed the metal box",
+            "The courier closed the metal box carefully.",
+            "The courier closed the metal box carefully"
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "Arrange this fresh set of words without choices. Keep the completed action in the past tense.",
+          "passage": "after the bell / the pupils / quietly / entered / the hall",
+          "prompt": "Arrange the words into a complete sentence with correct order and punctuation.",
+          "options": [],
+          "accepted_answers": [
+            "The pupils quietly entered the hall after the bell.",
+            "The pupils quietly entered the hall after the bell",
+            "After the bell, the pupils quietly entered the hall.",
+            "After the bell the pupils quietly entered the hall"
+          ],
+          "response_mode": "short"
+        },
+        "transfer_check": {
+          "teaching_block": "Turn notes into a new past-tense sentence. Include a noun, an adjective, an action, and a time clue.",
+          "passage": "Notes: careful cyclist / yellow raincoat / wave to the guard / yesterday",
+          "prompt": "Write one complete past-tense sentence using all four notes.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "cyclist_subject",
+              "description": "Uses cyclist as the sentence subject and includes careful.",
+              "any_of": [
+                "careful cyclist",
+                "cyclist was careful"
+              ]
+            },
+            {
+              "id": "yellow_raincoat_detail",
+              "description": "Includes the adjective-noun phrase yellow raincoat.",
+              "any_of": [
+                "yellow raincoat",
+                "raincoat was yellow"
+              ]
+            },
+            {
+              "id": "waved_past_action",
+              "description": "Uses waved as the completed action toward the guard.",
+              "any_of": [
+                "waved to the guard",
+                "gave the guard a wave"
+              ]
+            },
+            {
+              "id": "yesterday_time",
+              "description": "Includes yesterday as the time clue.",
+              "any_of": [
+                "yesterday"
+              ]
+            }
+          ],
+          "min_response_words": 11,
+          "forbidden_phrases": [
+            "will wave tomorrow",
+            "blue raincoat"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "scooter_summary_own_words",
+      "title": "Summarize without copying",
+      "focus": "select the main event, cause, and outcome for a concise summary",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.complete_sentence",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Write a brief original summary that keeps the central problem, response, and result.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A good summary keeps the central event and outcome. It leaves out minor colours, times, and repeated details.",
+          "passage": "A fruit seller's scooter would not start near the school gate. Two older pupils helped push it to a safe corner, where a mechanic tightened a loose cable.",
+          "prompt": "Which option is the best summary?",
+          "options": [
+            "Pupils helped move a stalled scooter safely, and a mechanic fixed its loose cable.",
+            "A scooter stood near a school gate beside a fruit seller.",
+            "Two older pupils walked past a corner where a mechanic worked.",
+            "A fruit seller carried fruit while pupils discussed a cable."
+          ],
+          "accepted_answers": [
+            "Pupils helped move a stalled scooter safely, and a mechanic fixed its loose cable.",
+            "pupils helped move a stalled scooter and a mechanic fixed the cable"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Build a summary around the problem and the response. Combine related details instead of copying each sentence.",
+          "passage": "A stack of art boards blocked the activity-room doorway. The class moved the boards onto a shelf, then marked a clear path with tape.",
+          "prompt": "Write one sentence that summarizes the problem and the class's response.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "boards_problem",
+              "description": "States that art boards blocked the doorway or path.",
+              "any_of": [
+                "art boards blocked the doorway",
+                "boards were blocking the activity room",
+                "stack of boards blocked the path",
+                "doorway was blocked by art boards"
+              ]
+            },
+            {
+              "id": "boards_response",
+              "description": "States that the class cleared and marked the path.",
+              "any_of": [
+                "class moved them to a shelf",
+                "pupils cleared the doorway",
+                "marked a clear path with tape",
+                "moved the boards and marked the path",
+                "class made the path clear"
+              ]
+            }
+          ],
+          "min_response_words": 11,
+          "forbidden_phrases": [
+            "the class blocked the doorway",
+            "the boards stayed in the path"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A complete summary answers three questions: What changed? Why did it matter? What was the result? Use your own sentence structure.",
+          "passage": "A delivery rider noticed that a paper bag was tearing at the bottom. She stopped before the crossing, placed the bag inside a reusable box, and delivered every item without damage.",
+          "prompt": "Summarize the problem, the rider's response, and the result in 18 to 30 words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bag_tearing_problem",
+              "description": "Identifies that the paper bag was tearing.",
+              "any_of": [
+                "paper bag was tearing",
+                "bag began to tear",
+                "bottom of the bag was breaking",
+                "rider noticed a torn bag"
+              ]
+            },
+            {
+              "id": "reusable_box_response",
+              "description": "States that the rider transferred the bag or items to a reusable box.",
+              "any_of": [
+                "placed it inside a reusable box",
+                "moved the items to a box",
+                "protected the bag with a reusable box",
+                "used a box to hold the delivery"
+              ]
+            },
+            {
+              "id": "safe_delivery_result",
+              "description": "States that all items arrived without damage.",
+              "any_of": [
+                "delivered every item without damage",
+                "items arrived safely",
+                "nothing was damaged",
+                "completed the delivery safely"
+              ]
+            }
+          ],
+          "min_response_words": 18,
+          "ordered_concept_slot_ids": [
+            "bag_tearing_problem",
+            "reusable_box_response",
+            "safe_delivery_result"
+          ],
+          "forbidden_phrases": [
+            "ignored the torn bag",
+            "the items were damaged"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Summarize this new problem-solving scene independently. Keep the difficulty, the pupils' response, and the outcome.",
+          "passage": "The robotics club's cart stopped halfway to the library because one wheel was trapped by too many heavy books. The pupils divided the books between two smaller carts, freed the wheel, and reached the library on time.",
+          "prompt": "Write an 18 to 30 word summary in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "robot_cart_problem",
+              "description": "Identifies that an overloaded cart or trapped wheel stopped the trip.",
+              "any_of": [
+                "overloaded cart stopped",
+                "wheel was trapped by heavy books",
+                "cart could not move because of the books",
+                "robotics cart stopped halfway"
+              ]
+            },
+            {
+              "id": "robot_cart_solution",
+              "description": "States that the pupils divided the books between smaller carts.",
+              "any_of": [
+                "divided the books between two carts",
+                "moved books to smaller carts",
+                "shared the load between two carts",
+                "reduced the cart's load"
+              ]
+            },
+            {
+              "id": "robot_cart_outcome",
+              "description": "States that the wheel was freed and the pupils arrived on time.",
+              "any_of": [
+                "freed the wheel and arrived on time",
+                "reached the library on time",
+                "wheel came free",
+                "completed the trip on time"
+              ]
+            }
+          ],
+          "min_response_words": 18,
+          "ordered_concept_slot_ids": [
+            "robot_cart_problem",
+            "robot_cart_solution",
+            "robot_cart_outcome"
+          ],
+          "forbidden_phrases": [
+            "left the books behind",
+            "reached the library late"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer summary writing to a science-and-garden context. Compress the warning, repair, and result into one clear account.",
+          "passage": "A moisture monitor warned Class 5 that the garden pipe was leaking beside the seedlings. The class closed the tap, replaced the cracked connector, and restarted watering after checking the soil. The seedlings remained healthy.",
+          "prompt": "Write a 20 to 35 word summary that includes the problem, response, and outcome.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "garden_leak_problem",
+              "description": "Identifies the warning about a leaking pipe near the seedlings.",
+              "any_of": [
+                "monitor warned about a leaking pipe",
+                "garden pipe leaked beside the seedlings",
+                "moisture monitor detected a leak",
+                "class found a cracked pipe connector"
+              ]
+            },
+            {
+              "id": "garden_repair_response",
+              "description": "States that the class stopped the water and replaced the connector.",
+              "any_of": [
+                "closed the tap and replaced the connector",
+                "stopped the leak and repaired the pipe",
+                "class changed the cracked connector",
+                "fixed the connector before watering again"
+              ]
+            },
+            {
+              "id": "garden_healthy_outcome",
+              "description": "States that watering resumed safely and the seedlings stayed healthy.",
+              "any_of": [
+                "seedlings remained healthy",
+                "watering restarted safely",
+                "plants stayed healthy",
+                "class saved the seedlings"
+              ]
+            }
+          ],
+          "min_response_words": 20,
+          "ordered_concept_slot_ids": [
+            "garden_leak_problem",
+            "garden_repair_response",
+            "garden_healthy_outcome"
+          ],
+          "forbidden_phrases": [
+            "ignored the leaking pipe",
+            "the seedlings dried out"
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c5_ch02_assess_01",
+        "passage": "At the repair booth, Zoya filled the tyres first, tightened the bell next, and tested the brakes last.",
+        "prompt": "What did Zoya do immediately before testing the brakes?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "She tightened the bell.",
+          "She filled the tyres.",
+          "She opened the booth.",
+          "She cleaned the brakes."
+        ],
+        "accepted_answers": [
+          "She tightened the bell.",
+          "tightened the bell"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_02",
+        "passage": "A red token fell beside the ticket table. Nia picked it up and handed it to the volunteer wearing the token pouch.",
+        "prompt": "Where did the token fall, and who received it?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "token_fall_place",
+            "description": "Identifies that the token fell beside the ticket table.",
+            "any_of": [
+              "beside the ticket table",
+              "next to the ticket table",
+              "near the ticket table"
+            ]
+          },
+          {
+            "id": "token_receiver",
+            "description": "Identifies the volunteer with the token pouch as the receiver.",
+            "any_of": [
+              "volunteer with the token pouch",
+              "the token volunteer",
+              "volunteer wearing the pouch",
+              "Nia gave it to the volunteer"
+            ]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": [
+          "Nia kept the token"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_03",
+        "passage": "The neighbourhood club painted bright lane markers, added two mirrors at the sharp turn, and placed a guard near the exit. Cyclists could now move through the lane more safely.",
+        "prompt": "Which sentence states the paragraph's main idea?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "The club made a cycling lane safer in several ways.",
+          "The mirrors were brighter than the lane markers.",
+          "A guard painted two mirrors near an exit.",
+          "Cyclists preferred the sharp turn to the straight lane."
+        ],
+        "accepted_answers": [
+          "The club made a cycling lane safer in several ways.",
+          "the club made the lane safer"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_04",
+        "passage": "Pooja noticed that the notice-board corners were curling in the wind. She pinned each corner, covered the board with a clear sheet, and checked it after the rain. Every notice stayed readable.",
+        "prompt": "State the main idea and one detail that supports it.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "notice_main_idea",
+            "description": "States that Pooja protected the notices from wind and rain.",
+            "any_of": [
+              "Pooja protected the notices",
+              "she kept the notice board safe from weather",
+              "Pooja made sure the notices stayed readable",
+              "she stopped the notices from being damaged"
+            ]
+          },
+          {
+            "id": "notice_support_detail",
+            "description": "Names pinning corners, adding a clear sheet, or checking after rain.",
+            "any_of": [
+              "pinned each corner",
+              "covered the board with a clear sheet",
+              "checked it after the rain",
+              "every notice stayed readable"
+            ]
+          }
+        ],
+        "min_response_words": 11,
+        "forbidden_phrases": [
+          "Pooja removed every notice"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_05",
+        "passage": "When Adil saw a helmet hanging from the park fence, he asked the guard to record it in the lost-property book.",
+        "prompt": "What is the most reasonable inference about Adil?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "He wanted the owner to be able to find the helmet.",
+          "He planned to borrow the helmet without asking.",
+          "He believed the fence needed a decoration.",
+          "He was trying to close the park early."
+        ],
+        "accepted_answers": [
+          "He wanted the owner to be able to find the helmet.",
+          "he wanted to help the owner",
+          "he wanted the helmet returned"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_06",
+        "passage": "The class found an unsigned poster entry. Instead of guessing the artist, Vani compared the drawing code with the submission list.",
+        "prompt": "What can you infer about Vani's decision, and what evidence supports it?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "vani_accuracy_inference",
+            "description": "Infers that Vani wanted an accurate or fair identification.",
+            "any_of": [
+              "wanted to identify the artist accurately",
+              "wanted a fair decision",
+              "did not want to guess",
+              "tried to find the correct artist"
+            ]
+          },
+          {
+            "id": "vani_list_evidence",
+            "description": "Uses comparing the code with the submission list as evidence.",
+            "any_of": [
+              "compared the drawing code",
+              "checked the submission list",
+              "matched the code with the list",
+              "used the list as evidence"
+            ]
+          }
+        ],
+        "min_response_words": 11,
+        "forbidden_phrases": [
+          "Vani guessed the artist"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_07",
+        "passage": "A parcel label was smudged, but the flat number remained clear. The courier called the building desk before choosing a door.",
+        "prompt": "Which answer gives the best reason for the courier's call?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "The courier called because the desk could confirm the correct door from the flat number.",
+          "The courier called because the parcel was too light to carry.",
+          "The courier called because every door was already open.",
+          "The courier called because the label needed a brighter colour."
+        ],
+        "accepted_answers": [
+          "The courier called because the desk could confirm the correct door from the flat number.",
+          "the desk could confirm the correct door"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_08",
+        "passage": "During a class exhibition, a model bridge began to lean. Rehan held the base while Dia added two supports, and the visitors were asked to wait until the model was stable.",
+        "prompt": "In 35 to 55 words, explain why the pupils paused the visitors and how their actions solved the problem. Use evidence from the passage.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must be an original 35 to 55 word explanation that links the leaning model to visitor safety and explains how holding the base and adding supports made it stable.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "bridge_response_length",
+            "description": "Contains 35 to 55 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "bridge_pause_reason",
+            "description": "Explains that visitors were paused because the leaning model was unstable or unsafe.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "bridge_rehan_action",
+            "description": "Uses Rehan holding the base as relevant evidence.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "bridge_dia_action",
+            "description": "Uses Dia adding two supports as relevant evidence.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "bridge_stable_result",
+            "description": "Explains that the combined actions made the model stable before viewing resumed.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "bridge_reason_language",
+            "description": "Uses clear complete sentences and a logical reason link.",
+            "required": true,
+            "min_quality": 0.65
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_09",
+        "passage": "The old gate creaked as the caretaker pushed it, producing a long rough sound.",
+        "prompt": "What does creaked mean in this passage?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "made a long rough sound",
+          "closed without a sound",
+          "shook with bright light",
+          "opened at great speed"
+        ],
+        "accepted_answers": [
+          "made a long rough sound",
+          "made a rough squeaking sound",
+          "made a creaking sound"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_10",
+        "passage": "Tara glimpsed the bus number just before it turned the corner, so she saw it only for a moment.",
+        "prompt": "What does glimpsed mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "saw briefly",
+          "saw for a moment",
+          "looked at quickly",
+          "caught a quick sight of it",
+          "noticed briefly"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_11",
+        "passage": "The mechanic inspected the cable closely before saying that it was safe to use.",
+        "prompt": "Which sentence uses inspected with the same meaning?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "The nurse inspected the bandage for loose edges.",
+          "The singer inspected loudly during the song.",
+          "The puppy inspected across the garden at noon.",
+          "The rain inspected the empty road."
+        ],
+        "accepted_answers": [
+          "The nurse inspected the bandage for loose edges.",
+          "the nurse inspected the bandage"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_12",
+        "passage": "The equipment cupboard must be made safe before the room is locked.",
+        "prompt": "Write a sentence using secure to show that someone fastens or protects an object.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "secure_target_word",
+            "description": "Uses secure or secured as a verb.",
+            "any_of": [
+              "secure the",
+              "secure my",
+              "secure her",
+              "secure his",
+              "secured the",
+              "secured my",
+              "secured her",
+              "secured his"
+            ]
+          },
+          {
+            "id": "secure_protected_object",
+            "description": "Names a reasonable object that is fastened or protected.",
+            "any_of": [
+              "cupboard",
+              "door",
+              "gate",
+              "box",
+              "bag",
+              "bicycle",
+              "parcel",
+              "helmet"
+            ]
+          }
+        ],
+        "min_response_words": 5,
+        "forbidden_phrases": [
+          "secure means lose",
+          "secure means open"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_13",
+        "passage": "The driver moved slowly ___ the road was narrow.",
+        "prompt": "Which connector gives the reason for moving slowly?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "because",
+          "but",
+          "although",
+          "or"
+        ],
+        "accepted_answers": [
+          "because"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_14",
+        "passage": "The team wanted to practise outside. A strong wind began. They moved into the hall.",
+        "prompt": "Write one complete sentence using because to explain the move and but to show the contrast.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "practice_contrast",
+            "description": "Uses but to contrast the wish to practise outside with moving indoors.",
+            "any_of": [
+              "wanted to practise outside but moved into the hall",
+              "team wanted to be outside but went into the hall",
+              "but they moved into the hall",
+              "but the team practised in the hall"
+            ]
+          },
+          {
+            "id": "wind_reason",
+            "description": "Uses because to connect the move with the strong wind.",
+            "any_of": [
+              "because a strong wind began",
+              "because the wind was strong",
+              "because of the strong wind",
+              "because it became windy"
+            ]
+          }
+        ],
+        "min_response_words": 12,
+        "forbidden_phrases": [
+          "because the hall was windy"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_15",
+        "passage": "Which option is a complete sentence about a finished delivery?",
+        "prompt": "Choose the complete sentence.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The rider delivered the medicine before noon.",
+          "Before noon near the clinic.",
+          "Delivered the medicine quickly.",
+          "The rider and the medicine."
+        ],
+        "accepted_answers": [
+          "The rider delivered the medicine before noon.",
+          "the rider delivered the medicine before noon"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_16",
+        "passage": "Notes: Nisha / return the library key / to the librarian / after class",
+        "prompt": "Turn all the notes into one complete sentence.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "nisha_subject",
+            "description": "Uses Nisha as the subject.",
+            "any_of": [
+              "Nisha"
+            ]
+          },
+          {
+            "id": "key_return_action",
+            "description": "States that Nisha returned the library key to the librarian.",
+            "any_of": [
+              "returned the library key to the librarian",
+              "gave the library key back to the librarian",
+              "returned the key to the librarian"
+            ]
+          },
+          {
+            "id": "after_class_time",
+            "description": "Includes after class as the time detail.",
+            "any_of": [
+              "after class",
+              "when class ended"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "Nisha kept the key"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_17",
+        "passage": "The careful guard lifted the heavy barrier.",
+        "prompt": "Which set correctly labels careful, guard, and lifted?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "adjective, noun, verb",
+          "noun, adjective, verb",
+          "verb, noun, adjective",
+          "adjective, verb, noun"
+        ],
+        "accepted_answers": [
+          "adjective, noun, verb",
+          "adjective noun verb"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_18",
+        "passage": "Use these words: bright / lamp / flashed",
+        "prompt": "Write a complete sentence, then identify the adjective, noun, and verb.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "bright_lamp_sentence",
+            "description": "Uses all three words in a complete sentence.",
+            "any_of": [
+              "The bright lamp flashed",
+              "A bright lamp flashed",
+              "the lamp flashed brightly"
+            ]
+          },
+          {
+            "id": "bright_adjective",
+            "description": "Uses and identifies bright as the adjective.",
+            "any_of": [
+              "bright is the adjective",
+              "adjective is bright",
+              "bright adjective"
+            ]
+          },
+          {
+            "id": "lamp_noun",
+            "description": "Uses and identifies lamp as the noun.",
+            "any_of": [
+              "lamp is the noun",
+              "noun is lamp",
+              "lamp noun"
+            ]
+          },
+          {
+            "id": "flashed_verb",
+            "description": "Uses and identifies flashed as the verb.",
+            "any_of": [
+              "flashed is the verb",
+              "verb is flashed",
+              "flashed verb"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "bright is the verb",
+          "flashed is the noun"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_19",
+        "passage": "Yesterday, the volunteers ___ every bicycle tag before the event began.",
+        "prompt": "Which verb correctly completes the past-time sentence?",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [
+          "checked",
+          "check",
+          "will check",
+          "are checking"
+        ],
+        "accepted_answers": [
+          "checked"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_20",
+        "passage": "Notes: last evening / Priya / notice a loose strap / tighten it",
+        "prompt": "Write one complete past-tense sentence using the notes.",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "priya_noticed_past",
+            "description": "Uses noticed as a past-tense action by Priya.",
+            "any_of": [
+              "Priya noticed a loose strap",
+              "Priya saw that the strap was loose",
+              "noticed the loose strap"
+            ]
+          },
+          {
+            "id": "priya_tightened_past",
+            "description": "Uses tightened as the completed response.",
+            "any_of": [
+              "tightened it",
+              "tightened the strap",
+              "made the strap tight"
+            ]
+          },
+          {
+            "id": "last_evening_time",
+            "description": "Includes the past-time clue last evening.",
+            "any_of": [
+              "last evening",
+              "yesterday evening"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "ordered_concept_slot_ids": [
+          "priya_noticed_past",
+          "priya_tightened_past"
+        ],
+        "forbidden_phrases": [
+          "will tighten tomorrow"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_21",
+        "passage": "quietly / the mechanic / tested / the repaired horn",
+        "prompt": "Which option puts the words in a clear sentence order?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "The mechanic quietly tested the repaired horn.",
+          "Quietly the repaired tested mechanic horn.",
+          "The repaired horn the mechanic quietly.",
+          "Tested quietly horn the mechanic repaired."
+        ],
+        "accepted_answers": [
+          "The mechanic quietly tested the repaired horn.",
+          "the mechanic quietly tested the repaired horn"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_22",
+        "passage": "before sunset / returned / the borrowed pump / Harsh / to the sports room",
+        "prompt": "Arrange the words into one complete sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "Harsh returned the borrowed pump to the sports room before sunset.",
+          "Harsh returned the borrowed pump to the sports room before sunset",
+          "Before sunset, Harsh returned the borrowed pump to the sports room.",
+          "Before sunset Harsh returned the borrowed pump to the sports room"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_23",
+        "passage": "A sudden shower soaked the cardboard signs for the school walk. The volunteers moved the signs indoors, dried them under fans, and covered each one with a reusable plastic sleeve before the walk began.",
+        "prompt": "Which sentence best summarizes how the volunteers saved the signs?",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Volunteers rescued rain-soaked signs by drying and covering them before the school walk.",
+          "A school walk began after a sudden shower near some cardboard.",
+          "Fans and plastic sleeves were stored indoors by volunteers.",
+          "The volunteers made new signs because the old words were incorrect."
+        ],
+        "accepted_answers": [
+          "Volunteers rescued rain-soaked signs by drying and covering them before the school walk.",
+          "volunteers dried and covered the wet signs before the walk"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch02_assess_24",
+        "passage": "The eco-club's collection cart became stuck in soft mud while carrying paper to the recycling room. Four pupils removed half the bundles, laid two flat boards under the wheels, and pushed the lighter cart onto the paved path. They then carried the remaining bundles separately.",
+        "prompt": "Write a 45 to 70 word summary in your own words. Include the problem, the main solution steps, and the final outcome without copying full sentences.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must be an original 45 to 70 word summary that identifies the cart stuck in mud, explains lightening it and using boards, and states that the cart reached the paved path while the remaining bundles were carried separately.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "cart_summary_length",
+            "description": "Contains 45 to 70 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "cart_summary_problem",
+            "description": "Identifies that the paper cart became stuck in soft mud.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "cart_summary_lightened",
+            "description": "Explains that pupils removed bundles to make the cart lighter.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "cart_summary_boards",
+            "description": "Explains that boards were placed under the wheels to help move the cart.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "cart_summary_outcome",
+            "description": "States that the cart reached the paved path and the remaining paper was carried separately.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "cart_summary_concise_original",
+            "description": "Uses connected original sentences and keeps only important events.",
+            "required": true,
+            "min_quality": 0.65
+          }
+        ]
+      }
+    ]
+  }
+}

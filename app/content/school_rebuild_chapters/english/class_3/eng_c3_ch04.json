@@ -1,0 +1,429 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: pedagogy, answer keys, concept slots, unseen passages, age fit, and source independence"
+  ],
+  "runtime_sha256": "790007c2b94a46730eb811f12790d5f2aef0ae36dc8ac4bd61c92a32156051f5",
+  "chapter_id": "eng_c3_ch04",
+  "chapter_no": 4,
+  "title": "Out in the Garden",
+  "book_title": "Santoor",
+  "unit_title": "Toys and Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa104.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "out_garden_picture_clues",
+      "title": "Read a play picture",
+      "focus": "picture reading",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Look at a scene, identify what people are doing, and answer from visible clues.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "This chapter begins with picture reading. In a garden or open play space, first ask: who is there, what are they doing, and what objects are they using?",
+          "passage": "In a garden picture, two children hold a ball, one child has a kite, and three children are laughing near a tree.",
+          "prompt": "What are the children mainly doing in the picture?",
+          "options": [
+            "playing",
+            "sleeping",
+            "cooking",
+            "reading quietly"
+          ],
+          "accepted_answers": [
+            "playing",
+            "play"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: find the action clue. A ball, a kite, and laughing children point to play.",
+          "passage": "A child throws a ball. Another child runs after it.",
+          "prompt": "Which word best tells what is happening?",
+          "options": [
+            "playing",
+            "writing",
+            "washing",
+            "waiting"
+          ],
+          "accepted_answers": [
+            "playing",
+            "play"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: picture reading is not guessing. Use at least one visible clue before answering.",
+          "passage": "You see children with a ball in a clear open place near their homes.",
+          "prompt": "Which clue shows they are playing?",
+          "options": [
+            "ball",
+            "closed book",
+            "empty plate",
+            "school bag only"
+          ],
+          "accepted_answers": [
+            "ball"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now answer from the scene without hints.",
+          "passage": "Children are running, skipping, and flying a kite in the area near their houses.",
+          "prompt": "Where are the children playing?",
+          "options": [],
+          "accepted_answers": [
+            "open space",
+            "outside",
+            "garden",
+            "in the garden",
+            "near their houses"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Read the main action in a scene that is not a garden.",
+          "passage": "At a bus stop, two adults read route boards while three children wait in a line with school bags.",
+          "prompt": "What are the children mainly doing?",
+          "options": [],
+          "accepted_answers": ["waiting", "waiting for the bus", "standing in line", "they are waiting"]
+        }
+      }
+    },
+    {
+      "level_id": "out_garden_ball_actions",
+      "title": "Ball action words",
+      "focus": "use action words",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Identify action words used for ball play, such as bounce, throw, and catch.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An action word tells what someone does. With a ball, action words can tell movement.",
+          "passage": "Ria taps the ball on the ground again and again.",
+          "prompt": "Which action word means the ball goes down and comes back up?",
+          "options": [
+            "bounce",
+            "sleep",
+            "fold",
+            "paint"
+          ],
+          "accepted_answers": [
+            "bounce"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: connect the object to the action. You can bounce, throw, or catch a ball.",
+          "passage": "Aman sends the ball through the air to his friend.",
+          "prompt": "Which action is Aman doing?",
+          "options": [
+            "throw",
+            "read",
+            "hide",
+            "draw"
+          ],
+          "accepted_answers": [
+            "throw"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not confuse throw and catch. Throw sends the ball away; if the ball comes to your hands and you hold it, the action is catch.",
+          "passage": "The ball comes towards Sona, and she holds it with both hands.",
+          "prompt": "Which action word fits?",
+          "options": [
+            "catch",
+            "skip",
+            "sway",
+            "fold"
+          ],
+          "accepted_answers": [
+            "catch"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the action word without help.",
+          "passage": "The ball flies towards Dev. Dev holds it safely.",
+          "prompt": "What action does Dev do with the ball?",
+          "options": [],
+          "accepted_answers": [
+            "catch",
+            "catches"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use movement clues with a different game object.",
+          "passage": "Lina sends a beanbag through the air towards her partner.",
+          "prompt": "Write the action word that matches Lina's movement.",
+          "options": [],
+          "accepted_answers": ["throw", "throws"]
+        }
+      }
+    },
+    {
+      "level_id": "out_garden_kite_actions",
+      "title": "Kite action words",
+      "focus": "sequence actions",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Understand simple action order for kite play: hold, pull, and fly.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Some play actions happen in order. With a kite, a child may hold the string, pull it, and then fly the kite.",
+          "passage": "The wind is strong. Kabir holds the string and sends the kite high into the sky.",
+          "prompt": "Which action shows the kite is moving in the sky?",
+          "options": [
+            "fly",
+            "sleep",
+            "count",
+            "drink"
+          ],
+          "accepted_answers": [
+            "fly"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: the string clue matters. Pulling the string helps control the kite.",
+          "passage": "Nina holds the kite string and brings it closer with her hand.",
+          "prompt": "Which action is Nina doing?",
+          "options": [
+            "pull",
+            "eat",
+            "read",
+            "wash"
+          ],
+          "accepted_answers": [
+            "pull"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: pull names what the child does to the string; fly names what the kite does in the sky. Keep the doer and action together when ordering events.",
+          "passage": "First Ravi holds the string. Then he pulls it gently. The kite rises.",
+          "prompt": "Which action happens before the kite rises?",
+          "options": [
+            "pull",
+            "sleep",
+            "forget",
+            "close"
+          ],
+          "accepted_answers": [
+            "pull"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the action clue without hints.",
+          "passage": "The kite is going too far. Tara uses the string to bring it closer.",
+          "prompt": "Which action does Tara use?",
+          "options": [],
+          "accepted_answers": [
+            "pull",
+            "pulls"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the pull clue to an object that is not a kite.",
+          "passage": "A flag is tied to a rope. Rohan draws the rope towards himself so the flag rises.",
+          "prompt": "Which action does Rohan use on the rope?",
+          "options": [],
+          "accepted_answers": ["pull", "pulls", "pulling"]
+        }
+      }
+    },
+    {
+      "level_id": "out_garden_and_pairs",
+      "title": "Join play words with and",
+      "focus": "use and to join words",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use and to join two related action words in a clear phrase.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The word 'and' can join two action words. It helps us say two actions together.",
+          "passage": "In music class, children sing. They also dance.",
+          "prompt": "Join the two actions with and.",
+          "options": [
+            "sing and dance",
+            "sing but dance",
+            "sing because dance",
+            "sing or"
+          ],
+          "accepted_answers": [
+            "sing and dance"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: keep both action words, then put and between them.",
+          "passage": "The children eat. The children drink.",
+          "prompt": "Which phrase joins the actions?",
+          "options": [
+            "eat and drink",
+            "eat drink and",
+            "eat because drink",
+            "eat but"
+          ],
+          "accepted_answers": [
+            "eat and drink"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: and belongs between equal action words, not before both or after both: skip and sway.",
+          "passage": "Mira can skip. Mira can sway.",
+          "prompt": "Which joined phrase is correct?",
+          "options": [
+            "skip and sway",
+            "and skip sway",
+            "skip because sway",
+            "skip but"
+          ],
+          "accepted_answers": [
+            "skip and sway"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now join the words without hints.",
+          "passage": "Join: run, catch",
+          "prompt": "Write the joined phrase.",
+          "options": [],
+          "accepted_answers": [
+            "run and catch"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Join two actions in a complete sentence in a new setting.",
+          "passage": "At home, Tara waters the basil plant. She also turns the pot towards the sun.",
+          "prompt": "Write one complete sentence joining Tara's two actions with and.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "water_action", "description": "includes the action of watering the plant", "any_of": ["waters", "water", "watering"]},
+            {"id": "and_connector", "description": "uses and to join the two actions", "any_of": ["and"]},
+            {"id": "turn_action", "description": "includes turning the pot towards the sun", "any_of": ["turns", "turn", "turning", "towards the sun", "toward the sun"]}
+          ],
+          "min_response_words": 7,
+          "ordered_concept_slot_ids": ["water_action", "and_connector", "turn_action"]
+        }
+      }
+    },
+    {
+      "level_id": "out_garden_safety_reason",
+      "title": "Play safely outside",
+      "focus": "answer with a reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Give a simple reason for being careful while playing outside.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Outdoor play is fun, but a reason answer should also notice safety. A careful child looks around before running fast.",
+          "passage": "Children run near a swing. One child slows down before crossing the path.",
+          "prompt": "What should children do while playing outside?",
+          "options": [
+            "be careful",
+            "push everyone",
+            "close their eyes",
+            "run into others"
+          ],
+          "accepted_answers": [
+            "be careful",
+            "play safely",
+            "careful"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: ask what can go wrong. If children do not look around, they may bump into someone.",
+          "passage": "A ball rolls near a younger child. Reva stops before running after it.",
+          "prompt": "Why does Reva stop first?",
+          "options": [
+            "to stay safe",
+            "to break the ball",
+            "to hide the child",
+            "to sleep"
+          ],
+          "accepted_answers": [
+            "to stay safe",
+            "stay safe",
+            "safe"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: writing because is not enough by itself. Name the real hazard: children should play safely because others are also using the space.",
+          "passage": "Many children share one garden. Some run, some skip, and some fly kites.",
+          "prompt": "Which reason is strongest?",
+          "options": [
+            "play safely because others are nearby",
+            "play safely because books are heavy",
+            "play safely because food is sweet",
+            "play safely because night is blue"
+          ],
+          "accepted_answers": [
+            "play safely because others are nearby",
+            "others are nearby"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the safety idea in your own words.",
+          "passage": "Children are playing different games in the same open space.",
+          "prompt": "What should children remember while playing outside?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "shared_space", "description": "recognises that other children or games share the space", "any_of": ["others", "children", "different games", "same space", "shared space", "nearby"]},
+            {"id": "safe_action", "description": "states a careful action or safety reason", "any_of": ["careful", "safe", "look around", "slow down", "avoid", "bump"]}
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Use hazard and safer-choice thinking away from the garden.",
+          "passage": "A school corridor floor is wet near the water cooler. Nikhil wants to reach his class quickly.",
+          "prompt": "What should Nikhil do, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "safer_choice", "description": "suggests walking slowly, avoiding the wet patch, or warning an adult", "any_of": ["walk slowly", "slow down", "avoid", "go around", "tell", "warn", "adult"]},
+            {"id": "hazard_reason", "description": "explains that the wet floor could cause slipping or falling", "any_of": ["wet", "slip", "fall", "hurt", "safe"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"c3c4_scene_01","passage":"Near a neem tree, children mark boxes with chalk and hop from one box to the next.","prompt":"Name the main activity near the neem tree.","skill_ids":["reading.sentence_comprehension","reading.paragraph_main_idea"],"options":["playing a hopping game","planting a tree","washing the path","reading indoors"],"accepted_answers":["playing a hopping game","they are playing","hopping"]},
+      {"item_id":"c3c4_scene_02","passage":"One child holds a bat, another rolls a ball, and two children wait behind a line.","prompt":"Write one clue that shows this is a game scene.","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["bat","ball","a bat","a ball","children wait behind a line","the line"]},
+      {"item_id":"c3c4_scene_03","passage":"Families sit on mats, open food boxes, and share fruit under shady trees.","prompt":"Which main activity connects the scene?","skill_ids":["reading.paragraph_main_idea"],"options":["having a picnic","repairing a road","attending class","buying shoes"],"accepted_answers":["having a picnic","picnic","they are having a picnic"]},
+      {"item_id":"c3c4_scene_04","passage":"At the pond edge, two children point at tadpoles while an adult writes their observations.","prompt":"What are the group members mainly doing?","skill_ids":["reading.sentence_comprehension","reading.paragraph_main_idea"],"options":[],"accepted_answers":["observing tadpoles","watching tadpoles","studying tadpoles","looking at tadpoles"]},
+      {"item_id":"c3c4_ball_01","passage":"Aarav pushes the ball down and it rises to his hand again.","prompt":"Name the ball movement shown.","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":["bounce","catch","kick","roll"],"accepted_answers":["bounce","bounces"]},
+      {"item_id":"c3c4_ball_02","passage":"The ball travels towards Mira. She closes both hands around it.","prompt":"Write Mira's action.","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":[],"accepted_answers":["catch","catches"]},
+      {"item_id":"c3c4_ball_03","passage":"Dev swings his foot and sends the ball along the grass.","prompt":"Which verb names Dev's action?","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":["kick","throw","catch","bounce"],"accepted_answers":["kick","kicks"]},
+      {"item_id":"c3c4_ball_04","passage":"Sana uses one hand to send the ball through the air to Jo.","prompt":"Write the action word.","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":[],"accepted_answers":["throw","throws"]},
+      {"item_id":"c3c4_kite_01","passage":"The kite dips, so Arjun draws the string gently towards his body.","prompt":"Which kite action is Arjun using?","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":["pull","release","fold","paint"],"accepted_answers":["pull","pulls"]},
+      {"item_id":"c3c4_kite_02","passage":"First Meena checks the knot. Next she holds the spool. Then the kite rises.","prompt":"What does Meena do immediately before the kite rises?","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":[],"accepted_answers":["holds the spool","she holds the spool","hold the spool"]},
+      {"item_id":"c3c4_kite_03","passage":"A strong gust makes the kite move high above the field.","prompt":"Which action word describes the kite in the sky?","skill_ids":["vocab.chapter_word_usage"],"options":["fly","sleep","drink","read"],"accepted_answers":["fly","flies","flying"]},
+      {"item_id":"c3c4_kite_04","passage":"The string is wrapped around a twig. Isha stops before pulling and frees the string first.","prompt":"What happens before Isha pulls?","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":[],"accepted_answers":["she frees the string","frees the string","Isha frees the string","she untangles the string"]},
+      {"item_id":"c3c4_and_01","passage":"Rohan can hop. Rohan can clap.","prompt":"Which phrase joins both actions correctly?","skill_ids":["grammar.connectors_because_and_but","writing.complete_sentence"],"options":["hop and clap","hop because clap","and hop clap","hop but"],"accepted_answers":["hop and clap"]},
+      {"item_id":"c3c4_and_02","passage":"Actions to join: stretch, bend.","prompt":"Join the two actions with the connector taught.","skill_ids":["grammar.connectors_because_and_but","writing.complete_sentence"],"options":[],"accepted_answers":["stretch and bend"]},
+      {"item_id":"c3c4_and_03","passage":"The children run. They also cheer.","prompt":"Choose the complete joined sentence.","skill_ids":["grammar.connectors_because_and_but","writing.complete_sentence"],"options":["The children run and cheer.","The children and run cheer.","Run because the children cheer.","The children run but."],"accepted_answers":["The children run and cheer.","the children run and cheer"]},
+      {"item_id":"c3c4_and_04","passage":"Pia packs the ball. She also carries the water bottle.","prompt":"Write one sentence joining Pia's two actions with and.","skill_ids":["grammar.connectors_because_and_but","writing.complete_sentence"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"pack_action","description":"includes Pia packing or taking the ball","any_of":["Pia packs","packs the ball","takes the ball","carries the ball"]},{"id":"and_word","description":"uses and between the actions","any_of":["and"]},{"id":"bottle_action","description":"includes carrying or taking the water bottle","any_of":["carries","takes","water bottle","bottle"]}],"min_response_words":7,"ordered_concept_slot_ids":["pack_action","and_word","bottle_action"]},
+      {"item_id":"c3c4_safe_01","passage":"A skipping rope crosses the running path. Alok stops and moves it aside.","prompt":"Why does Alok move the rope?","skill_ids":["reading.inference_reason"],"options":["so nobody trips on it","so the rope gets dirty","so the path becomes narrow","so the game ends"],"accepted_answers":["so nobody trips on it","to stop someone tripping","to keep the path safe"]},
+      {"item_id":"c3c4_safe_02","passage":"A ball rolls towards a toddler. Jiya slows down and picks it up before running again.","prompt":"Explain why slowing down is the safer choice.","skill_ids":["reading.inference_reason","writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"nearby_child","description":"notices the toddler or younger child nearby","any_of":["toddler","younger child","child","nearby"]},{"id":"avoid_harm","description":"explains that slowing prevents a bump, fall, or injury","any_of":["bump","hit","fall","hurt","safe","avoid"]}],"min_response_words":7},
+      {"item_id":"c3c4_safe_03","passage":"Kites are flying near overhead wires at the edge of a field.","prompt":"Which choice is safest?","skill_ids":["reading.inference_reason"],"options":["move to a clear area away from wires","pull the kite into the wires","stand directly below the wires","wrap string around a wire"],"accepted_answers":["move to a clear area away from wires","move away from the wires","play away from wires"]},
+      {"item_id":"c3c4_safe_04","passage":"The slide is wet after rain, but Vikram wants to use it at once.","prompt":"Tell what Vikram should do and give a reason.","skill_ids":["reading.inference_reason","writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"safe_choice","description":"suggests waiting, drying the slide, or choosing another activity","any_of":["wait","dry","another game","do not use","don't use","tell an adult"]},{"id":"wet_risk","description":"explains the risk of slipping, falling, or getting hurt","any_of":["wet","slip","fall","hurt","unsafe"]}],"min_response_words":7}
+    ]
+  }
+}

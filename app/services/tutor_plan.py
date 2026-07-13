@@ -26,8 +26,42 @@ def _get(result: Any, key: str, default: Any = None) -> Any:
     return getattr(result, key, default)
 
 
+def _hot_repeat_count(state: dict | None, focus: str) -> int:
+    if not state or not focus:
+        return 0
+    delta = state.get("session_learning_delta")
+    if not isinstance(delta, dict):
+        return 0
+    repeated = delta.get("repeated_issue_counts")
+    if not isinstance(repeated, dict):
+        return 0
+    exact = repeated.get(focus)
+    if exact is not None:
+        try:
+            return int(exact)
+        except (TypeError, ValueError):
+            return 0
+    focus_key = focus.strip().lower()
+    for key, value in repeated.items():
+        if str(key or "").strip().lower() != focus_key:
+            continue
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+    return 0
+
+
+def _missing_criterion_repeat_count(state: dict | None, required_missing: list[Any]) -> int:
+    counts: list[int] = []
+    for criterion in required_missing:
+        criterion_id = str(criterion or "").strip()
+        if criterion_id:
+            counts.append(_hot_repeat_count(state, f"criterion:{criterion_id}"))
+    return max(counts) if counts else 0
+
+
 def build_tutor_turn_plan(result: Any, state: dict | None = None, *, scaffolded: bool = False) -> TutorTurnPlan:
-    del state  # reserved for learner-history-aware planning in the next phase
     if not _get(result, "english", True):
         return TutorTurnPlan(
             verdict="clarify_language",
@@ -48,12 +82,26 @@ def build_tutor_turn_plan(result: Any, state: dict | None = None, *, scaffolded:
         )
     required_missing = list(_get(result, "required_missing", []) or [])
     if required_missing:
+        focus = _get(result, "next_focus", "") or "fix the missing required criterion"
+        prior_repeats = max(
+            _hot_repeat_count(state, str(focus)),
+            _missing_criterion_repeat_count(state, required_missing),
+        )
+        if prior_repeats >= 1:
+            return TutorTurnPlan(
+                verdict="repeat_gap",
+                next_action="micro_drill_then_rewrite",
+                tone_policy="direct_no_praise_supportive",
+                allowed_praise=False,
+                focus=f"{focus} (repeated {prior_repeats + 1}x this session)",
+                stage="adaptive_repair",
+            )
         return TutorTurnPlan(
             verdict="partial",
             next_action="rewrite",
             tone_policy="direct_no_praise",
             allowed_praise=False,
-            focus=_get(result, "next_focus", "") or "fix the missing required criterion",
+            focus=focus,
             stage="guided_revision",
         )
     if scaffolded and _get(result, "pass_eligible", False):
@@ -61,7 +109,7 @@ def build_tutor_turn_plan(result: Any, state: dict | None = None, *, scaffolded:
             verdict="guided_success",
             next_action="retry_without_scaffold",
             tone_policy="warm_but_not_mastery",
-            allowed_praise=True,
+            allowed_praise=False,
             focus=_get(result, "next_focus", "") or "repeat independently",
             stage="scaffold",
         )
@@ -78,8 +126,8 @@ def build_tutor_turn_plan(result: Any, state: dict | None = None, *, scaffolded:
         return TutorTurnPlan(
             verdict="independent_pass",
             next_action="tighten_one_gap",
-            tone_policy="measured",
-            allowed_praise=True,
+            tone_policy="measured_no_celebration",
+            allowed_praise=False,
             focus=_get(result, "next_focus", "") or "make the answer more concrete",
             stage="practice",
         )

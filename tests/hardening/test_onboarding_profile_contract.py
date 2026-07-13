@@ -60,7 +60,7 @@ def test_me_gate_returns_only_route_state(store):
             "completed": True,
             "primary_motive": "school",
         },
-        "home": "/subjects",
+        "home": "/school",
     }
     assert "email" not in body
     assert "career_profile" not in body
@@ -86,7 +86,7 @@ def test_me_gate_routes_career_users_to_career_home(store):
     assert response.json()["home"] == "/career"
 
 
-def test_school_onboarding_does_not_store_class_and_routes_to_subjects(store):
+def test_global_school_onboarding_routes_to_school_and_defers_class_to_school_profile(store):
     _run(store.ensure_profile("test_user", name="Asha", email="asha@example.com"))
 
     client = TestClient(app)
@@ -105,7 +105,7 @@ def test_school_onboarding_does_not_store_class_and_routes_to_subjects(store):
     )
 
     assert response.status_code == 200
-    assert response.json()["destination"] == "/subjects"
+    assert response.json()["destination"] == "/school"
 
     profile = _run(store.get_profile("test_user"))
     assert profile["primary_motive"] == "school"

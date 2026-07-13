@@ -1,0 +1,1676 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex School launch content QA",
+  "reviewed_at": "2026-07-12T00:00:00+05:30",
+  "review_evidence": [
+    "tests/hardening/test_school_rebuild_class5_frog_content_contract.py",
+    "tests/hardening/test_school_rebuild_content_loader_contract.py",
+    "tests/hardening/test_school_rebuild_chapter_assessment_engine_contract.py",
+    "independent pedagogy review: PASS",
+    "independent assessment-engine quality review: PASS",
+    "tests/hardening/test_school_rebuild_class5_ch04_ch05_launch_contract.py"
+  ],
+  "runtime_sha256": "bf81f3e906239f9646c6110a641e0e60ee1384dc7789e70af6b6e1604d780cc5",
+  "chapter_id": "eng_c5_ch05",
+  "chapter_no": 5,
+  "content_version": "2026-07-11.3",
+  "certification_version": "2026-07-11.2",
+  "title": "The Frog",
+  "book_title": "Santoor",
+  "unit_title": "Water",
+  "source_url": "https://ncert.nic.in/textbook/pdf/eesa105.pdf",
+  "source_note": "NCERT structural alignment only. All teaching passages, prompts, examples, answers, and rubrics are original Zidd-authored content and do not copy the textbook body.",
+  "levels": [
+    {
+      "level_id": "frog_between_two_homes",
+      "title": "Life beside land and water",
+      "focus": "understand frog habitats and amphibious life",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Identify details that show how a frog uses both watery and land habitats.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A habitat is the place where a living thing finds food, shelter, and suitable conditions.",
+          "passage": "At sunrise, a frog sits on a damp stone at the edge of a pond. When danger comes, it slips into the water.",
+          "prompt": "Which two parts of the habitat does this frog use?",
+          "options": [
+            "a damp stone and pond water",
+            "the damp stone without the pond",
+            "pond water without a land resting place",
+            "a muddy bank and wet leaves"
+          ],
+          "accepted_answers": [
+            "a damp stone and pond water",
+            "the damp stone and the pond",
+            "land beside the pond and water"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "An amphibian can use water and land during different parts of its life. Explain both parts instead of selecting a label.",
+          "passage": "One frog shelters among wet leaves during the afternoon and returns to a shallow pool at night.",
+          "prompt": "Explain how the frog uses two parts of its habitat.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "land_shelter",
+              "description": "Identifies the frog's shelter on land.",
+              "any_of": ["shelters among wet leaves", "hides among wet leaves", "rests among wet leaves", "uses the leaves for shelter"]
+            },
+            {
+              "id": "water_use",
+              "description": "Identifies the frog's use of the pool or water.",
+              "any_of": ["returns to the pool", "returns to a shallow pool", "goes back to the water", "uses the shallow pool at night", "moves from the leaves to the pool"]
+            }
+          ],
+          "min_response_words": 6,
+          "forbidden_phrases": ["only lives on land", "never enters water", "does not use water"]
+        },
+        "masterclass": {
+          "teaching_block": "To find a paragraph's main idea, combine repeated details and explain what the habitat provides.",
+          "passage": "Pond frogs hide in reeds, rest on muddy banks, and dive below the surface when startled. Each place helps them meet a different need.",
+          "prompt": "State the main idea and name one shelter place and one escape place.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "habitat_main_idea",
+              "description": "States that the pond habitat provides different useful spaces.",
+              "any_of": ["pond habitat provides different useful places", "frog uses different places for different needs", "habitat offers places for shelter and escape", "pond gives frogs places to rest and escape"]
+            },
+            {
+              "id": "shelter_place",
+              "description": "Names reeds or the bank as a shelter or resting place.",
+              "any_of": ["hides in the reeds", "rests on the muddy bank", "reeds provide shelter", "bank gives it a place to rest"]
+            },
+            {
+              "id": "escape_place",
+              "description": "Names water as the place used to escape danger.",
+              "any_of": ["dives below the surface to escape", "dives into water when startled", "water helps it escape", "water provides an escape", "pond provides an escape"]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": ["only the reeds matter", "cannot enter water", "water is not useful"]
+        },
+        "independent_check": {
+          "teaching_block": "Read the new observation and explain the evidence without using answer choices.",
+          "passage": "During a light shower, Neel spots a small animal hopping across moss. Minutes later, only its eyes are visible above a rain-filled ditch.",
+          "prompt": "What evidence suggests that the animal can manage both land and water?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "land_evidence",
+              "description": "Names evidence that the animal moved on land.",
+              "any_of": ["hopped across moss", "hopped on moss", "hopping over the moss", "moved across the moss", "crossed the moss on land"]
+            },
+            {
+              "id": "water_evidence",
+              "description": "Names evidence that the animal entered or used water.",
+              "any_of": ["hid in the ditch", "entered the rain-filled ditch", "eyes were above the water", "eyes showed above the ditch water", "used the water-filled ditch"]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": ["does not use water", "did not use water", "did not enter", "never enters water", "cannot enter water", "only lives on land"]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the land-and-water evidence test to an unfamiliar observation. Name one clue from each setting and explain what the pair shows.",
+          "passage": "At sunrise, a child sees a green animal spring from a vegetable patch. A moment later, it floats beside the steps of a half-filled water tank.",
+          "prompt": "Which two clues show that the animal can move in both a land setting and a water setting?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "garden_land_clue",
+              "description": "Uses the vegetable patch or springing action as evidence from land.",
+              "any_of": ["sprang from the vegetable patch", "springing from the vegetable patch", "moved through the vegetable patch", "was in the vegetable patch", "garden patch is on land"]
+            },
+            {
+              "id": "tank_water_clue",
+              "description": "Uses floating beside the tank steps as evidence from water.",
+              "any_of": ["floated in the water tank", "floated beside the tank steps", "was floating in water", "entered the half-filled tank", "used the water in the tank"]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": ["only moved on land", "never entered water", "cannot use water"]
+        }
+      }
+    },
+    {
+      "level_id": "frog_from_spawn_to_adult",
+      "title": "A changing water life",
+      "focus": "use context words and summarize the frog life cycle",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Use context to understand life-cycle words and retell the change from egg to adult frog.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Nearby words can explain an unfamiliar word. Read what the word names or describes.",
+          "passage": "The pond holds spawn, a soft cluster of frog eggs floating near a water plant.",
+          "prompt": "What does the word spawn mean here?",
+          "options": [
+            "a cluster of frog eggs",
+            "a group of newly hatched tadpoles",
+            "bubbles gathered around a water plant",
+            "insect eggs floating near the surface"
+          ],
+          "accepted_answers": [
+            "a cluster of frog eggs",
+            "frog eggs",
+            "a soft group of frog eggs"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Life-cycle clues often name a new body part or an old feature that changes. Describe both changes yourself.",
+          "passage": "A tadpole begins with a swimming tail. As it grows, back legs appear and the tail becomes shorter.",
+          "prompt": "Describe the two body changes in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "legs_change",
+              "description": "States that legs appear or grow.",
+              "any_of": ["tadpole grows back legs", "it grows back legs", "back legs appear on the tadpole", "it develops back legs", "its back legs begin to grow"]
+            },
+            {
+              "id": "tail_change",
+              "description": "States that the tail becomes shorter.",
+              "any_of": ["its tail becomes shorter", "the tail becomes shorter", "tail shrinks as it grows", "its tail gets shorter", "tadpole loses most of its tail"]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": ["legs disappear", "tail grows longer", "becomes an egg again"]
+        },
+        "masterclass": {
+          "teaching_block": "A clear summary selects the major stages, keeps their order, and leaves out tiny observations.",
+          "passage": "Frog eggs hatch into tadpoles. Tadpoles grow legs, lose most of their tails, and develop into young frogs before becoming adults.",
+          "prompt": "Summarize the life cycle from eggs to adults in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "egg_stage",
+              "description": "Includes the egg stage.",
+              "any_of": ["eggs hatch", "starts as eggs", "begins as frog spawn", "frog eggs develop"]
+            },
+            {
+              "id": "tadpole_stage",
+              "description": "Includes the tadpole stage.",
+              "any_of": ["into tadpoles", "become tadpoles", "tadpoles grow legs", "tadpoles develop legs"]
+            },
+            {
+              "id": "frog_stage",
+              "description": "Includes development into a young or adult frog.",
+              "any_of": ["develop into young frogs", "become young frogs", "grow into adult frogs", "become adult frogs", "young frogs become adults"]
+            }
+          ],
+          "min_response_words": 9,
+          "ordered_concept_slot_ids": ["egg_stage", "tadpole_stage", "frog_stage"],
+          "forbidden_phrases": ["adult becomes an egg", "tadpole becomes a fish", "legs disappear"]
+        },
+        "independent_check": {
+          "teaching_block": "Summarize only the important changes in the fresh field note.",
+          "passage": "Week one: round eggs cling to pond grass. Week three: dark swimmers have long tails. Week seven: the swimmers have four legs and tiny tails.",
+          "prompt": "Summarize the development recorded in the three notes in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "eggs_begin",
+              "description": "Identifies eggs as the starting stage.",
+              "any_of": ["eggs hatch", "starts with eggs", "eggs cling to pond grass", "development begins as eggs"]
+            },
+            {
+              "id": "tadpole_middle",
+              "description": "Identifies tadpoles or tailed swimmers as the middle stage.",
+              "any_of": ["into tadpoles", "long tailed tadpoles", "become tailed swimmers", "tadpoles have long tails", "tailed swimmers come next"]
+            },
+            {
+              "id": "legs_develop",
+              "description": "States that legs develop.",
+              "any_of": ["which grow legs", "tadpoles grow legs", "swimmers develop four legs", "four legs appear as they grow"]
+            },
+            {
+              "id": "tail_reduces",
+              "description": "States that the tail becomes shorter or disappears.",
+              "any_of": ["their tails shrink", "tails become tiny", "tails get shorter as legs grow", "lose most of their tails"]
+            }
+          ],
+          "min_response_words": 10,
+          "ordered_concept_slot_ids": ["eggs_begin", "tadpole_middle", "legs_develop", "tail_reduces"],
+          "forbidden_phrases": ["tails grow longer", "legs disappear", "tadpoles stay unchanged", "eggs become fish"]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same change-over-time skill with a different pond animal. Keep the stages in time order and leave out minor details.",
+          "passage": "A dragonfly begins as an egg near water. A young nymph lives below the surface and grows. Later it climbs a reed, sheds its old covering, and flies away as an adult.",
+          "prompt": "Summarize the dragonfly's development from egg to adult in one ordered sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "dragonfly_egg",
+              "description": "Begins with the egg stage near water.",
+              "any_of": ["begins as an egg", "starts as an egg", "egg comes first", "hatches from an egg"]
+            },
+            {
+              "id": "dragonfly_nymph",
+              "description": "Places the growing underwater nymph in the middle.",
+              "any_of": ["then becomes a nymph", "young nymph lives underwater", "nymph grows below the surface", "next it is a water nymph"]
+            },
+            {
+              "id": "dragonfly_adult",
+              "description": "Ends with the adult leaving the old covering and flying.",
+              "any_of": ["finally becomes an adult", "adult dragonfly flies away", "sheds its covering and flies", "ends as a flying adult"]
+            }
+          ],
+          "min_response_words": 11,
+          "ordered_concept_slot_ids": ["dragonfly_egg", "dragonfly_nymph", "dragonfly_adult"],
+          "forbidden_phrases": ["adult becomes a nymph", "flies before the nymph stage", "nymph lives only in the sky"]
+        }
+      }
+    },
+    {
+      "level_id": "frog_fast_food_and_defence",
+      "title": "Catch food, avoid hunters",
+      "focus": "infer how a frog feeds and survives predators",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.short_answer",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Explain how a quick tongue, camouflage, and stillness help a frog eat or stay safe.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An inference joins an action to its likely purpose. Ask what the action helps the animal do.",
+          "passage": "A beetle crawls close. The frog stays still, then flicks out its sticky tongue in a split second.",
+          "prompt": "Why does the frog use a fast, sticky tongue?",
+          "options": [
+            "to catch the beetle before it escapes",
+            "to check whether the beetle is safe to eat",
+            "to knock the beetle into the pond for later",
+            "to guide a jump towards the beetle"
+          ],
+          "accepted_answers": [
+            "to catch the beetle before it escapes",
+            "it helps the frog catch the beetle quickly",
+            "because the sticky tongue traps fast prey"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Camouflage works when an animal's colours or patterns make it hard to notice against its surroundings. Explain the match and its result.",
+          "passage": "A mottled brown frog rests without moving among fallen leaves. A snake passes close by but does not turn towards it.",
+          "prompt": "Explain how the frog's appearance reduced the danger.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "matching_appearance",
+              "description": "States that the frog matched or blended with the leaves.",
+              "any_of": ["frog blended with the leaves", "brown frog matched the fallen leaves", "mottled pattern matched the leaves", "camouflage blended it with the leaves", "looked like the fallen leaves"]
+            },
+            {
+              "id": "reduced_detection",
+              "description": "States that the snake did not notice or see the frog.",
+              "any_of": ["snake did not notice it", "snake did not see the frog", "frog stayed hidden from the snake", "snake passed without seeing it", "snake missed the hidden frog"]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": ["made it easier to see", "attracted the snake", "the snake noticed it"]
+        },
+        "masterclass": {
+          "teaching_block": "Animals can combine defences. Compare what each strategy does, then explain how the two strategies reduce danger in different ways.",
+          "passage": "A brown frog stays motionless among dead leaves, so its outline is hard to notice. When the leaves shift and expose it, the frog dives beneath the pond surface.",
+          "prompt": "Compare the frog's two defence strategies and explain how each one helps.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "camouflage_defence",
+              "description": "Explains that stillness and matching leaves make the frog difficult to notice.",
+              "any_of": ["stays still so it is hard to notice", "motionless among the leaves hides it", "blends with the dead leaves", "camouflage makes it hard to see"]
+            },
+            {
+              "id": "escape_defence",
+              "description": "Explains that diving underwater moves the frog away when camouflage no longer works.",
+              "any_of": ["dives underwater to escape", "dives beneath the surface to get away", "moves into the pond when exposed", "uses water as an escape"]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": ["moving makes camouflage stronger", "diving makes it easier to catch", "both strategies do the same thing"]
+        },
+        "independent_check": {
+          "teaching_block": "Transfer the two-strategy idea to a new scene. Infer the danger from the clues rather than waiting for it to be named.",
+          "passage": "A wide shadow sweeps over a rocky pool. A speckled frog presses flat against the stones, then slips under a root as the shadow circles back.",
+          "prompt": "How do the frog's two actions reduce the danger in different ways?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "stone_camouflage",
+              "description": "Explains that pressing against matching stones makes the frog harder to detect.",
+              "any_of": ["presses against the stones to blend in", "speckles match the stones", "flat against the stones is hard to see", "camouflages itself on the rocks"]
+            },
+            {
+              "id": "root_cover",
+              "description": "Explains that slipping under the root adds cover or removes the frog from view.",
+              "any_of": ["slips under the root to hide", "the root gives it cover", "moves under the root out of sight", "uses the root as shelter"]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": ["tries to be seen", "the shadow is harmless", "chases the shadow"]
+        },
+        "transfer_check": {
+          "teaching_block": "Infer how two defensive actions solve different parts of a threat in a new animal scene.",
+          "passage": "A brown lizard freezes against tree bark when a kite passes overhead. When the bird turns back, the lizard darts into a narrow crack.",
+          "prompt": "Explain how freezing against the bark and entering the crack protect the lizard in different ways.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bark_camouflage",
+              "description": "Explains that stillness and matching bark make the lizard difficult to notice.",
+              "any_of": ["freezes to blend with the bark", "brown body matches the bark", "staying still makes it hard to notice", "camouflages itself against the tree"]
+            },
+            {
+              "id": "crack_shelter",
+              "description": "Explains that the crack provides physical cover from the returning bird.",
+              "any_of": ["darts into the crack to hide", "crack gives it shelter", "moves inside the crack out of reach", "uses the narrow crack as cover"]
+            }
+          ],
+          "min_response_words": 11,
+          "forbidden_phrases": ["wants the kite to see it", "the crack exposes it", "both actions attract the bird"]
+        }
+      }
+    },
+    {
+      "level_id": "frog_motion_comparison",
+      "title": "Compare swimmers and hoppers",
+      "focus": "compare frog movement and body features with fish or toads",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.reason_answer",
+        "writing.summary_own_words",
+        "writing.compare_contrast"
+      ],
+      "teaching_goal": "Use accurate details to compare how frogs, fish, and toads move and where they live.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Strong hind legs push a frog forwards on land, while webbing makes a broader foot that pushes more water during a swim.",
+          "passage": "The frog springs from the bank with its long back legs and then paddles across the pool with its wide back feet.",
+          "prompt": "Which body parts support the two kinds of movement?",
+          "options": [
+            "long back legs and wide back feet",
+            "long back legs and narrow front feet",
+            "strong front legs and wide back feet",
+            "long back legs alone for both movements"
+          ],
+          "accepted_answers": [
+            "long back legs and wide back feet",
+            "its long hind legs and broad webbed feet",
+            "back legs for jumping and wide feet for swimming"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A comparison names both animals and states a precise difference in how they move.",
+          "passage": "A fish travels with fins and a tail, but a frog kicks with paired legs. Both can move through pond water.",
+          "prompt": "Write one sentence that contrasts how the fish and frog move in water.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "fish_motion",
+              "description": "States that the fish uses fins or its tail.",
+              "any_of": ["fish uses fins to swim", "fish swims with fins", "fish moves with its fins", "fish swims using its tail", "fish moves with fins and tail"]
+            },
+            {
+              "id": "frog_motion",
+              "description": "States that the frog uses or kicks its legs.",
+              "any_of": ["frog uses legs to swim", "frog kicks with its legs", "frog swims using paired legs", "frog moves through water with its legs"]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": ["frog uses fins", "fish uses legs", "neither can swim"]
+        },
+        "masterclass": {
+          "teaching_block": "Compare closely related animals with precise features instead of saying only that they look different.",
+          "passage": "The pond frog has smooth, moist-looking skin and often makes long jumps. The garden toad has bumpier, drier-looking skin and usually takes shorter hops.",
+          "prompt": "Write one sentence comparing both skin texture and movement.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "skin_comparison",
+              "description": "Contrasts the frog's smoother skin with the toad's bumpier skin.",
+              "any_of": ["frog has smoother skin than the toad", "frog has smooth skin while the toad is bumpy", "toad has bumpier skin than the frog", "frog is smoother but the toad is bumpier", "frog's skin is smoother and the toad's is bumpier"]
+            },
+            {
+              "id": "movement_comparison",
+              "description": "Contrasts the frog's longer jumps with the toad's shorter hops.",
+              "any_of": ["frog jumps farther than the toad", "and jumps farther than the toad", "frog makes longer jumps than the toad", "and makes longer jumps than the toad", "toad takes shorter hops than the frog", "frog makes long jumps while the toad takes shorter hops", "frog jumps longer but the toad hops shorter"]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": ["exactly the same", "frog has bumpier skin", "toad jumps farther"]
+        },
+        "independent_check": {
+          "teaching_block": "Write an original comparison. Name both animals, include one similarity and one accurate difference, and connect the ideas clearly.",
+          "passage": "Field chart: a frog swims by kicking webbed back feet and can travel over wet ground; a silver fish swims with fins and remains in water; a toad is an amphibian that uses short hops and has less webbing between its toes.",
+          "prompt": "In 25 to 50 words, compare a frog with either the fish or the toad. Name both animals, give one accurate similarity, and give one accurate difference.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "frog_compare_25_50",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "word_range",
+              "description": "Contains 25 to 50 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "frog_named",
+              "description": "Names the frog.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "one_comparison_animal_named",
+              "description": "Names exactly one comparison animal: the fish or the toad.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "pair_accurate_similarity",
+              "description": "States one accurate similarity for the selected pair: frog and fish both swim, or frog and toad are both amphibians or both move on land.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "pair_accurate_difference",
+              "description": "States one accurate difference for the selected pair involving habitat, fins and legs, skin, webbing, or hopping distance.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Compare a frog with a new water visitor by stating one shared ability and one precise body-feature difference.",
+          "passage": "A frog paddles with long webbed back feet and can hop onto the bank. A duck paddles with two webbed feet but has feathers, wings, and a bill.",
+          "prompt": "Write one clear comparison of the frog and duck that includes one similarity and one difference.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "frog_duck_similarity",
+              "description": "States that both animals swim or paddle with webbed feet.",
+              "any_of": ["both swim with webbed feet", "both paddle using webbed feet", "frog and duck can both swim", "each uses webbed feet in water"]
+            },
+            {
+              "id": "frog_duck_difference",
+              "description": "States an accurate difference in body covering or body parts.",
+              "any_of": ["duck has feathers but the frog does not", "duck has wings and a bill", "frog has no feathers", "frog hops while the duck has wings", "duck is feathered while the frog has smooth skin"]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": ["frog has feathers", "duck has frog skin", "they are exactly the same"]
+        }
+      }
+    },
+    {
+      "level_id": "frog_calls_and_connectors",
+      "title": "Connect the frog's calls",
+      "focus": "explain croaking with and, or, but, and because",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose connectors that show addition, choice, contrast, or reason in complete sentences about frog calls.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use because to connect a result to its cause. When a male frog calls, air makes the inflated throat pouch vibrate and amplify the sound.",
+          "passage": "Air passes through the male frog's throat while its inflated pouch vibrates. This makes the call louder.",
+          "prompt": "Which sentence joins the ideas with a reason?",
+          "options": [
+            "the call grows louder because the inflated throat pouch vibrates",
+            "the call grows louder but the inflated throat pouch vibrates",
+            "the call grows louder or the inflated throat pouch vibrates",
+            "the throat pouch vibrates because the call grows louder"
+          ],
+          "accepted_answers": [
+            "the call grows louder because the inflated throat pouch vibrates",
+            "the frog makes a louder call because its throat pouch vibrates",
+            "its call is amplified because the inflated pouch vibrates"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Use but when two facts contrast. Repair the incomplete sentence by writing both ideas around the connector.",
+          "passage": "The pond looks quiet in daylight. After sunset, many frog calls rise from the reeds.",
+          "prompt": "Join the two facts in one complete sentence using but.",
+          "options": [],
+          "accepted_answers": [
+            "the pond looks quiet in daylight, but many frog calls rise from the reeds after sunset",
+            "the pond is quiet during the day, but frogs call from the reeds after sunset",
+            "the pond seems quiet by day but fills with frog calls after sunset"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Use or to show alternatives and and to add a related fact. A stronger sentence can manage both relationships without confusing choice with addition.",
+          "passage": "A frog may call from the reeds. It may call from the muddy bank. In either place, its repeated croaks travel across the pond.",
+          "prompt": "Combine all three ideas in one complete sentence using or for the two calling places and and for the added fact.",
+          "options": [],
+          "accepted_answers": [
+            "a frog may call from the reeds or the muddy bank, and its repeated croaks travel across the pond",
+            "the frog can call from the reeds or from the muddy bank and its repeated croaks carry across the pond",
+            "a frog calls either from the reeds or the muddy bank, and the repeated sound travels across the pond"
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "A fresh set of notes may contain more than one relationship. Decide how each pair of facts connects, then express both relationships clearly.",
+          "passage": "At dusk, a frog can call beside the drain. It can call from the grass. The grass is far from the pond. Its call still reaches the water.",
+          "prompt": "Write two complete connected ideas: one about the possible calling places and one about the distant call reaching the pond.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "calling_place_choice",
+              "description": "Uses a choice connector to link the drain and grass as alternative calling places.",
+              "any_of": ["drain or from the grass", "drain or in the grass", "drain or among the grass", "drain or near the grass", "either by the drain or among the grass", "either beside the drain or from the grass"]
+            },
+            {
+              "id": "distance_contrast",
+              "description": "Uses a contrast relationship while stating that the grass is distant from the pond.",
+              "any_of": ["even though the grass is far", "even though the grass is a long way", "although the grass is far", "although the grass is a long way", "grass is far from the pond but", "grass is a long way from the pond but", "despite the distance from the pond", "far from the pond yet"]
+            },
+            {
+              "id": "call_reaches_water",
+              "description": "States that the frog's call, voice, croak, or sound reaches the water or pond.",
+              "any_of": ["call reaches the water", "call reaches the pond", "call still reaches the water", "voice carries to the water", "voice carries to the pond", "croak carries to the pond", "sound reaches the water", "sound reaches the pond"]
+            }
+          ],
+          "min_response_words": 16,
+          "forbidden_phrases": ["calls from both places at the same time", "the distant call cannot reach the pond", "call never reaches the water", "voice does not carry to the pond", "the grass is beside the pond"]
+        },
+        "transfer_check": {
+          "teaching_block": "Choose connectors by meaning in a fresh setting: because gives a reason, while but marks a contrast.",
+          "passage": "The myna moved under the awning when rain began. The lane was noisy, yet its whistle remained easy to hear.",
+          "prompt": "Write two complete sentences: use because to explain the move under the awning and but to contrast the noisy lane with the clear whistle.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "rain_reason",
+              "description": "Uses because to connect the rain with moving under the awning.",
+              "any_of": ["moved under the awning because it rained", "went under the awning because rain began", "because it was raining, the myna moved", "because rain began the myna sheltered"]
+            },
+            {
+              "id": "noise_contrast",
+              "description": "Uses but to contrast the noisy lane with the audible whistle.",
+              "any_of": ["lane was noisy but its whistle was clear", "it was noisy but the whistle could be heard", "road was noisy but the myna was easy to hear", "lane had noise but its whistle carried"]
+            }
+          ],
+          "min_response_words": 15,
+          "forbidden_phrases": ["moved because the awning was dry", "whistle could not be heard", "lane was silent"]
+        }
+      }
+    },
+    {
+      "level_id": "frog_sentence_sequence",
+      "title": "Build a clear frog sentence",
+      "focus": "arrange jumbled words into grammatical sentences",
+      "skill_ids": [
+        "grammar.sentence_order",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Arrange a subject, action, and detail into a complete grammatical sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In a basic English sentence, place the subject before its action and put the action's detail after the verb.",
+          "passage": "Jumbled words: insect / an / catches / frog / the",
+          "prompt": "Which arrangement is a complete grammatical sentence?",
+          "options": [
+            "The frog catches an insect.",
+            "The frog an insect catches.",
+            "The catches frog an insect.",
+            "The frog catches insect an."
+          ],
+          "accepted_answers": [
+            "The frog catches an insect.",
+            "the frog catches an insect"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Place an adverb where it clearly modifies the action. Quickly can come before swims or directly after it in this sentence.",
+          "passage": "Near-correct line: The frog across the pond swims quickly.",
+          "prompt": "Rewrite the line as a natural sentence. Place quickly before or after swims.",
+          "options": [],
+          "accepted_answers": [
+            "the frog quickly swims across the pond",
+            "The frog quickly swims across the pond.",
+            "the frog swims quickly across the pond",
+            "The frog swims quickly across the pond."
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "When one clause gives a reason, place because between the result clause and the cause clause, or begin with the cause clause and use a comma.",
+          "passage": "Jumbled clauses: the frog slips under a leaf / the sun is hot / because",
+          "prompt": "Order all three parts into one complete reason sentence.",
+          "options": [],
+          "accepted_answers": [
+            "the frog slips under a leaf because the sun is hot",
+            "The frog slips under a leaf because the sun is hot.",
+            "because the sun is hot, the frog slips under a leaf",
+            "Because the sun is hot, the frog slips under a leaf."
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "Reconstruct an unseen two-clause sentence by choosing the connective that matches the relationship. One connective does not belong.",
+          "passage": "Jumbled parts: the frog enters the pond / the bank is dry / because / and",
+          "prompt": "Arrange both clauses into one complete sentence that explains why the frog enters the pond, and leave out the extra connective.",
+          "options": [],
+          "accepted_answers": [
+            "the frog enters the pond because the bank is dry",
+            "The frog enters the pond because the bank is dry.",
+            "because the bank is dry, the frog enters the pond",
+            "Because the bank is dry, the frog enters the pond."
+          ],
+          "response_mode": "short"
+        },
+        "transfer_check": {
+          "teaching_block": "Rebuild an unfamiliar sentence by placing the subject before its action and using because to introduce the cause.",
+          "passage": "Jumbled parts: the children carry umbrellas / dark clouds gather / because / quickly",
+          "prompt": "Arrange all the parts into one complete sentence. Place quickly where it naturally describes carry.",
+          "options": [],
+          "accepted_answers": [
+            "the children quickly carry umbrellas because dark clouds gather",
+            "The children quickly carry umbrellas because dark clouds gather.",
+            "the children carry umbrellas quickly because dark clouds gather",
+            "The children carry umbrellas quickly because dark clouds gather.",
+            "because dark clouds gather, the children quickly carry umbrellas",
+            "Because dark clouds gather, the children quickly carry umbrellas."
+          ],
+          "response_mode": "short"
+        }
+      }
+    },
+    {
+      "level_id": "frog_friendly_reply",
+      "title": "Reply to a pond-side friend",
+      "focus": "write a short friendly reply message",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer",
+        "writing.reason_answer",
+        "writing.friendly_message"
+      ],
+      "teaching_goal": "Write a relevant, friendly reply with a greeting, connected details, a question, and a closing.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A friendly reply responds to what the sender said instead of starting an unrelated topic.",
+          "passage": "Hi Tara, I saw three tadpoles near the pond steps this morning. Have you noticed any changes in your pond? - Kabir",
+          "prompt": "Which opening responds directly to Kabir?",
+          "options": [
+            "Hi Kabir, I saw tiny legs on our tadpoles yesterday.",
+            "Hi Kabir, ponds can contain many small animals.",
+            "Hi Tara, I saw tiny legs on our tadpoles yesterday.",
+            "Hi Kabir, did you finish the tadpole homework?"
+          ],
+          "accepted_answers": [
+            "Hi Kabir, I saw tiny legs on our tadpoles yesterday.",
+            "hi kabir i saw tiny legs on our tadpoles yesterday"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Repair an incomplete reply by keeping its greeting, adding a relevant detail, and asking the sender a related question.",
+          "passage": "Incomplete reply to Nisha's note about rainy-night croaks: Hi Nisha, I heard frogs too.",
+          "prompt": "Rewrite the incomplete reply with the greeting, one detail about where or when you heard frogs, and one question for Nisha.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "nisha_greeting",
+              "description": "Includes a greeting to Nisha.",
+              "any_of": ["hi nisha", "hello nisha", "dear nisha"]
+            },
+            {
+              "id": "hearing_detail",
+              "description": "Adds where or when the writer heard frogs.",
+              "any_of": ["heard frogs near my home", "heard them outside my window", "heard frogs after the rain", "heard them at night", "heard frogs last night", "heard them by the drain", "heard frogs near the pond"]
+            },
+            {
+              "id": "related_question",
+              "description": "Asks Nisha a question about the frogs or calls.",
+              "any_of": ["did you hear them", "what did they sound like", "where did you hear frogs", "when did you hear them", "how long did they call", "were they near the pond"]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": ["I did not read your note", "frogs never croak", "do not reply"]
+        },
+        "masterclass": {
+          "teaching_block": "Before writing a full message, compose a greeting and two connected reply sentences: one answers the sender and one continues the exchange.",
+          "passage": "Dev asks whether you saw frogs at the park pond and what they were doing.",
+          "prompt": "Write a greeting to Dev, one sentence answering his question with a frog action, and one sentence asking Dev a related question.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "dev_greeting",
+              "description": "Includes a greeting to Dev.",
+              "any_of": ["hi dev", "hello dev", "dear dev"]
+            },
+            {
+              "id": "direct_answer",
+              "description": "Answers whether the writer saw frogs.",
+              "any_of": ["I saw frogs at the park", "yes I saw frogs", "we saw frogs there", "I noticed frogs at the pond"]
+            },
+            {
+              "id": "frog_action",
+              "description": "Names an action by the observed frogs.",
+              "any_of": ["frogs were jumping", "they were hopping", "frogs were swimming", "they were croaking", "frogs were resting", "they were hiding"]
+            },
+            {
+              "id": "dev_question",
+              "description": "Asks Dev a related question.",
+              "any_of": ["did you see frogs", "what did you see", "where did you find them", "how many frogs did you see", "were they swimming", "have you seen them again"]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": ["I will not answer", "frogs cannot move", "do not write back"]
+        },
+        "independent_check": {
+          "teaching_block": "Reply in your own words. Answer the sender, share two relevant details, ask one friendly question, and include a greeting and closing.",
+          "passage": "Hi! Our class visited a wetland today. I liked watching a frog vanish among green plants, and I wondered whether frogs visit your neighbourhood after rain. Write back soon! - Maya",
+          "prompt": "Write Maya a 35 to 60 word reply. Include a greeting to Maya, answer whether frogs visit after rain, share two relevant details, ask one related question, and end with a closing and your name.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "frog_message_35_60",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "maya_word_range",
+              "description": "Contains 35 to 60 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_greeting",
+              "description": "Includes a greeting addressed to Maya.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_visit_answer",
+              "description": "Answers whether frogs visit the writer's neighbourhood after rain.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_first_detail",
+              "description": "Provides one relevant detail about frogs seen or heard after rain.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_second_detail",
+              "description": "Provides a second distinct detail about frogs seen or heard after rain.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_related_question",
+              "description": "Asks Maya one question related to frogs, rain, or her wetland visit.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_closing",
+              "description": "Ends with a friendly closing.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "maya_writer_name",
+              "description": "Includes the writer's name after the closing.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the friendly-message structure in a new exchange. Respond to the sender's news, add a relevant detail, ask a question, and close politely.",
+          "passage": "Hello! I found a tiny frog beside our school rain garden after the storm. It stayed still until the puddle became quiet. Have you seen any small animals near your school? - Arjun",
+          "prompt": "Write Arjun a 30 to 55 word reply with a greeting, a direct answer, one relevant observation, one related question, and a closing with your name.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "frog_message_35_60",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "arjun_length",
+              "description": "Contains 30 to 55 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "arjun_greeting_answer",
+              "description": "Greets Arjun and directly answers whether the writer has seen a small animal near school.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "arjun_observation",
+              "description": "Adds one relevant observation about the animal, weather, or habitat.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "arjun_question",
+              "description": "Asks Arjun one related question about the frog or rain garden.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "arjun_closing",
+              "description": "Ends with a friendly closing and the writer's name.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 13,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c5_ch05_assess_01",
+        "passage": "A frog rests under a fern on a muddy bank, then dives into a stream when footsteps approach.",
+        "prompt": "Which statement matches the whole observation?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "bank_use",
+            "description": "Identifies the frog's use of the bank or fern shelter.",
+            "any_of": ["frog rests under a fern", "rests on the muddy bank", "uses the fern as shelter", "shelters beneath the fern"]
+          },
+          {
+            "id": "stream_use",
+            "description": "Identifies the frog's movement into the stream or water.",
+            "any_of": ["dives into the stream", "moves from the bank into the stream", "enters the water when footsteps approach", "jumps into water to escape"]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": ["cannot enter water", "never uses the stream", "stays only on land"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_02",
+        "passage": "The ranger calls the tiny, newly hatched swimmer a larva. It has a tail and has not grown legs yet.",
+        "prompt": "What does larva mean in this observation?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "young_stage",
+            "description": "Identifies a larva as a young or newly hatched stage.",
+            "any_of": ["larva is a young stage", "larva is newly hatched", "newly hatched tadpole", "early stage of a frog"]
+          },
+          {
+            "id": "frog_context",
+            "description": "Connects the word to the tadpole or tailed larval stage before legs grow.",
+            "any_of": ["larva is a tadpole", "newly hatched tadpole", "tailed tadpole before legs", "young swimmer with a tail", "tadpole has not grown legs"]
+          }
+        ],
+        "min_response_words": 5,
+        "forbidden_phrases": ["adult frog", "already has four legs", "has not hatched"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_03",
+        "passage": "Eggs float in a shaded pool. Small tadpoles hatch, grow legs, and gradually take the shape of adult frogs.",
+        "prompt": "In one sentence, state the paragraph's main idea about the change from egg to adult frog.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "early_stages",
+            "description": "States that eggs hatch into tadpoles.",
+            "any_of": ["eggs hatch into tadpoles", "tadpoles hatch from eggs", "starts as eggs and tadpoles"]
+          },
+          {
+            "id": "adult_change",
+            "description": "States that tadpoles grow or change into adult frogs.",
+            "any_of": ["tadpoles grow into adult frogs", "change into adult frogs", "develop into adult frogs", "grow legs and become frogs"]
+          }
+        ],
+        "min_response_words": 7,
+        "forbidden_phrases": ["tadpoles stay unchanged", "adults become eggs", "shade is the main change"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_04",
+        "passage": "The frog remains under a rock. The midday ground is hot and dry.",
+        "prompt": "Join the facts as one complete sentence using because.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "because_connector",
+            "description": "Uses because to connect the result and cause.",
+            "any_of": ["because the ground is hot", "because the ground is dry", "because the midday ground is hot", "because the hot ground is dry"]
+          },
+          {
+            "id": "shelter_result",
+            "description": "States that the frog remains or shelters under the rock.",
+            "any_of": ["frog remains under a rock", "frog remains under the rock", "frog stays beneath a rock", "frog shelters under the rock"]
+          },
+          {
+            "id": "heat_cause",
+            "description": "States that the ground is hot or dry.",
+            "any_of": ["ground is hot", "ground is dry", "hot and dry ground", "midday ground is hot"]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": ["because the ground is cool", "the heat does not matter", "leaves the rock because it is hot"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_05",
+        "passage": "A moth hovers just beyond the frog's nose. The frog does not chase it; instead, its tongue darts out and returns.",
+        "prompt": "Why is the tongue useful in this scene?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [
+          "it reaches the moth quickly without a chase",
+          "it checks whether the moth is safe to eat",
+          "it knocks the moth onto the water for later",
+          "it guides the frog's jump towards the moth"
+        ],
+        "accepted_answers": [
+          "it reaches the moth quickly without a chase",
+          "the tongue lets the frog catch the moth quickly",
+          "it is useful because it catches prey without chasing it"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_06",
+        "passage": "Word bank: webbed - joined by thin skin between the toes.",
+        "prompt": "Use webbed correctly in a complete sentence about swimming.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+              "id": "webbed_word",
+              "description": "Uses the word webbed to describe the frog's feet or toes.",
+            "any_of": ["frog has webbed feet", "frog's webbed feet help", "its back feet are webbed", "frog uses its webbed toes", "its webbed back feet help"]
+          },
+          {
+            "id": "swimming_use",
+            "description": "Connects the webbed feet to swimming or pushing water.",
+            "any_of": ["webbed feet help it swim", "webbed toes help the frog swim", "webbed feet push water", "uses its webbed feet to swim"]
+          }
+        ],
+        "min_response_words": 7,
+        "forbidden_phrases": ["webbed feet stop swimming", "cannot push water", "webbing makes the feet narrower"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_07",
+        "passage": "A tree frog chooses one calling place: a branch or a wall.",
+        "prompt": "Which sentence correctly shows the choice between the two calling places?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "A tree frog may call from a branch or from a wall.",
+          "A tree frog calls from a branch and a wall at the same time.",
+          "A tree frog calls from a branch because the wall is nearby.",
+          "A tree frog calls from a branch, but the wall is damp."
+        ],
+        "accepted_answers": [
+          "A tree frog may call from a branch or from a wall.",
+          "a tree frog may call from a branch or from a wall"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_08",
+        "passage": "Jumbled words: pond / the / across / swims / frog / the",
+        "prompt": "Arrange every word into one complete grammatical sentence.",
+        "skill_ids": [
+          "grammar.sentence_order",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the frog swims across the pond",
+          "The frog swims across the pond."
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_09",
+        "passage": "A pale green frog settles against pale green duckweed. From above, its outline is difficult to separate from the plants.",
+        "prompt": "What advantage does the matching colour provide?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "predators may fail to notice the frog",
+          "the colour helps the frog choose matching plants",
+          "the pale pattern makes the frog look larger",
+          "the colour signals other frogs across the pond"
+        ],
+        "accepted_answers": [
+          "predators may fail to notice the frog",
+          "it helps hide the frog from predators",
+          "the matching colour makes the frog difficult to see"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_10",
+        "passage": "At the start of the rainy season, several frogs call from separate puddles after dark.",
+        "prompt": "Why might calling help frogs that are spread across the area? Answer in one sentence.",
+        "skill_ids": [
+          "writing.short_answer",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "communication_help",
+            "description": "States that calling helps separated frogs hear, find, or communicate with one another.",
+            "any_of": ["hear each other", "hear one another", "calling helps them find each other", "calls help them locate one another", "communicate across the distance"]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": ["cannot hear each other", "calls keep frogs apart", "croaks do not travel"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_11",
+        "passage": "New comparison notes: a marsh frog crosses water with strong kicks and rests on wet soil; a stream fish steers with fins and stays below the water surface.",
+        "prompt": "In 25 to 50 words, compare the frog and fish. Name both animals, give one accurate similarity, and give one accurate difference.",
+        "skill_ids": [
+          "writing.compare_contrast"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "frog_compare_25_50",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "form_a_word_range",
+            "description": "Contains 25 to 50 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_a_frog_named",
+            "description": "Names the frog.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_a_fish_named",
+            "description": "Names the fish.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_a_shared_swimming",
+            "description": "States that both the frog and fish can swim or move through water.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_a_movement_difference",
+            "description": "States an accurate difference involving the fish's fins or water-only life and the frog's legs or use of land.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_12",
+        "passage": "On a cool morning, a frog warms itself on a flat brick beside a trough. At a sudden shout, it jumps into the trough.",
+        "prompt": "Which detail shows the frog moving from land to water?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "it jumps from the brick into the trough",
+          "the morning air feels cool",
+          "someone gives a sudden shout",
+          "the brick lies flat"
+        ],
+        "accepted_answers": [
+          "it jumps from the brick into the trough",
+          "the frog jumps into the trough",
+          "it leaves the brick and enters the water"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_13",
+        "passage": "The guide says that a water snake is a predator of small frogs because it hunts and eats them.",
+        "prompt": "What does predator mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "hunter_meaning",
+            "description": "Identifies a predator as an animal that hunts or catches another animal.",
+            "any_of": ["animal that hunts other animals", "animal that hunts frogs", "predator catches other animals", "hunts and catches prey"]
+          },
+          {
+            "id": "food_meaning",
+            "description": "States that the hunted animal is eaten as food or is prey.",
+            "any_of": ["eats the animals it hunts", "hunts animals for food", "catches prey to eat", "kills other animals for food", "hunts and eats other animals"]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": ["does not hunt", "protects its prey", "is eaten by the frog"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_14",
+        "passage": "The science club needs a word for an animal whose life can include both watery and land stages.",
+        "prompt": "Which chapter word fits the definition?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "amphibian",
+          "predator",
+          "camouflage",
+          "spawn"
+        ],
+        "accepted_answers": [
+          "amphibian",
+          "an amphibian"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_15",
+        "passage": "A young pond animal first swims with a tail, later grows hind and front legs, and finally keeps only a tiny tail remnant.",
+        "prompt": "Summarize the main change in your own words.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "tailed_start",
+            "description": "Identifies the animal's tailed tadpole or swimmer stage.",
+            "any_of": ["starts as a tadpole with a tail", "young animal swims with a tail", "begins as a tailed swimmer", "tadpole begins with a tail"]
+          },
+          {
+            "id": "legs_grow",
+            "description": "States that legs grow or appear.",
+            "any_of": ["later grows front and hind legs", "tadpole grows four legs", "its legs appear as it grows", "develops front and back legs"]
+          },
+          {
+            "id": "tail_reduces",
+            "description": "States that the tail becomes very small or disappears.",
+            "any_of": ["tail becomes tiny", "tail shrinks to a remnant", "finally loses most of its tail", "its tail gets shorter"]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": ["tail grows longer", "legs disappear", "stays unchanged"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_16",
+        "passage": "A frog opens its mouth. Its sticky tongue catches a fly.",
+        "prompt": "Join the two actions in one complete sentence using and.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the frog opens its mouth and its sticky tongue catches a fly",
+          "a frog opens its mouth and catches a fly with its sticky tongue",
+          "the frog opens its mouth and catches the fly with a sticky tongue"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_17",
+        "passage": "Key facts: powerful hind legs; a quick leap away from danger.",
+        "prompt": "Write one complete sentence that links the body feature to the movement.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "hind_leg_feature",
+            "description": "Names the frog's powerful or strong hind legs.",
+            "any_of": ["powerful hind legs", "strong hind legs", "strong back legs", "powerful back legs"]
+          },
+          {
+            "id": "escape_movement",
+            "description": "Connects the legs to a quick leap or jump away from danger.",
+            "any_of": ["hind legs help it leap away", "back legs help it jump away", "uses its powerful hind legs to escape", "strong back legs produce a quick leap"]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": ["legs prevent jumping", "cannot leap", "moves towards danger"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_18",
+        "passage": "A village pond has shaded edges, insects above the surface, shallow water for eggs, and reeds where adult frogs can hide.",
+        "prompt": "What is the central idea of the description?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "the pond supplies several things frogs need",
+          "the shaded edge is the only pond feature frogs need",
+          "insects are the passage's only important detail",
+          "shallow water is useful only to adult frogs"
+        ],
+        "accepted_answers": [
+          "the pond supplies several things frogs need",
+          "the pond provides food shelter and breeding space",
+          "the pond is a useful frog habitat"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_19",
+        "passage": "A spotted frog crouches on speckled stone while a hunting bird scans the shore.",
+        "prompt": "How may the frog's pattern protect it?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "concealment_effect",
+            "description": "States that the frog becomes difficult for the bird to see or spot.",
+            "any_of": ["pattern makes the frog hard to see", "spots blend with the stone", "camouflage hides the frog", "speckled pattern makes it difficult to spot", "frog hard for the bird to spot"]
+          },
+          {
+            "id": "hunting_bird",
+            "description": "Connects the protection to the bird or predator.",
+            "any_of": ["bird cannot spot the frog", "hides it from the hunting bird", "predator may overlook it", "bird has trouble seeing it", "frog hard for the bird to spot"]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": ["easier for the bird to spot", "helps the bird see it", "attracts the bird"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_20",
+        "passage": "After a tadpole grows back legs, its front legs appear and its tail becomes shorter.",
+        "prompt": "According to the sentence, what happens after the back legs grow?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the front legs appear and the tail becomes shorter",
+          "the front legs disappear and the tail grows longer",
+          "the tadpole returns to the egg stage",
+          "the back legs vanish before any other change"
+        ],
+        "accepted_answers": [
+          "the front legs appear and the tail becomes shorter",
+          "front legs appear and the tail shortens"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_21",
+        "passage": "By noon, the exposed path is dusty, but the ground below a leaking tap remains damp. A frog settles below the tap.",
+        "prompt": "Explain the frog's choice with a reason.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "damp_location",
+            "description": "Identifies the damp ground below the leaking tap.",
+            "any_of": ["ground below the tap is damp", "leaking tap keeps the ground wet", "frog settles on damp ground", "ground under the tap remains moist"]
+          },
+          {
+            "id": "suitable_condition",
+            "description": "Explains that the damp place is more suitable than the dry path for the frog.",
+            "any_of": ["damp ground suits the frog", "frog needs moisture", "wet place is better than the dry path", "frog avoids the dusty path", "chooses it because it is damp"]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": ["prefers the dry path", "does not need moisture", "the leak makes the ground dry"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_22",
+        "passage": "Hello! I found a tiny frog near our rain barrel and moved back so I would not frighten it. Do frogs ever appear near your home? Tell me what you do when you see one. - Aman",
+        "prompt": "Write Aman a 35 to 60 word reply. Include a greeting to Aman, answer whether frogs appear near your home, explain what you do when you see one, ask one related question, and end with a closing and your name.",
+        "skill_ids": [
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "frog_message_35_60",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "aman_word_range",
+            "description": "Contains 35 to 60 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "aman_greeting",
+            "description": "Includes a greeting addressed to Aman.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "aman_near_home_answer",
+            "description": "Answers whether frogs appear near the writer's home.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "aman_action_when_seen",
+            "description": "Explains what the writer does when seeing a frog.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "aman_related_question",
+              "description": "Asks one question connected to Aman's frog or rain-barrel observation.",
+              "required": true,
+              "min_quality": 0.7
+          },
+          {
+            "id": "aman_closing",
+            "description": "Ends with a friendly closing.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "aman_writer_name",
+            "description": "Includes the writer's name after the closing.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_23",
+        "passage": "Jumbled parts: the frog hides / because / a shadow crosses the pond",
+        "prompt": "Which option arranges every part into a complete reason sentence?",
+        "skill_ids": [
+          "grammar.sentence_order",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The frog hides because a shadow crosses the pond.",
+          "Because the frog hides, a shadow crosses the pond.",
+          "The frog hides, but a shadow crosses the pond.",
+          "The frog hides, and a shadow crosses the pond."
+        ],
+        "accepted_answers": [
+          "The frog hides because a shadow crosses the pond.",
+          "the frog hides because a shadow crosses the pond"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_24",
+        "passage": "Field notes: a green pattern hides the frog near leaves; thin skin joins its back toes and helps it push through water; a water snake hunts frogs; the frog's quick tongue catches insects.",
+        "prompt": "Summarize how three features help the frog survive. Use camouflage and webbed correctly, then either describe the snake as a predator or explain how the tongue helps the frog feed.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "camouflage_usage",
+            "description": "Uses camouflage accurately to explain how the frog's pattern hides it.",
+            "any_of": ["camouflage hides the frog", "camouflage helps the frog hide", "uses camouflage to blend", "its camouflage makes it hard to see"]
+          },
+          {
+            "id": "webbed_usage",
+            "description": "Uses webbed accurately to explain how joined toes help the frog swim.",
+            "any_of": ["webbed feet help it swim", "webbed toes push water", "uses webbed feet for swimming", "webbed back feet move it through water"]
+          },
+          {
+            "id": "third_survival_feature",
+            "description": "Accurately uses predator for the hunting snake or explains that the quick tongue catches food.",
+            "any_of": ["snake is a predator", "predator hunts the frog", "water snake is a predator", "tongue catches insects", "quick tongue helps it feed", "tongue catches food"]
+          }
+        ],
+        "min_response_words": 15,
+        "forbidden_phrases": ["camouflage reveals the frog", "webbed feet stop swimming", "predator protects the frog", "tongue cannot catch insects"]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_25",
+        "passage": "Fresh comparison notes: a pond frog has smoother skin, webbed back feet, and long jumps; a garden toad has bumpier skin, less webbing, and shorter hops. Both are amphibians that move on land.",
+        "prompt": "In 25 to 50 words, compare the frog and toad. Name both animals, give one accurate similarity, and give one accurate difference.",
+        "skill_ids": [
+          "writing.compare_contrast"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "frog_compare_25_50",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "form_b_word_range",
+            "description": "Contains 25 to 50 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_b_frog_named",
+            "description": "Names the frog.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_b_toad_named",
+            "description": "Names the toad.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_b_shared_amphibian_feature",
+            "description": "States that both animals are amphibians or can move on land.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "form_b_body_or_motion_difference",
+            "description": "States an accurate difference involving skin, webbing, jumping, or hopping.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch05_assess_26",
+        "passage": "Hi! Yesterday I heard frogs calling beside the sports field after a shower. Do you hear frogs near your school? Tell me one thing you have noticed about their calls. - Zoya",
+        "prompt": "Write Zoya a 35 to 60 word reply. Include a greeting to Zoya, answer whether you hear frogs near school, share one detail about their calls, ask one related question, and end with a closing and your name.",
+        "skill_ids": [
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "frog_message_35_60",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "zoya_word_range",
+            "description": "Contains 35 to 60 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "zoya_greeting",
+            "description": "Includes a greeting addressed to Zoya.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "zoya_near_school_answer",
+            "description": "Answers whether the writer hears frogs near school.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "zoya_call_detail",
+            "description": "Shares one detail about the frogs' calls.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "zoya_related_question",
+              "description": "Asks one question connected to Zoya's observation of frog calls after rain.",
+              "required": true,
+              "min_quality": 0.7
+          },
+          {
+            "id": "zoya_closing",
+            "description": "Ends with a friendly closing.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "zoya_writer_name",
+            "description": "Includes the writer's name after the closing.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      }
+    ]
+  }
+}

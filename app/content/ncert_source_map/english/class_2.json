@@ -1,0 +1,102 @@
+{
+  "book_code": "bemr1",
+  "book_title": "Mridang",
+  "chapter_count": 13,
+  "chapters": [
+    {
+      "chapter_id": "eng_c2_ch01",
+      "chapter_no": 1,
+      "chapter_title": "My Bicycle",
+      "selector_ref": "bemr1=1-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=1-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch02",
+      "chapter_no": 2,
+      "chapter_title": "Picture Reading",
+      "selector_ref": "bemr1=2-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=2-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch03",
+      "chapter_no": 3,
+      "chapter_title": "It is Fun",
+      "selector_ref": "bemr1=3-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=3-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch04",
+      "chapter_no": 4,
+      "chapter_title": "Seeing without Seeing",
+      "selector_ref": "bemr1=4-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=4-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch05",
+      "chapter_no": 5,
+      "chapter_title": "Come Back Soon",
+      "selector_ref": "bemr1=5-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=5-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch06",
+      "chapter_no": 6,
+      "chapter_title": "Between Home and School",
+      "selector_ref": "bemr1=6-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=6-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch07",
+      "chapter_no": 7,
+      "chapter_title": "This is My Town",
+      "selector_ref": "bemr1=7-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=7-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch08",
+      "chapter_no": 8,
+      "chapter_title": "A Show of Clouds",
+      "selector_ref": "bemr1=8-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=8-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch09",
+      "chapter_no": 9,
+      "chapter_title": "My Name",
+      "selector_ref": "bemr1=9-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=9-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch10",
+      "chapter_no": 10,
+      "chapter_title": "The Crow",
+      "selector_ref": "bemr1=10-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=10-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch11",
+      "chapter_no": 11,
+      "chapter_title": "The Smart Monkey",
+      "selector_ref": "bemr1=11-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=11-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch12",
+      "chapter_no": 12,
+      "chapter_title": "Little Drops of Water",
+      "selector_ref": "bemr1=12-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=12-13"
+    },
+    {
+      "chapter_id": "eng_c2_ch13",
+      "chapter_no": 13,
+      "chapter_title": "We are all Indians",
+      "selector_ref": "bemr1=13-13",
+      "selector_url": "https://ncert.nic.in/textbook.php?bemr1=13-13"
+    }
+  ],
+  "class_no": 2,
+  "source_url": "https://ncert.nic.in/textbook.php",
+  "structural_note": "NCERT selector metadata only. Zidd stores original teaching content and does not copy textbook body text.",
+  "subject_id": "english"
+}

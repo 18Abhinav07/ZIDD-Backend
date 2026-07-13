@@ -1,0 +1,305 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": ["Focused schema, runtime hash, pedagogy, freshness, coverage, and key self-review for eng_c4_ch08 on 2026-07-12"],
+  "runtime_sha256": "7b7d89154cf57e5f1d7f9e5155e3f3fe9d4ad5a219dcf768577c0f2d86fe0b20",
+  "chapter_id": "eng_c4_ch08",
+  "chapter_no": 8,
+  "title": "The Lagori Champions",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa108.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "lagori_rules_main_idea",
+      "title": "Understand how a Lagori round works",
+      "focus": "identify the main rule and follow a sequence of play",
+      "skill_ids": ["reading.paragraph_main_idea", "reading.sentence_comprehension"],
+      "teaching_goal": "Connect striking, scattering, rebuilding, and tagging details to the two teams' different goals.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A rules paragraph explains goals and actions, not just equipment. Worked example: one team knocks down and rebuilds the stone stack while the other retrieves the ball and tries to tag players. The main idea is how the two sides compete during a round.",
+          "passage": "Seven flat tiles stand in a small stack. The striking team throws a soft ball to scatter them, then tries to rebuild the stack. The fielding team collects the ball and attempts a safe tag before the stack is complete.",
+          "prompt": "Which statement gives the main idea?",
+          "options": ["the teams race between rebuilding and tagging", "the tiles must all be the same colour", "only one player touches the field", "the ball is kept after every throw"],
+          "accepted_answers": ["the teams race between rebuilding and tagging", "one team rebuilds while the other tries to tag"]
+        },
+        "bridge": {
+          "teaching_block": "Break the rule into team goals. Strikers: scatter, then rebuild. Fielders: recover the ball, then tag. Keep the actions with the correct team.",
+          "passage": "Ravi's side has knocked the stack apart. Pema's side reaches the rolling ball first.",
+          "prompt": "What should Ravi's side try to do next?",
+          "options": ["rebuild the stack", "carry the ball away", "leave the playing area", "add more tiles"],
+          "accepted_answers": ["rebuild the stack", "rebuild the tiles"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: knocking the stack down does not finish the round. The striking side must still rebuild while avoiding a legal tag.",
+          "passage": "Anaya's throw scatters all seven tiles. She celebrates, but her teammates immediately move toward the pieces as the fielders return with the ball.",
+          "prompt": "Why must Anaya's team keep playing?",
+          "options": ["the stack still has to be rebuilt", "the throw did not touch a tile", "the fielders must build first", "the tiles must be painted"],
+          "accepted_answers": ["the stack still has to be rebuilt", "they must rebuild the stack"]
+        },
+        "independent_check": {
+          "teaching_block": "Read the unseen round and explain what happens next without choices.",
+          "passage": "The ball clips the stack and four tiles slide apart. The fielders are still running toward the ball, while two strikers are nearest to the fallen pieces.",
+          "prompt": "What should the strikers do next, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "action", "description": "States that the strikers should begin rebuilding or gathering the tiles.", "any_of": ["rebuild the stack", "gather the tiles", "start stacking", "put the tiles back"]},
+            {"id": "reason", "description": "Explains that the fielders have not returned with the ball or that this is time to rebuild.", "any_of": ["fielders are chasing the ball", "before the ball returns", "they are nearest", "time to rebuild", "before being tagged"]}
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer goal tracking to a relay clean-up game. Identify each side's objective and the next action.",
+          "passage": "In a classroom relay, the Blue group must place scattered cards in number order. The Red group carries one beanbag at a time to tag the sorting zone. Blue has arranged cards one to five, but cards six and seven remain apart.",
+          "prompt": "What must Blue do to complete its goal?",
+          "options": [],
+          "accepted_answers": ["put cards six and seven in order", "arrange cards six and seven", "complete the number order", "sort the remaining cards"]
+        }
+      }
+    },
+    {
+      "level_id": "lagori_strategy_evidence",
+      "title": "Explain a team strategy with evidence",
+      "focus": "infer why a decision helps and support it with match clues",
+      "skill_ids": ["reading.inference_reason", "writing.reason_answer"],
+      "teaching_goal": "Connect player positions, timing, communication, and match results in an evidence-backed explanation.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A strategy answer should say what the team does and why it helps. Worked example: 'One player calls tile positions so teammates rebuild faster and do not search for the same piece.'",
+          "passage": "After the stack falls, Nitin calls, 'Two tiles left, one near the circle!' His teammates split up instead of crowding one spot.",
+          "prompt": "Why is Nitin's call useful?",
+          "options": ["it helps teammates find and divide the remaining work", "it makes the tiles heavier", "it tells fielders to leave", "it ends the round immediately"],
+          "accepted_answers": ["it helps teammates find and divide the remaining work", "his teammates can split the work"]
+        },
+        "bridge": {
+          "teaching_block": "Separate position from purpose. Position: one player waits near the far tile. Purpose: less running is needed when rebuilding begins.",
+          "passage": "Before the throw, Saba stands where a loose tile often rolls. When the stack breaks, she reaches that tile first.",
+          "prompt": "Which result shows that Saba's position helped?",
+          "options": ["she reaches the loose tile first", "the stack contains seven tiles", "the ball is soft", "the round begins before lunch"],
+          "accepted_answers": ["she reaches the loose tile first", "reaches the tile first"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: a fast action is not automatically smart. A good strategy must improve the team's goal without breaking rules or leaving teammates exposed.",
+          "passage": "Arun runs toward the last tile even though the ball carrier is beside him. Mehak instead draws the fielder away while another teammate rebuilds from the safer side.",
+          "prompt": "Which action shows stronger team strategy?",
+          "options": ["Mehak draws the fielder away to create rebuilding space", "Arun runs beside the ball carrier", "both players ignore the last tile", "the team stops communicating"],
+          "accepted_answers": ["Mehak draws the fielder away to create rebuilding space", "Mehak creates space for her teammate"]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the decision in the unseen round using a match detail as evidence.",
+          "passage": "Only one tile remains to be placed. The ball is with a fielder near the centre. Joya calls the builder to approach from behind the stack while she stays wide and draws the fielder's attention.",
+          "prompt": "Why might Joya's plan help the team finish?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "strategy", "description": "Explains that Joya distracts or pulls attention away from the builder.", "any_of": ["draws the fielder away", "distracts the fielder", "takes attention", "stays wide"]},
+            {"id": "result", "description": "Explains that the builder gets safer space or time to place the last tile.", "any_of": ["builder can place the tile", "more time to rebuild", "safer path", "finish the stack", "avoid the tag"]}
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Apply evidence-based strategy reasoning to a group presentation instead of a field game.",
+          "passage": "During a science presentation, the model jams. Iqra continues explaining the diagram while Mohan quietly reconnects the loose wire. The audience stays focused and the model starts again.",
+          "prompt": "Explain why splitting the roles was effective, using evidence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must explain in English how the two roles supported the shared goal and cite the audience or repaired model as evidence.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "roles", "description": "Identifies that Iqra maintained the explanation while Mohan repaired the model.", "required": true, "min_quality": 0.65},
+            {"id": "shared_goal", "description": "Connects the divided roles to keeping the presentation moving.", "required": true, "min_quality": 0.65},
+            {"id": "evidence", "description": "Uses the audience staying focused or the model restarting as evidence.", "required": true, "min_quality": 0.65}
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "lagori_context_words",
+      "title": "Use match words from context",
+      "focus": "infer the meaning of game vocabulary from rules and actions",
+      "skill_ids": ["vocab.chapter_word_usage", "reading.word_meaning_context"],
+      "teaching_goal": "Use context to understand stack, scatter, retrieve, defender, boundary, and champion.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An action clue can reveal a word. Worked example: when a ball hits a stack and the tiles spread in different directions, scatter means to separate and move apart.",
+          "passage": "The centre tile jumped left, two slid backwards, and the rest rolled away as the stack scattered.",
+          "prompt": "What does scattered mean here?",
+          "options": ["spread apart in different directions", "formed a taller pile", "stayed in one place", "became a single tile"],
+          "accepted_answers": ["spread apart in different directions", "spread apart"]
+        },
+        "bridge": {
+          "teaching_block": "Use the before-and-after clue. The ball rolls away; a player runs to bring it back. Retrieve means go and get something back.",
+          "passage": "The throw missed and rolled near the fence. A fielder sprinted to retrieve the ball and returned it to the circle.",
+          "prompt": "Which meaning fits retrieve?",
+          "options": ["go and bring back", "hide permanently", "throw without looking", "mark a straight line"],
+          "accepted_answers": ["go and bring back", "bring back"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: boundary can mean a limit, not only a wall. In a game, the marked line shows where the playing area ends.",
+          "passage": "The ball crossed the chalk boundary, so the referee stopped play and returned it to the marked area.",
+          "prompt": "What does boundary mean in this match?",
+          "options": ["the line marking the edge of play", "the tallest player", "the first tile in the stack", "a cheer after scoring"],
+          "accepted_answers": ["the line marking the edge of play", "edge of the playing area"]
+        },
+        "independent_check": {
+          "teaching_block": "Use the unseen action to work out the role word.",
+          "passage": "While the builders gathered tiles, Rekha stayed between them and the ball carrier, blocking the easiest throwing path without touching anyone.",
+          "prompt": "Which role is Rekha performing?",
+          "options": [],
+          "accepted_answers": ["defender", "a defender", "defending"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer retrieve to a library task. Use the action of locating and bringing back.",
+          "passage": "The librarian asked Om to retrieve the atlas from the return shelf and place it on the geography table.",
+          "prompt": "What does retrieve mean in this context?",
+          "options": [],
+          "accepted_answers": ["find and bring back", "get and bring", "fetch", "collect the atlas"]
+        }
+      }
+    },
+    {
+      "level_id": "lagori_sequence_connectors",
+      "title": "Order match events and link reasons",
+      "focus": "arrange events logically and choose because or but by meaning",
+      "skill_ids": ["grammar.sentence_order", "grammar.connectors_because_and_but"],
+      "teaching_goal": "Use event logic and connectors to explain what happens first, next, and why.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sequence words make match reports clear. Worked example: first the throw scatters the stack; next players gather tiles; finally the last tile completes the rebuild.",
+          "passage": "Events: the ball hits the stack / the tiles scatter / the players begin rebuilding.",
+          "prompt": "Which event happens first?",
+          "options": ["the ball hits the stack", "the players finish rebuilding", "the tiles are counted after play", "the referee packs the field"],
+          "accepted_answers": ["the ball hits the stack"]
+        },
+        "bridge": {
+          "teaching_block": "Use cause and effect to order actions. The ball must be retrieved before a fielder can return with it. Then a tag attempt can happen.",
+          "passage": "Events: fielder retrieves ball / fielder returns to circle / fielder attempts a tag.",
+          "prompt": "Which event belongs in the middle?",
+          "options": ["fielder returns to circle", "fielder retrieves ball", "fielder attempts a tag", "team stacks tiles before the throw"],
+          "accepted_answers": ["fielder returns to circle"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: because gives a reason; but shows contrast. 'They were under pressure, but stayed calm' contrasts expectation with action.",
+          "passage": "The fielders returned quickly, ___ the builders completed the stack just before the tag.",
+          "prompt": "Which connector shows the surprising contrast?",
+          "options": ["but", "because", "so", "when"],
+          "accepted_answers": ["but"]
+        },
+        "independent_check": {
+          "teaching_block": "Reorder the unseen words without choices. Keep the sequence word first and make a complete sentence.",
+          "passage": "Words: finally / placed / Tara / top / the / tile",
+          "prompt": "Put the words in order to make a sentence.",
+          "options": [],
+          "accepted_answers": ["finally tara placed the top tile", "finally, tara placed the top tile.", "tara finally placed the top tile", "tara finally placed the top tile."]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer reason linking to a cooking process. Choose the connector from the relationship, not from the topic.",
+          "passage": "Mina lowered the flame ___ the soup was beginning to boil over.",
+          "prompt": "Write the connector that introduces the reason.",
+          "options": [],
+          "accepted_answers": ["because", "since"]
+        }
+      }
+    },
+    {
+      "level_id": "lagori_match_message",
+      "title": "Summarise a match and message the team",
+      "focus": "select decisive evidence and communicate it in one's own words",
+      "skill_ids": ["writing.summary_own_words", "writing.friendly_message"],
+      "teaching_goal": "Write a concise match summary and a specific, respectful team message based on what actually happened.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A match summary names the turning point and result. Worked example: 'Blue recovered after a slow start because clear calls helped them rebuild the final stack before the tag.' This is stronger than listing every throw.",
+          "passage": "Green missed its first two throws. In the final round, Ritu struck the stack, Noor called tile positions, and the team rebuilt with one second left.",
+          "prompt": "Which summary keeps the decisive actions and result?",
+          "options": ["Green recovered when a successful throw and clear calls led to a last-second rebuild.", "Green wore matching shirts and stood on a field.", "The match had several throws and many tiles.", "Noor spoke while one second passed."],
+          "accepted_answers": ["Green recovered when a successful throw and clear calls led to a last-second rebuild.", "Green won the round through a good throw and clear calls"]
+        },
+        "bridge": {
+          "teaching_block": "Plan a team message with three parts: address the team, name one specific strength, and suggest one next step. Avoid empty praise such as 'You were perfect.'",
+          "passage": "The team rebuilt quickly but twice crossed the boundary while watching the ball.",
+          "prompt": "Which feedback detail is specific and useful?",
+          "options": ["Our rebuilding was quick; next time we should watch the boundary.", "Everything was perfect.", "The field had white chalk.", "Games are fun for everyone."],
+          "accepted_answers": ["Our rebuilding was quick; next time we should watch the boundary.", "rebuild quickly and watch the boundary"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: a champion summary should not invent victory or blame one person. Report supported evidence and recognise the team's shared response.",
+          "passage": "Yellow lost the first round after crowding the tiles. In round two, players spread out, called clearly, and completed the stack. The match ended level.",
+          "prompt": "Which sentence is accurate and fair?",
+          "options": ["Yellow improved its teamwork and earned a draw after changing position and communication.", "Yellow won every round because one player was perfect.", "Yellow never changed its plan.", "The match ended because the tiles disappeared."],
+          "accepted_answers": ["Yellow improved its teamwork and earned a draw after changing position and communication.", "Yellow improved and drew the match"]
+        },
+        "independent_check": {
+          "teaching_block": "Write an original two-sentence match summary using the turning point and result. Do not copy the passage wording.",
+          "passage": "Orange trailed by one round. During the last chance, Punit retrieved a wide throw quickly, but Kavya used the extra space to place the final two tiles. Orange levelled the score before time ended.",
+          "prompt": "Summarise the finish in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must be a concise English match summary that identifies the decisive interaction and the final result without copying the passage wholesale.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "turning_point", "description": "Explains that the quick retrieval left or coincided with space for Kavya to place the last tiles.", "required": true, "min_quality": 0.65},
+            {"id": "result", "description": "States that Orange levelled or tied the score before time ended.", "required": true, "min_quality": 0.65},
+            {"id": "own_words", "description": "Uses concise original wording and does not add an unsupported win.", "required": true, "min_quality": 0.6}
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer specific team messaging to a debate group. Recognise evidence and suggest one practical next step.",
+          "passage": "The debate group used clear examples, but two speakers repeated the same point. In the next round, they can assign a different reason to each speaker.",
+          "prompt": "Write a brief friendly message to the group in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must be a respectful English team message that names the clear examples and recommends distinct reasons for speakers.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "address", "description": "Uses a friendly direct address or inclusive team wording.", "required": true, "min_quality": 0.6},
+            {"id": "strength", "description": "Recognises the group's clear examples.", "required": true, "min_quality": 0.65},
+            {"id": "next_step", "description": "Suggests assigning different reasons or avoiding repeated points.", "required": true, "min_quality": 0.65},
+            {"id": "own_words", "description": "Uses concise original phrasing.", "required": true, "min_quality": 0.6}
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"eng_c4_ch08_assess_01","passage":"The striking side knocks four blocks from a tower and rushes to rebuild. The fielding side gathers the beanbag and tries to tag a builder before the tower stands again.","prompt":"Which main idea covers the rules in this paragraph?","skill_ids":["reading.paragraph_main_idea"],"options":["the sides compete between rebuilding and tagging","the blocks must be painted before play","only fielders may touch blocks","a tag begins before the throw"],"accepted_answers":["the sides compete between rebuilding and tagging","one side rebuilds while the other tags"]},
+      {"item_id":"eng_c4_ch08_assess_02","passage":"In the final round, the Red team stops chasing every loose tile. Players spread around the circle, call the nearest piece, and rebuild before the ball returns.","prompt":"State the paragraph's main idea in your own words.","skill_ids":["reading.paragraph_main_idea"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"change","description":"Mentions spreading out or using calls instead of chasing every tile.","any_of":["spread out","call the nearest tile","changed their plan","stopped crowding"]},{"id":"result","description":"Connects teamwork to rebuilding before the ball returns.","any_of":["rebuilt in time","finished before the ball returned","worked together","faster rebuild"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch08_assess_03","passage":"First, Gita strikes the stack. Next, the tiles scatter. Then, three teammates begin placing the widest tiles at the bottom.","prompt":"What happens immediately after the tiles scatter?","skill_ids":["reading.sentence_comprehension"],"options":["three teammates begin rebuilding","Gita strikes the stack","the match ends","fielders pack the tiles"],"accepted_answers":["three teammates begin rebuilding","teammates begin placing tiles"]},
+      {"item_id":"eng_c4_ch08_assess_04","passage":"The ball rolls beyond the cone. Manav retrieves it, returns inside the boundary, and passes it to the nearest fielder.","prompt":"To whom does Manav pass the ball?","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["the nearest fielder","nearest fielder","a nearby fielder"]},
+      {"item_id":"eng_c4_ch08_assess_05","passage":"Two builders reach for the same tile while another tile lies untouched. Their captain assigns one side of the circle to each player.","prompt":"Why is the captain's decision useful?","skill_ids":["reading.inference_reason"],"options":["it prevents duplicated work and covers more tiles","it makes both players hold one tile","it moves the boundary farther away","it allows the fielders to stop"],"accepted_answers":["it prevents duplicated work and covers more tiles","players can cover different tiles"]},
+      {"item_id":"eng_c4_ch08_assess_06","passage":"The ball carrier watches the centre, so Asha quietly rolls a fallen tile from the outer edge toward a teammate near the stack.","prompt":"Explain why Asha's choice may help, using evidence.","skill_ids":["reading.inference_reason"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"attention","description":"Mentions that the ball carrier is watching the centre rather than the outer edge.","any_of":["watching the centre","not watching the edge","attention is elsewhere","outer edge is less watched"]},{"id":"result","description":"Explains that the teammate can place the tile with less risk or delay.","any_of":["teammate can place it","safer rebuild","less risk of a tag","tile reaches the stack","saves time"]}],"min_response_words":9},
+      {"item_id":"eng_c4_ch08_assess_07","passage":"The team chooses a soft foam ball for practice with new players.","prompt":"Which reason best supports the choice?","skill_ids":["writing.reason_answer"],"options":["a soft ball reduces the chance of hurting beginners","foam always travels farthest","new players cannot see colours","practice has no rules"],"accepted_answers":["a soft ball reduces the chance of hurting beginners","it is safer for beginners"]},
+      {"item_id":"eng_c4_ch08_assess_08","passage":"The field was wet near one boundary, so the referee moved the playing area to dry ground before the match.","prompt":"Write an evidence-backed reason for moving the area.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"condition","description":"Mentions the wet ground or boundary.","any_of":["ground was wet","wet boundary","slippery area"]},{"id":"reason","description":"Explains that dry ground is safer and reduces slipping.","any_of":["prevent slipping","safer","avoid falls","dry ground"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch08_assess_09","passage":"A fielder ran to fetch the ball from behind the bench and bring it back to play.","prompt":"Which match word could replace fetch and bring back?","skill_ids":["vocab.chapter_word_usage"],"options":["retrieve","scatter","stack","defend"],"accepted_answers":["retrieve"]},
+      {"item_id":"eng_c4_ch08_assess_10","passage":"The chalk line showed the outer limit of the playing area.","prompt":"Write the match word for this line.","skill_ids":["vocab.chapter_word_usage"],"options":[],"accepted_answers":["boundary","the boundary"]},
+      {"item_id":"eng_c4_ch08_assess_11","passage":"The blocks scattered when the beanbag struck the middle one; some rolled left and others slid right.","prompt":"Which meaning of scattered is supported by the blocks moving left and right?","skill_ids":["reading.word_meaning_context"],"options":["spread in different directions","formed a neat pile","remained still","became one object"],"accepted_answers":["spread in different directions","spread apart"]},
+      {"item_id":"eng_c4_ch08_assess_12","passage":"Nora defended the tower by standing where she could block a clear throwing path without touching the thrower.","prompt":"What does defended mean in this context?","skill_ids":["reading.word_meaning_context"],"options":[],"accepted_answers":["protected","guarded","kept safe","blocked an attack"]},
+      {"item_id":"eng_c4_ch08_assess_13","passage":"Events: Neel throws / tower falls / team gathers blocks.","prompt":"Which event must happen first?","skill_ids":["grammar.sentence_order"],"options":["Neel throws","tower falls","team gathers blocks","team finishes rebuilding"],"accepted_answers":["Neel throws","neel throws"]},
+      {"item_id":"eng_c4_ch08_assess_14","passage":"Words: next / fielders / the / ball / retrieve / the","prompt":"Reorder every word to report the fielders' next action.","skill_ids":["grammar.sentence_order"],"options":[],"accepted_answers":["next the fielders retrieve the ball","next, the fielders retrieve the ball.","the fielders retrieve the ball next","the fielders retrieve the ball next."]},
+      {"item_id":"eng_c4_ch08_assess_15","passage":"The throw was accurate, ___ the top tile remained standing.","prompt":"Choose the connector that shows contrast.","skill_ids":["grammar.connectors_because_and_but"],"options":["but","because","so","and"],"accepted_answers":["but"]},
+      {"item_id":"eng_c4_ch08_assess_16","passage":"The captain changed positions ___ two players were crowding the same side.","prompt":"Which connector explains why the captain changed the positions?","skill_ids":["grammar.connectors_because_and_but"],"options":[],"accepted_answers":["because","since"]},
+      {"item_id":"eng_c4_ch08_assess_17","passage":"Purple lost the opening round, then used shorter calls and wider positions to rebuild twice before the tag. The match ended in a draw.","prompt":"Which summary is accurate?","skill_ids":["writing.summary_own_words"],"options":["Purple changed its teamwork, recovered, and earned a draw.","Purple won every round without changing.","Short calls ended the match before play.","The team ignored positions and tags."],"accepted_answers":["Purple changed its teamwork, recovered, and earned a draw."]},
+      {"item_id":"eng_c4_ch08_assess_18","passage":"The Silver side missed early throws. In the last round, Esha struck the stack and three teammates rebuilt while fielders chased the ball. Silver won that round but not the whole match.","prompt":"Summarise the key finish without inventing a match victory.","skill_ids":["writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"turning_point","description":"Mentions Esha's successful strike and the team's rebuild.","any_of":["esha struck the stack","successful throw","teammates rebuilt","rebuilt while fielders chased"]},{"id":"result","description":"States that Silver won the round but not the whole match.","any_of":["won the round","not the whole match","finished strongly","last round only"]}],"min_response_words":9},
+      {"item_id":"eng_c4_ch08_assess_19","passage":"The team communicated clearly but forgot to check the side boundary twice.","prompt":"Which friendly message gives specific praise and a next step?","skill_ids":["writing.friendly_message"],"options":["Team, our calls were clear; next round, let us also watch the side boundary.","Team, everything was perfect.","Boundaries are lines on fields.","The match happened twice."],"accepted_answers":["Team, our calls were clear; next round, let us also watch the side boundary."]},
+      {"item_id":"eng_c4_ch08_assess_20","passage":"In a poster task, the group chose strong pictures, but two captions repeated the same fact. They can divide the remaining facts before revising.","prompt":"Write a brief friendly message naming one strength and one next step.","skill_ids":["writing.friendly_message"],"options":[],"accepted_answers":[],"response_mode":"paragraph","evaluation_mode":"llm_rubric","preflight_rule":"The response must be a respectful English team message that praises the pictures and suggests dividing facts or removing repeated captions.","pass_score":0.7,"rubric_criteria":[{"id":"address","description":"Uses friendly direct or inclusive team wording.","required":true,"min_quality":0.6},{"id":"strength","description":"Recognises the strong picture choices.","required":true,"min_quality":0.65},{"id":"next_step","description":"Suggests dividing facts or removing repeated caption content.","required":true,"min_quality":0.65},{"id":"own_words","description":"Uses concise original wording.","required":true,"min_quality":0.6}]}
+    ]
+  }
+}

@@ -1,0 +1,346 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-prep-review",
+  "reviewed_at": "2026-07-11",
+  "review_evidence": [
+    "docs/school-prep-live-browser-qa-2026-07-10.md"
+  ],
+  "runtime_sha256": "c477fbcc6840493b305e970adacd06f08b04860a4a96f0d578df710ec34f04e8",
+  "chapter_id": "eng_c4_ch12",
+  "chapter_no": 12,
+  "title": "Maheshwar",
+  "book_title": "Santoor",
+  "unit_title": "Up High",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa112.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "maheshwar_dialogue_facts",
+      "title": "Read facts in a dialogue",
+      "focus": "find who and where details",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use speaker clues in a dialogue to find important facts about a historical place.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In a dialogue, facts can come through what one speaker explains to another. Track the speaker, then the fact.",
+          "passage": "Chachi told the children that the old fort was linked with Queen Ahilya Bai and her care for the town.",
+          "prompt": "Who is linked with the fort in this dialogue?",
+          "options": [
+            "Queen Ahilya Bai",
+            "a boatman",
+            "a school captain",
+            "a shopkeeper"
+          ],
+          "accepted_answers": [
+            "Queen Ahilya Bai",
+            "Ahilya Bai",
+            "queen ahilya bai"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: location details often name a river, town, hill, or state.",
+          "passage": "The guide said the fort stood high above the town, with a wide river flowing nearby.",
+          "prompt": "Which detail tells us about the fort's location?",
+          "options": [
+            "wide river",
+            "newspaper",
+            "cotton cloth",
+            "school bell"
+          ],
+          "accepted_answers": [
+            "wide river",
+            "river"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: separate people facts from place facts. A queen is a person; a river or town tells location.",
+          "passage": "The teacher said the palace stood beside the Narmada River and was watched over by a statue.",
+          "prompt": "Which phrase names the river near the place?",
+          "options": [
+            "Narmada River",
+            "watched over",
+            "statue",
+            "teacher said"
+          ],
+          "accepted_answers": [
+            "Narmada River",
+            "narmada"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now find the location fact without hints.",
+          "passage": "The family visited a fort on a hill near the Narmada River and looked down at the town.",
+          "prompt": "Which river is near the fort?",
+          "options": [],
+          "accepted_answers": [
+            "Narmada River",
+            "Narmada",
+            "narmada river"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "maheshwar_fort_features",
+      "title": "Identify fort features",
+      "focus": "use descriptive details",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read descriptive clues about a historical monument and its special features.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A feature is a special part of a place. In monument descriptions, look for words that name what visitors can see.",
+          "passage": "The old fort had stone steps, carved doors, and overhanging balconies that looked out over the river.",
+          "prompt": "Which feature looked out over the river?",
+          "options": [
+            "overhanging balconies",
+            "school benches",
+            "market baskets",
+            "paper kites"
+          ],
+          "accepted_answers": [
+            "overhanging balconies",
+            "balconies"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: materials tell what something is made from.",
+          "passage": "The palace wall was built with red stones brought from faraway quarries.",
+          "prompt": "What material was used for the wall?",
+          "options": [
+            "red stones",
+            "paper",
+            "cloth",
+            "glass beads"
+          ],
+          "accepted_answers": [
+            "red stones",
+            "stone",
+            "red stone"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not mix a feature with a feeling. Grand staircases are a feature; excited is a feeling.",
+          "passage": "Visitors admired the grand staircases and the shaded balconies of the fort.",
+          "prompt": "Which phrase names a feature of the fort?",
+          "options": [
+            "grand staircases",
+            "visitors admired",
+            "felt excited",
+            "walked slowly"
+          ],
+          "accepted_answers": [
+            "grand staircases",
+            "staircases"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now identify the building material without hints.",
+          "passage": "The guide explained that the fort walls were made from red stones carried from another region.",
+          "prompt": "What were the fort walls made from?",
+          "options": [],
+          "accepted_answers": [
+            "red stones",
+            "red stone",
+            "stones"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "maheshwar_synonyms_odd_one",
+      "title": "Find the odd word out",
+      "focus": "group similar meanings",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Group words with similar meanings and identify the word that does not fit.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Synonyms have similar meanings. If three words mean sad, the happy word is the odd one out.",
+          "passage": "sad, unhappy, tearful, thrilled",
+          "prompt": "Which word does not belong with the sad words?",
+          "options": [
+            "thrilled",
+            "sad",
+            "unhappy",
+            "tearful"
+          ],
+          "accepted_answers": [
+            "thrilled"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: talk, discuss, and speak are communication words.",
+          "passage": "talk, discuss, kind, speak",
+          "prompt": "Which word does not name a way of communicating?",
+          "options": [
+            "kind",
+            "talk",
+            "discuss",
+            "speak"
+          ],
+          "accepted_answers": [
+            "kind"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: first name the group idea. Noisy is different from quiet, silent, and calm.",
+          "passage": "noisy, quiet, silent, calm",
+          "prompt": "Which word is the odd one out?",
+          "options": [
+            "noisy",
+            "quiet",
+            "silent",
+            "calm"
+          ],
+          "accepted_answers": [
+            "noisy"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now find the odd word without hints.",
+          "passage": "talk, discuss, kind, speak",
+          "prompt": "Which word does not fit the group?",
+          "options": [],
+          "accepted_answers": [
+            "kind"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "maheshwar_silent_g",
+      "title": "Spot silent g words",
+      "focus": "identify silent letters",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Recognize words where the letter g is written but not clearly pronounced.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Some English words keep a written letter that we do not say strongly. In sign, the g is silent.",
+          "passage": "The guide pointed to the sign near the palace gate.",
+          "prompt": "Which word has a silent g?",
+          "options": [
+            "sign",
+            "goat",
+            "garden",
+            "green"
+          ],
+          "accepted_answers": [
+            "sign"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: design also has a silent g sound.",
+          "passage": "The cloth design used bright lines and small checks.",
+          "prompt": "Which word has a silent g?",
+          "options": [
+            "design",
+            "go",
+            "gift",
+            "game"
+          ],
+          "accepted_answers": [
+            "design"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: read the whole word aloud. If you do not hear the g clearly, mark it as silent.",
+          "passage": "The artist made a sign with a flower design.",
+          "prompt": "Which pair has silent g words?",
+          "options": [
+            "sign and design",
+            "goat and gift",
+            "game and green",
+            "garden and gate"
+          ],
+          "accepted_answers": [
+            "sign and design",
+            "sign design"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the silent-g word without hints.",
+          "passage": "The saree design had a red border.",
+          "prompt": "Which word has a silent g?",
+          "options": [],
+          "accepted_answers": [
+            "design"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "maheshwar_articles",
+      "title": "Choose a, an, or the",
+      "focus": "use articles in sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use a, an, and the before nouns with the right meaning.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use an before a word that begins with a vowel sound, like apple or old.",
+          "passage": "The child saw ___ old gate near the fort.",
+          "prompt": "Which article fits before old?",
+          "options": [
+            "an",
+            "a",
+            "the the",
+            "and"
+          ],
+          "accepted_answers": [
+            "an"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: use the when you mean a specific thing already known.",
+          "passage": "A guide showed us a statue. Later, ___ statue looked golden in the sunlight.",
+          "prompt": "Which article points to the same statue again?",
+          "options": [
+            "the",
+            "a",
+            "an",
+            "or"
+          ],
+          "accepted_answers": [
+            "the"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: choose a for one new consonant-sound noun, an for one new vowel-sound noun, and the for a specific noun.",
+          "passage": "We carried ___ umbrella because rain clouds covered the sky.",
+          "prompt": "Which article fits before umbrella?",
+          "options": [
+            "an",
+            "a",
+            "the",
+            "but"
+          ],
+          "accepted_answers": [
+            "an"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the specific article without hints.",
+          "passage": "A child found a key near the gate. ___ key opened the old room.",
+          "prompt": "Which article shows we mean the same key?",
+          "options": [],
+          "accepted_answers": [
+            "the"
+          ]
+        }
+      }
+    }
+  ]
+}

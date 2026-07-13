@@ -1,0 +1,349 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-prep-review",
+  "reviewed_at": "2026-07-11",
+  "review_evidence": [
+    "docs/school-prep-live-browser-qa-2026-07-10.md"
+  ],
+  "runtime_sha256": "80546d8cc82575341e2a4e3a79d04dd2423889418ea3094d29fbe4fa9920c111",
+  "chapter_id": "eng_c4_ch10",
+  "chapter_no": 10,
+  "title": "The Swing",
+  "book_title": "Santoor",
+  "unit_title": "Up High",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa110.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "swing_view_clues",
+      "title": "Notice views from above",
+      "focus": "read visual clues in a poem",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use view clues to understand what a speaker can see from a swing.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A poem about going up high often gives view clues. Look for things the speaker can see from above.",
+          "passage": "When Tara swung higher, she saw a river bend and a row of trees beyond the park wall.",
+          "prompt": "Which two things did Tara see from the swing?",
+          "options": [
+            "rivers and trees",
+            "books and pencils",
+            "cups and plates",
+            "shoes and socks"
+          ],
+          "accepted_answers": [
+            "rivers and trees",
+            "river and trees"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: view clues usually name places, colours, or things far away.",
+          "passage": "From the top of the swing, Asha noticed rooftops and fields in the distance.",
+          "prompt": "Which phrase is a view clue?",
+          "options": [
+            "rooftops and fields",
+            "jumped quickly",
+            "waited quietly",
+            "held the rope"
+          ],
+          "accepted_answers": [
+            "rooftops and fields"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: separate movement words from seeing words. The swing moves up and down; the speaker sees the world below.",
+          "passage": "Rohan moved upward on the swing and looked down at the small green garden.",
+          "prompt": "What part tells us what he saw?",
+          "options": [
+            "small green garden",
+            "moved upward",
+            "on the swing",
+            "looked down"
+          ],
+          "accepted_answers": [
+            "small green garden",
+            "green garden"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now find the view clue without hints.",
+          "passage": "The swing rose above the fence, and Nila looked down at the garden green.",
+          "prompt": "What did Nila see below?",
+          "options": [],
+          "accepted_answers": [
+            "garden green",
+            "green garden",
+            "the garden green"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "swing_feeling_reason",
+      "title": "Infer the speaker's feeling",
+      "focus": "connect feeling words to evidence",
+      "skill_ids": [
+        "reading.inference_reason",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use feeling words and evidence to tell whether the speaker enjoys swinging.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A feeling word tells us the speaker's attitude. Pleasantest means very enjoyable.",
+          "passage": "Kiran smiled and called the swing the most enjoyable part of the playground.",
+          "prompt": "Which phrase shows that Kiran enjoys the swing?",
+          "options": [
+            "pleasantest thing",
+            "broken rope",
+            "closed gate",
+            "empty bench"
+          ],
+          "accepted_answers": [
+            "pleasantest thing",
+            "most enjoyable"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: if someone calls an activity pleasant, they probably like it.",
+          "passage": "Meera laughed each time the swing came down and asked for one more turn.",
+          "prompt": "Does Meera enjoy the swing?",
+          "options": [
+            "yes",
+            "no",
+            "not enough information",
+            "only at night"
+          ],
+          "accepted_answers": [
+            "yes",
+            "she enjoys it"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: give the feeling and the proof. A complete inference says what the speaker feels and which clue shows it.",
+          "passage": "A child says the swing is the best part of the day and runs back for another ride.",
+          "prompt": "Which inference is strongest?",
+          "options": [
+            "the child enjoys swinging",
+            "the child dislikes parks",
+            "the child is sleepy",
+            "the child lost a book"
+          ],
+          "accepted_answers": [
+            "the child enjoys swinging",
+            "enjoys swinging"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now infer the feeling without hints.",
+          "passage": "Arun says the swing is his favourite thing at the park and asks to go again.",
+          "prompt": "What can we infer about Arun?",
+          "options": [],
+          "accepted_answers": [
+            "he enjoys swinging",
+            "he likes swinging",
+            "he enjoys the swing"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "swing_sentence_stringing",
+      "title": "Stretch a sentence",
+      "focus": "add details to make longer clear sentences",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Build a longer sentence by adding useful details while keeping it clear.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Stringing sentences means adding one useful detail at a time. The sentence must still make sense.",
+          "passage": "Base sentence: Mira watched.",
+          "prompt": "Which sentence adds a clear object?",
+          "options": [
+            "Mira watched the clouds",
+            "Mira watched because",
+            "Watched Mira clouds the",
+            "The clouds Mira"
+          ],
+          "accepted_answers": [
+            "Mira watched the clouds",
+            "mira watched the clouds"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: ask what, where, or when to add a useful detail.",
+          "passage": "Mira watched the clouds.",
+          "prompt": "Which phrase adds where she watched from?",
+          "options": [
+            "from the swing",
+            "very and",
+            "because the",
+            "clouds watched"
+          ],
+          "accepted_answers": [
+            "from the swing"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: keep the base sentence first, then add where or when. Do not scramble the word order.",
+          "passage": "Base: Riya looked.",
+          "prompt": "Which is the clearest longer sentence?",
+          "options": [
+            "Riya looked at the roof from the swing.",
+            "Looked roof Riya from.",
+            "From at the Riya looked.",
+            "The swing roof looked Riya."
+          ],
+          "accepted_answers": [
+            "Riya looked at the roof from the swing.",
+            "riya looked at the roof from the swing"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the longer sentence without hints.",
+          "passage": "Start with: Mira watched the clouds. Add where she watched from.",
+          "prompt": "Write the improved sentence.",
+          "options": [],
+          "accepted_answers": [
+            "Mira watched the clouds from the swing.",
+            "mira watched the clouds from the swing"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "swing_noun_verb",
+      "title": "Tell noun from verb",
+      "focus": "same word as action or object",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Decide whether a word is used as an action word or a naming word in a sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Some words can be a noun or a verb. If the word shows an action, it is a verb.",
+          "passage": "The children swing their arms before the race.",
+          "prompt": "In this sentence, is swing a noun or a verb?",
+          "options": [
+            "verb",
+            "noun",
+            "adjective",
+            "preposition"
+          ],
+          "accepted_answers": [
+            "verb"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: if you can put a, an, or the before the word, it is often a noun.",
+          "passage": "The swing near the banyan tree is painted red.",
+          "prompt": "In this sentence, what is the word swing naming?",
+          "options": [
+            "object",
+            "action",
+            "colour",
+            "place word"
+          ],
+          "accepted_answers": [
+            "object",
+            "a swing"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: use the sentence job, not only the spelling. Same spelling can do different jobs.",
+          "passage": "We play after lunch. The play starts at six.",
+          "prompt": "Which sentence uses play as a noun?",
+          "options": [
+            "The play starts at six.",
+            "We play after lunch.",
+            "They play outside.",
+            "I play kho-kho."
+          ],
+          "accepted_answers": [
+            "The play starts at six.",
+            "the play starts at six"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now classify without hints.",
+          "passage": "A yellow swing hangs from the old tree.",
+          "prompt": "In this sentence, is swing a noun or a verb?",
+          "options": [],
+          "accepted_answers": [
+            "noun",
+            "naming word"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "swing_prepositions",
+      "title": "Use position words",
+      "focus": "choose prepositions for location",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use prepositions to describe where something is placed.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A preposition shows position. Between means in the middle of two things.",
+          "passage": "A small ball is placed ___ two flower pots.",
+          "prompt": "Choose the correct position word.",
+          "options": [
+            "between",
+            "under",
+            "above",
+            "behind"
+          ],
+          "accepted_answers": [
+            "between"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: under means below something.",
+          "passage": "The cat sat ___ the bench to stay in the shade.",
+          "prompt": "Which word means below?",
+          "options": [
+            "under",
+            "above",
+            "beside",
+            "between"
+          ],
+          "accepted_answers": [
+            "under"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: picture the object first, then choose the position word. Beside means next to; above means higher than.",
+          "passage": "A kite is flying ___ the roof.",
+          "prompt": "Which word fits best?",
+          "options": [
+            "above",
+            "under",
+            "between",
+            "behind"
+          ],
+          "accepted_answers": [
+            "above"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the position word without hints.",
+          "passage": "The fallen leaf is ___ the swing seat.",
+          "prompt": "Which word shows that the leaf is below the seat?",
+          "options": [],
+          "accepted_answers": [
+            "under",
+            "below"
+          ]
+        }
+      }
+    }
+  ]
+}

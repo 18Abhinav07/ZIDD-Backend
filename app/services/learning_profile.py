@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.content.registry import module_of
+
 
 CAREER_DOMAIN = "career"
 SCHOOL_ADAPTER_DOMAIN = "school_adapter"
@@ -21,6 +23,263 @@ def _first(items: list[Any], default: str = "") -> str:
         if text:
             return text
     return default
+
+
+def _clean_string_list(values: Any, *, limit: int = 8, item_limit: int = 120) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        text = text[:item_limit]
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _row_dict(row: Any) -> dict[str, Any]:
+    if hasattr(row, "model_dump"):
+        row = row.model_dump()
+    return row if isinstance(row, dict) else {}
+
+
+def _first_criterion_quote(criteria: list[Any], fallback: str = "") -> str:
+    for raw in criteria:
+        row = _row_dict(raw)
+        quote = str(row.get("evidence_quote") or "").strip()
+        if quote:
+            return quote[:320]
+    return str(fallback or "").strip()[:320]
+
+
+def _latest_evidence(evidence: Any) -> str:
+    if not isinstance(evidence, dict):
+        return ""
+    direct = str(evidence.get("latest_quote") or evidence.get("answer_excerpt") or "").strip()
+    if direct:
+        return direct[:320]
+    for key in ("evidence_quotes", "quotes"):
+        values = evidence.get(key)
+        if isinstance(values, list):
+            for item in values:
+                text = str(item or "").strip()
+                if text:
+                    return text[:320]
+    return ""
+
+
+def _gap_status(*, readiness: float, mastery: float, confidence: float) -> str:
+    if mastery >= 0.95:
+        return "mastered"
+    if readiness >= 0.88 and mastery >= 0.5 and confidence >= 0.7:
+        return "resolved"
+    if readiness >= 0.65:
+        return "improving"
+    return "active_gap"
+
+
+def _career_module_for_node(node_id: str) -> str:
+    try:
+        module_id = module_of(node_id)
+    except Exception:
+        return ""
+    return module_id if module_id in {"interview", "group_discussion"} else ""
+
+
+def _prep_task_type_for_module(module_id: str) -> str:
+    if module_id == "group_discussion":
+        return "gd_prep"
+    if module_id == "interview":
+        return "interview_prep"
+    return ""
+
+
+def _progression_evidence(row: dict[str, Any]) -> str:
+    evidence = row.get("mastery_evidence")
+    if isinstance(evidence, list):
+        for item in evidence:
+            text = str(item or "").strip()
+            if text:
+                return text[:320]
+    return str(row.get("last_gap") or "").strip()[:320]
+
+
+def _progression_readiness(row: dict[str, Any]) -> float:
+    for key in ("best_independent_score", "best_ema", "ema", "mastery"):
+        value = _safe_score(row.get(key))
+        if value > 0:
+            return value
+    return 0.0
+
+
+def _memory_item_from_profile(
+    profile: dict[str, Any],
+    *,
+    repeated_issue_counts: dict[str, int],
+    latest_event_quote_by_gap: dict[str, str],
+) -> tuple[str, dict[str, Any]] | None:
+    skill_id = str(profile.get("skill_id") or "").strip()
+    if not skill_id:
+        return None
+    readiness = _safe_score(profile.get("readiness"))
+    mastery = _safe_score(profile.get("mastery"))
+    confidence = _safe_score(profile.get("confidence"))
+    status = _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
+    gaps = [str(item).strip() for item in profile.get("gaps_json") or [] if str(item).strip()]
+    evidence_json = profile.get("evidence_json") if isinstance(profile.get("evidence_json"), dict) else {}
+    missing_criteria = _clean_string_list(
+        evidence_json.get("required_missing") or evidence_json.get("missing_criteria"),
+        limit=5,
+    )
+    blockers = _clean_string_list(evidence_json.get("blockers"), limit=5)
+    latest_evidence = (
+        _latest_evidence(evidence_json)
+        or latest_event_quote_by_gap.get(skill_id, "")
+        or _first(gaps)
+    )
+    return status, {
+        "skill_id": skill_id,
+        "module_id": str(profile.get("module_id") or ""),
+        "task_type": str(profile.get("task_type") or ""),
+        "status": status,
+        "readiness": readiness,
+        "confidence": confidence,
+        "attempts": int(profile.get("attempts") or 0),
+        "gap": _first(gaps, skill_id),
+        "latest_evidence": latest_evidence,
+        "recommended_next_action": str(profile.get("recommended_next_action") or "").strip(),
+        "missing_criteria": missing_criteria,
+        "blockers": blockers,
+        "repeat_count": repeated_issue_counts.get(skill_id, 0),
+    }
+
+
+def _memory_item_from_progression(
+    row: dict[str, Any],
+    *,
+    repeated_issue_counts: dict[str, int],
+) -> tuple[str, dict[str, Any]] | None:
+    skill_id = str(row.get("node_id") or row.get("competency_node") or "").strip()
+    if not skill_id:
+        return None
+    module_id = _career_module_for_node(skill_id)
+    if not module_id:
+        return None
+    readiness = _progression_readiness(row)
+    mastery = 1.0 if row.get("node_mastered") else _safe_score(row.get("ema") or row.get("mastery"))
+    confidence = 0.85 if row.get("node_mastered") else 0.7 if row.get("node_completed") else 0.55
+    status = _gap_status(readiness=readiness, mastery=mastery, confidence=confidence)
+    latest_evidence = _progression_evidence(row)
+    gap = str(row.get("last_gap") or "").strip() or skill_id
+    return status, {
+        "skill_id": skill_id,
+        "module_id": module_id,
+        "task_type": _prep_task_type_for_module(module_id),
+        "status": status,
+        "readiness": readiness,
+        "confidence": confidence,
+        "attempts": int(row.get("attempts") or 0),
+        "gap": gap,
+        "latest_evidence": latest_evidence or gap,
+        "recommended_next_action": gap,
+        "missing_criteria": [],
+        "blockers": [],
+        "repeat_count": repeated_issue_counts.get(skill_id, 0),
+    }
+
+
+def build_career_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
+    """Compress durable career evidence into prompt-safe adaptive memory."""
+    profiles = [
+        row for row in graph.get("profiles") or []
+        if isinstance(row, dict) and str(row.get("domain") or "") == CAREER_DOMAIN
+    ]
+    reports = [
+        row for row in graph.get("reports") or []
+        if isinstance(row, dict)
+    ]
+    events = [
+        row for row in graph.get("events") or []
+        if isinstance(row, dict) and str(row.get("domain") or "") == CAREER_DOMAIN
+    ]
+    progression = [
+        row for row in graph.get("progression") or []
+        if isinstance(row, dict)
+    ]
+
+    repeated_issue_counts: dict[str, int] = {}
+    latest_event_quote_by_gap: dict[str, str] = {}
+    for event in events:
+        gap = str(event.get("gap") or event.get("skill_id") or "").strip()
+        if not gap:
+            continue
+        repeated_issue_counts[gap] = repeated_issue_counts.get(gap, 0) + 1
+        quote = _latest_evidence(event.get("evidence_json"))
+        if quote and gap not in latest_event_quote_by_gap:
+            latest_event_quote_by_gap[gap] = quote
+
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "active_gap": [],
+        "improving": [],
+        "resolved": [],
+        "mastered": [],
+    }
+    profile_skill_ids: set[str] = set()
+    for profile in profiles:
+        built = _memory_item_from_profile(
+            profile,
+            repeated_issue_counts=repeated_issue_counts,
+            latest_event_quote_by_gap=latest_event_quote_by_gap,
+        )
+        if not built:
+            continue
+        status, item = built
+        profile_skill_ids.add(str(item["skill_id"]))
+        buckets[status].append(item)
+
+    for row in progression:
+        built = _memory_item_from_progression(row, repeated_issue_counts=repeated_issue_counts)
+        if not built:
+            continue
+        status, item = built
+        if str(item["skill_id"]) in profile_skill_ids:
+            continue
+        buckets[status].append(item)
+
+    for items in buckets.values():
+        items.sort(
+            key=lambda row: (
+                -int(row.get("repeat_count") or 0),
+                float(row.get("readiness") or 0.0),
+            )
+        )
+
+    recent_reports: list[dict[str, Any]] = []
+    for report in reports[:5]:
+        recent_reports.append({
+            "task_type": str(report.get("task_type") or ""),
+            "status": str(report.get("status") or ""),
+            "score": _safe_score(report.get("score")),
+            "summary": str(report.get("summary") or "")[:360],
+            "recommended_actions": list(report.get("recommended_actions_json") or [])[:3],
+        })
+
+    return {
+        "active_gaps": buckets["active_gap"][:6],
+        "improving_gaps": buckets["improving"][:6],
+        "resolved_gaps": buckets["resolved"][:6],
+        "mastered_skills": buckets["mastered"][:6],
+        "repeated_issue_counts": repeated_issue_counts,
+        "recent_reports": recent_reports,
+    }
 
 
 def _public_context(state: dict[str, Any]) -> dict[str, Any]:
@@ -63,10 +322,19 @@ class CareerLearningProfileService:
         score = _safe_score(rubric_result.get("effective_score", rubric_result.get("raw_score")))
         criteria = list(rubric_result.get("criteria") or [])
         blockers = list(rubric_result.get("blockers") or [])
+        errors = list(rubric_result.get("errors") or [])
+        required_missing = _clean_string_list(rubric_result.get("required_missing"), limit=5)
         gap = str(rubric_result.get("next_focus") or "")
         confidence = 0.45 if blockers else 0.75
         if rubric_result.get("pass_eligible"):
             confidence = max(confidence, 0.8)
+        raw_strengths = list(rubric_result.get("strengths") or [])
+        proof_blocked = bool(blockers) or any(
+            "missing required rubric proof" in str(error).lower()
+            for error in errors
+        )
+        profile_strengths = [] if proof_blocked else raw_strengths
+        latest_quote = _first_criterion_quote(criteria, user_answer)
 
         event = {
             "source_event_key": f"turn_evaluation:{evaluation_id}",
@@ -85,12 +353,15 @@ class CareerLearningProfileService:
             "evidence_json": {
                 "criteria": criteria,
                 "answer_excerpt": str(user_answer or "")[:500],
+                "latest_quote": latest_quote,
+                "required_missing": required_missing,
+                "blockers": _clean_string_list(blockers, limit=5),
                 "tutor_plan": dict(tutor_plan or {}),
             },
             "blockers": blockers,
             "gap": gap,
             "scenario_json": _public_context(state),
-            "caveats": list(rubric_result.get("errors") or []),
+            "caveats": errors,
             "model_name": None,
             "prompt_version": "prep-eval-v1",
         }
@@ -105,15 +376,18 @@ class CareerLearningProfileService:
             mastery=1.0 if state.get("node_mastered") else 0.0,
             confidence=confidence,
             attempts=max(1, int(attempt_index or 0)),
-            strengths_json=list(rubric_result.get("strengths") or []),
+            strengths_json=profile_strengths,
             gaps_json=[gap] if gap else [],
             evidence_json={
                 "latest_event": event["source_event_key"],
                 "criteria": criteria,
                 "blockers": blockers,
+                "caveats": errors,
+                "latest_quote": latest_quote,
+                "required_missing": required_missing,
             },
             recommended_next_action=gap,
-            source_summary=_first(list(rubric_result.get("strengths") or []), gap),
+            source_summary=_first(profile_strengths, gap),
         )
 
     async def record_session_report(
@@ -127,7 +401,19 @@ class CareerLearningProfileService:
         report: dict[str, Any],
     ) -> None:
         score = _safe_score(report.get("score"))
-        caveats = list(report.get("assessment_caveats") or report.get("caveats") or [])
+        legacy_caveats = list(report.get("assessment_caveats") or report.get("caveats") or [])
+        learner_caveats = list(report.get("learner_assessment_caveats") or [])
+        integrity_notes = list(report.get("simulator_integrity_notes") or [])
+        caveats = []
+        for item in [*legacy_caveats, *learner_caveats]:
+            text = str(item or "").strip()
+            if text and text not in caveats:
+                caveats.append(text)
+        for item in integrity_notes:
+            text = str(item or "").strip()
+            note = f"Simulator integrity: {text}" if text else ""
+            if note and note not in caveats:
+                caveats.append(note)
         explicit_validity = str(report.get("validity_status") or "").strip()
         if explicit_validity and explicit_validity != "final":
             status = explicit_validity
@@ -135,6 +421,7 @@ class CareerLearningProfileService:
             status = str(report.get("status") or ("partial" if caveats else "final"))
         gaps = list(report.get("observed_skill_gaps") or report.get("improvements") or [])
         strengths = list(report.get("strengths") or [])
+        durable_strengths = strengths if status == "final" and not caveats else []
         recommendations = list(report.get("recommended_next_nodes") or report.get("improvements") or [])
 
         await self.store.upsert_session_report(
@@ -166,6 +453,7 @@ class CareerLearningProfileService:
                     )
                     if report.get(key) is not None
                 },
+                "evidence_quotes": list(report.get("evidence_quotes") or []),
             },
             recommended_actions_json=recommendations,
             validity_json={
@@ -200,8 +488,9 @@ class CareerLearningProfileService:
                 criteria_json=[],
                 evidence_json={
                     "summary": report.get("summary") or "",
-                    "strengths": strengths,
+                    "strengths": durable_strengths,
                     "improvements": list(report.get("improvements") or []),
+                    "evidence_quotes": list(report.get("evidence_quotes") or []),
                     "scorable_turn_count": report.get("scorable_turn_count") or 0,
                     "coverage_map": report.get("coverage_map") or {},
                 },
@@ -225,7 +514,7 @@ class CareerLearningProfileService:
                 mastery=0.0,
                 confidence=0.65 if caveats else 0.85,
                 attempts=1,
-                strengths_json=strengths,
+                strengths_json=durable_strengths,
                 gaps_json=[gap],
                 evidence_json={
                     "latest_report": f"report:{session_id}",
@@ -240,5 +529,13 @@ class CareerLearningProfileService:
 
     async def get_learning_graph(self, user_id: str) -> dict[str, Any]:
         if hasattr(self.store, "get_learning_graph"):
-            return await self.store.get_learning_graph(user_id)
-        return {"profiles": [], "reports": [], "events": []}
+            graph = await self.store.get_learning_graph(user_id)
+        else:
+            graph = {"profiles": [], "reports": [], "events": []}
+        if "progression" not in graph and hasattr(self.store, "get_progression"):
+            graph = {**graph, "progression": await self.store.get_progression(user_id)}
+        return graph
+
+    async def get_career_memory_context(self, user_id: str) -> dict[str, Any]:
+        graph = await self.get_learning_graph(user_id)
+        return build_career_memory_context(graph)

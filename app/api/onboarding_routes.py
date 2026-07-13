@@ -117,7 +117,7 @@ def _public_career_profile(profile: dict | None) -> dict:
 
 
 def _destination(primary_motive: str) -> str:
-    return "/subjects" if primary_motive == "school" else "/career"
+    return "/school" if primary_motive == "school" else "/career"
 
 
 @router.get("/state")

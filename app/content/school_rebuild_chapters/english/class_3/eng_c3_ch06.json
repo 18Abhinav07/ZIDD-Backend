@@ -1,0 +1,435 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Focused schema, runtime hash, pedagogy quality, and key self-review for eng_c3_ch06 on 2026-07-12"
+  ],
+  "runtime_sha256": "1c8d699a43e4b6256d936ea1c45cfc93767c20d42658dde869b2dc9560790f89",
+  "chapter_id": "eng_c3_ch06",
+  "chapter_no": 6,
+  "title": "Paper Boats",
+  "book_title": "Santoor",
+  "unit_title": "Toys and Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa106.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "paper_boats_story_setting",
+      "title": "Find the story setting",
+      "focus": "identify story setting",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Use place and object clues to understand where a story begins and what the main play activity is.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In a paper boat story, setting clues matter. A stream, flowing water, and a small folded boat tell us where the action begins.",
+          "passage": "Meera stands near clear flowing water. She places a folded paper boat on the water and watches it move.",
+          "prompt": "Where does Meera put the paper boat?",
+          "options": [
+            "stream",
+            "roof",
+            "cupboard",
+            "blackboard"
+          ],
+          "accepted_answers": [
+            "stream",
+            "in the stream",
+            "water",
+            "flowing water"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: ask where the object can move. A paper boat moves in water, not on a shelf.",
+          "passage": "A folded paper boat floats away slowly.",
+          "prompt": "What helps a paper boat float away?",
+          "options": [
+            "water",
+            "sand",
+            "chalk",
+            "fire"
+          ],
+          "accepted_answers": [
+            "water"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: setting is the story place. Object clues like boat, float, and stream all point to water.",
+          "passage": "A child drops a small folded boat and watches it sail past a bamboo bridge.",
+          "prompt": "Which setting fits these clues?",
+          "options": [
+            "stream",
+            "market",
+            "classroom",
+            "kitchen"
+          ],
+          "accepted_answers": [
+            "stream",
+            "water"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now identify the main object without hints.",
+          "passage": "The children fold coloured sheets and place them in the flowing water.",
+          "prompt": "What are the children playing with?",
+          "options": [],
+          "accepted_answers": [
+            "paper boats",
+            "paper boat",
+            "boats"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use setting and action clues in a different kind of floating experiment. Separate the place from the object being tested.",
+          "passage": "At science club, children place dry leaves in a wide tub. The leaves drift from one end of the water to the other.",
+          "prompt": "Where are the leaves floating?",
+          "options": [],
+          "accepted_answers": ["in a tub", "in the tub", "in water", "in the water"]
+        }
+      }
+    },
+    {
+      "level_id": "paper_boats_feeling_reason",
+      "title": "Explain a character feeling",
+      "focus": "answer with a reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Connect a character's feeling to the action that caused it.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A feeling answer should not only name the feeling. It should also explain what caused it.",
+          "passage": "A boy keeps turning Rina's paper boats upside down. Rina tells him to stop.",
+          "prompt": "How does Rina feel?",
+          "options": [
+            "angry",
+            "sleepy",
+            "hungry",
+            "shy"
+          ],
+          "accepted_answers": [
+            "angry",
+            "upset"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: look for the problem. If someone spoils your work, anger is a likely feeling.",
+          "passage": "Rina worked carefully. Then the boy spoiled the boats again and again.",
+          "prompt": "Which feeling best matches Rina's reaction?",
+          "options": [
+            "angry",
+            "bored",
+            "relaxed",
+            "proud"
+          ],
+          "accepted_answers": [
+            "angry",
+            "upset"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: make the answer complete with because. Feeling plus reason makes the response stronger.",
+          "passage": "The boy overturned Rina's boats after she had made them carefully.",
+          "prompt": "Which answer gives the reason clearly?",
+          "options": [
+            "She was angry because he overturned her boats",
+            "She was angry because the sky was blue",
+            "She was happy because he spoiled them",
+            "She was sleepy because of the stream"
+          ],
+          "accepted_answers": [
+            "she was angry because he overturned her boats",
+            "because he overturned her boats"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a new event, identify the feeling, and support it with the event that caused it.",
+          "passage": "Tara's boat reaches the bend, but a sudden splash tears its paper sail. Tara sighs and picks up the pieces.",
+          "prompt": "How does Tara probably feel, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "feeling", "description": "Names a fitting unhappy feeling.", "any_of": ["sad", "upset", "disappointed"]},
+            {"id": "cause", "description": "Explains that the splash tore or damaged the boat.", "any_of": ["splash tore", "boat tore", "sail tore", "boat was damaged", "paper sail"]}
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer feeling-plus-cause reasoning to a team activity. Do not guess from one emotion word; use what happened.",
+          "passage": "Imran builds a block tower for the class display. A teammate bumps the table, then quickly helps him rebuild it. Imran smiles at the teammate.",
+          "prompt": "How does Imran feel at the end, and what caused that feeling?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "feeling", "description": "Names a fitting positive feeling at the end.", "any_of": ["happy", "glad", "thankful", "pleased"]},
+            {"id": "cause", "description": "Explains that the teammate helped rebuild the tower.", "any_of": ["helped him rebuild", "helped rebuild", "rebuilt the tower", "teammate helped"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "paper_boats_help_sequence",
+      "title": "Follow the helping sequence",
+      "focus": "sequence helpful actions",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Understand how a conflict changes into cooperation when one character teaches another.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The story changes when the child who caused trouble admits he wants to play too. Then the helper shows the steps instead of only scolding.",
+          "passage": "The boy says he does not know how to make a paper boat. Rina shows him how to fold the paper.",
+          "prompt": "What action does Rina teach the boy?",
+          "options": [
+            "fold",
+            "throw",
+            "hide",
+            "tear"
+          ],
+          "accepted_answers": [
+            "fold",
+            "fold paper",
+            "make a boat"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: if someone does not know a making step, the helper can show the step.",
+          "passage": "Rina takes a sheet and bends it neatly to make a boat shape.",
+          "prompt": "Which word names the making action?",
+          "options": [
+            "fold",
+            "shout",
+            "run",
+            "drop"
+          ],
+          "accepted_answers": [
+            "fold"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: sequence the help. First she gives paper, then she shows folding, then both children float boats.",
+          "passage": "First Rina shares paper. Next she teaches the folds. After that, both boats float.",
+          "prompt": "What does Rina do before both children float boats?",
+          "options": [
+            "shows the folding",
+            "eats lunch",
+            "closes the stream",
+            "loses the paper"
+          ],
+          "accepted_answers": [
+            "shows the folding",
+            "fold",
+            "shows how to fold"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now answer the helping action without hints.",
+          "passage": "The boy could not make a boat. Rina used a sheet to teach him the folds.",
+          "prompt": "How did Rina help the boy?",
+          "options": [],
+          "accepted_answers": [
+            "showed him how to make a boat",
+            "she showed him how to make a boat",
+            "showed him how to fold paper",
+            "taught him to fold paper"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the helping-sequence idea to a skill outside paper folding. Name the useful action, not just the object.",
+          "passage": "Leela cannot tie the cord around a parcel. Omar loosens the knot, shows the loop slowly, and lets Leela try again.",
+          "prompt": "How does Omar help Leela?",
+          "options": [],
+          "accepted_answers": ["shows her how to tie the knot", "teaches her to tie the cord", "shows the loop", "he shows her how to make the loop"]
+        }
+      }
+    },
+    {
+      "level_id": "paper_boats_he_she",
+      "title": "Use he and she",
+      "focus": "use pronouns he and she",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Replace a repeated naming word with he or she while keeping the sentence clear.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Pronouns help us avoid repeating a name. Use she for a girl or woman, and he for a boy or man.",
+          "passage": "Rina likes making paper boats. ___ folds the paper carefully.",
+          "prompt": "Which word completes the sentence?",
+          "options": [
+            "she",
+            "he",
+            "it",
+            "they"
+          ],
+          "accepted_answers": [
+            "she"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: look at the person named first. Rina is a girl, so the next sentence can use she.",
+          "passage": "Rina shares her paper. ___ helps her friend.",
+          "prompt": "Which pronoun fits Rina?",
+          "options": [
+            "she",
+            "he",
+            "we",
+            "it"
+          ],
+          "accepted_answers": [
+            "she"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: choose the pronoun from the noun. Boy takes he. Girl takes she.",
+          "passage": "Aman watches the boat. ___ wants to make one too.",
+          "prompt": "Which pronoun fits Aman?",
+          "options": [
+            "he",
+            "she",
+            "it",
+            "we"
+          ],
+          "accepted_answers": [
+            "he"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use a pronoun to avoid repeating a name, then complete the thought with the given action.",
+          "passage": "Sahil has a striped paper boat. Action: places it beside the blue boat.",
+          "prompt": "Write a second sentence about Sahil using he.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "pronoun", "description": "Uses he for Sahil.", "any_of": ["he"]},
+            {"id": "action", "description": "Says that he places the boat beside the blue boat.", "any_of": ["places it beside", "puts it beside", "sets the boat beside", "next to the blue boat"]}
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same pronoun strategy in a garden report. Make the reference clear before adding a new action.",
+          "passage": "Maya waters the bean plant. Action: measures its new leaf.",
+          "prompt": "Write the next sentence using she.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "pronoun", "description": "Uses she for Maya.", "any_of": ["she"]},
+            {"id": "action", "description": "States that she measures the new leaf.", "any_of": ["measures its new leaf", "measures the new leaf", "checks the leaf's length"]}
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "paper_boats_position_words",
+      "title": "Use position words",
+      "focus": "use position words",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use position words such as in, on, and under to describe where things are.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A position word tells where something is. Under means below something; on means touching the top.",
+          "passage": "The ball rolled below the chair.",
+          "prompt": "Which position word means below?",
+          "options": [
+            "under",
+            "on",
+            "in",
+            "near"
+          ],
+          "accepted_answers": [
+            "under"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: picture the object. If it is below the table, it is under the table.",
+          "passage": "The paper boat is below the bridge.",
+          "prompt": "Which word fits: The boat is ___ the bridge?",
+          "options": [
+            "under",
+            "on",
+            "in",
+            "over"
+          ],
+          "accepted_answers": [
+            "under"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: compare on and under. On touches the top surface. Under is below it.",
+          "passage": "The folded paper rests on the desk before the child makes a boat.",
+          "prompt": "Which position word tells where the paper is?",
+          "options": [
+            "on",
+            "under",
+            "inside",
+            "behind"
+          ],
+          "accepted_answers": [
+            "on"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the position word without hints.",
+          "passage": "The paper sheet is resting on the table.",
+          "prompt": "Which word tells the paper's position?",
+          "options": [],
+          "accepted_answers": [
+            "on"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a position word in a map-reading context. Picture the two landmarks before naming their relationship.",
+          "passage": "On the playground map, the drinking-water tap is behind the basketball post.",
+          "prompt": "Which word tells the tap's position?",
+          "options": [],
+          "accepted_answers": ["behind"]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id": "eng_c3_ch06_assess_01", "passage": "Rain fills a shallow lane. Naman folds a square page, sets the little boat down, and runs beside it as the water carries it away.", "prompt": "What is the paragraph mainly about?", "skill_ids": ["reading.paragraph_main_idea"], "options": ["Naman sailing a paper boat in rainwater", "Naman reading indoors", "a lane becoming dry", "a boat made of wood"], "accepted_answers": ["Naman sailing a paper boat in rainwater", "a paper boat floating in rainwater", "sailing a paper boat"]},
+      {"item_id": "eng_c3_ch06_assess_02", "passage": "Two boats meet at a narrow drain. Their makers lift one boat out so the other can pass, then swap turns at the next bend.", "prompt": "Which idea best sums up the scene?", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": ["the children cooperate and take turns", "the children destroy both boats", "the drain has no water", "one child keeps every turn"], "accepted_answers": ["the children cooperate and take turns", "they take turns", "cooperation"]},
+      {"item_id": "eng_c3_ch06_assess_03", "passage": "Pia writes her boat's name before placing it in the puddle. The ink spreads when the paper becomes wet.", "prompt": "What happens to the ink?", "skill_ids": ["reading.sentence_comprehension"], "options": ["it spreads", "it freezes", "it turns to sand", "it stays in the pen"], "accepted_answers": ["it spreads", "the ink spreads"]},
+      {"item_id": "eng_c3_ch06_assess_04", "passage": "A twig blocks the channel. Dev removes it, and the trapped boat moves forward again.", "prompt": "What makes the boat move again?", "skill_ids": ["reading.sentence_comprehension"], "options": [], "accepted_answers": ["Dev removes the twig", "the twig is removed", "removing the twig", "he removes the blockage"]},
+      {"item_id": "eng_c3_ch06_assess_05", "passage": "Mira's boat reaches the finish line first after she tests three different folds.", "prompt": "How might Mira feel, and why?", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "feeling", "description": "Names a fitting positive feeling.", "any_of": ["proud", "happy", "excited", "pleased"]}, {"id": "cause", "description": "Links the feeling to the boat finishing first or successful testing.", "any_of": ["finished first", "reaches the finish line first", "her folds worked", "boat won"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch06_assess_06", "passage": "Arif's careful model becomes soggy before the race begins because someone leaves it in the rain.", "prompt": "Explain Arif's likely feeling with a reason.", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "feeling", "description": "Names a fitting unhappy feeling.", "any_of": ["sad", "upset", "disappointed", "angry"]}, {"id": "cause", "description": "Explains that the model became soggy or was left in rain.", "any_of": ["model became soggy", "left in the rain", "rain ruined", "boat got wet"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch06_assess_07", "passage": "The class cannot make sharp folds. Jiya presses each line with a ruler and demonstrates one step at a time.", "prompt": "How does Jiya help?", "skill_ids": ["writing.short_answer"], "options": ["she demonstrates the folds", "she hides the ruler", "she tears every page", "she stops the activity"], "accepted_answers": ["she demonstrates the folds", "shows how to fold", "presses each line with a ruler"]},
+      {"item_id": "eng_c3_ch06_assess_08", "passage": "Rohan's sail keeps falling. Keerthi adds a small piece of tape where the sail joins the boat.", "prompt": "Name Keerthi's helpful action.", "skill_ids": ["writing.short_answer"], "options": [], "accepted_answers": ["adds tape", "tapes the sail", "fixes the sail with tape", "she adds a piece of tape"]},
+      {"item_id": "eng_c3_ch06_assess_09", "passage": "Anaya checks the water tray. ___ removes a fallen leaf.", "prompt": "Choose the pronoun for Anaya.", "skill_ids": ["grammar.noun_verb_adjective"], "options": ["she", "he", "it", "we"], "accepted_answers": ["she"]},
+      {"item_id": "eng_c3_ch06_assess_10", "passage": "Kunal carries the tray. ___ sets it near the window.", "prompt": "Write the missing pronoun.", "skill_ids": ["grammar.noun_verb_adjective"], "options": [], "accepted_answers": ["he"]},
+      {"item_id": "eng_c3_ch06_assess_11", "passage": "Nora folds a yellow boat. Action: draws two round windows on it.", "prompt": "Continue Nora's description with a complete sentence that begins with She.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "pronoun", "description": "Uses she for Nora.", "any_of": ["she"]}, {"id": "action", "description": "States that she draws two round windows.", "any_of": ["draws two round windows", "adds two round windows", "draws windows on it"]}], "min_response_words": 6},
+      {"item_id": "eng_c3_ch06_assess_12", "passage": "Vikram finds a dry sheet. Action: folds it into a narrow canoe shape.", "prompt": "Write the next sentence using he.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "pronoun", "description": "Uses he for Vikram.", "any_of": ["he"]}, {"id": "action", "description": "States that he folds the sheet into a canoe shape.", "any_of": ["folds it into", "folds the sheet", "canoe shape"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch06_assess_13", "passage": "The blue boat is below the footbridge.", "prompt": "Which position word can replace below?", "skill_ids": ["vocab.chapter_word_usage"], "options": ["under", "on", "inside", "beside"], "accepted_answers": ["under"]},
+      {"item_id": "eng_c3_ch06_assess_14", "passage": "A paper flag stands between the two boats.", "prompt": "Which word tells the flag's position?", "skill_ids": ["vocab.chapter_word_usage"], "options": [], "accepted_answers": ["between"]},
+      {"item_id": "eng_c3_ch06_assess_15", "passage": "The red canoe is behind the green raft.", "prompt": "Where is the green raft compared with the canoe?", "skill_ids": ["vocab.chapter_word_usage", "reading.sentence_comprehension"], "options": ["in front of the canoe", "behind the canoe", "under the canoe", "inside the canoe"], "accepted_answers": ["in front of the canoe", "in front"]},
+      {"item_id": "eng_c3_ch06_assess_16", "passage": "A gust pushes Neel's boat away from the finish, but his partner blocks the side channel with a stone.", "prompt": "Why does the partner block the side channel?", "skill_ids": ["writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "problem", "description": "Mentions the boat moving away or entering the side channel.", "any_of": ["boat moving away", "side channel", "pushed away", "wrong channel"]}, {"id": "purpose", "description": "Explains that the action keeps or guides the boat toward the finish.", "any_of": ["toward the finish", "keeps it on course", "guides the boat", "stop it going away"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch06_assess_17", "passage": "After the race, the children collect every wet paper piece from the drain.", "prompt": "Give a reason for this action.", "skill_ids": ["writing.reason_answer", "reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "action", "description": "Mentions collecting paper or cleaning the drain.", "any_of": ["collect the paper", "clean the drain", "pick up wet paper"]}, {"id": "reason", "description": "Gives a cleanliness, litter, or blockage reason.", "any_of": ["keep it clean", "stop litter", "prevent a blockage", "paper should not remain"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch06_assess_18", "passage": "First the children draw flags. Then they attach the flags to toothpicks. Last, they fix the toothpicks to the boats.", "prompt": "What happens immediately before the flags are fixed to the boats?", "skill_ids": ["reading.sentence_comprehension", "writing.short_answer"], "options": ["the flags are attached to toothpicks", "the boats enter water", "the children draw a map", "the flags are removed"], "accepted_answers": ["the flags are attached to toothpicks", "attach flags to toothpicks"]},
+      {"item_id": "eng_c3_ch06_assess_19", "passage": "Asha places a coin inside her boat. It tips over, so she removes the coin and tries a dry seed instead.", "prompt": "What does Asha learn from the two tests?", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": ["a heavy load can tip the boat", "coins make paper waterproof", "dry seeds always sink boats", "testing is unnecessary"], "accepted_answers": ["a heavy load can tip the boat", "the coin was too heavy", "lighter loads work better"]},
+      {"item_id": "eng_c3_ch06_assess_20", "passage": "Report facts: Pari | silver boat | floats under the arch | reaches the red marker.", "prompt": "Write a clear report sentence using she for Pari.", "skill_ids": ["grammar.noun_verb_adjective", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "pronoun", "description": "Uses she for Pari.", "any_of": ["she"]}, {"id": "boat", "description": "Mentions the silver boat.", "any_of": ["silver boat", "her boat"]}, {"id": "route", "description": "Says it floats under the arch.", "any_of": ["under the arch", "floats beneath the arch"]}, {"id": "finish", "description": "Says it reaches the red marker.", "any_of": ["reaches the red marker", "gets to the red marker"]}], "min_response_words": 10}
+    ]
+  }
+}

@@ -1,0 +1,821 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class2-pedagogy-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "codex self-review: pedagogy, grammar, ambiguity, grading, passage independence, and age fit"
+  ],
+  "runtime_sha256": "c1725f76f64caaaf11de00b7c4ed26f2d78e88f3ea943ccc401cd489145df4dd",
+  "chapter_id": "eng_c2_ch01",
+  "chapter_no": 1,
+  "title": "My Bicycle",
+  "book_title": "Mridang",
+  "unit_title": "Fun with Friends",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr101.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "bike_parts_jobs",
+      "title": "Meet the bicycle parts",
+      "focus": "use bicycle-part words for their jobs",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Name common bicycle parts and connect each part with what it helps a rider do.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A bicycle part has a name and a job. Worked example: a basket carries small things. Do not choose a part only because it is mentioned; match the job.",
+          "passage": "Niko squeezes a lever. The bicycle slows before the gate.",
+          "prompt": "Which part did Niko use to slow down?",
+          "options": [
+            "brake",
+            "bell",
+            "seat",
+            "carrier"
+          ],
+          "accepted_answers": [
+            "brake",
+            "the brake"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Think about the rider’s body. The part under the rider is the seat; the wheels stay below it. This clue separates two parts that may both look round in a picture.",
+          "passage": "Asha sits comfortably while her feet reach the pedals.",
+          "prompt": "Which part is directly under Asha?",
+          "options": [
+            "seat",
+            "tyre",
+            "bell",
+            "handle"
+          ],
+          "accepted_answers": [
+            "seat",
+            "the seat"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use the sound as evidence. A bell warns people; a brake changes speed. If you confuse them, ask whether the clue is about hearing or stopping.",
+          "passage": "Before passing two walkers, Veer makes a clear ring-ring sound.",
+          "prompt": "Name the bicycle part that makes the warning sound.",
+          "options": [
+            "bell",
+            "brake",
+            "chain",
+            "pedal"
+          ],
+          "accepted_answers": [
+            "bell",
+            "the bell",
+            "bicycle bell"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Recall the part-and-job links you have practised. Give only the part named by the clue.",
+          "passage": "The front wheel turns when Salma moves one part left or right.",
+          "prompt": "What part does Salma move with her hands?",
+          "options": [],
+          "accepted_answers": [
+            "handle",
+            "handlebar",
+            "the handle",
+            "the handlebar"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "The same part words help when a bicycle is parked for care, not being ridden. Use the clue about where air goes.",
+          "passage": "At the repair stand, a mechanic pumps air into the round rubber part.",
+          "prompt": "Which bicycle part receives the air?",
+          "options": [],
+          "accepted_answers": [
+            "tyre",
+            "tire",
+            "the tyre",
+            "the tire"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "safe_ride_details",
+      "title": "Read a safe ride",
+      "focus": "find an important safety detail in a short passage",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read two connected sentences and identify the action that keeps the rider safe.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Read for the action that protects the head. Worked example: knee pads protect knees. A colour detail may be interesting, but it is not the safety action.",
+          "passage": "Rima chooses a yellow bicycle. Before moving, she fastens her helmet strap.",
+          "prompt": "What does Rima fasten before she rides?",
+          "options": [
+            "helmet strap",
+            "shoe lace",
+            "basket lid",
+            "gate lock"
+          ],
+          "accepted_answers": [
+            "helmet strap",
+            "her helmet strap",
+            "the helmet strap"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the place word and the movement word together. A safe path matters more than the flowers beside it.",
+          "passage": "Kabir stays inside the marked cycle lane. Bright flowers grow beside the lane.",
+          "prompt": "Where does Kabir ride?",
+          "options": [
+            "inside the cycle lane",
+            "on the flowers",
+            "across the garden",
+            "behind a bus"
+          ],
+          "accepted_answers": [
+            "inside the cycle lane",
+            "in the cycle lane",
+            "the cycle lane"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "When a passage has two actions, ask which one happens before the crossing. Looking both ways is the safety detail.",
+          "passage": "Tanu stops at the crossing and looks left and right. Then she walks her bicycle across.",
+          "prompt": "What does Tanu do before crossing?",
+          "options": [
+            "looks left and right",
+            "rings at home",
+            "opens a basket",
+            "washes the bicycle"
+          ],
+          "accepted_answers": [
+            "looks left and right",
+            "she looks left and right",
+            "stop and look left and right"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now locate the safety detail without answer choices. Keep your response short and tied to the passage.",
+          "passage": "A dog runs near Omar’s path. Omar slows down and gives the dog space.",
+          "prompt": "How does Omar respond safely?",
+          "options": [],
+          "accepted_answers": [
+            "he slows down",
+            "slows down",
+            "he gives the dog space",
+            "slows down and gives the dog space",
+            "he slows down and gives the dog space"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply safe-reading clues to a different wheeled ride. The vehicle changes, but protecting the head remains important.",
+          "passage": "Megha uses a kick scooter in the courtyard. She puts on protective headgear first.",
+          "prompt": "What safety item does Megha put on?",
+          "options": [],
+          "accepted_answers": [
+            "helmet",
+            "a helmet",
+            "her helmet",
+            "protective headgear",
+            "headgear"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "riding_word_jobs",
+      "title": "Words on the move",
+      "focus": "tell bicycle naming, action, and describing words apart",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Identify whether a chapter word names something, shows an action, or describes it.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Action words show what someone or something does. Worked example: in “Birds flap,” flap is the action. Test a word by asking, “Can someone do it?”",
+          "passage": "Mohan pedals up the gentle slope.",
+          "prompt": "Which word shows Mohan’s action?",
+          "options": [
+            "pedals",
+            "Mohan",
+            "gentle",
+            "slope"
+          ],
+          "accepted_answers": [
+            "pedals"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A naming word names a person, place, animal, or thing. The word “shiny” tells how something looks, so it is not the naming word.",
+          "passage": "The shiny bell hangs near the handle.",
+          "prompt": "Which word names the object that rings?",
+          "options": [
+            "bell",
+            "shiny",
+            "near",
+            "hangs"
+          ],
+          "accepted_answers": [
+            "bell"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A describing word adds a quality. Remove each choice in turn: without “red” we still have a seat, but we lose its colour.",
+          "passage": "Pia wipes the red seat with a cloth.",
+          "prompt": "Which word describes the seat?",
+          "options": [
+            "red",
+            "wipes",
+            "Pia",
+            "cloth"
+          ],
+          "accepted_answers": [
+            "red"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the “can someone do it?” test without choices.",
+          "passage": "The children wheel their bicycles into the shed.",
+          "prompt": "Write the action word.",
+          "options": [],
+          "accepted_answers": [
+            "wheel",
+            "to wheel"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the word-job test from riding to bicycle care. Look for the word that tells what the cloth is like.",
+          "passage": "Dad uses a soft cloth to clean the frame.",
+          "prompt": "Which word describes the cloth?",
+          "options": [],
+          "accepted_answers": [
+            "soft",
+            "soft cloth"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "safety_step_order",
+      "title": "Put safety steps in order",
+      "focus": "arrange words into clear bicycle-safety sentences",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Build a sentence with who first, the action next, and the remaining detail in a sensible place.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A clear sentence often starts with who, then says what happened. Worked example: “checks / Ana / the gate” becomes “Ana checks the gate.”",
+          "passage": "Words: helmet / wears / Jiya / a",
+          "prompt": "Which sentence is in the correct order?",
+          "options": [
+            "Jiya wears a helmet.",
+            "Wears Jiya a helmet.",
+            "A Jiya helmet wears."
+          ],
+          "accepted_answers": [
+            "Jiya wears a helmet.",
+            "jiya wears a helmet"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the person first, then the action. Keep “the bell” together because those words name one thing.",
+          "passage": "Words: rings / Dev / the bell",
+          "prompt": "Put the words in the best order.",
+          "options": [
+            "Dev rings the bell.",
+            "The bell Dev rings.",
+            "Rings the Dev bell."
+          ],
+          "accepted_answers": [
+            "Dev rings the bell.",
+            "dev rings the bell"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Longer sentences still need the same spine: who + action + detail. Time words such as “before riding” usually come after the main action.",
+          "passage": "Words: before riding / checks / Mira / the brakes",
+          "prompt": "Choose the clearest sentence.",
+          "options": [
+            "Mira checks the brakes before riding.",
+            "Before checks Mira riding the brakes.",
+            "The brakes before Mira riding checks."
+          ],
+          "accepted_answers": [
+            "Mira checks the brakes before riding.",
+            "mira checks the brakes before riding"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the words without choices. Include every word once.",
+          "passage": "Words: slowly / Arun / near the gate / pedals",
+          "prompt": "Arrange all four parts into one clear riding sentence.",
+          "options": [],
+          "accepted_answers": [
+            "Arun pedals slowly near the gate.",
+            "arun pedals slowly near the gate",
+            "Arun pedals near the gate slowly.",
+            "arun pedals near the gate slowly"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use sentence order for a maintenance action instead of a riding action.",
+          "passage": "Words: the loose chain / an adult / fixes",
+          "prompt": "Arrange the three parts into one clear repair sentence.",
+          "options": [],
+          "accepted_answers": [
+            "An adult fixes the loose chain.",
+            "an adult fixes the loose chain"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "bike_safety_message",
+      "title": "Give a clear safety reminder",
+      "focus": "write a complete bicycle-safety sentence",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write a short reminder that names the rider or action and states one useful bicycle-safety idea.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A complete reminder says what to do, not just one safety word. Worked example: “Wear shoes on the playground.” has an action and a useful detail.",
+          "passage": "A child is about to ride a bicycle.",
+          "prompt": "Which choice is a complete safety reminder?",
+          "options": [
+            "Wear your helmet before riding.",
+            "Helmet.",
+            "Before the.",
+            "A bright bicycle."
+          ],
+          "accepted_answers": [
+            "Wear your helmet before riding.",
+            "wear your helmet before riding"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A fragment can sound important but still miss an action. Choose the sentence that tells the rider exactly what to do.",
+          "passage": "The cycle lane meets a small road.",
+          "prompt": "Which reminder is complete and useful?",
+          "options": [
+            "Stop and look both ways.",
+            "Both ways.",
+            "The small road.",
+            "Looking."
+          ],
+          "accepted_answers": [
+            "Stop and look both ways.",
+            "stop and look both ways"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A strong reminder matches the problem. If the tyre is soft, “Ring the bell” is a full sentence but does not solve the problem.",
+          "passage": "One tyre has very little air.",
+          "prompt": "Which sentence gives the right advice?",
+          "options": [
+            "Ask an adult to fill the tyre.",
+            "Ride faster now.",
+            "Ring the bell loudly.",
+            "Paint the tyre blue."
+          ],
+          "accepted_answers": [
+            "Ask an adult to fill the tyre.",
+            "ask an adult to fill the tyre"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Plan your own sentence. Name the safety action and the time or reason it matters. Different correct wordings are welcome.",
+          "passage": "Naveen reaches a busy corner while riding.",
+          "prompt": "Write one complete sentence telling Naveen what to do safely.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "A safe action at the corner.",
+              "any_of": [
+                "stop",
+                "slow down",
+                "look left and right",
+                "look both ways",
+                "walk the bicycle"
+              ]
+            },
+            {
+              "id": "context",
+              "description": "Connects the action to the corner or traffic.",
+              "any_of": [
+                "corner",
+                "road",
+                "traffic",
+                "before crossing",
+                "crossing"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same reminder skill away from the road. Think about safe storage so nobody trips.",
+          "passage": "After playtime, a bicycle is lying across the doorway.",
+          "prompt": "Write one complete sentence telling what should happen next.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "Moves or parks the bicycle safely.",
+              "any_of": [
+                "move the bicycle",
+                "park the bicycle",
+                "put the bicycle away",
+                "stand the bicycle"
+              ]
+            },
+            {
+              "id": "safe_place",
+              "description": "Names a place away from the doorway.",
+              "any_of": [
+                "rack",
+                "shed",
+                "wall",
+                "safe place",
+                "away from the doorway",
+                "side"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c1_parts_01",
+        "passage": "Lina pushes with her feet on two matching parts. The wheels begin to turn.",
+        "prompt": "Which parts is Lina using?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "pedals",
+          "brakes",
+          "handles",
+          "bells"
+        ],
+        "accepted_answers": [
+          "pedals",
+          "the pedals"
+        ]
+      },
+      {
+        "item_id": "c1_parts_02",
+        "passage": "A small bag rests on the metal shelf behind the seat.",
+        "prompt": "What is the shelf called?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "carrier",
+          "chain",
+          "tyre",
+          "brake"
+        ],
+        "accepted_answers": [
+          "carrier",
+          "the carrier"
+        ]
+      },
+      {
+        "item_id": "c1_parts_03",
+        "passage": "The rider holds one part with both hands to steer.",
+        "prompt": "Choose the bicycle part.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "handlebar",
+          "seat",
+          "pedal",
+          "bell"
+        ],
+        "accepted_answers": [
+          "handlebar",
+          "handle",
+          "the handlebar"
+        ]
+      },
+      {
+        "item_id": "c1_parts_04",
+        "passage": "A round part touches the road and rolls.",
+        "prompt": "Write the part name.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "wheel",
+          "the wheel",
+          "tyre",
+          "tire",
+          "the tyre",
+          "the tire"
+        ]
+      },
+      {
+        "item_id": "c1_read_01",
+        "passage": "Sahil clips his helmet and checks the gate is open. Then he starts riding.",
+        "prompt": "What does Sahil clip?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "his helmet",
+          "the gate",
+          "a basket",
+          "his shoe"
+        ],
+        "accepted_answers": [
+          "his helmet",
+          "helmet"
+        ]
+      },
+      {
+        "item_id": "c1_read_02",
+        "passage": "Nora sees gravel ahead. She slows and keeps both hands on the handlebar.",
+        "prompt": "What does Nora do when she sees gravel?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "she slows",
+          "she closes her eyes",
+          "she rides faster",
+          "she drops the handlebar"
+        ],
+        "accepted_answers": [
+          "she slows",
+          "slows down"
+        ]
+      },
+      {
+        "item_id": "c1_read_03",
+        "passage": "At dusk, Imran wears a bright band so drivers can notice him.",
+        "prompt": "Why is the band useful?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "drivers can notice him",
+          "it pumps the tyre",
+          "it rings like a bell",
+          "it locks the gate"
+        ],
+        "accepted_answers": [
+          "drivers can notice him",
+          "it helps drivers notice him"
+        ]
+      },
+      {
+        "item_id": "c1_read_04",
+        "passage": "Maya hears a truck near the narrow road. She waits with her bicycle on the side.",
+        "prompt": "Where does Maya wait?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "on the side",
+          "at the side",
+          "beside the road",
+          "on the side of the road"
+        ]
+      },
+      {
+        "item_id": "c1_words_01",
+        "passage": "The silver chain turns as Rafi pedals.",
+        "prompt": "Which word shows an action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "turns",
+          "silver",
+          "chain",
+          "Rafi"
+        ],
+        "accepted_answers": [
+          "turns"
+        ]
+      },
+      {
+        "item_id": "c1_words_02",
+        "passage": "A tiny bell rings twice.",
+        "prompt": "Which word describes the bell?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "tiny",
+          "rings",
+          "twice",
+          "bell"
+        ],
+        "accepted_answers": [
+          "tiny"
+        ]
+      },
+      {
+        "item_id": "c1_words_03",
+        "passage": "The mechanic tightens the bolt.",
+        "prompt": "Which word names a person?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "mechanic",
+          "tightens",
+          "the",
+          "bolt"
+        ],
+        "accepted_answers": [
+          "mechanic"
+        ]
+      },
+      {
+        "item_id": "c1_words_04",
+        "passage": "Zoya parks beside the rack.",
+        "prompt": "Write the action word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "parks",
+          "park"
+        ]
+      },
+      {
+        "item_id": "c1_order_01",
+        "passage": "Words: checks / the tyre / Ali",
+        "prompt": "Choose the correctly ordered sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Ali checks the tyre.",
+          "Checks Ali the tyre.",
+          "The checks tyre Ali."
+        ],
+        "accepted_answers": [
+          "Ali checks the tyre.",
+          "ali checks the tyre"
+        ]
+      },
+      {
+        "item_id": "c1_order_02",
+        "passage": "Words: a helmet / wears / Sita",
+        "prompt": "Choose the correctly ordered sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Sita wears a helmet.",
+          "A wears Sita helmet.",
+          "Wears helmet a Sita."
+        ],
+        "accepted_answers": [
+          "Sita wears a helmet.",
+          "sita wears a helmet"
+        ]
+      },
+      {
+        "item_id": "c1_order_03",
+        "passage": "Words: near the school / rides / Hamid / carefully",
+        "prompt": "Choose the clearest sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Hamid rides carefully near the school.",
+          "Carefully the school Hamid near rides.",
+          "Rides near carefully Hamid school."
+        ],
+        "accepted_answers": [
+          "Hamid rides carefully near the school.",
+          "hamid rides carefully near the school"
+        ]
+      },
+      {
+        "item_id": "c1_order_04",
+        "passage": "Words: the bicycle / locks / Reena",
+        "prompt": "Write the sentence in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "Reena locks the bicycle.",
+          "reena locks the bicycle"
+        ]
+      },
+      {
+        "item_id": "c1_write_01",
+        "passage": "A rider is leaving with an unfastened helmet strap.",
+        "prompt": "Which is the best complete reminder?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Fasten the helmet strap first.",
+          "Helmet strap.",
+          "First the.",
+          "A rider leaving."
+        ],
+        "accepted_answers": [
+          "Fasten the helmet strap first.",
+          "fasten the helmet strap first"
+        ]
+      },
+      {
+        "item_id": "c1_write_02",
+        "passage": "Children are walking across the cycle lane.",
+        "prompt": "Which sentence gives a useful reminder to the rider?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Slow down and let them cross.",
+          "Children lane.",
+          "A fast bicycle.",
+          "Crossing."
+        ],
+        "accepted_answers": [
+          "Slow down and let them cross.",
+          "slow down and let them cross"
+        ]
+      },
+      {
+        "item_id": "c1_write_03",
+        "passage": "Rain has made the path slippery.",
+        "prompt": "Which complete sentence is safest?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Ride slowly on the wet path.",
+          "The rain is water.",
+          "Wet path.",
+          "Pedal as fast as possible."
+        ],
+        "accepted_answers": [
+          "Ride slowly on the wet path.",
+          "ride slowly on the wet path"
+        ]
+      },
+      {
+        "item_id": "c1_write_04",
+        "passage": "Kunal wants to ride, but the brake lever feels loose.",
+        "prompt": "Write one complete sentence giving Kunal safe advice.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "Seeks help or avoids riding.",
+            "any_of": [
+              "ask an adult",
+              "get help",
+              "do not ride",
+              "stop riding",
+              "wait"
+            ]
+          },
+          {
+            "id": "problem",
+            "description": "Mentions the brake problem.",
+            "any_of": [
+              "brake",
+              "lever",
+              "loose"
+            ]
+          }
+        ],
+        "min_response_words": 5
+      }
+    ]
+  }
+}

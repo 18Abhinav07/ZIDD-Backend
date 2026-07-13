@@ -1,0 +1,429 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Focused schema, runtime hash, pedagogy quality, and key self-review for eng_c3_ch07 on 2026-07-12"
+  ],
+  "runtime_sha256": "ba4af82e073ca9395b34e781b7808e085089b7033eda5878b33c6d8162d47678",
+  "chapter_id": "eng_c3_ch07",
+  "chapter_no": 7,
+  "title": "The Big Laddoo",
+  "book_title": "Santoor",
+  "unit_title": "Good Food",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa107.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "big_laddoo_poem_image",
+      "title": "Imagine the big picture",
+      "focus": "understand poem imagination",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Notice how a poem uses an impossible big image to make the reader imagine and smile.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In this poem, the fun comes from imagining ordinary things becoming huge. A laddoo is small in real life, but the poem asks us to picture one giant laddoo.",
+          "passage": "Imagine every sweet laddoo in the town joining into one huge round sweet.",
+          "prompt": "What giant sweet is the poem asking us to imagine?",
+          "options": [
+            "big laddoo",
+            "small seed",
+            "paper boat",
+            "green kite"
+          ],
+          "accepted_answers": [
+            "big laddoo",
+            "laddoo",
+            "giant laddoo"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: find the food word first. The poem stretches that food into a very large picture.",
+          "passage": "The child looks at the giant sweet and laughs at its size.",
+          "prompt": "Which food is being imagined as giant?",
+          "options": [
+            "laddoo",
+            "rice",
+            "leaf",
+            "stone"
+          ],
+          "accepted_answers": [
+            "laddoo"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: poems can exaggerate. Exaggerate means to make something much bigger or stronger than real life.",
+          "passage": "The child imagines one huge laddoo rolling near a wide sea.",
+          "prompt": "Which word tells the poem is using an exaggerated image?",
+          "options": [
+            "huge",
+            "near",
+            "one",
+            "wide"
+          ],
+          "accepted_answers": [
+            "huge",
+            "big"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now infer the sound picture without hints.",
+          "passage": "A giant sweet falls into a wide sea and water jumps everywhere.",
+          "prompt": "What kind of sound or action would this make?",
+          "options": [],
+          "accepted_answers": [
+            "big splash",
+            "splash",
+            "splish splash",
+            "big splish splash"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Recognise playful exaggeration in a new setting. Decide what ordinary object has been made impossibly large and what effect that creates.",
+          "passage": "In Jatin's funny tale, one school eraser is as large as a bus. It rubs out an entire chalk road in one sweep.",
+          "prompt": "Which ordinary object is exaggerated?",
+          "options": [],
+          "accepted_answers": ["eraser", "school eraser", "an eraser"]
+        }
+      }
+    },
+    {
+      "level_id": "big_laddoo_round_things",
+      "title": "Sort round things",
+      "focus": "classify round things",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Classify round things by whether they are food or not food.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Many things can be round. The important question is not only shape, but also category: can we eat it?",
+          "passage": "A laddoo, a coin, a ball, and an orange are all round.",
+          "prompt": "Which round thing is a sweet food?",
+          "options": [
+            "laddoo",
+            "coin",
+            "ball",
+            "stone"
+          ],
+          "accepted_answers": [
+            "laddoo"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: first check the shape, then check if it is food. A laddoo is round and edible.",
+          "passage": "The child keeps a round sweet on a plate.",
+          "prompt": "Which word names the round sweet?",
+          "options": [
+            "laddoo",
+            "button",
+            "wheel",
+            "ball"
+          ],
+          "accepted_answers": [
+            "laddoo"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: classification uses two clues. Shape clue: round. Food clue: can be eaten.",
+          "passage": "A round orange can be eaten. A round ball cannot be eaten.",
+          "prompt": "Which item is round but cannot be eaten?",
+          "options": [
+            "ball",
+            "orange",
+            "laddoo",
+            "grape"
+          ],
+          "accepted_answers": [
+            "ball"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose a round thing that is not food.",
+          "passage": "Round things: laddoo, ball, orange, chapatti.",
+          "prompt": "Which round thing should go in the cannot-be-eaten column?",
+          "options": [],
+          "accepted_answers": [
+            "ball"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer two-clue classification to a classroom sorting task. Check both shape and use before deciding.",
+          "passage": "Objects: a round biscuit, a rubber ball, a button, and a guava. The teacher asks for a round object used to fasten a shirt.",
+          "prompt": "Which object belongs in that group?",
+          "options": [],
+          "accepted_answers": ["button", "a button"]
+        }
+      }
+    },
+    {
+      "level_id": "big_laddoo_sense_clues",
+      "title": "Use sense clues",
+      "focus": "infer from sense clues",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Use touch, smell, and taste clues to identify food when a picture clue is missing.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sometimes a person knows an object without seeing it. They may use touch, smell, or taste clues.",
+          "passage": "Meena cannot see the sweet clearly. She feels its round shape in her hand.",
+          "prompt": "Which sense helps Meena feel the shape?",
+          "options": [
+            "touch",
+            "hearing",
+            "counting",
+            "jumping"
+          ],
+          "accepted_answers": [
+            "touch",
+            "feel"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: touch tells shape and texture. Smell tells aroma. Taste tells flavour.",
+          "passage": "The sweet is round in Meena's hand and smells like cardamom.",
+          "prompt": "Which clue tells shape?",
+          "options": [
+            "touch",
+            "noise",
+            "number",
+            "colour only"
+          ],
+          "accepted_answers": [
+            "touch",
+            "feel"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: a strong answer names the clue and the conclusion. She knew it was a laddoo because it felt round and smelled sweet.",
+          "passage": "A child feels a round sweet and notices a sweet smell.",
+          "prompt": "Which answer uses the clues best?",
+          "options": [
+            "round and sweet",
+            "blue and loud",
+            "sharp and cold",
+            "flat and empty"
+          ],
+          "accepted_answers": [
+            "round and sweet"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Combine different senses instead of repeating one clue. State the food and the evidence that supports the guess.",
+          "passage": "Without looking, Ritu touches a cool, smooth slice and smells fresh cucumber.",
+          "prompt": "What food does Ritu identify, and which clues help her?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "food", "description": "Identifies cucumber.", "any_of": ["cucumber", "cucumber slice"]},
+            {"id": "touch", "description": "Uses a touch clue.", "any_of": ["cool", "smooth", "touch"]},
+            {"id": "smell", "description": "Uses the cucumber smell clue.", "any_of": ["smells fresh", "smell", "cucumber smell"]}
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Use sensory evidence outside the sweets theme. A strong explanation names the object and at least two clues.",
+          "passage": "With his eyes closed, Veer hears a crisp crunch and tastes salty masala on a thin slice.",
+          "prompt": "What snack might Veer be eating, and what evidence supports the guess?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "snack", "description": "Identifies a chip or crisp.", "any_of": ["chip", "chips", "crisp", "potato chip"]},
+            {"id": "sound", "description": "Uses the crunch sound.", "any_of": ["crunch", "crisp sound", "crunchy"]},
+            {"id": "taste", "description": "Uses the salty or masala taste.", "any_of": ["salty", "masala", "salt"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "big_laddoo_descriptive_sentence",
+      "title": "Write a sensory picture",
+      "focus": "use adjectives in a complete sentence",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose precise describing words and combine them with a noun and action to create a clear food image.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A describing word tells what kind, which one, or how something feels. In 'warm golden laddoo', warm and golden describe the laddoo.",
+          "passage": "The warm golden laddoo rests on a silver plate.",
+          "prompt": "Which pair describes the laddoo?",
+          "options": [
+            "warm and golden",
+            "rests and plate",
+            "the and on",
+            "plate and rests"
+          ],
+          "accepted_answers": ["warm and golden", "warm, golden"]
+        },
+        "bridge": {
+          "teaching_block": "First name the food, then choose a detail that belongs to it. An action word such as melts tells what the food does, not what kind it is.",
+          "passage": "The soft sweet peda melts in my mouth.",
+          "prompt": "Which word is an action?",
+          "options": [
+            "melts",
+            "soft",
+            "sweet",
+            "peda"
+          ],
+          "accepted_answers": ["melts"]
+        },
+        "masterclass": {
+          "teaching_block": "Do not mistake any nearby word for a describing word. A complete sensory sentence needs a food noun, a fitting detail, and an action or linking verb.",
+          "passage": "Food: jalebi. Detail: crisp. Action: glows in the shop window.",
+          "prompt": "Which sentence uses all three parts clearly?",
+          "options": [
+            "The crisp jalebi glows in the shop window.",
+            "Crisp the shop jalebi.",
+            "The jalebi window in crisp.",
+            "Glows crisp and the."
+          ],
+          "accepted_answers": ["the crisp jalebi glows in the shop window", "the crisp jalebi glows in the shop window."]
+        },
+        "independent_check": {
+          "teaching_block": "Create a new sensory sentence from notes. Use the details naturally rather than copying the note order.",
+          "passage": "Food note: kheer | creamy | smells of cardamom | served in a blue bowl.",
+          "prompt": "Write one complete sentence that helps a reader imagine the kheer.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "food", "description": "Names kheer.", "any_of": ["kheer"]},
+            {"id": "detail", "description": "Uses creamy or the cardamom smell.", "any_of": ["creamy", "cardamom", "smells of cardamom"]},
+            {"id": "place", "description": "Mentions the blue bowl.", "any_of": ["blue bowl", "in a blue bowl"]}
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer descriptive sentence writing to a non-food object while keeping noun, detail, and action clear.",
+          "passage": "Object note: rain cloud | dark, heavy | moves over the playground.",
+          "prompt": "Write one complete sentence describing the cloud.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "object", "description": "Names the rain cloud.", "any_of": ["cloud", "rain cloud"]},
+            {"id": "detail", "description": "Uses dark or heavy as a describing word.", "any_of": ["dark", "heavy"]},
+            {"id": "action", "description": "States that it moves over the playground.", "any_of": ["moves over the playground", "drifts over the playground", "above the playground"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "big_laddoo_float_sink",
+      "title": "Float or sink",
+      "focus": "use float and sink",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use light and heavy clues to predict whether an object may float or sink in water.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "When an object stays on top of water, it floats. When it goes down into water, it sinks.",
+          "passage": "A dry leaf stays on top of the water.",
+          "prompt": "What does the leaf do?",
+          "options": [
+            "float",
+            "sink",
+            "melt",
+            "grow"
+          ],
+          "accepted_answers": [
+            "float",
+            "floats"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: light objects often float. Heavy objects often sink.",
+          "passage": "A feather stays on top of the water.",
+          "prompt": "Which word fits the feather?",
+          "options": [
+            "float",
+            "sink",
+            "break",
+            "cook"
+          ],
+          "accepted_answers": [
+            "float",
+            "floats"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: compare two objects. A leaf may float; a small stone usually sinks.",
+          "passage": "A small stone drops to the bottom of a tub.",
+          "prompt": "What does the stone do?",
+          "options": [
+            "sink",
+            "float",
+            "fly",
+            "smile"
+          ],
+          "accepted_answers": [
+            "sink",
+            "sinks"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the word without hints.",
+          "passage": "A stone goes down to the bottom of the water.",
+          "prompt": "Write the action word: float or sink.",
+          "options": [],
+          "accepted_answers": [
+            "sink",
+            "sinks"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply float-and-sink vocabulary to a classroom test with a different material. Use what happens in the water as the deciding clue.",
+          "passage": "A lump of modelling clay drops to the bottom of a bucket, but the same clay floats after Mina shapes it like a hollow bowl.",
+          "prompt": "What does the hollow clay bowl do?",
+          "options": [],
+          "accepted_answers": ["floats", "float", "it floats"]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id": "eng_c3_ch07_assess_01", "passage": "A cook dreams that one laddoo grows wider than the market square. Children use ladders to sprinkle nuts on its top.", "prompt": "What is the main idea?", "skill_ids": ["reading.paragraph_main_idea"], "options": ["an impossibly giant laddoo", "a normal cooking lesson", "children buying ladders", "a market closing early"], "accepted_answers": ["an impossibly giant laddoo", "a giant laddoo", "the cook imagines a huge laddoo"]},
+      {"item_id": "eng_c3_ch07_assess_02", "passage": "In a playful verse, a pancake becomes a flying carpet and carries breakfast over the rooftops.", "prompt": "Why is this image funny?", "skill_ids": ["reading.paragraph_main_idea", "reading.inference_reason"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "reason", "description": "Explains that a pancake cannot really fly or become a carpet.", "any_of": ["pancake cannot fly", "not possible", "pancake is not a carpet", "imaginary flying pancake", "pancake cannot become a carpet"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_03", "passage": "A mountain-sized sweet rolls down the road, so everyone steps aside.", "prompt": "Why do people move away?", "skill_ids": ["reading.inference_reason"], "options": ["the huge sweet may hit them", "they dislike roads", "the sweet is too quiet", "they want it to stop being round"], "accepted_answers": ["the huge sweet may hit them", "it may roll into them", "to avoid the rolling sweet"]},
+      {"item_id": "eng_c3_ch07_assess_04", "passage": "Objects: coin, puri, marble, wheel. Choose the round object that is eaten with a meal.", "prompt": "Which object fits both clues?", "skill_ids": ["vocab.chapter_word_usage", "reading.sentence_comprehension"], "options": ["puri", "coin", "marble", "wheel"], "accepted_answers": ["puri", "a puri"]},
+      {"item_id": "eng_c3_ch07_assess_05", "passage": "Objects: orange, rubber ring, chapatti, bangle. One is round, worn on the wrist, and not food.", "prompt": "Name it.", "skill_ids": ["vocab.chapter_word_usage", "reading.sentence_comprehension"], "options": [], "accepted_answers": ["bangle", "a bangle"]},
+      {"item_id": "eng_c3_ch07_assess_06", "passage": "The bread is crisp outside but soft inside.", "prompt": "Which two words describe the bread?", "skill_ids": ["grammar.noun_verb_adjective"], "options": ["crisp and soft", "bread and inside", "is and but", "outside and bread"], "accepted_answers": ["crisp and soft", "crisp, soft"]},
+      {"item_id": "eng_c3_ch07_assess_07", "passage": "The fragrant soup bubbles in the steel pot.", "prompt": "Write the describing word.", "skill_ids": ["grammar.noun_verb_adjective"], "options": [], "accepted_answers": ["fragrant"]},
+      {"item_id": "eng_c3_ch07_assess_08", "passage": "Food note: hot corn | buttery smell | served in a paper cup.", "prompt": "Write one complete sensory sentence.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "food", "description": "Names corn.", "any_of": ["corn", "hot corn"]}, {"id": "detail", "description": "Uses hot or buttery as a detail.", "any_of": ["hot", "buttery", "buttery smell"]}, {"id": "container", "description": "Mentions the paper cup.", "any_of": ["paper cup", "in a paper cup"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_09", "passage": "Food note: ripe mango | juicy, golden | lies beside the knife.", "prompt": "Write one complete sentence that creates a clear picture.", "skill_ids": ["writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "food", "description": "Names the mango.", "any_of": ["mango", "ripe mango"]}, {"id": "detail", "description": "Uses juicy or golden.", "any_of": ["juicy", "golden", "ripe"]}, {"id": "place", "description": "Gives its place beside the knife.", "any_of": ["beside the knife", "next to the knife", "near the knife"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_10", "passage": "Asha cannot see the bowl. She smells lemon and feels cold, slippery noodles with a spoon.", "prompt": "Which two senses give her clues?", "skill_ids": ["vocab.chapter_word_usage", "reading.sentence_comprehension"], "options": ["smell and touch", "hearing and sight", "sight and taste", "counting and smell"], "accepted_answers": ["smell and touch", "touch and smell"]},
+      {"item_id": "eng_c3_ch07_assess_11", "passage": "A closed lunchbox gives off a smoky paneer smell. When opened, it feels warm.", "prompt": "Explain what two clues suggest about the food.", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "state", "description": "Infers that the food is warm, cooked, or freshly prepared.", "any_of": ["warm", "cooked", "fresh", "freshly made"]}, {"id": "evidence", "description": "Uses both the smoky smell and warm touch.", "any_of": ["smoky smell", "smells smoky", "feels warm", "warm lunchbox"]}], "min_response_words": 8},
+      {"item_id": "eng_c3_ch07_assess_12", "passage": "Ravi hears a crackle and smells roasted peanuts before the packet is opened.", "prompt": "Why might he guess the snack is crunchy?", "skill_ids": ["reading.inference_reason", "writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "sound", "description": "Uses the crackle as evidence.", "any_of": ["crackle", "crackling sound", "he hears it crackle"]}, {"id": "conclusion", "description": "Connects the sound to a crunchy snack or peanuts.", "any_of": ["crunchy", "roasted peanuts", "snack will crunch"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_13", "passage": "A dry cork stays on the water's surface.", "prompt": "Choose the correct action word.", "skill_ids": ["vocab.chapter_word_usage"], "options": ["floats", "sinks", "melts", "boils"], "accepted_answers": ["floats", "float"]},
+      {"item_id": "eng_c3_ch07_assess_14", "passage": "An iron key drops to the bottom of a jug.", "prompt": "Write the correct action word.", "skill_ids": ["vocab.chapter_word_usage"], "options": [], "accepted_answers": ["sinks", "sink"]},
+      {"item_id": "eng_c3_ch07_assess_15", "passage": "A foil sheet sinks when crumpled tightly but floats when shaped like a wide tray.", "prompt": "Which shape floats?", "skill_ids": ["reading.sentence_comprehension"], "options": ["the wide tray shape", "the tight ball", "both shapes sink", "neither shape touches water"], "accepted_answers": ["the wide tray shape", "wide tray", "tray shape"]},
+      {"item_id": "eng_c3_ch07_assess_16", "passage": "The cook divides one huge sweet among every child instead of giving it to one winner.", "prompt": "Why is dividing it a fair choice?", "skill_ids": ["writing.reason_answer"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "action", "description": "Mentions sharing or dividing the sweet.", "any_of": ["divides", "shares", "everyone gets"]}, {"id": "fairness", "description": "Explains that every child receives a part.", "any_of": ["every child gets some", "everyone receives a piece", "no one is left out", "all children can eat"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_17", "passage": "The giant laddoo cracks open, and hundreds of tiny sweets roll toward the waiting crowd.", "prompt": "What happens after the laddoo cracks?", "skill_ids": ["reading.sentence_comprehension"], "options": [], "accepted_answers": ["tiny sweets roll toward the crowd", "hundreds of sweets roll out", "the small sweets roll away"]},
+      {"item_id": "eng_c3_ch07_assess_18", "passage": "A poet says a pea grows into a green moon above the dinner table.", "prompt": "What ordinary food is exaggerated?", "skill_ids": ["reading.paragraph_main_idea"], "options": ["pea", "moon", "table", "dinner plate"], "accepted_answers": ["pea", "a pea"]},
+      {"item_id": "eng_c3_ch07_assess_19", "passage": "Object note: soap bubble | clear, delicate | drifts above the sink.", "prompt": "Write one complete descriptive sentence.", "skill_ids": ["grammar.noun_verb_adjective", "writing.complete_sentence"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "object", "description": "Names the soap bubble.", "any_of": ["soap bubble", "bubble"]}, {"id": "detail", "description": "Uses clear or delicate.", "any_of": ["clear", "delicate"]}, {"id": "action", "description": "Says that it drifts above the sink.", "any_of": ["drifts above the sink", "floats above the sink", "over the sink"]}], "min_response_words": 7},
+      {"item_id": "eng_c3_ch07_assess_20", "passage": "A child predicts that a hollow orange peel will sink. It stays on top during the test.", "prompt": "State what the test shows and why the prediction must change.", "skill_ids": ["reading.inference_reason", "vocab.chapter_word_usage"], "options": [], "accepted_answers": [], "response_mode": "short", "answer_rule": "concept_slots", "concept_slots": [{"id": "result", "description": "States that the peel floats or stays on top.", "any_of": ["peel floats", "stays on top", "it did not sink"]}, {"id": "change", "description": "Explains that the observed result disproves the sinking prediction.", "any_of": ["prediction was wrong", "must predict float", "test shows it floats", "evidence changed"]}], "min_response_words": 8}
+    ]
+  }
+}
