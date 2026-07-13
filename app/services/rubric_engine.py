@@ -3661,7 +3661,11 @@ def _reconcile_gd_build_on(packet: EvaluationPacket, result: PrepRubricEval) -> 
     credits_prior = bool(re.match(
         r"(?:building on|adding to|to build on|picking up on|following)\s+(?:your|that|the)\s+"
         r"(?:point|idea|concern)|as\s+.{1,50}\s+(?:said|mentioned)|"
-        r"i agree with\s+(?:your|that|the)\s+(?:point|idea)",
+        r"i agree with\s+(?:your|that|the)\s+(?:point|idea)|"
+        r"i agree with\s+(?:the\s+)?[a-z][a-z'-]{1,24}(?:\s+[a-z][a-z'-]{1,24}){0,2}\s+that|"
+        r"(?:the\s+)?[a-z][a-z'-]{1,24}(?:\s+[a-z][a-z'-]{1,24}){0,2}\s+"
+        r"(?:is|are)\s+right\s+that|the\s+exact\s+point\s+i\s+used\s+was\b|"
+        r"what\s+i(?:'m|\s+am)\s+taking\s+from\s+.{1,60}\s+is",
         lowered,
     ))
     prompt = _gd_latest_assistant_prompt(packet)
@@ -3669,21 +3673,33 @@ def _reconcile_gd_build_on(packet: EvaluationPacket, result: PrepRubricEval) -> 
     extension_text = answer.split(",", 1)[1].strip() if credits_prior and "," in answer else answer
     extension_grounded = _gd_topic_grounded(extension_text, topic_reference)
     word_count = len(_normalize(answer).split())
+    extension_tokens = _gd_meaningful_tokens(extension_text)
+    prompt_tokens = _gd_meaningful_tokens(prompt)
+    has_distinct_extension_detail = len(extension_tokens - prompt_tokens) >= 2
     extends_idea = (
         word_count >= 20
         and extension_grounded
+        and has_distinct_extension_detail
         and any(marker in lowered for marker in (
             "i would add",
             "i'd add",
             "it also",
             "another implication",
+            "my added implication",
+            "the new implication",
+            "what i add",
+            "my addition",
+            "building on",
+            "to extend",
+            "that suggests",
+            "therefore",
             "which can",
             "which means",
             "but ",
             "so ",
         ))
     )
-    topic_reference = prompt or packet.active_topic
+    topic_reference = packet.active_topic or prompt
     topic_overlap = _gd_meaningful_tokens(answer) & _gd_meaningful_tokens(topic_reference)
     topic_relevant = len(topic_overlap) >= 2 if topic_reference else False
     collaborative = (
@@ -3696,7 +3712,11 @@ def _reconcile_gd_build_on(packet: EvaluationPacket, result: PrepRubricEval) -> 
     if extends_idea:
         proof["extends_idea"] = _gd_sentence_evidence(
             answer,
-            ("i would add", "i'd add", "it also", "another implication", "which", "but", "so"),
+            (
+                "i would add", "i'd add", "it also", "another implication",
+                "my added implication", "the new implication", "what i add", "my addition",
+                "building on", "to extend", "that suggests", "therefore", "which", "but", "so",
+            ),
         )
     if topic_relevant:
         proof["topic_relevance"] = first_sentence[:320]

@@ -888,11 +888,20 @@ class CareerLearningProfileService:
                 simulator_notes.append(text)
         caveats = list(learner_caveats)
         caveats.extend(f"Simulator integrity: {item}" for item in simulator_notes)
+        allowed_validity = {
+            "final",
+            "partial",
+            "insufficient_evidence",
+            "invalid_simulation",
+        }
         explicit_validity = str(report.get("validity_status") or "").strip()
-        if explicit_validity in {"invalid_simulation", "insufficient_evidence", "partial"}:
+        reported_status = str(report.get("status") or "").strip()
+        if explicit_validity in allowed_validity:
             status = explicit_validity
+        elif reported_status in allowed_validity:
+            status = reported_status
         else:
-            status = "partial" if learner_caveats else str(report.get("status") or "final")
+            status = "partial" if learner_caveats else "final"
         canonical_gaps = canonicalize_report_gaps(
             task_type,
             skill_gaps=report.get("skill_gaps") or [],
@@ -961,6 +970,7 @@ class CareerLearningProfileService:
                 "caveats": caveats,
                 "learner_assessment_caveats": learner_caveats,
                 "simulator_integrity_notes": simulator_notes,
+                "validity_status": status,
                 "status": status,
                 "scorable_turn_count": report.get("scorable_turn_count") or 0,
                 "coverage_map": report.get("coverage_map") or {},

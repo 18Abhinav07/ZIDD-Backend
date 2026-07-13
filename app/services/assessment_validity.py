@@ -58,6 +58,35 @@ _GD_PANELIST_FLOOR_CONTROL_RE = re.compile(
     r")",
     re.I,
 )
+_GD_EVALUATIVE_PRAISE_RE = re.compile(
+    r"(?:"
+    r"\b(?:good|great|strong|excellent|valid|fair|thoughtful)\s+"
+    r"(?:point|argument|proposal|idea|response|answer)\b|"
+    r"\b(?:your|the\s+learner'?s?)\s+(?:point|approach|proposal|argument|idea|"
+    r"analysis|response|position|framework|answer)\b[^.!?]{0,110}\b"
+    r"(?:is|was|seems|sounds)\s+(?:a\s+)?(?:compelling|robust|insightful|"
+    r"well[-\s]?taken|strong|thoughtful|excellent|good(?:\s+start)?|impressive|valid)|"
+    r"\byour\s+(?:insight|point|analysis|response|proposal)\b[^.!?]{0,80}\b"
+    r"(?:highlights|shows|demonstrates)\s+(?:an?\s+)?(?:important|useful|strong|valid)\b|"
+    r"\byou(?:'ve|\s+have)?\s+(?:rightly|correctly|clearly|thoughtfully)\s+"
+    r"(?:highlighted|identified|outlined|explained|shown|raised)|"
+    r"\byou\s+raise\s+(?:a\s+)?(?:valid|strong|important|excellent)\s+point\b"
+    r")",
+    re.I,
+)
+_GD_SELF_REFERENCE_VERBS = (
+    "adds|agrees|argues|believes|challenges|contends|disagrees|holds|maintains|"
+    "notes|opposes|recommends|says|sees|suggests|supports|thinks|warns"
+)
+_GD_NOVELTY_STOP_WORDS = {
+    "about", "after", "again", "also", "another", "approach", "argument",
+    "because", "been", "being", "between", "both", "could", "discussion",
+    "further", "good", "great", "here", "however", "idea", "important",
+    "issue", "learner", "might", "more", "point", "proposal", "really",
+    "response", "should", "strong", "strengthen", "their", "there", "these",
+    "they", "this", "those", "through", "very", "what", "where", "which",
+    "while", "would", "your",
+}
 
 _REQUEST_BEFORE_RE = re.compile(
     r"\b(?:ask|invite|hear\s+from|bring\s+in|call\s+on|let)\b",
@@ -266,7 +295,63 @@ def self_label_or_meta_text(text: str, persona: dict[str, Any]) -> bool:
             return True
         if re.match(rf"^{re.escape(token_lower)}\s*,\s*(?:you|the learner|learner)\b", lower):
             return True
+        if re.search(
+            rf"\b{re.escape(token_lower)}\s+(?:{_GD_SELF_REFERENCE_VERBS})\b",
+            lower,
+        ):
+            return True
     return False
+
+
+def gd_panelist_evaluative_praise_text(text: str, persona: dict[str, Any]) -> bool:
+    """True when a GD peer grades the learner instead of advancing the room."""
+    role_type = str(persona.get("role_type") or "").lower()
+    speaker_id = str(persona.get("speaker_id") or "").lower()
+    name = str(persona.get("name") or "").lower()
+    if role_type == "moderator" or "moderator" in speaker_id or "moderator" in name:
+        return False
+    return bool(_GD_EVALUATIVE_PRAISE_RE.search(" ".join(str(text or "").split())))
+
+
+def _gd_meaningful_words(value: str) -> set[str]:
+    return {
+        word
+        for word in re.findall(r"[a-z][a-z0-9'-]{2,}", str(value or "").lower())
+        if word not in _GD_NOVELTY_STOP_WORDS
+    }
+
+
+def gd_panelist_paraphrase_only_text(
+    text: str,
+    persona: dict[str, Any],
+    learner_text: str,
+    *,
+    declared_new_contribution: str = "",
+) -> bool:
+    """Require a panelist to add concepts beyond the learner's latest turn."""
+    role_type = str(persona.get("role_type") or "").lower()
+    speaker_id = str(persona.get("speaker_id") or "").lower()
+    name = str(persona.get("name") or "").lower()
+    if role_type == "moderator" or "moderator" in speaker_id or "moderator" in name:
+        return False
+    visible = " ".join(str(text or "").split()).strip()
+    learner = " ".join(str(learner_text or "").split()).strip()
+    declared = " ".join(str(declared_new_contribution or "").split()).strip()
+    if not visible or not learner:
+        return False
+    if declared and declared.lower() not in visible.lower():
+        return True
+    candidate_words = _gd_meaningful_words(declared or visible)
+    learner_words = _gd_meaningful_words(learner)
+    if len(candidate_words) < 4:
+        return True
+    if len(learner_words) < 5:
+        return False
+    novel_words = candidate_words - learner_words
+    overlap_ratio = len(candidate_words & learner_words) / max(len(candidate_words), 1)
+    if declared:
+        return len(novel_words) < 2
+    return len(novel_words) < 3 or (overlap_ratio >= 0.72 and len(novel_words) < 5)
 
 
 def gd_panelist_ask_only_text(text: str, persona: dict[str, Any]) -> bool:
@@ -315,7 +400,7 @@ def gd_panelist_ask_only_text(text: str, persona: dict[str, Any]) -> bool:
         )
         return len(prefix_words) < 6
     substantive_before_question = any(
-        len(re.findall(r"[A-Za-z0-9']+", chunk)) >= 6
+        len(re.findall(r"[A-Za-z0-9']+", chunk)) >= 10
         for chunk in sentence_chunks[:question_index]
     )
     return not substantive_before_question

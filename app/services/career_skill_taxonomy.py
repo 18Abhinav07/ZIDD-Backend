@@ -226,6 +226,8 @@ def unmapped_report_observations(
             "recommended_action": _clean(row.get("recommended_action")),
             "recommended_node_id": _clean(row.get("recommended_node_id")),
             "status": _clean(row.get("status")) or "active_gap",
+            "basis_turn_id": _clean(row.get("basis_turn_id"), limit=80),
+            "missing_delta": _clean(row.get("missing_delta")),
         })
     return unmapped
 
@@ -270,6 +272,8 @@ def canonicalize_report_gaps(
             "recommended_action": _clean(row.get("recommended_action")) or f"Practice {skill.label.lower()}.",
             "recommended_node_id": requested_node,
             "status": status,
+            "basis_turn_id": _clean(row.get("basis_turn_id"), limit=80),
+            "missing_delta": _clean(row.get("missing_delta")),
         }
         if row.get("skill_score") is not None:
             canonical_row["skill_score"] = row.get("skill_score")

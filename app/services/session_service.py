@@ -294,7 +294,12 @@ def _task_role_from_text(text: str) -> str:
 def _visible_transfer_anchors(text: str) -> list[str]:
     """Extract anchor groups from the visible assignment, never from node identity."""
     clean = " ".join(str(text or "").split())
-    transfer_match = re.search(r"\bTransfer\s+(?:task|check)\s*:\s*(.+)", clean, re.IGNORECASE)
+    transfer_match = re.search(
+        r"\b(?:Transfer\s+(?:task|check)\s*:\s*|"
+        r"Now\s+transfer(?:\s+that\s+structure)?\s+to\s+)(.+)",
+        clean,
+        re.IGNORECASE,
+    )
     body = transfer_match.group(1) if transfer_match else clean
     anchors: list[str] = []
     role = _task_role_from_text(body)
@@ -308,14 +313,33 @@ def _visible_transfer_anchors(text: str) -> list[str]:
     if learner_owned_new_context:
         anchors.append("learner owned new context")
         return anchors[:2]
-    for quoted in re.findall(r"['\"]([^'\"]{8,180})['\"]", body):
+    sentences = re.split(
+        r"(?<=[.!?])\s+|(?<=[.!?]['\"])\s+",
+        body,
+    )[:3]
+    scenario_sentence = sentences[0] if sentences else body
+    for quoted in re.findall(r"['\"]([^'\"]{8,180})['\"]", scenario_sentence):
         tokens = [
             token for token in re.findall(r"[a-z][a-z0-9-]{3,}", quoted.casefold())
             if token not in _TRANSFER_ANCHOR_STOPWORDS
         ]
         if tokens:
             anchors.append(" ".join(dict.fromkeys(tokens))[:160])
-    for sentence in re.split(r"(?<=[.!?])\s+", body)[:2]:
+    for index, sentence in enumerate(sentences):
+        # The scenario is the transfer anchor. Output-shape instructions such as
+        # "Name the tendency..." describe the rubric and must not become a
+        # second context that the learner has to echo verbatim.
+        if index > 0 and re.match(
+            r"^\s*(?:in\s+(?:one|two|three|four|\d+)\b|name\b|include\b|"
+            r"give\b|state\b|show\b|explain\b|prove\b|provide\b|deliver\b|"
+            r"answer\b|keep\b|ask\b|acknowledge\b|choose\b|connect\b|"
+            r"defend\b|hold\b|identify\b|justify\b|make\b|negotiate\b|"
+            r"offer\b|preserve\b|remove\b|repeat\b|respond\b|stay\b|use\b|"
+            r"write\b)",
+            sentence,
+            re.IGNORECASE,
+        ):
+            continue
         tokens = [
             token for token in re.findall(r"[a-z][a-z0-9-]{3,}", sentence.casefold())
             if token not in _TRANSFER_ANCHOR_STOPWORDS
@@ -1087,7 +1111,7 @@ def _exact_rubric_evidence_quote(user_input: str, evidence_quote: str) -> str:
     if not tokens:
         return ""
     match = re.search(
-        r"\s+".join(re.escape(token) for token in tokens),
+        r"(?<!\w)" + r"\s+".join(re.escape(token) for token in tokens) + r"(?!\w)",
         str(user_input or ""),
         flags=re.IGNORECASE,
     )
@@ -1099,11 +1123,13 @@ def _exact_rubric_evidence_quote(user_input: str, evidence_quote: str) -> str:
 def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
     criteria_labels: list[str] = []
     evidence_by_id: dict[str, str] = {}
+    met_criterion_ids: set[str] = set()
     for row in rubric_result.get("criteria") or []:
         if not isinstance(row, dict) or row.get("met") is not True:
             continue
         criterion_id = str(row.get("id") or row.get("criterion_id") or "").strip()
         if criterion_id:
+            met_criterion_ids.add(criterion_id)
             label = (
                 "answering the question"
                 if criterion_id == "answers_question"
@@ -1116,11 +1142,16 @@ def _completion_feedback_text(rubric_result: dict, user_input: str) -> str:
             evidence_by_id.setdefault(criterion_id, quote)
 
     weakness_ids = {"real_weakness", "mitigation_habit", "progress_evidence"}
-    if weakness_ids.issubset(evidence_by_id):
-        progress_quote = evidence_by_id["progress_evidence"]
+    if weakness_ids.issubset(met_criterion_ids):
+        progress_quote = evidence_by_id.get("progress_evidence", "")
+        proof = (
+            f' The clearest progress proof is "{progress_quote}".'
+            if progress_quote
+            else ""
+        )
         return (
-            "Keep this version. It names the weakness, the management habit, and the progress "
-            f'signal, grounded in "{progress_quote}". No required gap remains, so this skill is '
+            "Keep this version. It names the weakness, the management habit, and the progress signal."
+            f"{proof} No required gap remains, so this skill is "
             "ready to carry forward."
         )
 
@@ -2542,9 +2573,20 @@ def _gd04_feedback_text(state: dict) -> str | None:
     elif next_action == "request_pressure":
         state["pending_prompt_attempt_type"] = "pressure"
         state["pending_gd_prompt_topic"] = current_topic
+        core = qualified_core_evidence(state, "gd_04_build_on_others")
+        core_excerpt = _bounded_exact_excerpt(
+            str((core or {}).get("learner_answer") or ""),
+            150,
+        )
+        return_to_core = (
+            f'Return to your qualified contribution that began: "{core_excerpt}". '
+            if core_excerpt
+            else "Return to your qualified contribution. "
+        )
         task = (
-            "Pressure check: another participant says you merely repeated their idea. Credit the exact "
-            "part you used, then state the new implication your contribution adds."
+            f'Pressure check on "{current_topic}": {return_to_core}'
+            "Another participant says you merely repeated their idea. Credit the exact part "
+            "you used, then state the new implication your contribution adds."
         )
     elif next_action == "request_consolidation":
         state["pending_prompt_attempt_type"] = "independent"
@@ -2630,8 +2672,19 @@ def _gd05_feedback_text(state: dict) -> str | None:
     elif next_action == "request_pressure":
         state["pending_prompt_attempt_type"] = "pressure"
         state["pending_gd_prompt_topic"] = current_topic
+        core = qualified_core_evidence(state, "gd_05_disagree_respectfully")
+        core_excerpt = _bounded_exact_excerpt(
+            str((core or {}).get("learner_answer") or ""),
+            150,
+        )
+        return_to_core = (
+            f'Return to your qualified contribution that began: "{core_excerpt}". '
+            if core_excerpt
+            else "Return to your qualified contribution. "
+        )
         task = (
-            "Pressure check: the participant says your concession undermines your disagreement. "
+            f'Pressure check on "{current_topic}": {return_to_core}'
+            "The participant says your concession undermines your disagreement. "
             "Explain why the conceded benefit is real but does not outweigh your counterpoint."
         )
     elif next_action == "request_consolidation":
@@ -4232,21 +4285,25 @@ def _opening_fallback_text(state: dict, node) -> str:
                 "analogy, or labelled hypothetical, and explain the link."
             ),
             "gd_03_take_the_floor": (
-                "Two participants have spoken and there is a short pause. Enter naturally by "
-                "linking one prior idea to a new implication of your own."
+                "Asha has said, 'A phased implementation with explicit success metrics is safer "
+                "than an immediate switch.' There is a short pause. Enter naturally by linking "
+                "that idea to one new implication of your own."
             ),
             "gd_04_build_on_others": (
-                "The Analyst has raised a valid implementation point. Credit that point, then "
-                "extend it with one new consequence or practical proposal."
+                "The Analyst says, 'A phased implementation with clear success metrics would let "
+                "us test the motion before scaling it.' Credit that exact point, then extend it "
+                "with one new consequence or practical proposal."
             ),
             "gd_05_disagree_respectfully": (
-                "A participant says the motion's main benefit outweighs every risk. Concede one "
-                "valid benefit, then disagree with a topic-based reason without attacking them."
+                "Ravi says, 'The access and flexibility benefits are so large that implementation "
+                "risks should not delay the motion.' Concede one valid benefit, then disagree with "
+                "a topic-based reason without attacking him."
             ),
             "gd_06_balanced_view": (
-                "One participant supports the motion for its potential benefits; another opposes "
-                "it because of implementation risks. State the strongest point on each side, "
-                "weigh the decisive trade-off, and land on a clear recommendation."
+                "Asha supports the motion because it could widen access and flexibility. Dev "
+                "opposes it because weak safeguards could create uneven outcomes and unclear "
+                "accountability. State the strongest point on each side, weigh the decisive "
+                "trade-off, and land on a clear recommendation."
             ),
             "gd_07_steer_back": (
                 "The panel has drifted into unrelated workplace preferences. Flag the drift "
@@ -4258,9 +4315,9 @@ def _opening_fallback_text(state: dict, node) -> str:
                 "her the floor without pressure."
             ),
             "gd_09_manage_dominator": (
-                "A dominant participant interrupts and repeats the same argument. Reclaim the "
-                "floor calmly by acknowledging the useful part, add one topic-linked point, "
-                "and create room for another participant."
+                "Ravi interrupts again: 'Access is all that matters; implementation risks are "
+                "just excuses.' Reclaim the floor calmly by acknowledging the useful part, add "
+                "one topic-linked qualification, and invite Maya to contribute."
             ),
             "gd_10_drive_consensus": (
                 "Maya says the evidence supports the motion; Dev says it is too mixed to accept "

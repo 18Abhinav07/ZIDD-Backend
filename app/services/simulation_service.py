@@ -19,6 +19,7 @@ import zlib
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Any
 
 from app.ai.calls import evaluate_simulation
 from app.ai.prompts import sanitize_memory_text
@@ -1144,6 +1145,13 @@ def _gd_safe_repair_text(state: dict, persona: dict, generated: str) -> str:
     return text
 
 
+def _latest_learner_message_text(state: dict) -> str:
+    for message in reversed(state.get("messages") or []):
+        if isinstance(message, dict) and message.get("role") == "user":
+            return str(message.get("content") or "")
+    return ""
+
+
 def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
     """Validate GD panel text before it becomes visible to the learner."""
     _ensure_assessment_state(state)
@@ -1165,7 +1173,9 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
     from app.services.assessment_validity import (
         gd_moderator_interview_question_text,
         gd_panelist_ask_only_text,
+        gd_panelist_evaluative_praise_text,
         gd_panelist_formulaic_meta_text,
+        gd_panelist_paraphrase_only_text,
         self_label_or_meta_text,
     )
 
@@ -1175,6 +1185,36 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
             state,
             "self_label_or_meta_response",
             f"{persona.get('name') or current_speaker_id} produced self-label or meta handoff text.",
+            severity="partial",
+            speaker_id=current_speaker_id,
+        )
+        return _gd_safe_repair_text(
+            state,
+            persona,
+            _assessment_repair_text(state, TaskType.GD_TEST, persona),
+        )
+    if gd_panelist_evaluative_praise_text(text, persona):
+        _append_validity_flag(
+            state,
+            "gd_panelist_evaluative_praise_repaired",
+            f"{persona.get('name') or current_speaker_id} evaluated the learner instead of advancing the discussion.",
+            severity="partial",
+            speaker_id=current_speaker_id,
+        )
+        return _gd_safe_repair_text(
+            state,
+            persona,
+            _assessment_repair_text(state, TaskType.GD_TEST, persona),
+        )
+    if gd_panelist_paraphrase_only_text(
+        text,
+        persona,
+        _latest_learner_message_text(state),
+    ):
+        _append_validity_flag(
+            state,
+            "gd_panelist_paraphrase_repaired",
+            f"{persona.get('name') or current_speaker_id} repeated the learner without adding a new discussion move.",
             severity="partial",
             speaker_id=current_speaker_id,
         )
@@ -2548,6 +2588,78 @@ def _sanitize_report_improvements(task_type: TaskType, improvements: list[str]) 
     return list(dict.fromkeys(sanitized))
 
 
+def _report_metric(report: object, name: str) -> float | None:
+    value = report.get(name) if isinstance(report, dict) else getattr(report, name, None)
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _dimension_next_step(task_type: TaskType, report: object) -> list[str]:
+    if task_type == TaskType.GD_TEST:
+        options = [
+            (
+                "participation_score",
+                "Make floor leadership more consistent: enter once without invitation, then create room for another participant later in the discussion.",
+            ),
+            (
+                "relevance_score",
+                "Make each response advance the room: reference one panel claim, then add a counterexample, condition, or synthesis that claim did not contain.",
+            ),
+            (
+                "language_score",
+                "Compress each contribution to a claim, reason, and consequence so the argument stays sharp under pressure.",
+            ),
+        ]
+    else:
+        options = [
+            (
+                "clarity_score",
+                "Make answer structure consistent: give the situation, your decision, and the measured result without adding unrelated detail.",
+            ),
+            (
+                "confidence_score",
+                "Lead with your conclusion under pressure, then justify it with one owned example and outcome.",
+            ),
+        ]
+    scored = [
+        (value, text)
+        for key, text in options
+        if (value := _report_metric(report, key)) is not None
+    ]
+    return [min(scored, key=lambda item: item[0])[1]] if scored else []
+
+
+def _validated_gap_improvements(
+    task_type: TaskType,
+    gaps: list[dict[str, Any]],
+    report: object,
+) -> list[str]:
+    actions: list[str] = []
+    for gap in gaps:
+        if str(gap.get("status") or "") not in {"active_gap", "improving"}:
+            continue
+        if not str(gap.get("evidence_quote") or "").strip():
+            continue
+        if not str(gap.get("basis_turn_id") or "").startswith("learner_turn_"):
+            continue
+        if not str(gap.get("missing_delta") or "").strip():
+            continue
+        action = " ".join(str(gap.get("recommended_action") or "").split()).strip()
+        if action:
+            actions.append(action)
+    return _sanitize_report_improvements(task_type, list(dict.fromkeys(actions)))[:3] or _dimension_next_step(task_type, report)
+
+
+def _report_recovery_improvements(validity_status: str) -> list[str] | None:
+    if validity_status == "invalid_simulation":
+        return ["Rerun the assessment so the report is based on a valid transcript."]
+    if validity_status == "insufficient_evidence":
+        return ["Complete more rounds so the assessment can cover enough competencies."]
+    return None
+
+
 _GENERIC_REPORT_SUMMARY_RE = re.compile(
     r"\b(?:great\s+job|great\s+session|strong\s+answer|strong\s+interview\s+close|"
     r"excellent\s+work|interview[-\s]?ready|discussion[-\s]?ready|"
@@ -2660,7 +2772,7 @@ def sanitize_report_for_delivery(state: dict, report: dict) -> dict:
             ),
         ],
     )
-    canonical_gaps = _ground_report_gap_evidence(
+    canonical_gaps = _validated_report_gaps(_ground_report_gap_evidence(
         state,
         canonicalize_report_gaps(
             task_type,
@@ -2669,14 +2781,36 @@ def sanitize_report_for_delivery(state: dict, report: dict) -> dict:
             recommended_next_nodes=recommendations,
             improvements=improvements,
         ),
+    ))
+    validity_status = str(sanitized.get("validity_status") or "").strip()
+    grounded_improvements = (
+        _report_recovery_improvements(validity_status)
+        or _validated_gap_improvements(task_type, canonical_gaps, sanitized)
     )
+    learner_caveats = list(sanitized.get("learner_assessment_caveats") or [])
+    if not learner_caveats:
+        learner_caveats = [
+            str(caveat)
+            for caveat in sanitized.get("assessment_caveats") or []
+            if not str(caveat).startswith("Simulator caveat:")
+        ]
+    if not _has_unanswered_final_prompt(state.get("messages") or []):
+        learner_caveats = [
+            caveat
+            for caveat in learner_caveats
+            if "latest interviewer or panel prompt" not in caveat.lower()
+        ]
+    simulator_notes = list(sanitized.get("simulator_integrity_notes") or [])
     sanitized.update({
-        "improvements": improvements,
+        "improvements": grounded_improvements,
         "skill_gaps": canonical_gaps,
         "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
         "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
         "unmapped_report_observations": unmapped,
         "evidence_quotes": evidence_quotes,
+        "learner_assessment_caveats": learner_caveats,
+        "simulator_integrity_notes": simulator_notes,
+        "assessment_caveats": _combined_caveats(learner_caveats, simulator_notes),
         "summary": _sanitize_report_summary(
             task_type,
             str(sanitized.get("summary") or ""),
@@ -2885,8 +3019,52 @@ def _ground_report_gap_evidence(
     for gap in gaps:
         candidate = str(gap.get("evidence_quote") or "").strip()
         quotes = _grounded_evidence_quotes(state, [candidate]) if candidate else []
-        grounded.append({**gap, "evidence_quote": quotes[0] if quotes else ""})
+        quote = quotes[0] if quotes else ""
+        grounded.append({
+            **gap,
+            "evidence_quote": quote,
+            "basis_turn_id": _basis_turn_id_for_quote(state, quote),
+            "missing_delta": " ".join(str(gap.get("missing_delta") or "").split())[:320],
+        })
     return grounded
+
+
+def _basis_turn_id_for_quote(state: dict, quote: str) -> str:
+    normalized_quote = " ".join(str(quote or "").split()).lower()
+    if normalized_quote.endswith("..."):
+        normalized_quote = normalized_quote[:-3].rstrip()
+    if not normalized_quote:
+        return ""
+    learner_turns = [
+        " ".join(str(message.get("content") or "").split())
+        for message in _typed_scorable_messages(
+            state.get("messages") or [],
+            _assessment_analysis_events(state),
+        )
+        if message.get("role") == "user"
+        and message.get("message_kind") != "simulation_control"
+        and str(message.get("content") or "").strip()
+    ]
+    for index, learner_turn in enumerate(learner_turns, start=1):
+        if normalized_quote in learner_turn.lower():
+            return f"learner_turn_{index}"
+    return ""
+
+
+def _validated_report_gaps(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    validated: list[dict[str, Any]] = []
+    for gap in gaps:
+        status = str(gap.get("status") or "active_gap")
+        if status == "resolved":
+            validated.append(gap)
+            continue
+        if (
+            str(gap.get("evidence_quote") or "").strip()
+            and str(gap.get("basis_turn_id") or "").startswith("learner_turn_")
+            and str(gap.get("missing_delta") or "").strip()
+        ):
+            validated.append(gap)
+    return validated
 
 
 def _assessment_evidence_quotes(state: dict) -> list[str]:
@@ -3231,9 +3409,20 @@ def _insufficient_evidence_report(
     )
 
 
+_ANSWER_REQUEST_RE = re.compile(
+    r"(?:^|[.!?]\s+)(?:please\s+)?(?:tell|describe|explain|share|give|state|name|"
+    r"compare|choose|walk\s+me\s+through|respond|answer|take\s+a\s+position|"
+    r"can\s+you|could\s+you|would\s+you|what\s+would|how\s+would)\b",
+    re.I,
+)
+
+
 def _has_unanswered_final_prompt(messages: list[dict]) -> bool:
     scorable = _scorable_messages(messages)
-    return bool(scorable and scorable[-1].get("role") == "assistant")
+    if not scorable or scorable[-1].get("role") != "assistant":
+        return False
+    text = " ".join(str(scorable[-1].get("content") or "").split()).strip()
+    return bool(text and ("?" in text or _ANSWER_REQUEST_RE.search(text)))
 
 
 def _completed_max_rounds(state: dict) -> bool:
@@ -3442,7 +3631,7 @@ async def score_session(state: dict) -> SimulationReport:
             ),
         ],
     )
-    canonical_gaps = _ground_report_gap_evidence(
+    canonical_gaps = _validated_report_gaps(_ground_report_gap_evidence(
         state,
         canonicalize_report_gaps(
             task_type,
@@ -3451,9 +3640,10 @@ async def score_session(state: dict) -> SimulationReport:
             recommended_next_nodes=sanitized_recommendations,
             improvements=sanitized_improvements,
         ),
-    )
+    ))
+    grounded_improvements = _validated_gap_improvements(task_type, canonical_gaps, report)
     report = report.model_copy(update={
-        "improvements": sanitized_improvements,
+        "improvements": grounded_improvements,
         "skill_gaps": [SimulationSkillGap.model_validate(gap) for gap in canonical_gaps],
         "recommended_next_nodes": [gap["recommended_node_id"] for gap in canonical_gaps],
         "observed_skill_gaps": [gap["label"] for gap in canonical_gaps],
@@ -3513,10 +3703,6 @@ async def score_session(state: dict) -> SimulationReport:
             "learner_assessment_caveats": list(dict.fromkeys(learner_caveats)),
             "simulator_integrity_notes": list(dict.fromkeys(simulator_notes)),
             "improvements": _sanitize_report_improvements(task_type, list(report.improvements)),
-        })
-    if not report.recommended_next_nodes:
-        report = report.model_copy(update={
-            "recommended_next_nodes": list(report.improvements[:3]),
         })
     qualities = _normalized_round_qualities(state)
     round_mean = None

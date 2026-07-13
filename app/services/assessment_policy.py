@@ -13,7 +13,9 @@ from app.services.assessment_validity import (
     explicit_requested_speaker_id,
     first_debater,
     gd_panelist_ask_only_text,
+    gd_panelist_evaluative_praise_text,
     gd_panelist_formulaic_meta_text,
+    gd_panelist_paraphrase_only_text,
     interview_model_answer_leak,
     low_confidence_persona_request,
     moderator_persona,
@@ -136,13 +138,70 @@ def _safe_gd_action_intent(
     )
 
 
-def _response_text_or_fallback(state: dict[str, Any], plan: dict[str, Any], persona: dict[str, Any]) -> str:
+def _requested_gd_fallback_text(
+    state: dict[str, Any],
+    plan: dict[str, Any],
+    persona: dict[str, Any],
+    question: str,
+) -> str:
+    focus = " ".join(str(question or "").split()).strip().rstrip("?.!")[:180]
+    if not focus:
+        return gd_persona_fallback_text(
+            _active_topic(state, plan),
+            str(persona.get("speaker_id") or ""),
+            str(persona.get("role_type") or ""),
+        )
+    topic = _active_topic(state, plan)
+    role = str(persona.get("role_type") or "").lower()
+    speaker_id = str(persona.get("speaker_id") or "")
+    if "analyst" in role or speaker_id == "data_driven_analyst":
+        answer = (
+            "I would compare the claimed outcome with a defined control group, then set a "
+            "decision threshold that pauses the policy when the result worsens."
+        )
+    elif "builder" in role or speaker_id == "consensus_builder":
+        answer = (
+            "the workable middle path needs a named owner, a clear rule, and a trigger that "
+            "changes or stops the policy when the safeguard fails."
+        )
+    elif "challenger" in role or speaker_id in {"aggressive_challenger", "devils_advocate"}:
+        answer = (
+            "the strongest practical risk is that the safeguard becomes a checkbox while the "
+            "underlying failure continues without a clear accountable owner."
+        )
+    elif "expert" in role or speaker_id == "quiet_expert":
+        answer = (
+            "the deciding issue is the operating mechanism: who observes the failure, what "
+            "evidence they use, and what action follows."
+        )
+    else:
+        answer = (
+            "the answer needs one concrete mechanism, one accountable actor, and one observable "
+            "condition for changing course."
+        )
+    return f'Regarding "{focus}" on {topic}, {answer}'
+
+
+def _response_text_or_fallback(
+    state: dict[str, Any],
+    plan: dict[str, Any],
+    persona: dict[str, Any],
+    *,
+    requested_question: str = "",
+) -> str:
     if plan.get("mode") == TaskType.INTERVIEW_TEST.value:
         selected = str(state.get("active_interview_probe_prompt") or "").strip()
         if selected:
             return selected
         role = str(plan.get("role") or "this role").strip()
         return f"Tell me about one specific example from your work that shows ownership for {role}."
+    if requested_question:
+        return _requested_gd_fallback_text(
+            state,
+            plan,
+            persona,
+            requested_question,
+        )
     topic = _active_topic(state, plan)
     role = str(persona.get("role_type") or "").lower()
     speaker_id = str(persona.get("speaker_id") or "")
@@ -691,7 +750,12 @@ def authorize_assessment_turn(
         )
         flags.append(flag)
         persona = roster[requested_id]
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=str(analysis.get("question_to_requested_speaker") or ""),
+        )
         repaired = True
     elif (
         plan.get("mode") == TaskType.GD_TEST.value
@@ -718,8 +782,18 @@ def authorize_assessment_turn(
         persona = roster[proposed_speaker_id]
         text = str(visible.text or "").strip()
 
+    requested_question_for_persona = (
+        str(analysis.get("question_to_requested_speaker") or "").strip()
+        if requested_id == str(persona.get("speaker_id") or "")
+        else ""
+    )
     if not text:
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
         repaired = True
 
     if (
@@ -737,7 +811,12 @@ def authorize_assessment_turn(
             target_speaker_id=requested_id,
         )
         flags.append(flag)
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
         repaired = True
 
     if self_label_or_meta_text(text, persona):
@@ -749,7 +828,101 @@ def authorize_assessment_turn(
             speaker_id=persona.get("speaker_id"),
         )
         flags.append(flag)
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+
+    declared_new_contribution = (
+        str(visible.new_contribution or "").strip()
+        if text == str(visible.text or "").strip()
+        else ""
+    )
+    gd_panelist_move_types = {
+        "stance",
+        "challenge",
+        "evidence",
+        "synthesis",
+        "consensus",
+        "direct_answer",
+    }
+    persona_role = str(persona.get("role_type") or "").lower()
+    is_gd_panelist = not (
+        persona_role == "moderator"
+        or "moderator" in str(persona.get("speaker_id") or "").lower()
+    )
+    if (
+        plan.get("mode") == TaskType.GD_TEST.value
+        and is_gd_panelist
+        and not repaired
+        and (
+            str(visible.move_type or "") not in gd_panelist_move_types
+            or not declared_new_contribution
+        )
+    ):
+        flag = append_validity_flag(
+            state,
+            "gd_panelist_move_contract_repaired",
+            "A GD panelist omitted a substantive discussion move, so the backend replaced the response.",
+            severity="partial",
+            speaker_id=persona.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+        declared_new_contribution = ""
+    if (
+        plan.get("mode") == TaskType.GD_TEST.value
+        and gd_panelist_evaluative_praise_text(text, persona)
+    ):
+        flag = append_validity_flag(
+            state,
+            "gd_panelist_evaluative_praise_repaired",
+            "A GD panelist evaluated the learner instead of advancing the discussion, so the backend replaced the response.",
+            severity="partial",
+            speaker_id=persona.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+        declared_new_contribution = ""
+
+    if (
+        plan.get("mode") == TaskType.GD_TEST.value
+        and gd_panelist_paraphrase_only_text(
+            text,
+            persona,
+            _latest_learner_text(state),
+            declared_new_contribution=declared_new_contribution,
+        )
+    ):
+        flag = append_validity_flag(
+            state,
+            "gd_panelist_paraphrase_repaired",
+            "A GD panelist repeated the learner's point without adding a new discussion move, so the backend replaced the response.",
+            severity="partial",
+            speaker_id=persona.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
         repaired = True
 
     if plan.get("mode") == TaskType.GD_TEST.value and gd_panelist_ask_only_text(text, persona):
@@ -761,7 +934,12 @@ def authorize_assessment_turn(
             speaker_id=persona.get("speaker_id"),
         )
         flags.append(flag)
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
         repaired = True
 
     if plan.get("mode") == TaskType.GD_TEST.value and gd_panelist_formulaic_meta_text(text, persona):
@@ -773,7 +951,12 @@ def authorize_assessment_turn(
             speaker_id=persona.get("speaker_id"),
         )
         flags.append(flag)
-        text = _response_text_or_fallback(state, plan, persona)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
         repaired = True
 
     if plan.get("mode") == TaskType.INTERVIEW_TEST.value and interview_model_answer_leak(text):

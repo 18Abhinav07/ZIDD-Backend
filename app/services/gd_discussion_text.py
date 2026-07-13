@@ -36,6 +36,14 @@ def _is_ai_topic(topic: str) -> bool:
     return any(marker in lower for marker in (" ai ", "artificial intelligence", "automation", "generative ai"))
 
 
+def _is_ai_hiring_topic(topic: str) -> bool:
+    lower = f" {topic.lower()} "
+    return _is_ai_topic(lower) and any(
+        marker in lower
+        for marker in (" hiring", " applicant", " candidate", " recruit", " resume", " screening")
+    )
+
+
 def _is_ai_audit_topic(topic: str) -> bool:
     lower = topic.lower()
     return (
@@ -159,6 +167,41 @@ def gd_persona_fallback_text(topic: str, speaker_id: str, role_type: str = "") -
         return (
             f"The workable middle ground on {topic_phrase} is risk-tiered review, independent access to evidence, "
             "a public findings summary, and a deadline for remediation before deployment."
+        )
+
+    if _is_ai_hiring_topic(topic):
+        if speaker_id == "aggressive_challenger":
+            return (
+                f"The hardest objection to {topic_phrase} is proxy discrimination: a model can replace a protected "
+                "attribute with school, postcode, career-gap, or language patterns and still reject qualified people "
+                "without exposing the causal reason."
+            )
+        if speaker_id == "data_driven_analyst":
+            return (
+                f"For {topic_phrase}, use a blinded human-reviewed holdout as the comparison group, then measure the "
+                "qualified-candidate false-negative gap by subgroup and whether AI scores predict later job performance "
+                "better than that baseline."
+            )
+        if speaker_id == "consensus_builder":
+            return (
+                f"A workable policy for {topic_phrase} lets AI rank against published job criteria but bars final "
+                "rejection: the employer must give a reason and appeal, and pause the model when subgroup false-negative "
+                "or appeal-overturn rates cross a declared threshold."
+            )
+        if speaker_id == "quiet_expert":
+            return (
+                f"For {topic_phrase}, validation must include accessibility and gaming resistance; otherwise video, "
+                "keyword, or career-gap proxies can measure presentation to the model rather than ability to do the job."
+            )
+        if speaker_id == "devils_advocate":
+            return (
+                f"The strongest failure mode in {topic_phrase} is rubber-stamp review: if reviewers see the model score "
+                "before judging the evidence, automation bias can preserve the same rejection while creating only the "
+                "appearance of human oversight."
+            )
+        return (
+            f"The defensible middle ground on {topic_phrase} is assistive ranking only, with published criteria, a "
+            "blinded quality benchmark, human-owned rejections, candidate reasons and appeals, and a stop threshold for harm."
         )
 
     if _is_ai_topic(topic):

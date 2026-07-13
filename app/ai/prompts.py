@@ -116,6 +116,23 @@ def _history_block(
     return "\n".join(lines)
 
 
+def _learner_evidence_ledger(messages: list[dict], *, limit: int = 12) -> str:
+    """Keep every scored learner turn visible to the final report grader."""
+    learner_turns = [
+        " ".join(str(message.get("content") or "").split())
+        for message in messages
+        if message.get("role") == "user"
+        and message.get("message_kind") != "simulation_control"
+        and str(message.get("content") or "").strip()
+    ][-limit:]
+    if not learner_turns:
+        return "(no learner evidence)"
+    return "\n".join(
+        f"- learner_turn_{index}: {text[:440]}"
+        for index, text in enumerate(learner_turns, start=1)
+    )
+
+
 def _clean_prompt_list(values: object, *, limit: int = 4, item_limit: int = 140) -> list[str]:
     if not isinstance(values, list):
         return []
@@ -1101,6 +1118,9 @@ def build_simulation_score_prompt(
         f"Full transcript (assistant lines are the simulated participants / "
         f"interviewer; user lines are the learner being assessed):\n"
         f"{_history_block(messages, limit=40, max_chars=_HISTORY_CHAR_BUDGET)}\n\n"
+        "Backend-grounded learner evidence ledger (all scored learner turns; "
+        "use these IDs for gap evidence):\n"
+        f"{_learner_evidence_ledger(messages)}\n\n"
         "Score ONLY the learner's contribution across the whole session, not the "
         "simulated voices. Judge what this task weights most. Use this anchored "
         "scale:\n"
@@ -1138,7 +1158,7 @@ def build_simulation_score_prompt(
         "- score: 0.0-1.0 on the scale above\n"
         "- summary: one short paragraph the learner can read. It must explain what evidence was actually shown and what coverage/validity limits remain. Do not use generic praise such as 'Great job', 'Strong answer', 'Strong interview', or 'Strong discussion'. Do not claim the learner is ready or has mastered the skill. Do not provide copyable sample answers.\n"
         "- strengths: list of what genuinely landed (empty list if none)\n"
-        "- improvements: list of the few most useful things to work on next\n"
+        "- improvements: list of the few most useful things to work on next. Every item must describe a behavior that remains missing after checking every learner turn in the evidence ledger. If the learner already demonstrated it anywhere, omit it rather than asking for it again.\n"
         "- participation_score: 0.0-1.0\n"
         "- relevance_score: 0.0-1.0\n"
         "- language_score: 0.0-1.0\n"
@@ -1147,7 +1167,7 @@ def build_simulation_score_prompt(
         "- scenario_label: short label for the tested role/topic\n"
         "- role_focus: target role if this was an interview, otherwise empty\n"
         "- topic: GD topic if this was a GD, otherwise the interview focus\n"
-        "- skill_gaps: list of typed gap objects. Every object must contain skill_id, label, evidence_quote, recommended_action, recommended_node_id, status (active_gap, improving, or resolved), skill_score (0.0-1.0 for that skill only), and attempt_type (independent, pressure, or transfer). Use only IDs from the active-mode taxonomy below for both skill_id and recommended_node_id. Copy evidence_quote from a learner message; use an empty string only when no exact quote exists. Never copy the overall report score into each skill_score.\n"
+        "- skill_gaps: list of typed gap objects. Every object must contain skill_id, label, evidence_quote, recommended_action, recommended_node_id, status (active_gap, improving, or resolved), skill_score (0.0-1.0 for that skill only), attempt_type (independent, pressure, or transfer), basis_turn_id, and missing_delta. Use only IDs from the active-mode taxonomy below for both skill_id and recommended_node_id. For active_gap or improving, basis_turn_id must be one learner_turn_N ID above, evidence_quote must be copied exactly from that turn, and missing_delta must name the precise behavior absent from that quoted answer. If another learner turn demonstrates the behavior, mark the gap resolved or omit it. Never copy the overall report score into each skill_score.\n"
         f"Allowed active-mode Career skill IDs:\n{allowed_gap_ids}\n"
         "- observed_skill_gaps: list of concrete weak skills observed\n"
         "- recommended_next_nodes: list of short next practice labels\n"
@@ -1315,6 +1335,13 @@ def build_assessment_turn_prompt(
             "- Stay distinct by role: an analyst interprets evidence or thresholds; a "
             "challenger exposes a hidden assumption or failure mode; a consensus builder "
             "names real common ground AND the unresolved disagreement.\n"
+            "- Role quality is operational, not decorative. When an Analyst is asked for a "
+            "metric, give a metric that directly measures the requested outcome, name the "
+            "comparison group or denominator, and state what change would alter the decision; "
+            "do not invent a loosely correlated proxy. When a Consensus Builder is asked for "
+            "a policy, name the responsible actor, rule, trigger or threshold, and consequence. "
+            "When a Challenger or Devil's Advocate is asked for a risk, explain the causal "
+            "failure mechanism rather than saying only that accountability may be weak.\n"
             "- Speak as a peer in the discussion, never as an evaluator. Do not praise or "
             "grade the learner with phrases such as 'strong point', 'well taken', 'good "
             "step', or 'thoughtful approach'.\n"
@@ -1334,6 +1361,10 @@ def build_assessment_turn_prompt(
             "or pivot the angle, but must keep the active topic visible.\n"
             "- If the learner explicitly requested a panelist, that panelist must answer "
             "the extracted question instead of echoing it back.\n"
+            "- visible_response.move_type must identify the GD move, and "
+            "visible_response.new_contribution must copy the exact clause in the visible "
+            "text that adds the new evidence, counterexample, condition, trade-off, "
+            "synthesis, or direct answer. It cannot be praise or a paraphrase.\n"
         )
     else:
         active_probe = (turn_context or {}).get("answered_probe") or {}
@@ -1391,7 +1422,7 @@ def build_assessment_turn_prompt(
         "Return JSON with exactly:\n"
         "- analysis: the semantic read described above\n"
         "- next_action: speaker_id, action_type, intent, should_close\n"
-        "- visible_response: speaker_id and learner-visible text\n\n"
+        "- visible_response: speaker_id, learner-visible text, move_type, and new_contribution\n\n"
         "Rules for visible_response:\n"
         "- speaker_id must match next_action.speaker_id.\n"
         "- Use only active topic/role/personas from the plan.\n"

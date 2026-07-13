@@ -131,6 +131,8 @@ class SimulationSkillGap(BaseModel):
     status: Literal["active_gap", "improving", "resolved"]
     skill_score: float | None = Field(default=None, ge=0.0, le=1.0)
     attempt_type: Literal["independent", "pressure", "transfer"] = "pressure"
+    basis_turn_id: str = ""
+    missing_delta: str = ""
 
 
 class SimulationReport(BaseModel):
@@ -355,6 +357,17 @@ class VisibleResponse(BaseModel):
 
     speaker_id: str
     text: str
+    move_type: Literal[
+        "stance",
+        "challenge",
+        "evidence",
+        "synthesis",
+        "consensus",
+        "direct_answer",
+        "moderation",
+        "interview_probe",
+    ] = "interview_probe"
+    new_contribution: str = ""
 
 
 class AssessmentTurnCall(BaseModel):
