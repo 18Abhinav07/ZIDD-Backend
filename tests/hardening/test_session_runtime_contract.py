@@ -5641,6 +5641,57 @@ def test_session_message_schema_uses_numeric_sequence_for_reload_order():
 
 
 @pytest.mark.asyncio
+async def test_prep_close_at_next_skill_checkpoint_attributes_completed_node(monkeypatch, store):
+    from app.services import session_service as svc
+
+    captured = {}
+
+    async def fake_summarize(node, _messages):
+        captured["summary_node"] = node.id
+        return "Grounded weakness progress."
+
+    async def fake_write_memory(user_id, session_id, node_id, raw, task_type, score=0.0):
+        captured["memory"] = {
+            "user_id": user_id,
+            "session_id": session_id,
+            "node_id": node_id,
+            "raw": raw,
+            "task_type": task_type,
+            "score": score,
+        }
+
+    async def no_probe_precache(_state):
+        return None
+
+    monkeypatch.setattr(svc, "summarize_session", fake_summarize)
+    monkeypatch.setattr(svc, "_precache_test_items", no_probe_precache)
+    monkeypatch.setattr(store, "write_memory", fake_write_memory)
+
+    session_id = "prep-close-completed-node"
+    state = svc._new_state(
+        "user-1",
+        session_id,
+        "int_04_star_behavioral",
+        [],
+        task_type="interview_prep",
+        module_id="interview",
+    )
+    state["messages"] = [{"role": "user", "content": "My final weakness answer."}]
+    state["pending_node_transition"] = {
+        "from_node": "int_03_weakness_framing",
+        "to_node": "int_04_star_behavioral",
+        "status": "awaiting_next_opening",
+    }
+    svc.SessionStore[session_id] = state
+
+    result = await svc.close_session(session_id)
+
+    assert result["summary"] == "Grounded weakness progress."
+    assert captured["summary_node"] == "int_03_weakness_framing"
+    assert captured["memory"]["node_id"] == "int_03_weakness_framing"
+
+
+@pytest.mark.asyncio
 async def test_completed_simulation_rehydrates_report_and_terminal_state(monkeypatch):
     from app.ai.schemas import SimulationReport
     from app.services import session_service as svc

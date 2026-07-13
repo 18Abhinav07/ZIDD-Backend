@@ -5317,6 +5317,21 @@ async def end_session(session_id: str) -> str:
     return (await close_session(session_id))["summary"]
 
 
+def _closing_prep_node_id(state: dict) -> str:
+    current = str(state.get("competency_node") or "")
+    if state.get("task_type") not in {
+        TaskType.INTERVIEW_PREP.value,
+        TaskType.GD_PREP.value,
+    }:
+        return current
+    transition = state.get("pending_node_transition")
+    if not isinstance(transition, dict):
+        return current
+    if str(transition.get("status") or "") != "awaiting_next_opening":
+        return current
+    return str(transition.get("from_node") or current)
+
+
 async def close_session(session_id: str) -> dict:
     """Summarize/score the session, persist memory, close it out, and return the
     full closing payload: ``{summary, report, score}``.
@@ -5340,7 +5355,8 @@ async def close_session(session_id: str) -> dict:
                 else state.get("current_mastery") or 0.0
             ),
         }
-    node = get_node(state["competency_node"])
+    closing_node_id = _closing_prep_node_id(state)
+    node = get_node(closing_node_id)
     # TEST-mode sessions are scored once over the whole transcript (deferred from
     # the streamed rounds); the report's summary is the closing summary and its
     # score is the persisted result. PREP sessions summarise the coaching dialog.
@@ -5398,7 +5414,7 @@ async def close_session(session_id: str) -> dict:
         await store.write_memory(
             state["user_id"],
             session_id,
-            state["competency_node"],
+            closing_node_id,
             summary,
             state.get("task_type", ""),
             score=avg_score,
@@ -5428,7 +5444,7 @@ async def close_session(session_id: str) -> dict:
             "session_id": session_id,
             "user_id": state.get("user_id"),
             "task_type": state.get("task_type"),
-            "node_id": state.get("competency_node"),
+            "node_id": closing_node_id,
             "turn_count": state.get("turn_count", 0),
             "avg_score": avg_score,
             "module_done": state.get("module_done", False)
