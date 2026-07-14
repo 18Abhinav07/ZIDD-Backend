@@ -392,10 +392,19 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
         for row in _run(store.get_learning_graph("test_user"))["profiles"]
         if row.get("domain") == "school"
     }
-    assert profiles["reading.paragraph_main_idea"]["mastery"] == 1.0
-    assert profiles["writing.summary_own_words"]["mastery"] == 1.0
-    assert profiles["reading.paragraph_main_idea"]["attempts"] == 1
-    assert profiles["writing.summary_own_words"]["attempts"] == 1
+    for skill_id, score in (
+        ("reading.paragraph_main_idea", 1.0),
+        ("writing.summary_own_words", 0.98),
+    ):
+        profile_row = profiles[skill_id]
+        assert profile_row["mastery"] == 0.0
+        assert profile_row["readiness"] == 0.0
+        assert profile_row["attempts"] == 0
+        assert profile_row["evidence_json"]["latest_certification"] == {
+            "session_id": session_id,
+            "chapter_id": "eng_c5_ch01",
+            "score": score,
+        }
 
 
 def _answer(body: dict, answer: str, client: TestClient) -> dict:

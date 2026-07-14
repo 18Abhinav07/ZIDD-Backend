@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -16,6 +17,99 @@ LiveDeterministicAnswerRule = Literal[
     "release_opinion_reason",
     "bird_feeder_procedure",
 ]
+
+LiveEpisodeKind = Literal[
+    "meaning_encounter",
+    "comprehension_studio",
+    "language_lab",
+    "expression_workshop",
+    "application_mission",
+    "retrieval_challenge",
+]
+LiveTeachingPhase = Literal[
+    "connect",
+    "explain",
+    "model",
+    "co_construct",
+    "guided_practice",
+    "feedback",
+    "independent_application",
+]
+LiveInteractionType = Literal[
+    "continue",
+    "single_choice",
+    "multi_select",
+    "cloze",
+    "matching",
+    "ordering",
+    "classification",
+    "sentence_completion",
+    "short_text",
+    "evidence_text",
+    "paragraph_text",
+    "dialogue",
+    "creative_continuation",
+    "summary",
+    "reflection",
+]
+LiveEvidenceRole = Literal[
+    "experience",
+    "formative",
+    "supported",
+    "certifying",
+    "reflection",
+]
+LiveCoverageTreatment = Literal[
+    "taught_and_assessed",
+    "zidd_equivalent",
+    "textbook_companion",
+    "guided_only",
+    "optional_creative",
+    "offline_group_activity",
+]
+
+
+class LiveSourceAnchor(BaseModel):
+    """Public metadata that links an activity to the official book.
+
+    The anchor deliberately stores no textbook body text. It only records the
+    source location and how Zidd accounts for that part of the curriculum.
+    """
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    anchor_id: str
+    section_label: str
+    page_start: int = Field(ge=1)
+    page_end: int = Field(ge=1)
+    source_url: str
+    coverage_treatment: LiveCoverageTreatment
+    required_for_chapter_certification: bool = False
+
+    @field_validator("anchor_id", "section_label", "source_url")
+    @classmethod
+    def _non_empty_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("live_source_anchor_field_empty")
+        return cleaned
+
+    @field_validator("source_url")
+    @classmethod
+    def _official_ncert_source(cls, value: str) -> str:
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or parsed.hostname not in {
+            "ncert.nic.in",
+            "www.ncert.nic.in",
+        }:
+            raise ValueError("live_source_anchor_requires_official_ncert_url")
+        return value
+
+    @model_validator(mode="after")
+    def _valid_page_range(self) -> "LiveSourceAnchor":
+        if self.page_end < self.page_start:
+            raise ValueError("live_source_anchor_page_range_invalid")
+        return self
 
 
 class LiveRubricCriterion(BaseModel):
@@ -85,6 +179,13 @@ class LiveChapterActivity(BaseModel):
         default=None,
         min_length=2,
     )
+    schema_version: Literal["school-activity-v2"] | None = None
+    episode_kind: LiveEpisodeKind | None = None
+    teaching_phase: LiveTeachingPhase | None = None
+    interaction_type: LiveInteractionType | None = None
+    evidence_role: LiveEvidenceRole | None = None
+    source_anchor_ids: list[str] | None = None
+    knowledge_components: list[str] | None = None
 
     @field_validator("teaching_block", "passage", "prompt")
     @classmethod
@@ -114,6 +215,19 @@ class LiveChapterActivity(BaseModel):
             raise ValueError("live_activity_list_value_empty")
         if len(cleaned) != len(set(cleaned)):
             raise ValueError("live_activity_list_value_duplicate")
+        return cleaned
+
+    @field_validator("source_anchor_ids", "knowledge_components")
+    @classmethod
+    def _clean_v2_identifiers(
+        cls,
+        values: list[str] | None,
+    ) -> list[str] | None:
+        if values is None:
+            return None
+        cleaned = [value.strip() for value in values]
+        if any(not value for value in cleaned) or len(cleaned) != len(set(cleaned)):
+            raise ValueError("invalid_live_activity_v2_identifiers")
         return cleaned
 
     @field_validator("forbidden_phrases")
@@ -172,6 +286,27 @@ class LiveChapterActivity(BaseModel):
 
     @model_validator(mode="after")
     def _valid_grading_contract(self) -> "LiveChapterActivity":
+        v2_fields = (
+            self.episode_kind,
+            self.teaching_phase,
+            self.interaction_type,
+            self.evidence_role,
+            self.source_anchor_ids,
+            self.knowledge_components,
+        )
+        if any(value is not None for value in v2_fields):
+            if self.schema_version != "school-activity-v2" or any(
+                value is None
+                for value in (
+                    self.episode_kind,
+                    self.teaching_phase,
+                    self.interaction_type,
+                    self.evidence_role,
+                )
+            ):
+                raise ValueError("incomplete_live_activity_v2_contract")
+        elif self.schema_version is not None:
+            raise ValueError("empty_live_activity_v2_contract")
         has_concept_fields = (
             self.concept_slots is not None
             or self.forbidden_phrases is not None
@@ -221,6 +356,37 @@ class LiveChapterActivity(BaseModel):
 
     def runtime_dict(self) -> dict:
         return self.model_dump(exclude_none=True)
+
+
+class LiveTeachingStep(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    step_id: str
+    phase: LiveTeachingPhase
+    required: bool = True
+    activity: LiveChapterActivity
+
+    @field_validator("step_id")
+    @classmethod
+    def _non_empty_step_id(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("live_teaching_step_id_empty")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _phase_matches_activity(self) -> "LiveTeachingStep":
+        if self.activity.teaching_phase != self.phase:
+            raise ValueError("live_teaching_step_phase_mismatch")
+        return self
+
+    def runtime_dict(self) -> dict:
+        return {
+            "step_id": self.step_id,
+            "phase": self.phase,
+            "required": self.required,
+            "activity": self.activity.runtime_dict(),
+        }
 
 
 class LiveChapterAssessmentItem(BaseModel):
@@ -513,6 +679,9 @@ class LiveChapterLevel(BaseModel):
     skill_ids: list[str] = Field(min_length=1)
     teaching_goal: str
     checks: LiveChapterChecks
+    episode_kind: LiveEpisodeKind | None = None
+    source_anchor_ids: list[str] | None = None
+    teaching_steps: list[LiveTeachingStep] | None = None
 
     @field_validator("level_id", "title", "focus", "teaching_goal")
     @classmethod
@@ -530,8 +699,69 @@ class LiveChapterLevel(BaseModel):
             raise ValueError("invalid_live_level_skill_ids")
         return cleaned
 
+    @field_validator("source_anchor_ids")
+    @classmethod
+    def _clean_source_anchor_ids(
+        cls,
+        values: list[str] | None,
+    ) -> list[str] | None:
+        if values is None:
+            return None
+        cleaned = [value.strip() for value in values]
+        if any(not value for value in cleaned) or len(cleaned) != len(set(cleaned)):
+            raise ValueError("invalid_live_level_source_anchor_ids")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _validate_teaching_sequence(self) -> "LiveChapterLevel":
+        v2_fields = (self.episode_kind, self.source_anchor_ids, self.teaching_steps)
+        if any(value is not None for value in v2_fields):
+            if any(value is None for value in v2_fields):
+                raise ValueError("incomplete_live_level_v2_contract")
+        else:
+            return self
+
+        assert self.episode_kind is not None
+        assert self.source_anchor_ids is not None
+        assert self.teaching_steps is not None
+        if not self.source_anchor_ids or not self.teaching_steps:
+            raise ValueError("empty_live_level_v2_contract")
+
+        step_ids = [step.step_id for step in self.teaching_steps]
+        if len(step_ids) != len(set(step_ids)):
+            raise ValueError("duplicate_live_teaching_step_id")
+
+        required_phases = [step.phase for step in self.teaching_steps if step.required]
+        expected_phases: list[LiveTeachingPhase] = [
+            "connect",
+            "explain",
+            "model",
+            "co_construct",
+            "guided_practice",
+            "feedback",
+            "independent_application",
+        ]
+        if required_phases != expected_phases:
+            raise ValueError("invalid_live_teaching_phase_sequence")
+        phase_order = {phase: index for index, phase in enumerate(expected_phases)}
+        all_phase_indexes = [phase_order[step.phase] for step in self.teaching_steps]
+        if all_phase_indexes != sorted(all_phase_indexes):
+            raise ValueError("invalid_live_teaching_phase_sequence")
+
+        anchor_ids = set(self.source_anchor_ids)
+        skill_ids = set(self.skill_ids)
+        for step in self.teaching_steps:
+            activity = step.activity
+            if activity.episode_kind != self.episode_kind:
+                raise ValueError("live_teaching_step_episode_mismatch")
+            if not set(activity.source_anchor_ids or ()).issubset(anchor_ids):
+                raise ValueError("unknown_live_teaching_step_source_anchor")
+            if not set(activity.knowledge_components or ()).issubset(skill_ids):
+                raise ValueError("unknown_live_teaching_step_knowledge_component")
+        return self
+
     def runtime_dict(self) -> dict:
-        return {
+        level = {
             "level_id": self.level_id,
             "title": self.title,
             "focus": self.focus,
@@ -539,6 +769,13 @@ class LiveChapterLevel(BaseModel):
             "teaching_goal": self.teaching_goal,
             "checks": self.checks.runtime_dict(),
         }
+        if self.episode_kind is not None:
+            level["episode_kind"] = self.episode_kind
+            level["source_anchor_ids"] = list(self.source_anchor_ids or ())
+            level["teaching_steps"] = [
+                step.runtime_dict() for step in self.teaching_steps or ()
+            ]
+        return level
 
 
 class LiveSchoolChapter(BaseModel):
@@ -558,6 +795,7 @@ class LiveSchoolChapter(BaseModel):
     unit_title: str
     source_url: str
     source_note: str
+    source_anchors: list[LiveSourceAnchor] | None = None
     levels: list[LiveChapterLevel] = Field(min_length=1)
     chapter_assessment: LiveChapterAssessment | None = None
 
@@ -597,6 +835,33 @@ class LiveSchoolChapter(BaseModel):
         level_ids = [level.level_id for level in self.levels]
         if len(level_ids) != len(set(level_ids)):
             raise ValueError("duplicate_live_chapter_level_id")
+        source_anchor_ids = [
+            anchor.anchor_id for anchor in self.source_anchors or ()
+        ]
+        if len(source_anchor_ids) != len(set(source_anchor_ids)):
+            raise ValueError("duplicate_live_source_anchor_id")
+        referenced_anchor_ids = {
+            anchor_id
+            for level in self.levels
+            for anchor_id in level.source_anchor_ids or ()
+        }
+        unknown_anchor_ids = referenced_anchor_ids - set(source_anchor_ids)
+        if unknown_anchor_ids:
+            raise ValueError(
+                "unknown_live_level_source_anchor:"
+                + ",".join(sorted(unknown_anchor_ids))
+            )
+        required_anchor_ids = {
+            anchor.anchor_id
+            for anchor in self.source_anchors or ()
+            if anchor.required_for_chapter_certification
+        }
+        uncovered_required_anchor_ids = required_anchor_ids - referenced_anchor_ids
+        if uncovered_required_anchor_ids:
+            raise ValueError(
+                "uncovered_required_live_source_anchor:"
+                + ",".join(sorted(uncovered_required_anchor_ids))
+            )
         if self.chapter_assessment is not None:
             if self.chapter_assessment.max_attempts >= 3 and any(
                 level.checks.revision_level_1 is None
@@ -661,6 +926,10 @@ class LiveSchoolChapter(BaseModel):
             "source_note": self.source_note,
             "levels": [level.runtime_dict() for level in self.levels],
         }
+        if self.source_anchors is not None:
+            chapter["source_anchors"] = [
+                anchor.model_dump() for anchor in self.source_anchors
+            ]
         if self.content_version is not None:
             chapter["content_version"] = self.content_version
         if self.certification_version is not None:

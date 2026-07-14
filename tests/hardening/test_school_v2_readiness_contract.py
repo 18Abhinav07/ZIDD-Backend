@@ -85,7 +85,7 @@ def test_language_mismatch_on_certifying_attempt_updates_practice_only():
     assert classify_skill_status(state) == "practice_ready"
 
 
-def test_mastery_requires_transfer_and_low_hint_dependency_not_just_ready():
+def test_mastery_requires_transfer_retention_and_low_hint_dependency():
     state = SkillReadinessState(skill_id="eng.c5.infer.theme")
     for _ in range(3):
         state = apply_attempt_evidence(
@@ -116,6 +116,21 @@ def test_mastery_requires_transfer_and_low_hint_dependency_not_just_ready():
 
     assert state.certified_readiness >= 0.90
     assert state.transfer_passes == 1
+    assert classify_skill_status(state) == "ready"
+
+    state = apply_attempt_evidence(
+        state,
+        AttemptEvidence(
+            attempt_type="review_check",
+            evaluator_score=0.93,
+            evaluator_confidence=1.0,
+            skill_ids=("eng.c5.infer.theme",),
+            support_level="independent",
+            hint_count=0,
+        ),
+    )
+
+    assert state.review_passes == 1
     assert classify_skill_status(state) == "mastered"
 
 
@@ -131,6 +146,7 @@ def test_retention_interval_is_defined_for_ready_mastered_and_failed_review():
         certified_readiness=0.93,
         independent_passes=3,
         transfer_passes=1,
+        review_passes=1,
         recent_hint_flags=(False, False, False, False),
     )
     assert classify_skill_status(mastered) == "mastered"

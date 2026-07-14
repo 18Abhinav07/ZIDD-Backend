@@ -12,6 +12,10 @@ from app.services.school.projection import (
     SchoolAttemptEvidence,
     derive_school_projection_delta,
 )
+from app.services.school_core.readiness import (
+    SkillReadinessState,
+    to_profile_upsert,
+)
 
 
 class MemoryStore:
@@ -75,7 +79,7 @@ def test_school_attempts_update_each_taxonomy_skill_without_granting_mastery():
         assert profile["evidence_json"]["attempt_type"] == "transfer_check"
 
 
-def test_chapter_certification_can_mark_mastery_but_support_attempts_cannot():
+def test_chapter_certification_records_evidence_but_not_readiness_or_mastery():
     store = MemoryStore()
     service = SchoolLearningProfileService(store)
     _record(service, score=1.0, kind="bridge")
@@ -97,7 +101,10 @@ def test_chapter_certification_can_mark_mastery_but_support_attempts_cannot():
         attempt_passed=True,
         chapter_certified=True,
     ))
-    assert store.profiles["reading.inference_reason"]["mastery"] == 1.0
+    profile = store.profiles["reading.inference_reason"]
+    assert profile["readiness"] == 1.0
+    assert profile["mastery"] == 0.0
+    assert profile["evidence_json"]["skill_status"] == "practice_ready"
 
 
 def test_supported_revision_success_improves_but_cannot_clear_or_strengthen_a_gap():
@@ -178,8 +185,8 @@ def test_chapter_certification_projects_every_assessed_skill_not_only_last_item(
         "writing.reason_answer",
         "grammar.connectors_because_and_but",
     }
-    assert store.profiles["reading.inference_reason"]["mastery"] == 1.0
-    assert store.profiles["writing.reason_answer"]["mastery"] == 1.0
+    assert store.profiles["reading.inference_reason"]["mastery"] == 0.0
+    assert store.profiles["writing.reason_answer"]["mastery"] == 0.0
     assert store.profiles["grammar.connectors_because_and_but"]["mastery"] == 0.0
     assert all(
         profile["evidence_json"]["attempt_type"] == "chapter_check"
@@ -210,12 +217,13 @@ def test_chapter_certification_preserves_latest_real_learner_answer():
         "chapter_id": "eng_c3_ch01",
         "score": 0.9,
     }
-    assert profile["mastery"] == 1.0
+    assert profile["mastery"] == 0.0
+    assert evidence["skill_status"] == "practice_ready"
 
 
 @pytest.mark.parametrize(
     ("certification_score", "expected_mastery", "expected_readiness"),
-    [(0.65, 0.4, 0.72), (0.90, 1.0, 0.90)],
+    [(0.65, 0.0, 0.72), (0.90, 0.0, 0.72)],
 )
 def test_chapter_certification_preserves_unrelated_skill_metadata(
     certification_score,
@@ -346,7 +354,37 @@ def test_school_memory_context_excludes_career_profiles_and_surfaces_active_gaps
     )
 
 
+def test_legacy_mastery_scalar_is_only_a_historical_hint():
+    context = build_school_memory_context({
+        "profiles": [{
+            "domain": SCHOOL_DOMAIN,
+            "skill_id": "reading.inference_reason",
+            "readiness": 0.3,
+            "mastery": 0.96,
+            "confidence": 0.8,
+            "attempts": 3,
+            "gaps_json": ["answer with a reason"],
+            "evidence_json": {},
+        }]
+    })
+
+    assert context["mastered_skills"] == []
+    assert context["active_gaps"][0]["skill_id"] == "reading.inference_reason"
+
+
 def test_school_memory_context_prefers_latest_ledger_answer_over_cached_summary():
+    mastered = to_profile_upsert(SkillReadinessState(
+        skill_id="reading.inference_reason",
+        practice_readiness=0.95,
+        certified_readiness=0.95,
+        total_attempts=6,
+        certified_attempts=5,
+        independent_passes=3,
+        transfer_passes=1,
+        review_passes=1,
+        recent_hint_flags=(False, False, False, False, False),
+        last_confidence=1.0,
+    ))
     context = build_school_memory_context({
         "profiles": [{
             "domain": SCHOOL_DOMAIN,
@@ -362,6 +400,8 @@ def test_school_memory_context_prefers_latest_ledger_answer_over_cached_summary(
                 ),
                 "attempt_type": "chapter_check",
                 "chapter_id": "eng_c5_ch01",
+                "school_readiness_state": mastered["school_readiness_state"],
+                "skill_status": mastered["skill_status"],
             },
             "recommended_next_action": "Start the next chapter.",
         }],

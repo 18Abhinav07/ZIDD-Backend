@@ -4,19 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.school.projection import (
+    SchoolAttemptEvidence,
+    derive_school_projection_delta,
+)
+from app.services.school_core.readiness import from_profile_row, to_profile_upsert
+
 
 SCHOOL_DOMAIN = "school"
-_ATTEMPT_ALPHA = {
-    "guided_check": 0.12,
-    "bridge": 0.10,
-    "masterclass": 0.15,
-    "revision_level_1": 0.12,
-    "revision_level_2": 0.12,
-    "revision_level_3": 0.12,
-    "independent_check": 0.35,
-    "transfer_check": 0.45,
-    "chapter_check": 0.50,
-}
 
 
 def _score(value: Any) -> float:
@@ -83,19 +78,21 @@ def build_school_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
         skill_id = str(raw.get("skill_id") or "").strip()
         if not skill_id:
             continue
-        readiness = _score(raw.get("readiness"))
-        mastery = _score(raw.get("mastery"))
+        canonical_profile = to_profile_upsert(from_profile_row(raw))
+        readiness = _score(canonical_profile["readiness"])
+        mastery = _score(canonical_profile["mastery"])
         gaps = [str(value).strip() for value in raw.get("gaps_json") or [] if str(value).strip()]
         evidence = raw.get("evidence_json") if isinstance(raw.get("evidence_json"), dict) else {}
         latest_evidence = ledger_evidence.get(skill_id) or {}
-        if mastery >= 0.95:
+        skill_status = str(canonical_profile["skill_status"])
+        if skill_status == "mastered":
             bucket = "mastered_skills"
-        elif readiness < 0.65:
-            bucket = "active_gaps"
-        elif readiness < 0.85:
+        elif skill_status == "ready":
+            bucket = "strong_skills"
+        elif skill_status == "practice_ready":
             bucket = "improving_gaps"
         else:
-            bucket = "strong_skills"
+            bucket = "active_gaps"
         buckets[bucket].append({
             "skill_id": skill_id,
             "readiness": readiness,
@@ -153,134 +150,61 @@ class SchoolLearningProfileService:
         preserve_latest_evidence: bool = False,
     ) -> None:
         graph = await self.store.get_school_learning_graph(user_id)
-        existing = {
-            str(profile.get("skill_id") or ""): profile
-            for profile in graph.get("profiles") or []
-            if isinstance(profile, dict) and profile.get("domain") == SCHOOL_DOMAIN
-        }
-        evaluator_score = _score(score)
-        passed_without_blockers = bool(attempt_passed) and not blockers
-        certifying = attempt_type in {
-            "independent_check",
-            "transfer_check",
-            "chapter_check",
-        }
-        readiness_signal = (
-            evaluator_score
-            if passed_without_blockers and certifying
-            else min(evaluator_score, 0.79)
-            if passed_without_blockers
-            else min(evaluator_score, 0.59)
-        )
-        alpha = _ATTEMPT_ALPHA.get(attempt_type, 0.2)
         unique_skill_ids = list(dict.fromkeys(skill_id for skill_id in skill_ids if skill_id))
-        for skill_id in unique_skill_ids:
-            previous = existing.get(skill_id) or {}
-            previous_evidence = (
-                previous.get("evidence_json")
-                if isinstance(previous.get("evidence_json"), dict)
-                else {}
-            )
-            previous_attempts = int(previous.get("attempts") or 0)
-            previous_readiness = _score(previous.get("readiness"))
-            readiness = (
-                readiness_signal
-                if previous_attempts == 0
-                else round(
-                    (1.0 - alpha) * previous_readiness
-                    + alpha * readiness_signal,
-                    4,
-                )
-            )
-            is_strong = (
-                certifying
-                and passed_without_blockers
-                and evaluator_score >= 0.8
-                and readiness >= 0.65
-            )
-            previous_gaps = [
-                str(value).strip()
-                for value in previous.get("gaps_json") or []
-                if str(value).strip()
-            ]
-            gap = (
-                ""
-                if is_strong
-                else previous_gaps[0]
-                if passed_without_blockers and previous_gaps
-                else focus
-            )
-            evidence_json = {
-                "session_id": session_id,
-                "chapter_id": chapter_id,
-                "level_id": level_id,
-                "attempt_type": attempt_type,
-                "latest_quote": str(answer_excerpt or "")[:320],
-                "criteria": list(criteria),
-                "blockers": list(blockers),
-                "evaluator_score": evaluator_score,
-                "attempt_passed": bool(attempt_passed),
-            }
-            if preserve_latest_evidence:
-                evidence_json = {
-                    **(
-                        previous_evidence
-                        if previous_evidence
-                        else {
-                            "session_id": session_id,
-                            "chapter_id": chapter_id,
-                            "level_id": level_id,
-                            "attempt_type": attempt_type,
-                            "latest_quote": "",
-                            "criteria": [],
-                            "blockers": [],
-                        }
-                    ),
-                    "latest_certification": {
-                        "session_id": session_id,
-                        "chapter_id": chapter_id,
-                        "score": evaluator_score,
-                    },
-                }
-            await self.store.upsert_learner_skill_profile(
-                user_id=user_id,
-                domain=SCHOOL_DOMAIN,
-                skill_id=skill_id,
+        projection = derive_school_projection_delta(
+            SchoolAttemptEvidence(
+                session_id=session_id,
+                chapter_id=chapter_id,
+                level_id=level_id,
                 module_id=chapter_id,
                 task_type="school_rebuild_curriculum",
-                mastery=(
-                    1.0
-                    if chapter_certified and is_strong
-                    else _score(previous.get("mastery"))
-                ),
-                readiness=readiness,
+                focus=focus,
+                skill_ids=tuple(unique_skill_ids),
+                attempt_type=attempt_type,
+                score=_score(score),
                 confidence=_score(confidence),
-                attempts=previous_attempts + 1,
-                strengths_json=([focus] if is_strong and certifying else []),
-                gaps_json=([gap] if gap else []),
-                evidence_json=evidence_json,
-                recommended_next_action=(
-                    "Continue with a new independent example."
-                    if is_strong
-                    else f"Try this skill without support: {focus}."
-                    if passed_without_blockers
-                    else f"Rebuild this skill: {focus}."
+                criteria=tuple(criteria),
+                blockers=tuple(blockers),
+                answer_excerpt=("" if preserve_latest_evidence else str(answer_excerpt or "")[:320]),
+                attempt_passed=bool(attempt_passed),
+                certified_skill_scores=(
+                    {skill_id: _score(score) for skill_id in unique_skill_ids}
+                    if chapter_certified
+                    else {}
                 ),
-                source_summary=(
-                    f"Strong {attempt_type} evidence in {chapter_id}."
-                    if is_strong
-                    else f"Supported improvement with {focus}."
-                    if passed_without_blockers
-                    else f"Needs more support with {focus}."
-                ),
+                preserve_latest_evidence=preserve_latest_evidence,
+            ),
+            [
+                profile
+                for profile in graph.get("profiles") or []
+                if isinstance(profile, dict)
+                and profile.get("domain") == SCHOOL_DOMAIN
+            ],
+        )
+        await self._upsert_projection(user_id, projection)
+
+    async def _upsert_projection(
+        self,
+        user_id: str,
+        projection: list[dict[str, Any]],
+    ) -> None:
+        for row in projection:
+            await self.store.upsert_learner_skill_profile(
+                user_id=user_id,
+                domain=str(row["domain"]),
+                skill_id=str(row["skill_id"]),
+                module_id=str(row["module_id"]),
+                task_type=str(row["task_type"]),
+                mastery=float(row["mastery"]),
+                readiness=float(row["readiness"]),
+                confidence=float(row["confidence"]),
+                attempts=int(row["attempts"]),
+                strengths_json=list(row["strengths_json"]),
+                gaps_json=list(row["gaps_json"]),
+                evidence_json=dict(row["evidence_json"]),
+                recommended_next_action=str(row["recommended_next_action"]),
+                source_summary=str(row["source_summary"]),
             )
-            existing[skill_id] = {
-                "domain": SCHOOL_DOMAIN,
-                "skill_id": skill_id,
-                "mastery": 1.0 if chapter_certified and is_strong else _score(previous.get("mastery")),
-                "readiness": readiness,
-                "attempts": previous_attempts + 1,
-            }
 
     async def record_chapter_certification(
         self,
@@ -292,31 +216,38 @@ class SchoolLearningProfileService:
     ) -> None:
         """Project the completed assessment's aggregate evidence for every skill."""
 
-        for skill_id, raw_score in skill_scores.items():
-            cleaned_skill_id = str(skill_id).strip()
-            if not cleaned_skill_id:
-                continue
-            score = _score(raw_score)
-            focus = cleaned_skill_id.replace(".", " ").replace("_", " ")
-            await self.record_curriculum_attempt(
-                user_id=user_id,
+        certified_skill_scores = {
+            cleaned_skill_id: _score(raw_score)
+            for skill_id, raw_score in skill_scores.items()
+            if (cleaned_skill_id := str(skill_id).strip())
+        }
+        if not certified_skill_scores:
+            return
+        graph = await self.store.get_school_learning_graph(user_id)
+        projection = derive_school_projection_delta(
+            SchoolAttemptEvidence(
                 session_id=session_id,
                 chapter_id=chapter_id,
                 level_id="chapter_assessment",
-                focus=focus,
-                skill_ids=[cleaned_skill_id],
+                module_id=chapter_id,
+                task_type="school_rebuild_curriculum",
+                focus="chapter assessment reconciliation",
+                skill_ids=(),
                 attempt_type="chapter_check",
-                score=score,
+                score=0.0,
                 confidence=1.0,
-                criteria=[{
-                    "id": "chapter_skill_score",
-                    "met": score >= 0.8,
-                    "quality": score,
-                    "evidence_quote": f"Aggregate chapter score: {score:.2f}",
-                }],
-                blockers=[] if score >= 0.8 else ["chapter_skill_gap"],
-                answer_excerpt=f"Chapter assessment aggregate for {cleaned_skill_id}",
-                attempt_passed=score >= 0.8,
-                chapter_certified=True,
+                criteria=(),
+                blockers=(),
+                answer_excerpt="",
+                attempt_passed=False,
+                certified_skill_scores=certified_skill_scores,
                 preserve_latest_evidence=True,
-            )
+            ),
+            [
+                profile
+                for profile in graph.get("profiles") or []
+                if isinstance(profile, dict)
+                and profile.get("domain") == SCHOOL_DOMAIN
+            ],
+        )
+        await self._upsert_projection(user_id, projection)

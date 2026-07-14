@@ -51,7 +51,8 @@ def _collect_authored_skill_ids(chapter: LiveSchoolChapter) -> set[str]:
 def load_live_chapter_file(path: Path) -> LiveSchoolChapter:
     with path.open("r", encoding="utf-8") as handle:
         chapter = LiveSchoolChapter.model_validate(json.load(handle))
-    known_skill_ids = locked_english_taxonomy().skill_ids()
+    taxonomy = locked_english_taxonomy()
+    known_skill_ids = taxonomy.skill_ids()
     unknown = sorted(
         skill_id
         for skill_id in _collect_authored_skill_ids(chapter)
@@ -59,6 +60,22 @@ def load_live_chapter_file(path: Path) -> LiveSchoolChapter:
     )
     if unknown:
         raise ValueError(f"unknown_live_chapter_skill:{','.join(unknown)}")
+    class_match = _CLASS_DIRECTORY_PATTERN.fullmatch(path.parent.name)
+    if class_match is not None and chapter.source_anchors is not None:
+        class_no = int(class_match.group(1))
+        out_of_band = sorted(
+            skill_id
+            for skill_id in _collect_authored_skill_ids(chapter)
+            if not (
+                taxonomy.get(skill_id).class_min
+                <= class_no
+                <= taxonomy.get(skill_id).class_max
+            )
+        )
+        if out_of_band:
+            raise ValueError(
+                f"out_of_band_live_chapter_skill:{','.join(out_of_band)}"
+            )
     if chapter.calculated_runtime_sha256() != chapter.runtime_sha256:
         raise ValueError(f"live_chapter_runtime_hash_mismatch:{chapter.chapter_id}")
     return chapter

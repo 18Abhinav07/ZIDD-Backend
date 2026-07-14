@@ -111,6 +111,39 @@ def _stub_failing_open_placement_evaluator(monkeypatch) -> None:
     )
 
 
+def _stub_passing_open_placement_evaluator(monkeypatch) -> None:
+    async def evaluate(**kwargs):
+        activity = kwargs["activity"]
+        answer = kwargs["answer"]
+        return {
+            "schema_version": "school-v3-rubric-1",
+            "item_id": activity["activity_id"],
+            "skill_ids": list(activity["skill_ids"]),
+            "score": 1.0,
+            "confidence": 1.0,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": answer.strip(),
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "This answer meets the placement check.",
+        }
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        evaluate,
+    )
+
+
 def _pure_profile(*, target_class_no: int = 3) -> dict[str, Any]:
     return {
         "profile_version_id": "profile-v1",
@@ -731,6 +764,67 @@ def test_eight_high_confidence_snapshot_passes_finish_target_ready_and_seed_only
         assert skill_state.certified_readiness == pytest.approx(0.8)
         assert skill_state.independent_passes == 0
         assert skill_state.transfer_passes == 0
+
+
+def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
+    store,
+    monkeypatch,
+):
+    _stub_passing_open_placement_evaluator(monkeypatch)
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    current = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = current["session_id"]
+    last_request = None
+
+    while current["status"] == "in_progress":
+        row = _run(store.get_school_session("test_user", session_id))
+        envelope = placement.envelope_from_json(row["state_json"])
+        private_item = placement.find_item(
+            envelope,
+            current["next_item"]["item_id"],
+        )
+        answer = (
+            private_item.accepted_answers[0]
+            if private_item.accepted_answers
+            else "The passage clue supports this answer in a complete sentence."
+        )
+        last_request = {
+            "item_id": current["next_item"]["item_id"],
+            "answer": answer,
+        }
+        response = client.post(
+            f"/school/placement/{session_id}/answer",
+            headers=AUTH,
+            json=last_request,
+        )
+        assert response.status_code == 200
+        current = response.json()
+
+    assert current["status"] == "target_ready"
+    assert current["answered_count"] == 8
+    graph = _run(store.get_school_learning_graph("test_user"))
+    profiles = [
+        row for row in graph["profiles"] if row.get("domain") == "school"
+    ]
+    assert len(profiles) == 8
+    for profile in profiles:
+        state = profile["evidence_json"]["school_readiness_state"]
+        assert profile["evidence_json"]["skill_status"] == "ready"
+        assert state["ready_source"] == "placement"
+        assert state["independent_passes"] == 0
+        assert profile["mastery"] == 0.0
+
+    assert last_request is not None
+    replay = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json=last_request,
+    )
+    assert replay.status_code == 200
+    assert replay.json() == current
+    replay_graph = _run(store.get_school_learning_graph("test_user"))
+    assert replay_graph["profiles"] == graph["profiles"]
 
 
 def test_mixed_snapshot_queues_only_weak_and_ambiguous_tracks_for_stage_two():

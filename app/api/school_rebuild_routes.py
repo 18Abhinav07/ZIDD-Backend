@@ -2886,6 +2886,11 @@ async def answer_school_placement(
                 "blockers": learning_event["blockers"],
                 "answer_excerpt": req.answer,
                 "attempt_passed": not learning_event["gap"],
+                "placement_ready_skill_confidence": {
+                    str(skill_id): float(skill_state.last_confidence)
+                    for skill_id, skill_state in updated.state.skill_states.items()
+                    if skill_state.ready_source == "placement"
+                },
             },
         )
     except Exception as exc:

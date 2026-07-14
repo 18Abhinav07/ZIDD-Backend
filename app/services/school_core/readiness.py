@@ -7,8 +7,8 @@ checks, and reports must share across School V2 and School V3.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from typing import Literal
+from dataclasses import asdict, dataclass, replace
+from typing import Any, Literal
 
 
 AttemptType = Literal[
@@ -176,7 +176,10 @@ def classify_skill_status(state: SkillReadinessState) -> SkillStatus:
         return "mastered"
     if _is_ready(state):
         return "ready"
-    if (state.practice_readiness or 0.0) >= READY_THRESHOLD:
+    if (
+        (state.practice_readiness or 0.0) >= READY_THRESHOLD
+        and set(state.active_blockers).issubset({"language_mismatch"})
+    ):
         return "practice_ready"
     if state.total_attempts == 0:
         return "unseen"
@@ -217,6 +220,63 @@ def language_mismatch(required: str | None, detected: str | None) -> bool:
     return _language_mismatch(required, detected)
 
 
+def from_profile_row(
+    row: dict[str, Any],
+    *,
+    skill_id: str | None = None,
+) -> SkillReadinessState:
+    """Restore canonical readiness state from one durable profile row.
+
+    Legacy scalar rows are practice hints only. They must never become
+    certified evidence or mastery without a canonical evidence sequence.
+    """
+
+    resolved_skill_id = str(skill_id or row.get("skill_id") or "").strip()
+    if not resolved_skill_id:
+        raise ValueError("school_profile_skill_id_required")
+    evidence = row.get("evidence_json")
+    raw_state = (
+        evidence.get("school_readiness_state")
+        if isinstance(evidence, dict)
+        else None
+    )
+    if isinstance(raw_state, dict):
+        allowed = SkillReadinessState.__dataclass_fields__
+        values = {
+            key: value
+            for key, value in raw_state.items()
+            if key in allowed and key != "skill_id"
+        }
+        for tuple_field in ("active_blockers", "recent_hint_flags"):
+            if tuple_field in values:
+                values[tuple_field] = tuple(values[tuple_field] or ())
+        return SkillReadinessState(skill_id=resolved_skill_id, **values)
+
+    attempts = max(0, int(row.get("attempts") or 0))
+    legacy_readiness = _clamp(row.get("readiness") or 0.0) if attempts else None
+    return SkillReadinessState(
+        skill_id=resolved_skill_id,
+        practice_readiness=legacy_readiness,
+        total_attempts=attempts,
+    )
+
+
+def to_profile_upsert(state: SkillReadinessState) -> dict[str, Any]:
+    """Project canonical state into the scalar compatibility columns."""
+
+    status = classify_skill_status(state)
+    if status in {"ready", "mastered"}:
+        readiness = state.certified_readiness or state.practice_readiness or 0.0
+    else:
+        readiness = state.practice_readiness or state.certified_readiness or 0.0
+    return {
+        "readiness": _clamp(readiness),
+        "mastery": _clamp(readiness) if status == "mastered" else 0.0,
+        "skill_status": status,
+        "school_readiness_state": asdict(state),
+    }
+
+
 def _is_ready(state: SkillReadinessState) -> bool:
     if (state.certified_readiness or 0.0) < READY_THRESHOLD:
         return False
@@ -228,6 +288,7 @@ def _is_mastered(state: SkillReadinessState) -> bool:
         (state.certified_readiness or 0.0) >= MASTERY_THRESHOLD
         and state.independent_passes >= 3
         and state.transfer_passes >= 1
+        and state.review_passes >= 1
         and not state.active_blockers
         and hint_dependency(state) < 0.25
     )
@@ -313,7 +374,9 @@ __all__ = [
     "apply_attempt_evidence",
     "apply_placement_ready_seed",
     "classify_skill_status",
+    "from_profile_row",
     "hint_dependency",
     "language_mismatch",
     "next_review_interval_days",
+    "to_profile_upsert",
 ]

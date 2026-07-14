@@ -2519,7 +2519,10 @@ async def upsert_learner_skill_profile(
             ON CONFLICT (user_id, domain, skill_id) DO UPDATE SET
                 module_id = EXCLUDED.module_id,
                 task_type = EXCLUDED.task_type,
-                mastery = GREATEST(learner_skill_profiles.mastery, EXCLUDED.mastery),
+                mastery = CASE
+                    WHEN EXCLUDED.domain = 'school' THEN EXCLUDED.mastery
+                    ELSE GREATEST(learner_skill_profiles.mastery, EXCLUDED.mastery)
+                END,
                 readiness = EXCLUDED.readiness,
                 confidence = EXCLUDED.confidence,
                 attempts = GREATEST(learner_skill_profiles.attempts, EXCLUDED.attempts),
