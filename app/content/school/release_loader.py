@@ -15,7 +15,7 @@ from .release_schema import CurriculumRelease, CurriculumReleaseManifest
 RELEASES_DIR = Path(__file__).resolve().parent / "releases"
 _RELEASE_ID = re.compile(r"^[a-z0-9_]+$")
 TRUSTED_MANIFEST_DIGESTS = {
-    "english_cbse_2026_27": "4176645667f79edb3cc07ab42dee10771c7cc631aabc0ba1fa4da9cab5a6eeea",
+    "english_cbse_2026_27": "a33be06e91f6a94620c49d66bbbe5dbd9f4ea12ec13a8317e2107f8909693127",
 }
 
 

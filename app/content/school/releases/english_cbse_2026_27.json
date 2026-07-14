@@ -333,7 +333,7 @@
           "order": 1,
           "title": "Let's Have Fun",
           "modules": [
-            {"module_id": "eng_c5_u01_m01", "order": 1, "title": "Papa's Spectacles", "kind": "lesson", "source_genre": "play"},
+            {"module_id": "eng_c5_u01_m01", "order": 1, "title": "Papa's Spectacles", "kind": "lesson", "source_genre": "poem"},
             {"module_id": "eng_c5_u01_m02", "order": 2, "title": "Gone with the Scooter", "kind": "lesson", "source_genre": "story"}
           ]
         },
@@ -381,5 +381,5 @@
       ]
     }
   ],
-  "manifest_sha256": "4176645667f79edb3cc07ab42dee10771c7cc631aabc0ba1fa4da9cab5a6eeea"
+  "manifest_sha256": "a33be06e91f6a94620c49d66bbbe5dbd9f4ea12ec13a8317e2107f8909693127"
 }

@@ -177,6 +177,10 @@ def test_manifest_represents_units_special_modules_and_reference_structures():
     }
     assert sum(module.kind == "picture_reading" for module in all_modules) == 5
     assert sum(module.kind == "self_assessment" for module in all_modules) == 6
+    papa_spectacles = next(
+        module for module in all_modules if module.title == "Papa's Spectacles"
+    )
+    assert papa_spectacles.source_genre == "poem"
 
     assert [item.title for item in releases[3].reference_modules] == [
         "Our National Anthem"
