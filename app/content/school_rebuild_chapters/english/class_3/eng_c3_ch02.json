@@ -1,0 +1,440 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: pedagogy, answer keys, concept slots, unseen passages, age fit, and source independence"
+  ],
+  "runtime_sha256": "8e64b6e4610f6765d29dcfde6f0b439e8f073bf8982c7955764f2675007d4280",
+  "chapter_id": "eng_c3_ch02",
+  "chapter_no": 2,
+  "title": "Badal and Moti",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Friends",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa102.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "badal_moti_care_reason",
+      "title": "Why caring changes the story",
+      "focus": "answer with a reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Understand how a kind action at the start of a story can matter later.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In this chapter, Badal notices a puppy who needs help. A good answer should name the caring action and explain why it matters.",
+          "passage": "Badal sees a small puppy near the road on a cold evening. He asks his mother if they can care for it.",
+          "prompt": "What kind action does Badal want to take?",
+          "options": [
+            "care for the puppy",
+            "leave the puppy",
+            "hide the puppy",
+            "run away"
+          ],
+          "accepted_answers": [
+            "care for the puppy",
+            "care",
+            "help the puppy",
+            "take care"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: first find who needs help, then find what Badal does for that character.",
+          "passage": "The puppy is cold. Badal wants the puppy to be safe at home.",
+          "prompt": "Who needs Badal's care?",
+          "options": [
+            "puppy",
+            "tree",
+            "bag",
+            "rope"
+          ],
+          "accepted_answers": [
+            "puppy"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: naming only the kind action leaves a why answer unfinished. Give the action and its reason: Badal cares for the puppy because it is not safe alone.",
+          "passage": "A child finds a young animal in the cold and brings it to a safe place.",
+          "prompt": "Why is bringing the animal to safety a kind action?",
+          "options": [
+            "it protects the animal",
+            "it makes the animal colder",
+            "it loses the animal",
+            "it breaks the road"
+          ],
+          "accepted_answers": [
+            "it protects the animal",
+            "protects",
+            "safe",
+            "safety"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now answer without hints. Name the caring action.",
+          "passage": "Badal finds Moti outside and wants to keep him safe.",
+          "prompt": "What does Badal do for Moti?",
+          "options": [],
+          "accepted_answers": [
+            "care for moti",
+            "care for the puppy",
+            "help moti",
+            "take care of moti",
+            "keeps him safe"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Carry the need-action-reason pattern into a different kind of care.",
+          "passage": "Meher sees a new student standing alone with a school map. She walks with him to the library.",
+          "prompt": "Why is Meher's choice helpful?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "student_need", "description": "identifies that the new student needs directions or help", "any_of": ["new", "alone", "lost", "map", "directions"]},
+            {"id": "helpful_result", "description": "explains that Meher helps him find or reach the library", "any_of": ["walks with", "shows", "find", "reach", "library", "helps"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "badal_moti_story_sequence",
+      "title": "Put story events in order",
+      "focus": "sequence story events",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Track what happens first, next, and later in a simple story.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Story order means following the events step by step. Look for time clues: first Badal meets Moti, later Moti helps people find Badal.",
+          "passage": "First, Badal cares for Moti. Later, Moti barks near the place where Badal needs help.",
+          "prompt": "Which event happens first?",
+          "options": [
+            "Badal cares for Moti",
+            "Moti barks for help",
+            "neighbours search",
+            "Badal thanks Moti"
+          ],
+          "accepted_answers": [
+            "Badal cares for Moti",
+            "cares"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: first means the earliest event in the story.",
+          "passage": "Badal meets Moti before Moti grows and helps him.",
+          "prompt": "Who does Badal meet first?",
+          "options": [
+            "Moti",
+            "a shopkeeper",
+            "a teacher",
+            "a postman"
+          ],
+          "accepted_answers": [
+            "Moti"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not choose an event just because you read it first. Follow the dependency: Moti can only help Badal later because Badal cared for him earlier.",
+          "passage": "A child helps a puppy. Later, the puppy alerts adults when the child is in trouble.",
+          "prompt": "Which event must come before the puppy alerts adults?",
+          "options": [
+            "the child helps the puppy",
+            "the child says thank you",
+            "the adults go home",
+            "the rain stops"
+          ],
+          "accepted_answers": [
+            "the child helps the puppy",
+            "helps the puppy"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now order the events without hints.",
+          "passage": "Moti becomes Badal's friend. One day Badal needs help. Moti alerts others.",
+          "prompt": "What happens before Moti alerts others?",
+          "options": [],
+          "accepted_answers": [
+            "Badal needs help",
+            "moti becomes badal's friend",
+            "moti becomes his friend",
+            "badal and moti become friends"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use event order in instructions instead of a friendship story.",
+          "passage": "Rhea washes a cup, pours in milk, and finally adds sliced banana.",
+          "prompt": "What does Rhea do after washing the cup but before adding banana?",
+          "options": [],
+          "accepted_answers": ["pours in milk", "she pours in milk", "pours milk", "adds milk"]
+        }
+      }
+    },
+    {
+      "level_id": "badal_moti_past_tense_ed",
+      "title": "Use -ed action words",
+      "focus": "use past tense",
+      "skill_ids": [
+        "grammar.tense_usage",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Notice action words that show something already happened.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Many story actions already happened. In English, many past actions end with -ed: played, helped, thanked.",
+          "passage": "Badal helped Moti. Moti barked loudly.",
+          "prompt": "Which word shows an action that already happened?",
+          "options": [
+            "helped",
+            "Moti",
+            "loudly",
+            "Badal"
+          ],
+          "accepted_answers": [
+            "helped"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: look for the action word with -ed.",
+          "passage": "Moti barked near the pit.",
+          "prompt": "Which word ends with -ed?",
+          "options": [
+            "barked",
+            "Moti",
+            "near",
+            "pit"
+          ],
+          "accepted_answers": [
+            "barked"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: add -ed only once. Help becomes helped, not helpeded, when the action already happened.",
+          "passage": "Today I help. Yesterday I helped.",
+          "prompt": "Which word means the action happened yesterday?",
+          "options": [
+            "helped",
+            "help",
+            "helping",
+            "helps"
+          ],
+          "accepted_answers": [
+            "helped"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the past action word without hints.",
+          "passage": "Today we play. Yesterday we ____.",
+          "prompt": "Fill the blank with the past action word.",
+          "options": [],
+          "accepted_answers": [
+            "played"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use regular past tense in a new topic.",
+          "passage": "Every day we plant seeds. Last Saturday we ___ marigolds.",
+          "prompt": "Complete the sentence with the past form of plant.",
+          "options": [],
+          "accepted_answers": ["planted"]
+        }
+      }
+    },
+    {
+      "level_id": "badal_moti_question_statement",
+      "title": "Question or statement",
+      "focus": "understand question marks",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Separate asking sentences from telling sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A question asks something and usually ends with a question mark. A statement tells something and ends with a full stop.",
+          "passage": "Can Moti stay with us? Moti is safe now.",
+          "prompt": "Which sentence asks something?",
+          "options": [
+            "Can Moti stay with us?",
+            "Moti is safe now.",
+            "Moti has a bowl.",
+            "Badal smiled."
+          ],
+          "accepted_answers": [
+            "Can Moti stay with us?",
+            "can moti stay with us"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: the question mark is the clue for an asking sentence.",
+          "passage": "Where is Moti?",
+          "prompt": "What mark should an asking sentence end with?",
+          "options": [
+            "?",
+            ".",
+            ",",
+            "!"
+          ],
+          "accepted_answers": [
+            "?"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not decide from one word alone. A question asks for an answer and ends with a question mark; a statement tells information.",
+          "passage": "What did Moti hear?",
+          "prompt": "Is this a question or a statement?",
+          "options": [
+            "question",
+            "statement",
+            "word pair",
+            "colour word"
+          ],
+          "accepted_answers": [
+            "question"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now identify the sentence type without hints.",
+          "passage": "Who helped Badal?",
+          "prompt": "Write question or statement.",
+          "options": [],
+          "accepted_answers": [
+            "question"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply asking-sentence rules in a school situation.",
+          "passage": "The class pet needs fresh water. You want to ask who will fill its bowl.",
+          "prompt": "Write the question you would ask the class.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "asking_form", "description": "uses who or another clear asking form", "any_of": ["who", "will someone", "can someone"]},
+            {"id": "water_task", "description": "asks about filling or bringing water for the bowl", "any_of": ["fill", "water", "bowl", "bring"]}
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "badal_moti_friendship_summary",
+      "title": "Tell the main idea",
+      "focus": "find the main idea",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Say what the chapter is mostly about in your own words.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The main idea is not one tiny detail. It is what most of the story is about.",
+          "passage": "Badal cares for Moti. Moti becomes his friend and later helps when Badal is in trouble.",
+          "prompt": "What is the main idea?",
+          "options": [
+            "kindness and friendship can help us",
+            "only rain is important",
+            "crayons make pictures",
+            "alphabet order is hard"
+          ],
+          "accepted_answers": [
+            "kindness and friendship can help us",
+            "kindness",
+            "friendship"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: choose the idea that covers the beginning and the ending.",
+          "passage": "Badal helps Moti first. Moti helps Badal later.",
+          "prompt": "Which idea covers both events?",
+          "options": [
+            "helping each other",
+            "counting colours",
+            "buying books",
+            "eating lunch"
+          ],
+          "accepted_answers": [
+            "helping each other"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: one interesting detail is not the main idea. Use your own words for an idea that covers the beginning and ending.",
+          "passage": "Two friends care for each other at different moments.",
+          "prompt": "Which answer is a main idea?",
+          "options": [
+            "Friends help each other",
+            "Moti is a name",
+            "there is a road",
+            "one day it rained"
+          ],
+          "accepted_answers": [
+            "Friends help each other",
+            "friends help each other"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the chapter idea in your own words.",
+          "passage": "Badal and Moti both show care when the other one needs help.",
+          "prompt": "What is this chapter mostly about?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "both_friends", "description": "refers to Badal and Moti or both friends", "any_of": ["Badal", "Moti", "both", "friends"]},
+            {"id": "shared_care", "description": "states that they care for or help one another", "any_of": ["care", "help", "kind", "support", "one another", "each other"]}
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Use the main-idea strategy in a different friendship.",
+          "passage": "Asha explains a maths step to Kunal. The next day, Kunal lends Asha his notes when she misses class.",
+          "prompt": "Write the main idea of this short passage.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "mutual_help", "description": "states that friends help or support one another", "any_of": ["help", "support", "each other", "one another", "friends"]},
+            {"id": "two_events", "description": "covers learning help and shared notes rather than one detail", "any_of": ["maths", "step", "notes", "learn", "both", "different times"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"c3c2_care_01","passage":"Moti limps after stepping on a thorn. Badal calls an adult and keeps Moti still.","prompt":"Why does Badal keep Moti still?","skill_ids":["reading.inference_reason"],"options":["to avoid hurting the paw more","to make Moti bored","to hide the thorn","to miss dinner"],"accepted_answers":["to avoid hurting the paw more","so the paw is not hurt more","to keep him safe"]},
+      {"item_id":"c3c2_care_02","passage":"A puppy cannot reach a bowl on a high step. Nila places the bowl on the floor.","prompt":"Explain why Nila's action is caring.","skill_ids":["reading.inference_reason","writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"need","description":"identifies the puppy's need or the bowl being too high","any_of":["puppy","needs the bowl","bowl is high","too high","high step"]},{"id":"help","description":"explains that moving the bowl lets the puppy reach, eat, or drink","any_of":["reach","floor","eat","drink","helps"]}],"min_response_words":6},
+      {"item_id":"c3c2_care_03","passage":"Badal leaves a shaded bowl of water outside on a hot afternoon.","prompt":"Which need is Badal meeting?","skill_ids":["reading.inference_reason"],"options":["Moti needs cool water.","Moti needs a loud bell.","Badal needs a kite.","Badal needs a pencil."],"accepted_answers":["Moti needs cool water.","moti needs water","water"]},
+      {"item_id":"c3c2_care_04","passage":"A neighbour notices that Moti's leash is caught around a chair leg and gently frees it.","prompt":"Tell why the neighbour's action helps Moti.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"problem","description":"mentions that Moti or the leash is caught or stuck","any_of":["caught","stuck","leash","chair leg"]},{"id":"result","description":"explains that freeing the leash lets Moti move safely","any_of":["free","move","safe","helps"]}],"min_response_words":6},
+      {"item_id":"c3c2_order_01","passage":"Badal opens the gate, clips on Moti's lead, and then begins the walk.","prompt":"What happens just before the walk begins?","skill_ids":["reading.sentence_comprehension","reading.paragraph_main_idea"],"options":["Badal clips on the lead.","Badal fills a bowl.","Moti falls asleep.","The gate is painted."],"accepted_answers":["Badal clips on the lead.","badal clips on the lead","clips on moti's lead"]},
+      {"item_id":"c3c2_order_02","passage":"After Moti drinks, he curls up on the mat.","prompt":"Name the earlier event.","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["Moti drinks","he drinks","drinks"]},
+      {"item_id":"c3c2_order_03","passage":"Ravi packed a torch before he entered the dark shed. He switched it on inside.","prompt":"What did Ravi do before entering the shed?","skill_ids":["reading.sentence_comprehension"],"options":["packed a torch","switched it on inside","closed his book","fed a bird"],"accepted_answers":["packed a torch","he packed a torch"]},
+      {"item_id":"c3c2_order_04","passage":"The bell rang. The children lined up. Next, their teacher opened the door.","prompt":"What happened between the bell and the door opening?","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["the children lined up","children lined up","they lined up"]},
+      {"item_id":"c3c2_past_01","passage":"Yesterday Badal ___ the loose gate.","prompt":"Choose the past form of fix.","skill_ids":["grammar.tense_usage","writing.short_answer"],"options":["fixed","fix","fixing","fixxed"],"accepted_answers":["fixed"]},
+      {"item_id":"c3c2_past_02","passage":"Last evening Moti ___ at a strange sound.","prompt":"Write the past form of bark.","skill_ids":["grammar.tense_usage","writing.short_answer"],"options":[],"accepted_answers":["barked"]},
+      {"item_id":"c3c2_past_03","passage":"Today we wash the bowls. Yesterday we ___ them.","prompt":"Which word completes the sentence?","skill_ids":["grammar.tense_usage"],"options":["washed","wash","washing","washes"],"accepted_answers":["washed"]},
+      {"item_id":"c3c2_past_04","passage":"The puppy rests now. In the morning, it ___ beside the door.","prompt":"Write the past form of rest.","skill_ids":["grammar.tense_usage","writing.short_answer"],"options":[],"accepted_answers":["rested"]},
+      {"item_id":"c3c2_qs_01","passage":"Why is Moti barking___","prompt":"Choose the correct end mark.","skill_ids":["writing.complete_sentence"],"options":["?",".",",",":"],"accepted_answers":["?","question mark","a question mark"]},
+      {"item_id":"c3c2_qs_02","passage":"Badal checks the latch each night___","prompt":"Write the end mark for this statement.","skill_ids":["writing.complete_sentence"],"options":[],"accepted_answers":[".","full stop","a full stop","period"]},
+      {"item_id":"c3c2_qs_03","passage":"You want to know where Moti sleeps.","prompt":"Which sentence asks clearly?","skill_ids":["writing.complete_sentence"],"options":["Where does Moti sleep?","Moti sleeps on his mat.","Moti on the mat.","Sleep Moti where."],"accepted_answers":["Where does Moti sleep?","where does moti sleep"]},
+      {"item_id":"c3c2_qs_04","passage":"You want to know whether Badal filled the water bowl.","prompt":"Write a complete question to ask Badal.","skill_ids":["writing.complete_sentence"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"asking_form","description":"uses a clear yes-no question form","any_of":["did","have you","has"]},{"id":"water_bowl","description":"asks about filling the water bowl","any_of":["fill","filled","water","bowl"]}],"min_response_words":5},
+      {"item_id":"c3c2_main_01","passage":"Rohan cares for an old dog every morning. The dog waits by the gate and warns Rohan when a bicycle comes too close.","prompt":"Which main idea fits both events?","skill_ids":["reading.paragraph_main_idea"],"options":["Care builds a helpful friendship.","Bicycles are always dangerous.","Morning is colder than night.","Old dogs cannot wait."],"accepted_answers":["Care builds a helpful friendship.","care builds a helpful friendship","friends care for each other"]},
+      {"item_id":"c3c2_main_02","passage":"Badal makes space for Moti in his home. Moti later stays beside Badal when he is unwell. Their actions show trust over time.","prompt":"Summarise the friendship in your own words.","skill_ids":["reading.paragraph_main_idea","writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"two_friends","description":"mentions Badal and Moti or the friends","any_of":["Badal","Moti","friends","they"]},{"id":"trust_care","description":"states that care, trust, or help goes both ways","any_of":["care","trust","help","loyal","each other","both ways"]}],"min_response_words":7},
+      {"item_id":"c3c2_main_03","passage":"A child gives a stray kitten food and a dry box. Weeks later, the kitten follows the child home when she takes a wrong turn.","prompt":"What message joins the beginning and ending?","skill_ids":["reading.paragraph_main_idea","writing.summary_own_words"],"options":["Kindness can grow into loyal help.","Boxes are made of paper.","Kittens eat every hour.","Children should never walk."],"accepted_answers":["Kindness can grow into loyal help.","kindness can grow into loyal help","kindness can be returned"]},
+      {"item_id":"c3c2_main_04","passage":"Nitin helps Eva practise reading. Eva later helps Nitin organise his science chart. Each friend shares a different strength.","prompt":"Write the main idea without listing every detail.","skill_ids":["reading.paragraph_main_idea","writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"friendship","description":"identifies the people as friends or partners","any_of":["friends","friendship","Nitin","Eva","partners"]},{"id":"mutual_strength","description":"states that they help each other with different strengths","any_of":["help each other","different strengths","support","share","together"]}],"min_response_words":7}
+    ]
+  }
+}

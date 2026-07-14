@@ -219,6 +219,27 @@ def test_interview_probe_plan_starts_with_selected_scenario_prompt():
     assert "technical project" not in first_prompt
 
 
+def test_interview_star_scenario_defers_semantically_repeated_project_probe():
+    from app.services import session_service as svc
+    from app.services.interview_probes import build_interview_probe_plan
+
+    state = svc._new_state(
+        "user-1",
+        "session-int-star-diversity",
+        "int_04_star_behavioral",
+        [],
+        task_type=TaskType.INTERVIEW_TEST.value,
+        module_id="interview",
+        scenario_config={"target_role": "Backend Software Engineer"},
+    )
+
+    probe_ids = [probe["probe_id"] for probe in build_interview_probe_plan(state)]
+
+    assert probe_ids[0] == "scenario_star_story"
+    assert probe_ids[1] == "debugging_under_pressure"
+    assert probe_ids.index("project_ownership_tradeoff") > 2
+
+
 def test_gd_assessment_plan_projects_scoped_deduped_focus_plan():
     from app.services.assessment_plan import build_assessment_plan
 
@@ -1495,6 +1516,26 @@ def test_gd_remote_work_fallbacks_use_remote_work_discussion_dimensions():
     assert "digital payments" in office_payment
     assert "junior employees" not in office_payment
     assert "mentoring" not in office_payment
+
+
+def test_gd_four_day_workweek_fallbacks_use_workweek_tradeoffs():
+    from app.services.gd_discussion_text import gd_persona_fallback_text
+
+    topic = "Should companies adopt a four-day workweek?"
+    generated = {
+        speaker_id: gd_persona_fallback_text(topic, speaker_id, "debater").lower()
+        for speaker_id in (
+            "data_driven_analyst",
+            "consensus_builder",
+            "devils_advocate",
+            "quiet_expert",
+        )
+    }
+
+    assert "overtime" in generated["data_driven_analyst"]
+    assert "pilot" in generated["consensus_builder"]
+    assert "compressed" in generated["devils_advocate"]
+    assert "handoff" in generated["quiet_expert"]
 
 
 def test_gd_fallbacks_normalize_should_motion_grammar():

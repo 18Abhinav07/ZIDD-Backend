@@ -1,0 +1,925 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-substantive-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Item-by-item review for observation versus imagination, clue-based inference, age fit, unseen independent and assessment contexts, deterministic masterclass answers, and flexible creative grading."
+  ],
+  "runtime_sha256": "f78e26872b64409d027b3a0d3de6a9ccf5c6ca77c883b7ac31435d0909c2900b",
+  "chapter_id": "eng_c2_ch08",
+  "chapter_no": 8,
+  "content_version": "2026-07-12.2",
+  "title": "A Show of Clouds",
+  "book_title": "Mridang",
+  "unit_title": "Life Around Us",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr108.pdf",
+  "source_note": "Aligned to the NCERT chapter title and themes of observing clouds, noticing changing shapes, and using imagination to describe nature. All Zidd observations, comparisons, prompts, and feedback are original.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch08_cloud_observation",
+      "title": "Observe what clouds do",
+      "focus": "find visible details about cloud colour, shape, and movement",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read short sky observations and separate what is seen from what is imagined.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An observation tells what eyes can notice: colour, shape, size, or movement. An idea such as it may rain is a guess. Answer with the detail the watcher actually sees.",
+          "passage": "Mira sees one white cloud stretch into a long thin line. It drifts above the trees.",
+          "prompt": "Which detail tells the cloud's shape?",
+          "options": [
+            "a long thin line",
+            "above the trees",
+            "Mira sees it"
+          ],
+          "accepted_answers": [
+            "a long thin line",
+            "long thin line"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Read all the details, then match the question word. How it moves is different from where it is.",
+          "passage": "Grey clouds slide slowly from the hill toward the lake.",
+          "prompt": "How do the clouds move?",
+          "options": [
+            "slowly",
+            "toward the lake",
+            "from the hill"
+          ],
+          "accepted_answers": [
+            "slowly",
+            "they slide slowly"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A scene can change over time. Use the time clue to choose the later observation.",
+          "passage": "At first, two small clouds were apart. Soon they joined to make one wide cloud.",
+          "prompt": "What is seen later?",
+          "options": [
+            "two separate clouds",
+            "one wide cloud",
+            "a clear blue sky"
+          ],
+          "accepted_answers": [
+            "one wide cloud",
+            "the clouds join into one wide cloud"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Answer without choices. Use only what the observer reports, not a weather guess.",
+          "passage": "A dark cloud covers the sun for a minute, then moves east and lets the light return.",
+          "prompt": "Which direction does the cloud move?",
+          "options": [],
+          "accepted_answers": [
+            "east",
+            "to the east",
+            "eastward"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer careful observation to soap bubbles. Name the visible change, not its cause.",
+          "passage": "A large bubble rises, becomes smaller, and pops above the sink.",
+          "prompt": "What happens just before the bubble pops?",
+          "options": [],
+          "accepted_answers": [
+            "it becomes smaller",
+            "becomes smaller",
+            "the bubble gets smaller"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch08_imagined_shapes",
+      "title": "Use clues to imagine a cloud shape",
+      "focus": "infer an imagined object from shape and action clues",
+      "skill_ids": [
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Connect several cloud clues to a sensible imagined shape and explain the clue used.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "When we imagine a picture in a cloud, we match more than one clue. A long neck and four legs fit some animals better than a boat. Check every clue.",
+          "passage": "The cloud has four soft legs and a very long neck reaching upward.",
+          "prompt": "What might the cloud look like?",
+          "options": [
+            "a giraffe",
+            "a cup",
+            "a fish"
+          ],
+          "accepted_answers": [
+            "a giraffe",
+            "giraffe"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look for the strongest shape clue. Wings stretching sideways can suggest a bird even if the cloud is not a real bird.",
+          "passage": "Two wide parts spread from a small middle shape as the cloud glides across the sky.",
+          "prompt": "What could the child imagine?",
+          "options": [
+            "a flying bird",
+            "a closed book",
+            "a round ball"
+          ],
+          "accepted_answers": [
+            "a flying bird",
+            "bird",
+            "a bird"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use both shape and movement. A pointed front and a long body moving across the sky fit one choice best.",
+          "passage": "A narrow cloud has a pointed nose and a long body. It seems to race toward the horizon.",
+          "prompt": "What does the cloud most resemble?",
+          "options": [
+            "a rocket",
+            "a bowl",
+            "a tree"
+          ],
+          "accepted_answers": [
+            "a rocket",
+            "rocket"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Make an inference from a fresh cloud description. Name a sensible object and mention the clue that supports it.",
+          "passage": "One end of the cloud curls like a handle, while the other part is round and deep.",
+          "prompt": "What might the cloud look like, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "object",
+              "description": "Identifies a cup, mug, or similar handled container.",
+              "any_of": [
+                "cup",
+                "mug",
+                "a cup",
+                "a mug"
+              ]
+            },
+            {
+              "id": "clue",
+              "description": "Uses the curled handle and round deep part as evidence.",
+              "any_of": [
+                "curled handle",
+                "curl like a handle",
+                "round and deep",
+                "one end curls"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Use shape clues in a shadow-puppet scene, not the sky. Name the imagined animal and one supporting detail.",
+          "passage": "On the wall, two pointed shadows rise like ears above a round head.",
+          "prompt": "What animal might the shadow look like, and what clue helps you?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "animal",
+              "description": "Identifies a cat, rabbit, or fox as a reasonable pointed-ear animal.",
+              "any_of": [
+                "cat",
+                "rabbit",
+                "fox",
+                "a cat",
+                "a rabbit",
+                "a fox"
+              ]
+            },
+            {
+              "id": "clue",
+              "description": "Mentions the two pointed ear shapes.",
+              "any_of": [
+                "two pointed ears",
+                "pointed shadows like ears",
+                "pointed ears"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch08_cloud_words",
+      "title": "Understand words for a changing sky",
+      "focus": "infer and use drift, gather, vanish, pale, and enormous",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use context to understand words that describe cloud movement, colour, size, and change.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Nearby actions can explain a sky word. If a cloud drifts, it moves gently rather than rushing. Test the meaning in the whole sentence.",
+          "passage": "The tiny cloud drifts slowly with the breeze, moving gently above the field.",
+          "prompt": "What does drifts mean?",
+          "options": [
+            "moves gently",
+            "falls straight down",
+            "stays still"
+          ],
+          "accepted_answers": [
+            "moves gently",
+            "moves slowly"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A result can reveal the new word. If nothing remains, vanished must mean disappeared.",
+          "passage": "The sun came out after the last grey cloud vanished from the sky.",
+          "prompt": "What does vanished mean?",
+          "options": [
+            "became darker",
+            "disappeared",
+            "grew wider"
+          ],
+          "accepted_answers": [
+            "disappeared",
+            "went away",
+            "was no longer seen"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use a comparison clue for size. Enormous means much bigger than large, not merely bright.",
+          "passage": "An enormous cloud spread across nearly the whole sky and made the houses look tiny.",
+          "prompt": "What does enormous mean?",
+          "options": [
+            "very large",
+            "very white",
+            "very low"
+          ],
+          "accepted_answers": [
+            "very large",
+            "huge",
+            "very big"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the colour contrast to infer the word.",
+          "passage": "The morning cloud was pale, almost white, unlike the dark cloud behind it.",
+          "prompt": "What does pale mean here?",
+          "options": [],
+          "accepted_answers": [
+            "light in colour",
+            "light coloured",
+            "not dark",
+            "almost white"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the word meaning in a crowd scene. The context is new, but the idea of coming together is the same.",
+          "passage": "Families gather near the stage until many people are standing together.",
+          "prompt": "What does gather mean?",
+          "options": [],
+          "accepted_answers": [
+            "come together",
+            "meet together",
+            "collect in one place",
+            "move together"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch08_describing_sentences",
+      "title": "Build a vivid cloud sentence",
+      "focus": "choose describing words and arrange them into a clear comparison",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Use adjectives and like comparisons to create accurate, well-ordered sky sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A describing word tells colour, size, shape, or feeling. Find the word that adds a picture to the naming word cloud.",
+          "passage": "A fluffy cloud floats over the playground.",
+          "prompt": "Which word describes the cloud?",
+          "options": [
+            "fluffy",
+            "floats",
+            "playground"
+          ],
+          "accepted_answers": [
+            "fluffy"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A like comparison joins a real observation to an imagined picture. Keep like between the cloud and the image.",
+          "passage": "The round cloud looks ___ a silver coin.",
+          "prompt": "Which word completes the comparison?",
+          "options": [
+            "like",
+            "under",
+            "because"
+          ],
+          "accepted_answers": [
+            "like"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Check word order and meaning. The sentence should name the cloud, give an action, then add the comparison.",
+          "passage": "Words: cloud / the / like / sails / a ship",
+          "prompt": "Which sentence is clear?",
+          "options": [
+            "The cloud sails like a ship.",
+            "Like the cloud a ship sails.",
+            "A sails ship the cloud like."
+          ],
+          "accepted_answers": [
+            "The cloud sails like a ship.",
+            "the cloud sails like a ship"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the words without choices. Keep both describing words before clouds.",
+          "passage": "Words: slow / grey / clouds / drift / west",
+          "prompt": "Write the sentence.",
+          "options": [],
+          "accepted_answers": [
+            "slow grey clouds drift west",
+            "slow grey clouds drift west."
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same sentence-building skill for leaves. Keep the comparison at the end.",
+          "passage": "Words: the / spins / leaf / like / a wheel",
+          "prompt": "Write one correct sentence.",
+          "options": [],
+          "accepted_answers": [
+            "the leaf spins like a wheel",
+            "the leaf spins like a wheel."
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch08_sky_description",
+      "title": "Describe an imagined sky scene",
+      "focus": "write an observation and an imaginative comparison without confusing them",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Write concise sky descriptions that include a seen detail and a supported imagined shape.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A strong sky sentence begins with what is seen, then adds what it looks like. It does not claim the cloud is truly an animal or object.",
+          "passage": "Seen: a broad white cloud with two bumps. Imagined: a camel.",
+          "prompt": "Which sentence keeps observation and imagination clear?",
+          "options": [
+            "The broad white cloud looks like a camel with two humps.",
+            "A real camel is walking in the sky.",
+            "The cloud proves that camels can fly."
+          ],
+          "accepted_answers": [
+            "The broad white cloud looks like a camel with two humps.",
+            "the white cloud looks like a camel"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use one movement detail and one comparison. The comparison should fit the shape described.",
+          "passage": "Seen: thin cloud moving over water. Imagined: a silver boat.",
+          "prompt": "Choose the clearest sentence.",
+          "options": [
+            "A thin cloud glides over the water like a silver boat.",
+            "A silver boat turns into weather.",
+            "The cloud is under a boat in the lake."
+          ],
+          "accepted_answers": [
+            "A thin cloud glides over the water like a silver boat.",
+            "the thin cloud looks like a silver boat"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Select writing that separates fact from imagination and explains the picture with a matching detail.",
+          "passage": "Seen: three small clouds in a row. Imagined: ducklings.",
+          "prompt": "Which description is accurate and vivid?",
+          "options": [
+            "Three small clouds in a row look like ducklings following one another.",
+            "Three ducklings certainly live inside the clouds.",
+            "The sky has one enormous elephant."
+          ],
+          "accepted_answers": [
+            "Three small clouds in a row look like ducklings following one another.",
+            "the row of small clouds looks like ducklings"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write from a new observation. Include the seen colour or shape and a fitting comparison. Different clear wording can succeed.",
+          "passage": "Observation card: orange cloud at sunset; long curved shape; imagined canoe.",
+          "prompt": "Describe the wavy reflection in one vivid sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "observation",
+              "description": "Includes the orange colour or sunset setting.",
+              "any_of": [
+                "orange cloud",
+                "at sunset",
+                "sunset cloud"
+              ]
+            },
+            {
+              "id": "shape",
+              "description": "Includes the long curved shape.",
+              "any_of": [
+                "long curved",
+                "curved shape",
+                "long curve"
+              ]
+            },
+            {
+              "id": "comparison",
+              "description": "Compares the cloud to a canoe.",
+              "any_of": [
+                "looks like a canoe",
+                "like a canoe",
+                "canoe"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer observation-plus-imagination writing to a puddle reflection. State what is seen and what it resembles.",
+          "passage": "Reflection card: yellow streetlight; wavy line in water; imagined golden snake.",
+          "prompt": "Write one vivid sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "observation",
+              "description": "Includes the yellow streetlight or its reflection.",
+              "any_of": [
+                "yellow streetlight",
+                "streetlight reflection",
+                "yellow light"
+              ]
+            },
+            {
+              "id": "shape",
+              "description": "Includes the wavy line in water.",
+              "any_of": [
+                "wavy line",
+                "waves in the water",
+                "wavy reflection"
+              ]
+            },
+            {
+              "id": "comparison",
+              "description": "Compares it to a golden snake.",
+              "any_of": [
+                "like a golden snake",
+                "looks like a golden snake",
+                "golden snake"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 10,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch08_assess_01",
+        "passage": "A white cloud grows wider as it moves above the school roof.",
+        "prompt": "Which change is observed?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "it grows wider",
+          "it becomes a school",
+          "it falls behind the roof"
+        ],
+        "accepted_answers": [
+          "it grows wider",
+          "grows wider"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_02",
+        "passage": "Three dark clouds move north. A small bright cloud stays near the sun.",
+        "prompt": "Which clouds move north?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "three dark clouds",
+          "the bright cloud",
+          "the sun"
+        ],
+        "accepted_answers": [
+          "three dark clouds",
+          "the dark clouds"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_03",
+        "passage": "A thin cloud splits into two pieces before both pieces fade.",
+        "prompt": "What happens before the pieces fade?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the cloud splits",
+          "it splits into two pieces",
+          "the thin cloud splits"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_04",
+        "passage": "At noon the cloud is above the tower; later it moves beyond the hills.",
+        "prompt": "Where is the cloud later?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "beyond the hills",
+          "past the hills",
+          "over the hills"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_05",
+        "passage": "A cloud has a round middle and eight thin arms spreading out.",
+        "prompt": "What might it resemble?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "an octopus",
+          "a ladder",
+          "a box"
+        ],
+        "accepted_answers": [
+          "an octopus",
+          "octopus"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_06",
+        "passage": "Two tall cloud shapes stand side by side with a low curve between them.",
+        "prompt": "Which picture fits best?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "a bridge between towers",
+          "one round apple",
+          "a tiny spoon"
+        ],
+        "accepted_answers": [
+          "a bridge between towers",
+          "bridge"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_07",
+        "passage": "A cloud has a broad top and one narrow stem below it.",
+        "prompt": "What might it look like? Give the object and the clue.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "object",
+            "description": "Identifies an umbrella, mushroom, or tree as a sensible shape.",
+            "any_of": [
+              "umbrella",
+              "mushroom",
+              "tree",
+              "an umbrella",
+              "a mushroom"
+            ]
+          },
+          {
+            "id": "clue",
+            "description": "Uses the broad top and narrow stem.",
+            "any_of": [
+              "broad top",
+              "narrow stem",
+              "one narrow stem",
+              "wide top"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_08",
+        "passage": "A shadow has a long body and a triangle at one end like a tail.",
+        "prompt": "What might the shadow resemble, and why?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "object",
+            "description": "Identifies a kite, fish, or arrow as a sensible shape.",
+            "any_of": [
+              "kite",
+              "fish",
+              "arrow",
+              "a kite",
+              "a fish",
+              "an arrow"
+            ]
+          },
+          {
+            "id": "clue",
+            "description": "Uses the long body and triangle tail.",
+            "any_of": [
+              "long body",
+              "triangle tail",
+              "triangle at one end",
+              "pointed tail"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_09",
+        "passage": "Clouds scatter until they are spread far apart.",
+        "prompt": "What does scatter mean?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "spread apart",
+          "join together",
+          "turn black"
+        ],
+        "accepted_answers": [
+          "spread apart",
+          "move apart"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_10",
+        "passage": "A brilliant white edge shines strongly in the sunlight.",
+        "prompt": "What does brilliant mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "very bright",
+          "very quiet",
+          "very far"
+        ],
+        "accepted_answers": [
+          "very bright",
+          "bright",
+          "shining"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_11",
+        "passage": "The cloud expands, covering more and more of the sky.",
+        "prompt": "What does expands mean?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "grows larger",
+          "gets bigger",
+          "spreads wider",
+          "becomes larger"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_12",
+        "passage": "A faint cloud is hard to see against the morning light.",
+        "prompt": "What does faint mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "not clear",
+          "hard to see",
+          "pale",
+          "very light"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_13",
+        "passage": "The bright cloud floats above the hill.",
+      "prompt": "Select the describing word in this sky sentence.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "bright",
+          "floats",
+          "hill"
+        ],
+        "accepted_answers": [
+          "bright"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_14",
+        "passage": "Words: cloud / a / round / moon / like / looks",
+        "prompt": "Which sentence is correct?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "A round cloud looks like a moon.",
+          "Like a cloud round looks moon.",
+          "A moon cloud like round looks."
+        ],
+        "accepted_answers": [
+          "A round cloud looks like a moon.",
+          "a round cloud looks like a moon"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_15",
+        "passage": "Words: across / dark / hurry / clouds / the sky",
+      "prompt": "Build the sentence about the dark clouds.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "dark clouds hurry across the sky",
+          "dark clouds hurry across the sky."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_16",
+        "passage": "Words: the / like / cloud / a fan / opens",
+      "prompt": "Build the comparison about the fan-shaped cloud.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the cloud opens like a fan",
+          "the cloud opens like a fan."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_17",
+        "passage": "Seen: one tall cloud with a rounded top. Imagined: an ice-cream cone.",
+        "prompt": "Which sentence is careful and vivid?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "The tall cloud looks like an ice-cream cone.",
+          "Ice cream is falling from the sky.",
+          "The cloud is truly frozen food."
+        ],
+        "accepted_answers": [
+          "The tall cloud looks like an ice-cream cone.",
+          "the cloud looks like an ice cream cone"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_18",
+        "passage": "Seen: tiny clouds moving in a line. Imagined: ants.",
+        "prompt": "Which description fits?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "Tiny clouds move in a line like marching ants.",
+          "The ants own the sky.",
+          "One huge cloud looks like a mountain."
+        ],
+        "accepted_answers": [
+          "Tiny clouds move in a line like marching ants.",
+          "the tiny clouds look like ants"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_19",
+        "passage": "Observation: pink cloud; two wide sides; imagined butterfly.",
+        "prompt": "Write one vivid sentence that keeps the observation and comparison clear.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "colour",
+            "description": "Includes the pink colour.",
+            "any_of": [
+              "pink cloud",
+              "pink"
+            ]
+          },
+          {
+            "id": "shape",
+            "description": "Includes two wide sides or wings.",
+            "any_of": [
+              "two wide sides",
+              "wide wings",
+              "two wings"
+            ]
+          },
+          {
+            "id": "comparison",
+            "description": "Compares the cloud to a butterfly.",
+            "any_of": [
+              "looks like a butterfly",
+              "like a butterfly",
+              "butterfly"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch08_assess_20",
+        "passage": "Observation: dark cloud; jagged lower edge; imagined mountain range.",
+      "prompt": "Describe the jagged cloud with one vivid comparison.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "colour",
+            "description": "Includes the dark colour.",
+            "any_of": [
+              "dark cloud",
+              "dark"
+            ]
+          },
+          {
+            "id": "shape",
+            "description": "Includes the jagged lower edge.",
+            "any_of": [
+              "jagged edge",
+              "jagged lower edge",
+              "uneven edge"
+            ]
+          },
+          {
+            "id": "comparison",
+            "description": "Compares the cloud to mountains.",
+            "any_of": [
+              "looks like mountains",
+              "like a mountain range",
+              "mountain range"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      }
+    ]
+  }
+}

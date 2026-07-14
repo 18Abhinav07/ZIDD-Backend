@@ -1,0 +1,2641 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex School English launch-content QA",
+  "reviewed_at": "2026-07-13T18:30:41+05:30",
+  "review_evidence": [
+    "tests/hardening/test_school_rebuild_content_loader_contract.py",
+    "tests/hardening/test_school_rebuild_content_quality_contract.py",
+    "scripts/audit_school_rebuild_content.py --class 5",
+    "Original Zidd-authored English content; NCERT structural alignment reviewed against the source map",
+    "Focused extended-remediation self-review: three fresh authored revision levels per level, three disjoint assessment forms, skill coverage, deterministic grading, and key privacy PASS"
+  ],
+  "runtime_sha256": "3a633aa0823aea742252e57e0a6f7889b3dc55e241b532c215b6864f4b956084",
+  "chapter_id": "eng_c5_ch01",
+  "chapter_no": 1,
+  "content_version": "2026-07-13.1",
+  "certification_version": "2026-07-13.1",
+  "title": "Papa's Spectacles",
+  "book_title": "Santoor",
+  "unit_title": "Let's Have Fun",
+  "source_url": "https://ncert.nic.in/textbook/pdf/eesa101.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "papas_spectacles_search_evidence",
+      "title": "Follow the search clues",
+      "focus": "track an object through details and evidence",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Locate explicit story details and combine clues to decide where a missing object is likely to be.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A careful reader links an object to the action and place named with it. Start with the clearest stated location.",
+          "passage": "Papa took off his spectacles to polish a misty lens and set them beside the green gardening diary. A phone call then drew him into the hall.",
+          "prompt": "Where did Papa place his spectacles before the phone call?",
+          "options": [
+            "beside the green gardening diary",
+            "inside his shirt pocket",
+            "under the hall rug",
+            "on the telephone table"
+          ],
+          "accepted_answers": [
+            "beside the green gardening diary",
+            "beside the gardening diary",
+            "next to the green diary"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Search actions reveal a character's goal. Notice which missing object connects all the places being checked.",
+          "passage": "Back in the room, Papa checked the windowsill, opened the pencil drawer, and shook out the newspaper. He kept asking who had moved his glasses.",
+          "prompt": "Which object is Papa trying to find?",
+          "options": [
+            "his spectacles",
+            "a pencil",
+            "the newspaper",
+            "a window key"
+          ],
+          "accepted_answers": [
+            "his spectacles",
+            "spectacles",
+            "his glasses",
+            "glasses"
+          ],
+          "response_mode": "short"
+        },
+      "masterclass": {
+          "teaching_block": "Strong inferences join two clues: where an object was last used and what remains in that place.",
+          "passage": "Ritu remembers that Papa wore his spectacles while reading a seed packet. She now sees the folded packet on the balcony table and a clean patch in the dust beside it.",
+          "prompt": "Explain why the balcony table is a sensible next place to check.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "last_use_clue",
+              "description": "Connects the spectacles with reading the seed packet.",
+              "any_of": [
+                "wore his spectacles while reading",
+                "used his glasses to read the seed packet",
+                "last used the spectacles for the packet",
+                "needed his glasses for reading"
+              ]
+            },
+            {
+              "id": "table_clue",
+              "description": "Uses the packet or clean dust mark as evidence for checking the table.",
+              "any_of": [
+                "packet is on the balcony table",
+                "clean patch is beside the packet",
+                "dust mark may show where the glasses rested",
+                "table holds the seed packet"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+        "forbidden_phrases": [
+          "there are no clues",
+          "the table cannot be useful"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Let's practise with one direct placement clue. Ask three questions: what was moved, where was it put, and what happened next?",
+        "passage": "Before choir practice, Ana removed her silver hair clip and tucked it into the small pocket of her music folder. When practice ended, she searched the piano bench.",
+        "prompt": "Use the placement clue: where should Ana look first?",
+        "options": [
+          "in the small pocket of her music folder",
+          "under the piano bench",
+          "inside the songbook cupboard",
+          "beside the water cooler"
+        ],
+        "accepted_answers": [
+          "in the small pocket of her music folder",
+          "in her music folder pocket",
+          "the small pocket of the music folder"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Now combine a last-use clue with a mark left in that place. Both details should point to the same sensible search location.",
+        "passage": "Rohan used a magnifying glass to study a leaf at the science window. The leaf tray is still there, and an empty circular mark shows in the dust beside it.",
+        "prompt": "Which pair of details makes the science window a useful place to check?",
+        "options": [
+          "Rohan used the glass there, and a circular dust mark remains beside the leaf tray.",
+          "The window is made of glass, and the classroom has a door.",
+          "The leaf is green, and Rohan enjoys science lessons.",
+          "The tray can be carried, and the shelf is newly painted."
+        ],
+        "accepted_answers": [
+          "Rohan used the glass there, and a circular dust mark remains beside the leaf tray.",
+          "he used it at the window and the dust mark is beside the tray",
+          "the last-use clue and circular mark both point to the science window"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Try a supported retrace. Name the first place to check, then explain the final action that puts the object there.",
+        "passage": "During pottery club, Ms Das removed her ring before kneading clay and placed it in a lidded bead cup on the supply shelf. Later, she checked the sink.",
+        "prompt": "Name the first place to check and connect it to Ms Das's last action.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "bead_cup_location",
+            "description": "Names the lidded bead cup on the supply shelf as the first place to check.",
+            "any_of": [
+              "lidded bead cup",
+              "bead cup on the supply shelf",
+              "inside the bead cup",
+              "cup on the supply shelf"
+            ]
+          },
+          {
+            "id": "ring_placement_action",
+            "description": "Explains that Ms Das put the ring there before kneading clay.",
+            "any_of": [
+              "placed the ring in the cup",
+              "put it there before kneading clay",
+              "removed her ring and placed it in the bead cup",
+              "the cup was the last place she put the ring"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "the sink is the only clue",
+          "the ring was never placed anywhere"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Use the last clear action as evidence. Name both the place to check and the clue that leads there.",
+          "passage": "At the library, Dev removed his membership card to copy its number and slipped it between the pages of a blue atlas. At checkout, he searched every pocket.",
+          "prompt": "Where should Dev look first, and which detail supports your answer?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "atlas_location",
+              "description": "Names the blue atlas or its pages as the first place to look.",
+              "any_of": [
+                "inside the blue atlas",
+                "between the atlas pages",
+                "in the blue atlas",
+                "between the pages"
+              ]
+            },
+            {
+              "id": "card_action_evidence",
+              "description": "Explains that Dev slipped the card there after copying its number.",
+              "any_of": [
+                "he slipped the card between its pages",
+                "put it in the atlas after copying the number",
+                "the last place he placed it was the atlas",
+                "he tucked it between the pages"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "check every pocket first",
+            "the passage gives no location"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the same evidence method to a new setting: retrace the final action before the object went missing.",
+          "passage": "Before cricket practice, the captain unclipped a silver whistle to tie his shoelace and placed it on the lowest bench. Later, he searched the kit bag for it.",
+          "prompt": "What is the most useful place to check, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bench_location",
+              "description": "Names the lowest bench as the useful place to check.",
+              "any_of": [
+                "lowest bench",
+                "on the lowest bench",
+                "check the bench",
+                "the bottom bench"
+              ]
+            },
+            {
+              "id": "whistle_action",
+              "description": "Explains that the captain placed the whistle there while tying his lace.",
+              "any_of": [
+                "placed the whistle there",
+                "put it on the bench to tie his shoelace",
+                "left it there before practice",
+                "unclipped it and set it on the bench"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "the kit bag is the only clue",
+            "there is no useful place"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "papas_spectacles_humour_and_reasons",
+      "title": "Explain the funny mistake",
+      "focus": "infer why a search becomes humorous",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Use visible evidence to explain a character's mistaken belief and the humour it creates.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A scene can be funny when the reader notices something that the searching character has missed.",
+          "passage": "Papa pushed his spectacles above his eyebrows while wiping sweat. Minutes later, he asked everyone to help him find them.",
+          "prompt": "Why is Papa's request amusing?",
+          "options": [
+            "He is searching for something he is already wearing.",
+            "He has decided not to read today.",
+            "The family has hidden every pair of spectacles.",
+            "The spectacles have fallen outside the house."
+          ],
+          "accepted_answers": [
+            "He is searching for something he is already wearing.",
+            "the spectacles are already above his eyebrows",
+            "his glasses are already on his head"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "To explain the mistake, contrast what the person believes with what another character can see.",
+          "passage": "Naman walked from room to room looking for his cap. His sister noticed the cap hanging from his backpack strap.",
+          "prompt": "Why could Naman's sister solve the problem quickly?",
+          "options": [
+            "She could see the cap attached to his backpack.",
+            "She owned an identical cap in her room.",
+            "She had searched the whole neighbourhood.",
+            "She remembered buying the backpack."
+          ],
+          "accepted_answers": [
+            "She could see the cap attached to his backpack.",
+            "the cap was hanging from his backpack",
+            "she noticed it on the backpack strap"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "An evidence-backed reason names the overlooked clue and connects it to the character's unnecessary search.",
+          "passage": "Papa says the print has suddenly become blurry, yet he never checks the top of his head. Meera notices one arm of the spectacles just above his ear.",
+          "prompt": "Give an evidence-backed reason Meera smiles before telling Papa where to look.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "visible_spectacle_clue",
+              "description": "Uses the spectacle arm above Papa's ear as evidence.",
+              "any_of": [
+                "spectacle arm is above his ear",
+                "Meera can see the glasses on his head",
+                "one arm of the spectacles is visible",
+                "spectacles are resting above his ear"
+              ]
+            },
+            {
+              "id": "mistaken_search_reason",
+              "description": "Explains that Papa is searching even though he is already wearing them.",
+              "any_of": [
+                "he is looking for glasses he is wearing",
+                "the search is unnecessary",
+                "he has forgotten they are on his head",
+                "he thinks they are missing when they are not"
+              ]
+            }
+          ],
+          "min_response_words": 11,
+        "forbidden_phrases": [
+          "Meera hid the spectacles",
+          "the spectacles are outside"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Begin by separating belief from evidence: the character believes an object is missing, but the reader can already see it.",
+        "passage": "Kabir called for help finding his library token while the token dangled from the lanyard around his neck.",
+        "prompt": "What makes Kabir's request funny?",
+        "options": [
+          "The token is already hanging around his neck.",
+          "The library has closed for the day.",
+          "His friend owns a different token.",
+          "The lanyard is a bright colour."
+        ],
+        "accepted_answers": [
+          "The token is already hanging around his neck.",
+          "the token is on the lanyard around his neck",
+          "he is wearing the token he wants to find"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Next, build the reason with because: name the unnecessary search and the action proving the object is already there.",
+        "passage": "Nandita searched the sofa for the television remote while lowering the volume with that remote in her left hand.",
+        "prompt": "Which answer best explains Nandita's mistake?",
+        "options": [
+          "Her search is unnecessary because she is already using the remote.",
+          "She should search faster because the sofa is large.",
+          "The volume is low because the remote has disappeared.",
+          "Her left hand is empty because the remote is on the sofa."
+        ],
+        "accepted_answers": [
+          "Her search is unnecessary because she is already using the remote.",
+          "she is looking for the remote while holding and using it",
+          "the remote is already in her left hand"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Now explain the humour in your own words. Use one visible clue and connect it directly to the mistaken request.",
+        "passage": "At a shop counter, Mr Roy asked the cashier to help find his wallet. The cashier could see a receipt sticking out of the wallet tucked under Mr Roy's arm.",
+        "prompt": "Explain why the cashier can point instead of starting a search.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "wallet_visible_clue",
+            "description": "Uses the visible wallet or receipt under Mr Roy's arm as evidence.",
+            "any_of": [
+              "wallet is under his arm",
+              "receipt is sticking out of the wallet",
+              "cashier can see the wallet",
+              "wallet is tucked under Mr Roy's arm"
+            ]
+          },
+          {
+            "id": "search_not_needed_reason",
+            "description": "Explains that the wallet is not actually missing, so pointing is enough.",
+            "any_of": [
+              "wallet is not actually missing",
+              "no search is needed",
+              "Mr Roy already has it",
+              "pointing shows him the overlooked wallet"
+            ]
+          }
+        ],
+        "min_response_words": 11,
+        "forbidden_phrases": [
+          "the cashier took the wallet",
+          "the wallet is somewhere outside"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Explain the misunderstanding in a fresh scene by naming the object and the action that reveals it.",
+          "passage": "Ishita searched her desk for a pencil while tapping that same pencil against her notebook as she thought.",
+          "prompt": "Explain Ishita's mistake and why the moment could make a friend smile.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "pencil_in_hand",
+              "description": "States that Ishita is holding or tapping the pencil.",
+              "any_of": [
+                "pencil is in her hand",
+                "she is tapping the pencil",
+                "she is already holding it",
+                "the same pencil is against her notebook"
+              ]
+            },
+            {
+              "id": "search_mistake",
+              "description": "Explains that she searches for an object she already has.",
+              "any_of": [
+                "searching for something she already has",
+                "does not realise she is holding it",
+                "her search is unnecessary",
+                "thinks the pencil is missing"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "the pencil is lost outside",
+            "a friend stole it"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the same reasoning to a workplace scene. State what the person overlooks and why another person need not search.",
+          "passage": "A baker asked an apprentice to find the measuring spoon while using that spoon to stir a bowl of icing.",
+          "prompt": "Why would the apprentice point to the bowl instead of beginning a search?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "spoon_in_use",
+              "description": "States that the baker is already using the measuring spoon.",
+              "any_of": [
+                "baker is using the measuring spoon",
+                "spoon is stirring the icing",
+                "measuring spoon is already in the bowl",
+                "the spoon is in the baker's hand"
+              ]
+            },
+            {
+              "id": "point_not_search",
+              "description": "Explains that pointing reveals the overlooked object, so no search is needed.",
+              "any_of": [
+                "no search is needed",
+                "pointing shows where it is",
+                "the apprentice can show the baker",
+                "it has not actually gone missing"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "the apprentice must search every shelf",
+            "the spoon is in another room"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "papas_spectacles_context_vocabulary",
+      "title": "Read search words in context",
+      "focus": "understand spectacles, glanced, and related looking words",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use surrounding actions and time clues to understand and use words connected with seeing and searching.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Spectacles are eyeglasses worn to make letters or objects easier to see.",
+          "passage": "Mr Sen put on his spectacles before reading the tiny number printed on a medicine box.",
+          "prompt": "What are spectacles in this sentence?",
+          "options": [
+            "eyeglasses",
+            "medicine boxes",
+            "printed numbers",
+            "reading lamps"
+          ],
+          "accepted_answers": [
+            "eyeglasses",
+            "glasses",
+            "a pair of glasses"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Glanced means looked quickly. A brief action after the look is often the clue.",
+          "passage": "Farah glanced at the kitchen timer and immediately returned to rolling the dough.",
+          "prompt": "What does glanced mean here?",
+          "options": [
+            "looked quickly",
+            "watched for an hour",
+            "covered completely",
+            "carried away"
+          ],
+          "accepted_answers": [
+            "looked quickly",
+            "took a quick look",
+            "looked for a moment"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Compare nearby actions to separate a quick glance from a careful peer into a difficult space.",
+          "passage": "From the doorway, Asha glanced at the clock for a second. At the cupboard, she peered into the dark top shelf until a shape became clear.",
+          "prompt": "Explain how glanced and peered describe different kinds of looking.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "glanced_quickly",
+              "description": "Explains that glanced describes a quick look at the clock.",
+              "any_of": [
+                "glanced means looked quickly",
+                "quick look at the clock",
+                "looked for only a second",
+                "briefly looked at the clock"
+              ]
+            },
+            {
+              "id": "peered_carefully",
+              "description": "Explains that peered describes looking carefully into the dark shelf.",
+              "any_of": [
+                "peered means looked carefully",
+                "looked closely into the dark shelf",
+                "tried hard to see the shape",
+                "kept looking until it became clear"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+        "forbidden_phrases": [
+          "both words mean closing the eyes",
+          "peered means ran away"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Use the difficulty clue around a looking word. When something is dim or hard to see, peered usually means looked closely and carefully.",
+        "passage": "The trail map had faded in the rain, so Rina held it near the lantern and peered at the tiny symbols.",
+        "prompt": "What does peered mean in this scene?",
+        "options": [
+          "looked closely and carefully",
+          "threw the map away",
+          "read aloud very quickly",
+          "covered the symbols with her hand"
+        ],
+        "accepted_answers": [
+          "looked closely and carefully",
+          "looked closely",
+          "tried hard to see"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Practise chapter-word usage by checking whether the word fits the action and object described in the whole sentence.",
+        "passage": "The print on a seed catalogue was tiny, so Mrs Ali reached for something that would help her see the letters clearly.",
+        "prompt": "Which complete sentence uses spectacles to finish the idea accurately?",
+        "options": [
+          "Mrs Ali put on her spectacles to read the tiny print.",
+          "Mrs Ali listened to the catalogue through her spectacles.",
+          "Mrs Ali poured her spectacles across the seed page.",
+          "Mrs Ali used her spectacles to water the seeds."
+        ],
+        "accepted_answers": [
+          "Mrs Ali put on her spectacles to read the tiny print.",
+          "she put on her spectacles to read"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Now contrast two looking words in one scene. A glance is brief; a scan moves across several details while searching for one.",
+        "passage": "At the station, Nia glanced at the departure time, then scanned the long coach list until she found C7.",
+        "prompt": "Use the context to explain how Nia's glance differs from her scan.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "departure_glance",
+            "description": "Explains that glanced is a quick look at the departure time.",
+            "any_of": [
+              "quick look at the departure time",
+              "looked briefly at the time",
+              "glanced means looked for a moment",
+              "checked the time quickly"
+            ]
+          },
+          {
+            "id": "coach_list_scan",
+            "description": "Explains that scanned means looking across the coach list to find C7.",
+            "any_of": [
+              "looked across the coach list",
+              "searched the list for C7",
+              "checked many coach numbers",
+              "scanned until she found C7"
+            ]
+          }
+        ],
+        "min_response_words": 12,
+        "forbidden_phrases": [
+          "both actions took a long time",
+          "scanned means ignored the list"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Use the action after an unfamiliar word to infer whether the look was brief or continued.",
+          "passage": "Vikram glanced at the bus number, nodded, and continued walking toward the correct stop.",
+          "prompt": "What does glanced mean, and which clue supports that meaning?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "quick_look_meaning",
+              "description": "Defines glanced as a quick or brief look.",
+              "any_of": [
+                "looked quickly",
+                "took a quick look",
+                "looked briefly",
+                "looked for a moment"
+              ]
+            },
+            {
+              "id": "continued_action_clue",
+              "description": "Uses Vikram's immediate nod or continued walking as the context clue.",
+              "any_of": [
+                "he nodded and continued walking",
+                "he kept walking right away",
+                "only needed the bus number",
+                "continued toward the stop"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "studied the number for hours",
+            "never saw the bus number"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer context reading to a new word. Use both the search pattern and the result to explain its meaning.",
+          "passage": "Leena scanned the noticeboard from top to bottom until she found her surname in the final column.",
+          "prompt": "What does scanned mean in this context, and what helped you decide?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "scanned_search_meaning",
+              "description": "Explains that scanned means looked over the board carefully to find information.",
+              "any_of": [
+                "looked over the board to find something",
+                "searched the noticeboard with her eyes",
+                "checked the board from top to bottom",
+                "looked across the whole board"
+              ]
+            },
+            {
+              "id": "surname_result_clue",
+              "description": "Uses finding the surname in the final column as the supporting clue.",
+              "any_of": [
+                "found her surname",
+                "surname was in the final column",
+                "searched until her name appeared",
+                "the result was finding her surname"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "closed the noticeboard",
+            "ignored every column"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "papas_spectacles_sequence_summary",
+      "title": "Retell the search clearly",
+      "focus": "select and order the main events in a search",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Identify a problem, the useful response, and the result, then summarize them in a sensible order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sequence words such as first, next, and then help readers track when each event happens.",
+          "passage": "First, Papa read a note. Next, he removed his spectacles to clean them. Then the doorbell rang, and he left them beside the cloth.",
+          "prompt": "What happened immediately before the doorbell rang?",
+          "options": [
+            "Papa removed his spectacles to clean them.",
+            "Papa opened the front door.",
+            "Papa found the spectacles in a case.",
+            "Papa folded the cleaning cloth."
+          ],
+          "accepted_answers": [
+            "Papa removed his spectacles to clean them.",
+            "he took off his spectacles to clean them",
+            "he removed his glasses"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A useful summary keeps the central problem and result while leaving out minor movements.",
+          "passage": "Auntie could not find the cupboard key. She retraced her steps from the pantry to the sink and found it beside the soap dish.",
+          "prompt": "Which sentence best summarizes the event?",
+          "options": [
+            "Auntie retraced her steps and found the missing key beside the sink.",
+            "The pantry and sink were in different rooms.",
+            "Auntie washed every dish before opening the cupboard.",
+            "The soap dish was a gift from a neighbour."
+          ],
+          "accepted_answers": [
+            "Auntie retraced her steps and found the missing key beside the sink.",
+            "auntie retraced her steps and found the key"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A complete one-sentence summary joins the problem, the most useful action, and the result in story order.",
+          "passage": "The family checked shelves and cushions for Papa's spectacles. Tara retraced his steps, noticed the cleaning cloth near the radio, and found the spectacles tucked beneath it.",
+          "prompt": "Summarize the search in one sentence using the problem, Tara's useful action, and the result.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "missing_spectacles_problem",
+              "description": "Identifies the search for Papa's missing spectacles.",
+              "any_of": [
+                "family searched for Papa's spectacles",
+                "Papa's glasses were missing",
+                "they could not find the spectacles",
+                "everyone looked for his glasses"
+              ]
+            },
+            {
+              "id": "tara_retraces_clue",
+              "description": "States that Tara retraced Papa's steps or noticed the cleaning cloth.",
+              "any_of": [
+                "Tara retraced his steps",
+                "Tara noticed the cleaning cloth",
+                "she followed where Papa had been",
+                "she checked near the radio cloth"
+              ]
+            },
+            {
+              "id": "spectacles_found_result",
+              "description": "Ends with the spectacles being found under the cloth.",
+              "any_of": [
+                "found the spectacles under the cloth",
+                "glasses were beneath the cloth",
+                "she discovered them near the radio",
+                "the search ended under the cleaning cloth"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "ordered_concept_slot_ids": [
+            "missing_spectacles_problem",
+            "tara_retraces_clue",
+            "spectacles_found_result"
+          ],
+        "forbidden_phrases": [
+          "Tara hid the spectacles",
+          "the family never found them"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Rebuild the event order before summarising. Time words help you identify what happened just before or after another action.",
+        "passage": "First, Lata packed her paintbrushes. Next, she moved her apron from a chair to the wall hook. Then the art bell rang, and everyone left the room.",
+        "prompt": "What did Lata do immediately before the art bell rang?",
+        "options": [
+          "She moved her apron to the wall hook.",
+          "She left the room before packing.",
+          "She washed every paintbrush.",
+          "She took the apron home."
+        ],
+        "accepted_answers": [
+          "She moved her apron to the wall hook.",
+          "moved her apron to the wall hook",
+          "put the apron on the hook"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Next, choose a main-idea sentence that keeps the missing item, the useful retrace, and the discovery while dropping side details.",
+        "passage": "Adil could not find his signed permission slip. He remembered showing it to the coach at lunch, returned to the field office, and found that the coach had clipped it inside the team folder.",
+        "prompt": "Which sentence is the clearest summary of Adil's search?",
+        "options": [
+          "Adil retraced the permission slip to the field office and found it clipped in the team folder.",
+          "Adil ate lunch before visiting a field near school.",
+          "The coach owns a folder with a strong metal clip.",
+          "A permission slip needs a signature before a trip."
+        ],
+        "accepted_answers": [
+          "Adil retraced the permission slip to the field office and found it clipped in the team folder.",
+          "Adil went back to the field office and found the slip in the team folder"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Now draft one supported summary. Put the problem first, the useful retracing action second, and the result last.",
+        "passage": "The school announcer misplaced her cue card before the afternoon broadcast. She retraced her route to the library, noticed its blue clip near the return desk, and found the card beneath an atlas. She brought it back before the microphone switched on.",
+        "prompt": "Write one ordered sentence summarising the problem, the useful action, and the result.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "cue_card_problem",
+            "description": "States that the announcer's cue card was missing before the broadcast.",
+            "any_of": [
+              "announcer misplaced her cue card",
+              "cue card was missing before the broadcast",
+              "she could not find the cue card",
+              "the broadcast card was lost"
+            ]
+          },
+          {
+            "id": "library_retrace_action",
+            "description": "States that she retraced her route to the library or followed the blue-clip clue.",
+            "any_of": [
+              "retraced her route to the library",
+              "noticed the blue clip near the return desk",
+              "went back to the library",
+              "followed the blue clip clue"
+            ]
+          },
+          {
+            "id": "atlas_broadcast_result",
+            "description": "Ends with finding the card beneath the atlas and returning before the broadcast.",
+            "any_of": [
+              "found it beneath an atlas",
+              "brought it back before the broadcast",
+              "recovered the card before the microphone switched on",
+              "the card was under the atlas"
+            ]
+          }
+        ],
+        "min_response_words": 15,
+        "ordered_concept_slot_ids": [
+          "cue_card_problem",
+          "library_retrace_action",
+          "atlas_broadcast_result"
+        ],
+        "forbidden_phrases": [
+          "the card was never found",
+          "the announcer cancelled the broadcast"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Select only the turning points from the new event and keep them in the order they happened.",
+          "passage": "Aman missed his sketchbook at art time. He remembered using it in the courtyard, returned to the stone bench, and found it beneath a folded newspaper.",
+          "prompt": "Write a one-sentence summary of Aman's problem, action, and result.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "sketchbook_problem",
+              "description": "States that Aman could not find or missed his sketchbook.",
+              "any_of": [
+                "Aman could not find his sketchbook",
+                "Aman's sketchbook was missing",
+                "he missed his sketchbook at art time",
+                "Aman searched for the sketchbook"
+              ]
+            },
+            {
+              "id": "courtyard_action",
+              "description": "States that he remembered the courtyard and returned to the bench.",
+              "any_of": [
+                "remembered using it in the courtyard",
+                "returned to the stone bench",
+                "retraced his steps to the courtyard",
+                "went back to the bench"
+              ]
+            },
+            {
+              "id": "newspaper_result",
+              "description": "Ends with finding the sketchbook under the newspaper.",
+              "any_of": [
+                "found it beneath the newspaper",
+                "sketchbook was under a folded newspaper",
+                "discovered it on the bench",
+                "found the missing book"
+              ]
+            }
+          ],
+          "min_response_words": 13,
+          "ordered_concept_slot_ids": [
+            "sketchbook_problem",
+            "courtyard_action",
+            "newspaper_result"
+          ],
+          "forbidden_phrases": [
+            "someone stole the sketchbook",
+            "he found it in the classroom"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer problem-action-result summarizing to a non-search event and keep only the details that change the outcome.",
+          "passage": "A science group's bulb would not glow. The students checked the battery, followed each wire, found a loose clip, and reconnected it. The bulb lit at once.",
+          "prompt": "Summarize how the group solved the problem in one ordered sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bulb_problem",
+              "description": "Identifies that the bulb would not glow.",
+              "any_of": [
+                "bulb would not glow",
+                "bulb did not light",
+                "circuit was not working",
+                "group had an unlit bulb"
+              ]
+            },
+            {
+              "id": "wire_check_action",
+              "description": "States that the group checked the circuit and reconnected the loose clip.",
+              "any_of": [
+                "checked the battery and wires",
+                "found and reconnected a loose clip",
+                "followed the wires to the loose clip",
+                "fixed the loose connection"
+              ]
+            },
+            {
+              "id": "bulb_lit_result",
+              "description": "Ends with the bulb lighting.",
+              "any_of": [
+                "bulb lit",
+                "light came on",
+                "circuit worked",
+                "bulb glowed after the repair"
+              ]
+            }
+          ],
+          "min_response_words": 13,
+          "ordered_concept_slot_ids": [
+            "bulb_problem",
+            "wire_check_action",
+            "bulb_lit_result"
+          ],
+          "forbidden_phrases": [
+            "they replaced every part",
+            "the bulb stayed dark"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "papas_spectacles_precise_grammar",
+      "title": "Build precise search sentences",
+      "focus": "use naming, describing, action, pair, and location words",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Recognize useful word jobs and combine them into complete sentences about objects and locations.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A verb tells what someone or something does. In a complete sentence, find the action word first.",
+          "passage": "The curious child lifted the dusty cushion.",
+          "prompt": "Which word names the action?",
+          "options": [
+            "lifted",
+            "curious",
+            "child",
+            "dusty"
+          ],
+          "accepted_answers": [
+            "lifted"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Some nouns name objects with two matching parts. Use a pair of before spectacles, shoes, socks, or scissors.",
+          "passage": "Papa bought a new pair of ___ for reading fine print.",
+          "prompt": "Which noun completes the sentence?",
+          "options": [
+            "spectacles",
+            "ink",
+            "paper",
+            "sunlight"
+          ],
+          "accepted_answers": [
+            "spectacles",
+            "glasses"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A precise complete sentence can include a naming word, a describing word, an action, and a location phrase.",
+          "passage": "Sentence facts: object - spectacles; describing word - silver; action - rested; place - beside the lamp.",
+          "prompt": "Turn all four facts into one complete sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "silver_spectacles_subject",
+              "description": "Uses silver to describe the spectacles.",
+              "any_of": [
+                "silver spectacles",
+                "spectacles were silver",
+                "silver pair of spectacles",
+                "silver glasses"
+              ]
+            },
+            {
+              "id": "rested_action",
+              "description": "Uses rested as the action or state.",
+              "any_of": [
+                "rested",
+                "were resting",
+                "lay",
+                "were placed"
+              ]
+            },
+            {
+              "id": "lamp_location",
+              "description": "Places the spectacles beside the lamp.",
+              "any_of": [
+                "beside the lamp",
+                "next to the lamp",
+                "by the lamp",
+                "near the lamp"
+              ]
+            }
+          ],
+          "min_response_words": 7,
+        "forbidden_phrases": [
+          "under the lamp",
+          "spectacles ran"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Start with one word job. An adjective describes a noun by telling what kind, which one, or how it looks or feels.",
+        "passage": "The alert nurse carried the heavy box.",
+        "prompt": "Which word is the adjective describing the box?",
+        "options": [
+          "heavy",
+          "carried",
+          "nurse",
+          "the"
+        ],
+        "accepted_answers": [
+          "heavy"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Next, check that a sentence includes the object, its description, the action, and an exact place without changing the facts.",
+        "passage": "Facts: object - compass; describing word - small; action - slipped; place - beneath the open notebook.",
+        "prompt": "Which option turns all four facts into a complete sentence?",
+        "options": [
+          "The small compass slipped beneath the open notebook.",
+          "The open compass notebook small beneath.",
+          "The compass was small, but no action or place is given.",
+          "Beneath the compass, the notebook slipped outside."
+        ],
+        "accepted_answers": [
+          "The small compass slipped beneath the open notebook.",
+          "the small compass slipped beneath the open notebook"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Now build the sentence yourself. Use the describing noun phrase first, follow it with the action, and finish with the location.",
+        "passage": "Sentence facts: careful librarian; placed; torn map; inside a clear folder.",
+        "prompt": "Combine every fact into one precise complete sentence.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "careful_librarian_subject",
+            "description": "Uses careful to describe the librarian.",
+            "any_of": [
+              "careful librarian",
+              "the careful librarian",
+              "a careful librarian"
+            ]
+          },
+          {
+            "id": "placed_torn_map",
+            "description": "States that the librarian placed the torn map.",
+            "any_of": [
+              "placed the torn map",
+              "put the torn map",
+              "set the torn map"
+            ]
+          },
+          {
+            "id": "clear_folder_location",
+            "description": "Places the map inside a clear folder.",
+            "any_of": [
+              "inside a clear folder",
+              "in the clear folder",
+              "inside the clear folder"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "outside the folder",
+          "the map placed the librarian"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Write a complete sentence from new facts. Include who acted, what was moved, and the location phrase.",
+          "passage": "A careful mechanic placed a pair of gloves beneath a wooden stool.",
+          "prompt": "Rewrite the detail as one complete sentence naming the person, action, object, and place.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "mechanic_subject",
+              "description": "Names the careful mechanic as the person.",
+              "any_of": [
+                "careful mechanic",
+                "the mechanic",
+                "a mechanic"
+              ]
+            },
+            {
+              "id": "placed_gloves_action",
+              "description": "States that the mechanic placed the pair of gloves.",
+              "any_of": [
+                "placed a pair of gloves",
+                "put the gloves",
+                "set the gloves",
+                "left a pair of gloves"
+              ]
+            },
+            {
+              "id": "stool_location",
+              "description": "Places the gloves beneath the wooden stool.",
+              "any_of": [
+                "beneath the wooden stool",
+                "under the wooden stool",
+                "below the stool",
+                "under a wooden stool"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": [
+            "above the stool",
+            "mechanic lost the stool"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer complete-sentence building to a different object. Use the given adjective and an accurate location phrase.",
+          "passage": "On the craft table, a bright ribbon lay inside a shallow box.",
+          "prompt": "Write one complete sentence that describes the ribbon and tells exactly where it was.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bright_ribbon_description",
+              "description": "Uses bright to describe the ribbon.",
+              "any_of": [
+                "bright ribbon",
+                "ribbon was bright",
+                "a bright piece of ribbon"
+              ]
+            },
+            {
+              "id": "inside_box_location",
+              "description": "Places the ribbon inside the shallow box.",
+              "any_of": [
+                "inside a shallow box",
+                "inside the shallow box",
+                "lay in a shallow box",
+                "was in the box"
+              ]
+            }
+          ],
+          "min_response_words": 7,
+          "forbidden_phrases": [
+            "under the craft table",
+            "the ribbon jumped"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "papas_spectacles_lost_found_writing",
+      "title": "Write a useful lost-and-found note",
+      "focus": "summarize evidence in clear complete sentences",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer",
+        "writing.summary_own_words",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Write a concise lost-and-found message that identifies the object, its location, the next action, and the reason for that action.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A useful notice tells what was found, gives an identifying detail, and states where the owner can ask for it.",
+          "passage": "A blue spectacle case marked PK was found near the music room after lunch.",
+          "prompt": "Which complete notice would help the owner most?",
+          "options": [
+            "A blue spectacle case marked PK was found near the music room; ask at the school office.",
+            "Something blue was somewhere in school.",
+            "Lunch ended before the music class began.",
+            "The music room has several empty chairs."
+          ],
+          "accepted_answers": [
+            "A blue spectacle case marked PK was found near the music room; ask at the school office.",
+            "a blue spectacle case marked PK was found near the music room and is at the office"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Choose details that help the correct owner identify the object; colour, name, mark, and location are stronger than unrelated facts.",
+          "passage": "Mili found a water bottle by the stairs. It has a green lid and the name Arif. She took it to the office.",
+          "prompt": "Which sentence gives the most useful identifying detail?",
+          "options": [
+            "The bottle has a green lid and the name Arif.",
+            "The stairs have twelve steps.",
+            "Mili drank water before class.",
+            "The office door was open."
+          ],
+          "accepted_answers": [
+            "The bottle has a green lid and the name Arif.",
+            "green lid and the name Arif"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A strong two-sentence note summarizes the find, then explains the safe next action without adding invented details.",
+          "passage": "After art club, Veer found a red pencil pouch under the back table. A card inside said Naina. He gave the pouch to the teacher so it would remain safe.",
+          "prompt": "Write a two-sentence notice that summarizes the find and explains Veer's action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "pouch_find_details",
+              "description": "Names the red pencil pouch and where it was found.",
+              "any_of": [
+                "red pencil pouch under the back table",
+                "pouch was found beneath the back table",
+                "Veer found a red pouch after art club",
+                "found the pencil pouch under a table"
+              ]
+            },
+            {
+              "id": "naina_owner_clue",
+              "description": "Includes Naina's name as the owner clue.",
+              "any_of": [
+                "card said Naina",
+                "Naina's name was inside",
+                "marked with Naina's name",
+                "may belong to Naina"
+              ]
+            },
+            {
+              "id": "teacher_safety_reason",
+              "description": "States that Veer gave it to the teacher to keep it safe or return it.",
+              "any_of": [
+                "gave it to the teacher for safety",
+                "teacher will keep it safe",
+                "handed it to the teacher so Naina can collect it",
+                "teacher can return it to the owner"
+              ]
+            }
+          ],
+          "min_response_words": 18,
+        "forbidden_phrases": [
+          "Veer kept the pouch",
+          "the pouch had no clue"
+        ]
+      },
+      "revision_level_1": {
+        "teaching_block": "Begin with identification. Keep the details that distinguish the object, such as colour, pattern, initials, or a name.",
+        "passage": "An orange scarf with a zigzag border and the initials LS was found outside the dance room.",
+        "prompt": "Which detail would help the owner identify this scarf most reliably?",
+        "options": [
+          "It has a zigzag border and the initials LS.",
+          "It was found on a school day.",
+          "The dance room has a wide door.",
+          "Someone walked through the corridor."
+        ],
+        "accepted_answers": [
+          "It has a zigzag border and the initials LS.",
+          "zigzag border and the initials LS",
+          "the initials LS"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_2": {
+        "teaching_block": "Next, pair a safe action with its reason. The notice should direct the owner to a trusted collection point.",
+        "passage": "Kunal found a table-tennis bat marked 5A near the practice court. The sports office keeps equipment that pupils misplace.",
+        "prompt": "Which sentence gives the safest useful next action and reason?",
+        "options": [
+          "Take the bat to the sports office so its owner can claim it.",
+          "Leave the bat at the court so rain can wash it.",
+          "Use the bat until someone notices it is missing.",
+          "Hide the 5A mark before asking the class."
+        ],
+        "accepted_answers": [
+          "Take the bat to the sports office so its owner can claim it.",
+          "take it to the sports office for the owner",
+          "the sports office can keep it for collection"
+        ],
+        "response_mode": "short"
+      },
+      "revision_level_3": {
+        "teaching_block": "Now practise the full note with a scaffold: sentence one identifies the find; sentence two gives the safe action and why it helps.",
+        "passage": "After computer club, Imran found a blue USB pouch marked M. Kaur under the third desk. He gave it to the lab assistant because small digital items are kept in a locked drawer until collection.",
+        "prompt": "Write a concise two-sentence lost-and-found note using only these facts.",
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "usb_pouch_identity",
+            "description": "Names the blue USB pouch and its M. Kaur mark.",
+            "any_of": [
+              "blue USB pouch marked M. Kaur",
+              "M. Kaur's blue USB pouch",
+              "marked blue USB pouch",
+              "blue pouch with M. Kaur on it"
+            ]
+          },
+          {
+            "id": "third_desk_location",
+            "description": "States that the pouch was found under the third desk.",
+            "any_of": [
+              "under the third desk",
+              "beneath desk three",
+              "found under the third desk",
+              "below the third desk"
+            ]
+          },
+          {
+            "id": "lab_assistant_action",
+            "description": "States that Imran gave the pouch to the lab assistant for collection.",
+            "any_of": [
+              "gave it to the lab assistant",
+              "collect it from the lab assistant",
+              "left the pouch with the lab assistant",
+              "lab assistant is keeping it"
+            ]
+          },
+          {
+            "id": "locked_storage_reason",
+            "description": "Explains that the assistant can keep the small digital item secure until its owner collects it.",
+            "any_of": [
+              "kept in a locked drawer",
+              "so the digital item stays safe",
+              "until the owner collects it",
+              "secure storage prevents it being lost again"
+            ]
+          }
+        ],
+        "min_response_words": 19,
+        "ordered_concept_slot_ids": [
+          "usb_pouch_identity",
+          "third_desk_location",
+          "lab_assistant_action",
+          "locked_storage_reason"
+        ],
+        "forbidden_phrases": [
+          "Imran kept the USB pouch",
+          "the pouch was found near the gate"
+        ]
+      },
+      "independent_check": {
+          "teaching_block": "Use only the fresh facts to write a concise report with the object, location, action, and reason.",
+          "passage": "After the second bell, Zoya found a lunch card marked 5B near the science lab. She handed it to reception because pupils visit that desk for lost items.",
+          "prompt": "Write a two-sentence lost-and-found report explaining what Zoya found and why she took it to reception.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "lunch_card_details",
+              "description": "Names the 5B lunch card and the science-lab location.",
+              "any_of": [
+                "lunch card marked 5B near the science lab",
+                "5B card was found by the science lab",
+                "Zoya found a lunch card after the second bell",
+                "found the marked card near the lab"
+              ]
+            },
+            {
+              "id": "reception_action",
+              "description": "States that Zoya handed the card to reception.",
+              "any_of": [
+                "handed it to reception",
+                "took the card to reception",
+                "left it at the reception desk",
+                "gave reception the card"
+              ]
+            },
+            {
+              "id": "collection_reason",
+              "description": "Explains that reception is where pupils collect or ask about lost items.",
+              "any_of": [
+                "pupils collect lost items there",
+                "owner can ask for it at reception",
+                "reception handles lost things",
+                "so it can be returned safely"
+              ]
+            }
+          ],
+          "min_response_words": 17,
+          "forbidden_phrases": [
+            "Zoya used the card",
+            "the card was found in the canteen"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the same writing structure to a sports setting. Keep the message factual, complete, and useful to the owner.",
+          "passage": "After a football match, Coach Iqbal saw a steel bottle marked R. Sen beside the goalpost. He left it at the sports desk so the owner could claim it.",
+          "prompt": "Write a concise two-sentence message with the identifying clue, location, and collection information.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "bottle_identity_location",
+              "description": "Names the steel bottle, R. Sen mark, and goalpost location.",
+              "any_of": [
+                "steel bottle marked R. Sen beside the goalpost",
+                "R. Sen's bottle was found near the goalpost",
+                "bottle with R. Sen on it after the match",
+                "marked steel bottle by the goalpost"
+              ]
+            },
+            {
+              "id": "sports_desk_collection",
+              "description": "States that the bottle can be collected from the sports desk.",
+              "any_of": [
+                "collect it from the sports desk",
+                "left at the sports desk",
+                "owner can claim it at the sports desk",
+                "sports desk is keeping it"
+              ]
+            }
+          ],
+          "min_response_words": 15,
+          "forbidden_phrases": [
+            "coach took the bottle home",
+            "the bottle was found in a classroom"
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 3,
+    "items": [
+      {
+        "item_id": "eng_c5_ch01_assess_01",
+        "passage": "Before making tea, Grandfather placed his reading glasses on the windowsill beside a basil pot. When the kettle whistled, he went to the kitchen.",
+        "prompt": "Where did Grandfather leave his glasses?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "on the windowsill beside a basil pot",
+          "inside the kitchen cupboard",
+          "under the tea tray",
+          "beside the kettle"
+        ],
+        "accepted_answers": [
+          "on the windowsill beside a basil pot",
+          "on the windowsill",
+          "beside the basil pot"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_02",
+        "passage": "Nisha tucked her bus pass into the front pocket of a yellow folder before joining the queue.",
+        "prompt": "Where is Nisha's bus pass?",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "folder pocket",
+          "yellow folder pocket",
+          "front pocket"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_03",
+        "passage": "Omar remembered bending beside the shoe rack to tie a lace while holding the storeroom key. He returned there when the key went missing.",
+        "prompt": "Why is the shoe rack a sensible place to check?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "It was the last place where Omar remembered holding the key.",
+          "Every storeroom key is kept inside a shoe.",
+          "The shoe rack had recently been painted.",
+          "Omar wanted to change his laces."
+        ],
+        "accepted_answers": [
+          "It was the last place where Omar remembered holding the key.",
+          "he last held the key near the shoe rack",
+          "he remembered holding it there"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_04",
+        "passage": "Mira saw her uncle pat every pocket for a pen. The pen was resting behind his ear.",
+        "prompt": "Explain why Mira can help without searching the pockets again.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "pen_visible_clue",
+            "description": "States that the pen is visible behind the uncle's ear.",
+            "any_of": [
+              "pen is behind his ear",
+              "Mira can see the pen",
+              "the pen is already on him",
+              "it is resting behind his ear"
+            ]
+          },
+          {
+            "id": "no_pocket_search_reason",
+            "description": "Explains that Mira can point it out because the pen is not in a pocket or truly lost.",
+            "any_of": [
+              "she can point to it",
+              "no need to search the pockets",
+              "the pen is not actually lost",
+              "she already knows its location"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "the pen is inside a pocket",
+          "Mira should hide the pen"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_05",
+        "passage": "Kavya glanced at the scoreboard and then returned her attention to the race.",
+        "prompt": "What does glanced mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "looked quickly",
+          "stared until evening",
+          "erased the numbers",
+          "turned the board around"
+        ],
+        "accepted_answers": [
+          "looked quickly",
+          "took a quick look",
+          "looked briefly"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_06",
+        "passage": "The optician adjusted the frame so both lenses sat comfortably in front of Ali's eyes.",
+        "prompt": "What does frame mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "spectacle holder",
+          "lens holder",
+          "glasses frame"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_07",
+        "passage": "Choose the sentence that uses the word spectacles correctly.",
+        "prompt": "Which sentence shows the correct meaning of spectacles?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Ravi cleaned his spectacles before reading the map.",
+          "The gardener watered the spectacles in a row.",
+          "Meena ate two spectacles with lunch.",
+          "The spectacles barked at the visitor."
+        ],
+        "accepted_answers": [
+          "Ravi cleaned his spectacles before reading the map."
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_08",
+        "passage": "The bell was about to ring, so Rehan looked at the classroom clock for only a moment.",
+        "prompt": "Use glanced in one complete sentence to describe Rehan's action.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "glanced_word_used",
+            "description": "Uses glanced as the action word.",
+            "any_of": [
+              "Rehan glanced",
+              "he glanced",
+              "glanced at"
+            ]
+          },
+          {
+            "id": "clock_target",
+            "description": "States that the quick look was directed at the clock.",
+            "any_of": [
+              "at the classroom clock",
+              "at the clock",
+              "toward the clock",
+              "checked the clock"
+            ]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": [
+          "stared all day",
+          "never looked"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_09",
+        "passage": "Lalita could not find her music notebook. She remembered practising on the veranda, returned there, and found the notebook beneath the harmonium cover.",
+        "prompt": "Which sentence gives the main idea?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Lalita retraced her practice steps and found her missing notebook.",
+          "The veranda has enough space for a harmonium.",
+          "Music notebooks usually have lined pages.",
+          "Lalita practises every song twice."
+        ],
+        "accepted_answers": [
+          "Lalita retraced her practice steps and found her missing notebook.",
+          "she retraced her steps and found the notebook"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_10",
+        "passage": "A caretaker found a closed umbrella in the reading corner after school. He checked its handle, saw the label 5C, and placed it in that class's collection box.",
+        "prompt": "Summarize the problem, useful clue, and result in one sentence.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "umbrella_found",
+            "description": "States that an umbrella was found after school.",
+            "any_of": [
+              "caretaker found an umbrella",
+              "umbrella was left in the reading corner",
+              "found a closed umbrella after school",
+              "a missing umbrella was discovered"
+            ]
+          },
+          {
+            "id": "label_clue",
+            "description": "Uses the 5C label as the useful clue.",
+            "any_of": [
+              "handle was labelled 5C",
+              "saw the 5C label",
+              "label showed class 5C",
+              "5C was written on it"
+            ]
+          },
+          {
+            "id": "collection_box_result",
+            "description": "Ends with the umbrella being placed in 5C's collection box.",
+            "any_of": [
+              "placed it in 5C's collection box",
+              "took it to the class box",
+              "left it for class 5C",
+              "put it where the owner could collect it"
+            ]
+          }
+        ],
+        "min_response_words": 14,
+        "ordered_concept_slot_ids": [
+          "umbrella_found",
+          "label_clue",
+          "collection_box_result"
+        ],
+        "forbidden_phrases": [
+          "the caretaker kept the umbrella",
+          "there was no label"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_11",
+        "passage": "Tara wrote her father's initials on his spectacle case because three relatives owned similar black cases.",
+        "prompt": "Why were the initials useful?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [
+          "They helped the family identify the correct case.",
+          "They made every case the same colour.",
+          "They repaired a broken spectacle lens.",
+          "They showed when the relatives arrived."
+        ],
+        "accepted_answers": [
+          "They helped the family identify the correct case.",
+          "the initials showed which case was his",
+          "they could tell the cases apart"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_12",
+        "passage": "Aarav found a library card near the gate and gave it to the librarian instead of putting it in his bag.",
+        "prompt": "Why was Aarav's choice responsible?",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "returned_to_librarian",
+            "description": "States that Aarav gave the card to the librarian.",
+            "any_of": [
+              "gave it to the librarian",
+              "returned the card to the library",
+              "handed it to a responsible adult",
+              "did not keep the card"
+            ]
+          },
+          {
+            "id": "owner_return_reason",
+            "description": "Explains that the librarian can keep it safe or return it to its owner.",
+            "any_of": [
+              "owner can get it back",
+              "librarian can return it",
+              "card will stay safe",
+              "helps the correct person collect it"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "Aarav should use the card",
+          "the owner cannot get it back"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_13",
+        "passage": "The patient clerk opened the locked cupboard.",
+        "prompt": "Which word is an adjective describing the clerk?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "patient",
+          "opened",
+          "clerk",
+          "cupboard"
+        ],
+        "accepted_answers": [
+          "patient"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_14",
+        "passage": "The puppy nudged the round basket.",
+        "prompt": "Write the verb that tells what the puppy did.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "nudged"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_15",
+        "passage": "The keys are ___ the clay bowl.",
+        "prompt": "Which word completes the location sentence?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "inside",
+          "cheerful",
+          "polish",
+          "quickly"
+        ],
+        "accepted_answers": [
+          "inside"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_16",
+        "passage": "Facts: a young cyclist; parked; red bicycle; beside the neem tree.",
+        "prompt": "Write one complete sentence using all four facts.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "young_cyclist_subject",
+            "description": "Names the young cyclist.",
+            "any_of": [
+              "young cyclist",
+              "the cyclist was young",
+              "a young rider"
+            ]
+          },
+          {
+            "id": "parked_red_bicycle",
+            "description": "States that the cyclist parked a red bicycle.",
+            "any_of": [
+              "parked a red bicycle",
+              "parked the red bicycle",
+              "left a red bike",
+              "red bicycle was parked"
+            ]
+          },
+          {
+            "id": "neem_tree_location",
+            "description": "Places the bicycle beside the neem tree.",
+            "any_of": [
+              "beside the neem tree",
+              "next to the neem tree",
+              "by the neem tree",
+              "near the neem tree"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "under the bicycle",
+          "the tree parked"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_17",
+        "passage": "The tailor used a pair of ___ to trim the cloth.",
+        "prompt": "Write the noun that completes the pair phrase.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "scissors",
+          "shears"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_18",
+        "passage": "Rain began during the exhibition. The children gathered their charts, covered the clay models, carried everything indoors, and continued the display in the hall.",
+        "prompt": "Summarize how the children protected the exhibition and continued it.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "rain_problem",
+            "description": "Identifies rain as the problem for the exhibition.",
+            "any_of": [
+              "rain began",
+              "rain threatened the exhibition",
+              "display needed protection from rain",
+              "it started raining"
+            ]
+          },
+          {
+            "id": "protected_materials",
+            "description": "States that the children gathered charts and covered the models.",
+            "any_of": [
+              "gathered the charts and covered the models",
+              "protected charts and clay models",
+              "covered the models",
+              "collected the display materials"
+            ]
+          },
+          {
+            "id": "indoor_continuation",
+            "description": "Ends with the exhibition continuing indoors in the hall.",
+            "any_of": [
+              "continued the display in the hall",
+              "moved everything indoors",
+              "exhibition continued inside",
+              "carried the display to the hall"
+            ]
+          }
+        ],
+        "min_response_words": 14,
+        "ordered_concept_slot_ids": [
+          "rain_problem",
+          "protected_materials",
+          "indoor_continuation"
+        ],
+        "forbidden_phrases": [
+          "left the models in the rain",
+          "cancelled the exhibition"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_19",
+        "passage": "Sahil used a compass to draw a circle on a map, set the compass beside the map, and later searched the drawer for it.",
+        "prompt": "Which place should Sahil check first?",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "reading.inference_reason"
+        ],
+        "options": [
+          "beside the map",
+          "inside the drawer",
+          "under the chair",
+          "near the door"
+        ],
+        "accepted_answers": [
+          "beside the map",
+          "next to the map"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_20",
+        "passage": "Juhi found a hearing-aid case near the assembly stage. She placed it in a labelled envelope at the office so the small case would not be mixed with other items.",
+        "prompt": "Explain why Juhi used a labelled envelope.",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "case_identified",
+            "description": "Explains that the label identifies the hearing-aid case.",
+            "any_of": [
+              "label identifies the case",
+              "shows what is inside",
+              "keeps the hearing-aid case clearly marked",
+              "owner can recognise the item"
+            ]
+          },
+          {
+            "id": "prevents_mixup",
+            "description": "Explains that the envelope keeps the small case safe or separate from other items.",
+            "any_of": [
+              "would not be mixed with other items",
+              "keeps it separate",
+              "stops the small case getting lost again",
+              "keeps it safe at the office"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "Juhi wanted to hide it",
+          "the label removes the hearing aid"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_21",
+        "passage": "Renu could not find her recipe notebook after preparing snacks. She remembered carrying it to the balcony, followed a trail of flour marks, and found it under a seed tray. She brushed it clean and returned it to the kitchen shelf.",
+        "prompt": "In 25 to 45 words, summarize Renu's problem, the evidence-based action she took, and the result without inventing details.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must contain 25 to 45 words, state the missing-notebook problem, use the balcony or flour clue, and report the discovery and return without adding unsupported events.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "summary_word_range",
+            "description": "Contains 25 to 45 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "summary_problem",
+            "description": "States that Renu could not find her recipe notebook.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "summary_evidence_action",
+            "description": "Explains that she used the balcony memory or flour trail to guide her search.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "summary_result",
+            "description": "States that she found the notebook under the seed tray and returned it to the kitchen shelf.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "summary_source_accuracy",
+            "description": "Uses original wording and does not add unsupported people, places, or outcomes.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_22",
+        "passage": "After assembly, Ishan found a black spectacle case marked D. Mehta below the last auditorium row. He handed it to reception for safe collection.",
+        "prompt": "Write a 35 to 60 word lost-and-found notice. Include the object, identifying mark, time or location, and where the owner can collect it. Use complete sentences.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must be a 35 to 60 word English lost-and-found notice using complete sentences and only the supplied spectacle-case details.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "notice_word_range",
+            "description": "Contains 35 to 60 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "notice_object_mark",
+            "description": "Identifies a black spectacle case marked D. Mehta.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "notice_find_context",
+            "description": "States that it was found after assembly below the last auditorium row.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "notice_collection_place",
+            "description": "Directs the owner to collect the case from reception.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "notice_sentence_quality",
+            "description": "Uses clear complete sentences and does not invent ownership proof or a different location.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_23",
+        "passage": "Saira peered through the narrow gap because the cupboard was dark and the label was hard to read.",
+        "prompt": "What does peered mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context",
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "looked carefully",
+          "looked closely",
+          "tried to see"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_24",
+        "passage": "The school gardener could not find his pruning gloves. Anu remembered seeing them beside the rose-bed sign before the rain. She checked the nearby shed and found the gloves drying on a hook, where another worker had moved them to keep them dry.",
+        "prompt": "In two sentences, summarize Anu's useful clue, the discovery, and why the gloves had been moved.",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "writing.reason_answer",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "rose_bed_clue",
+            "description": "Uses Anu's memory of the gloves beside the rose-bed sign.",
+            "any_of": [
+              "remembered them beside the rose-bed sign",
+              "last saw the gloves near the roses",
+              "used the rose-bed sign as a clue",
+              "Anu recalled where the gloves had been"
+            ]
+          },
+          {
+            "id": "shed_hook_discovery",
+            "description": "States that she found the gloves drying on a hook in the nearby shed.",
+            "any_of": [
+              "found them on a hook in the shed",
+              "gloves were drying in the nearby shed",
+              "discovered the gloves hanging on a hook",
+              "checked the shed and found them"
+            ]
+          },
+          {
+            "id": "rain_protection_reason",
+            "description": "Explains that another worker moved the gloves to keep them dry from the rain.",
+            "any_of": [
+              "moved them to keep them dry",
+              "protected the gloves from rain",
+              "another worker put them under cover",
+              "they were moved because rain was coming"
+            ]
+          }
+        ],
+        "min_response_words": 18,
+        "ordered_concept_slot_ids": [
+          "rose_bed_clue",
+          "shed_hook_discovery",
+          "rain_protection_reason"
+        ],
+        "forbidden_phrases": [
+          "Anu hid the gloves",
+          "the gloves were never found"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_25",
+        "passage": "During chess club, Noor copied a move into her scorebook, then slid her pencil beneath the chessboard so it would not roll. When the round ended, she checked her blazer pocket.",
+        "prompt": "Where should Noor look first for the pencil?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "beneath the chessboard",
+          "inside her blazer pocket",
+          "behind the club cupboard",
+          "under the scorekeeper's chair"
+        ],
+        "accepted_answers": [
+          "beneath the chessboard",
+          "under the chessboard"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_26",
+        "passage": "While checking a dark cupboard, Arjun asked his sister to find the torch. Its beam was already shining from the torch in his right hand.",
+        "prompt": "Explain why Arjun's sister can point to his hand instead of beginning a search.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "torch_in_hand_evidence",
+            "description": "States that Arjun is already holding the lit torch in his right hand.",
+            "any_of": [
+              "torch is in his right hand",
+              "he is already holding the torch",
+              "the beam is shining from his hand",
+              "the lit torch is in his hand"
+            ]
+          },
+          {
+            "id": "search_unnecessary_inference",
+            "description": "Explains that the torch is not missing, so pointing resolves the mistake.",
+            "any_of": [
+              "the torch is not missing",
+              "no search is needed",
+              "he already has what he wants to find",
+              "pointing will show his mistake"
+            ]
+          }
+        ],
+        "min_response_words": 11,
+        "forbidden_phrases": [
+          "his sister hid the torch",
+          "the torch is in another cupboard"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_27",
+        "passage": "Before choosing a costume, Salma scanned the rack from one end to the other until she spotted a silver cape.",
+        "prompt": "What does scanned mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "looked across the rack to find something",
+          "closed her eyes beside the rack",
+          "carried every costume away",
+          "stared only at one button"
+        ],
+        "accepted_answers": [
+          "looked across the rack to find something",
+          "searched the rack with her eyes",
+          "looked over the rack"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_28",
+        "passage": "The lift doors were about to close, and Ravi had only a second to check the floor number.",
+        "prompt": "Which complete sentence uses glanced to show Ravi's quick look?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Ravi glanced at the floor number and stepped inside.",
+          "Ravi glanced at the number for an entire hour.",
+          "Ravi poured the floor number into a glance.",
+          "Ravi glanced the doors by carrying them upstairs."
+        ],
+        "accepted_answers": [
+          "Ravi glanced at the floor number and stepped inside.",
+          "Ravi glanced at the floor number"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_29",
+        "passage": "The drama club could not find its brass bell before rehearsal. Leela remembered wrapping it after the last show, opened the costume trunk, and found it inside a striped scarf.",
+        "prompt": "Which sentence gives the main idea of the event?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Leela used a memory from the last show to find the missing bell in the costume trunk.",
+          "The drama club owns costumes in several colours.",
+          "A brass bell can make a loud sound during rehearsal.",
+          "Leela folded every scarf after the show."
+        ],
+        "accepted_answers": [
+          "Leela used a memory from the last show to find the missing bell in the costume trunk.",
+          "Leela remembered the last show and found the bell in the trunk"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_30",
+        "passage": "A robotics team could not find its remote before a demonstration. Pia checked the testing log, returned to the charging station named in the final entry, and found the remote behind the battery box. The model worked when she tested it.",
+        "prompt": "Summarize the problem, Pia's evidence-based action, and the result in one ordered sentence.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "remote_problem",
+            "description": "States that the robotics remote was missing before the demonstration.",
+            "any_of": [
+              "robotics team could not find its remote",
+              "remote was missing before the demonstration",
+              "the team needed the missing remote",
+              "Pia searched for the robot remote"
+            ]
+          },
+          {
+            "id": "testing_log_action",
+            "description": "States that Pia used the testing log to return to the charging station.",
+            "any_of": [
+              "checked the testing log",
+              "followed the final log entry",
+              "returned to the charging station",
+              "used the log as her clue"
+            ]
+          },
+          {
+            "id": "battery_box_result",
+            "description": "Ends with finding the remote behind the battery box and the model working.",
+            "any_of": [
+              "found it behind the battery box",
+              "recovered the remote and tested the model",
+              "the model worked after she found it",
+              "remote was at the charging station"
+            ]
+          }
+        ],
+        "min_response_words": 16,
+        "ordered_concept_slot_ids": [
+          "remote_problem",
+          "testing_log_action",
+          "battery_box_result"
+        ],
+        "forbidden_phrases": [
+          "Pia bought a new remote",
+          "the demonstration was cancelled"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_31",
+        "passage": "The observant guard lifted the damp parcel.",
+        "prompt": "Which word is the adjective describing the parcel?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "damp",
+          "lifted",
+          "guard",
+          "parcel"
+        ],
+        "accepted_answers": [
+          "damp"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_32",
+        "passage": "Sentence facts: striped umbrella; leaned; beside the entrance; against a narrow cupboard.",
+        "prompt": "Combine all the facts into one precise complete sentence.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "striped_umbrella_subject",
+            "description": "Uses striped to describe the umbrella.",
+            "any_of": [
+              "striped umbrella",
+              "the striped umbrella",
+              "an umbrella with stripes"
+            ]
+          },
+          {
+            "id": "leaned_action",
+            "description": "Uses leaned or was leaning as the action or state.",
+            "any_of": [
+              "leaned",
+              "was leaning",
+              "rested"
+            ]
+          },
+          {
+            "id": "cupboard_entrance_location",
+            "description": "Places the umbrella against the narrow cupboard beside the entrance.",
+            "any_of": [
+              "against the narrow cupboard beside the entrance",
+              "by the entrance against a narrow cupboard",
+              "against the cupboard near the entrance",
+              "leaned against a narrow cupboard beside the entrance"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "inside the cupboard",
+          "the entrance leaned on the umbrella"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_33",
+        "passage": "At swimming practice, Diya rinsed her goggles and placed them in the mesh side pocket of her towel bag.",
+        "prompt": "In which part of the bag did Diya place her goggles?",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the mesh side pocket",
+          "mesh side pocket of her towel bag",
+          "in the side pocket"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_34",
+        "passage": "Mehul found a USB drive labelled Science Club beside the projector. He gave it to the lab teacher because it stored the group's presentation files.",
+        "prompt": "Why was giving the drive to the lab teacher a responsible choice?",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "science_club_drive_clue",
+            "description": "Identifies the drive as labelled for the Science Club or holding its files.",
+            "any_of": [
+              "labelled Science Club",
+              "stored the group's presentation files",
+              "belonged to the Science Club",
+              "the drive held club work"
+            ]
+          },
+          {
+            "id": "trusted_teacher_action",
+            "description": "Explains that the lab teacher is a trusted person who can protect and return the drive.",
+            "any_of": [
+              "lab teacher can keep it safe",
+              "teacher can return it to the group",
+              "gave it to a responsible adult",
+              "the lab teacher handles club equipment"
+            ]
+          }
+        ],
+        "min_response_words": 12,
+        "forbidden_phrases": [
+          "Mehul should keep the files",
+          "the drive had no identifying clue"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_35",
+        "passage": "Sentence facts: polished brass key; hung; from a blue hook; beside the noticeboard.",
+        "prompt": "Write one complete sentence that includes the object, description, action, and exact location.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "polished_brass_key",
+            "description": "Names and describes the polished brass key.",
+            "any_of": [
+              "polished brass key",
+              "the polished brass key",
+              "a polished key made of brass"
+            ]
+          },
+          {
+            "id": "hung_action",
+            "description": "Uses hung or was hanging as the action or state.",
+            "any_of": [
+              "hung",
+              "was hanging",
+              "was hung"
+            ]
+          },
+          {
+            "id": "blue_hook_location",
+            "description": "Places the key on the blue hook beside the noticeboard.",
+            "any_of": [
+              "from a blue hook beside the noticeboard",
+              "on the blue hook by the noticeboard",
+              "beside the noticeboard on a blue hook",
+              "blue hook near the noticeboard"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "inside the noticeboard",
+          "the key hung the hook"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch01_assess_36",
+        "passage": "After orchestra rehearsal, Sana found a folded raincoat with orange stripes and a tag reading Kabir 5A on a backstage chair. She handed it to the activity-room desk because costumes and belongings are collected there.",
+        "prompt": "Write a concise two-sentence lost-and-found notice with the identifying details, find location, collection point, and reason for Sana's action.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer",
+          "writing.summary_own_words",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "raincoat_description",
+            "description": "Names the folded raincoat and its orange stripes.",
+            "any_of": [
+              "folded orange-striped raincoat",
+              "folded raincoat with orange stripes",
+              "orange-striped raincoat",
+              "raincoat with orange stripes"
+            ]
+          },
+          {
+            "id": "kabir_tag",
+            "description": "Includes the tag reading Kabir 5A as the ownership clue.",
+            "any_of": [
+              "tag reading Kabir 5A",
+              "tagged Kabir 5A",
+              "marked Kabir 5A",
+              "Kabir 5A tag"
+            ]
+          },
+          {
+            "id": "backstage_chair_location",
+            "description": "States that the raincoat was found on a backstage chair after rehearsal.",
+            "any_of": [
+              "found on a backstage chair",
+              "after orchestra rehearsal backstage",
+              "left on the chair behind the stage",
+              "Sana found it after rehearsal"
+            ]
+          },
+          {
+            "id": "activity_desk_collection",
+            "description": "Directs Kabir to collect the raincoat from the activity-room desk.",
+            "any_of": [
+              "collect it from the activity-room desk",
+              "Sana handed it to the activity desk",
+              "raincoat is at the activity-room desk",
+              "Kabir can claim it at the activity desk"
+            ]
+          },
+          {
+            "id": "belongings_collection_reason",
+            "description": "Explains that the desk collects belongings and can keep the raincoat safe for its owner.",
+            "any_of": [
+              "belongings are collected there",
+              "the desk keeps lost belongings safe",
+              "so Kabir can collect it safely",
+              "the activity desk handles misplaced belongings"
+            ]
+          }
+        ],
+        "min_response_words": 23,
+        "ordered_concept_slot_ids": [
+          "raincoat_description",
+          "kabir_tag",
+          "backstage_chair_location",
+          "activity_desk_collection",
+          "belongings_collection_reason"
+        ],
+        "forbidden_phrases": [
+          "Sana took the raincoat home",
+          "the raincoat was found in the orchestra case"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1858 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex School launch content QA",
+  "reviewed_at": "2026-07-13T00:00:00+05:30",
+  "review_evidence": [
+    "docs/school-prep-live-browser-qa-2026-07-10.md#phase-38",
+    "docs/school-prep-live-browser-qa-2026-07-10.md#phase-39",
+    "tests/hardening/test_school_rebuild_class5_ch04_ch05_launch_contract.py",
+    "self-review: pedagogy, originality, assessment balance, and grading safety PASS"
+  ],
+  "runtime_sha256": "0065904d34323c5cb00023396d5a732988c9ba816f5e32bf70ee6d3b22c2a3f1",
+  "chapter_id": "eng_c5_ch04",
+  "chapter_no": 4,
+  "content_version": "2026-07-13.1",
+  "certification_version": "2026-07-13.1",
+  "title": "The Wise Parrot",
+  "book_title": "Santoor",
+  "unit_title": "My Colourful World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/eesa104.pdf",
+  "source_note": "NCERT structural alignment only. All teaching passages, prompts, examples, answers, and rubrics are original Zidd-authored content and do not copy the textbook body.",
+  "levels": [
+    {
+      "level_id": "wise_parrot_story_sequence",
+      "title": "Follow the escape plan",
+      "focus": "trace the message, clue, response, and escape",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Connect story details in order and explain how a silent clue becomes an escape plan.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A clear sequence begins with the message that starts the chain of events.",
+          "passage": "Before leaving for a distant forest, a trader promised to carry his caged parrot's greeting to the birds living there.",
+          "prompt": "What did the trader promise to carry?",
+          "options": [
+            "the parrot's greeting",
+            "a bag of seed",
+            "the parrot's cage",
+            "a drawing of the forest"
+          ],
+          "accepted_answers": [
+            "the parrot's greeting",
+            "the parrots greeting",
+            "a greeting"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "The next important event often acts as a clue for what a character does later.",
+          "passage": "A wild parrot heard the greeting, folded its wings, and lay completely still. The trader remembered the strange reaction.",
+          "prompt": "Which action could become a clue for the caged parrot?",
+          "options": [
+            "folding its wings and lying still",
+            "flying around the trader",
+            "calling for more birds",
+            "dropping fruit on the path"
+          ],
+          "accepted_answers": [
+            "folding its wings and lying still",
+            "the bird lying still",
+            "becoming still"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "To explain cause and effect, name the clue, the copied action, and the result in connected order.",
+          "passage": "At home, the trader described the forest bird. His own parrot copied the still pose, so he opened the cage and lifted it towards the window.",
+          "prompt": "Explain how the forest event caused the trader to open the cage at home.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "copied_clue",
+              "description": "States that the caged parrot copied the forest bird's still pose.",
+              "any_of": [
+                "copied the still pose",
+                "pretended to be still",
+                "lay still like the forest parrot",
+                "became motionless after hearing the story"
+              ]
+            },
+            {
+              "id": "trader_response",
+              "description": "States that the trader opened the cage or lifted the bird out.",
+              "any_of": [
+                "trader opened the cage",
+                "he opened the cage",
+                "trader lifted the bird out",
+                "he took the parrot out"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "ordered_concept_slot_ids": [
+            "copied_clue",
+            "trader_response"
+          ],
+          "forbidden_phrases": [
+            "the cage stayed closed",
+            "the parrot used force"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use a fresh part of the story to explain the final cause-and-effect link without choices.",
+          "passage": "The trader placed the quiet parrot outside the cage. At once, it opened its eyes, spread its wings, and flew beyond his reach.",
+          "prompt": "Which two events completed the escape, and in what order?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "placed_outside",
+              "description": "States that the trader placed or took the parrot outside the cage.",
+              "any_of": [
+                "placed the parrot outside the cage",
+                "took the bird out of the cage",
+                "lifted the parrot outside",
+                "set the quiet bird outside"
+              ]
+            },
+            {
+              "id": "flew_away",
+              "description": "States that the parrot opened its wings and escaped.",
+              "any_of": [
+                "spread its wings and flew away",
+                "opened its eyes and escaped",
+                "flew beyond the trader's reach",
+                "the parrot flew free"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "ordered_concept_slot_ids": [
+            "placed_outside",
+            "flew_away"
+          ],
+          "forbidden_phrases": [
+            "flew before leaving the cage",
+            "never escaped"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the same cause-and-effect thinking to a new escape scene and state all three links.",
+          "passage": "A squirrel hid motionless in a fruit crate. Thinking the crate was empty, a vendor raised the lid. The squirrel sprang over the edge and raced up a tree.",
+          "prompt": "Summarize the squirrel's escape as action, response, and result.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "squirrel_action",
+              "description": "States that the squirrel stayed hidden and motionless.",
+              "any_of": [
+                "squirrel hid motionless",
+                "stayed still in the crate",
+                "hid quietly in the fruit crate",
+                "pretended the crate was empty"
+              ]
+            },
+            {
+              "id": "vendor_response",
+              "description": "States that the vendor raised or opened the lid.",
+              "any_of": [
+                "vendor raised the lid",
+                "vendor opened the crate",
+                "he lifted the lid",
+                "the lid was opened"
+              ]
+            },
+            {
+              "id": "squirrel_result",
+              "description": "States that the squirrel leapt out and escaped to the tree.",
+              "any_of": [
+                "squirrel sprang out",
+                "leapt from the crate",
+                "escaped up a tree",
+                "raced up the tree"
+              ]
+            }
+          ],
+          "min_response_words": 13,
+          "ordered_concept_slot_ids": [
+            "squirrel_action",
+            "vendor_response",
+            "squirrel_result"
+          ],
+          "forbidden_phrases": [
+            "vendor kept the lid closed",
+            "squirrel stayed trapped"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_freedom_reason",
+      "title": "Reason about freedom and wisdom",
+      "focus": "infer motives and support a fair judgement",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Use story evidence to explain why freedom matters and why the parrots' plan shows wisdom.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A reason answer links a character's feeling to the condition causing it.",
+          "passage": "The parrot had fresh fruit, clean water, and a polished cage, yet it watched the open sky each day.",
+          "prompt": "Why was the parrot still dissatisfied?",
+          "options": [
+            "it could not choose where to fly",
+            "it wanted a shinier cage",
+            "it disliked every kind of fruit",
+            "it could not see the trader"
+          ],
+          "accepted_answers": [
+            "it could not choose where to fly",
+            "it was not free",
+            "it wanted freedom"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Two characters can value the same situation differently; infer each view from what each one notices.",
+          "passage": "The trader called the cage a safe home. The parrot called the forest its true home.",
+          "prompt": "What is the main difference between their views?",
+          "options": [
+            "the trader values control and shelter, while the parrot values freedom",
+            "the trader wants the forest, while the parrot wants the market",
+            "both believe the cage is the only safe place",
+            "both care most about the cage's colour"
+          ],
+          "accepted_answers": [
+            "the trader values control and shelter, while the parrot values freedom",
+            "the trader values shelter but the parrot values freedom",
+            "they disagree about freedom"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Wisdom uses understanding and timing. Strength depends mainly on force.",
+          "passage": "The forest parrot knew that a direct order would not unlock the cage. It sent an action clue that the captive bird could use at the right moment.",
+          "prompt": "Why does this plan show wisdom rather than physical strength?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "indirect_clue",
+              "description": "Explains that the forest parrot communicated through a clever action clue.",
+              "any_of": [
+                "sent an action clue",
+                "used a silent clue",
+                "showed what the captive bird should do",
+                "communicated without giving an order"
+              ]
+            },
+            {
+              "id": "timing_not_force",
+              "description": "Explains that the captive bird used timing or understanding instead of force.",
+              "any_of": [
+                "used the clue at the right moment",
+                "understood when to act",
+                "escaped without force",
+                "relied on clever timing"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": [
+            "broke the cage by force",
+            "the clue had no purpose"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Judge both parrots from new evidence and support the judgement with what each one contributed.",
+          "passage": "One parrot invented the silent signal. The other noticed its meaning, waited until the cage opened, and then acted.",
+          "prompt": "How did both parrots show wisdom in different ways?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "forest_contribution",
+              "description": "States that the forest parrot designed or sent the silent signal.",
+              "any_of": [
+                "forest parrot invented the signal",
+                "free parrot sent the clue",
+                "one parrot created the plan",
+                "forest bird showed the still action"
+              ]
+            },
+            {
+              "id": "captive_contribution",
+              "description": "States that the captive parrot understood, timed, and used the signal.",
+              "any_of": [
+                "captive parrot understood the clue",
+                "caged bird waited for the cage to open",
+                "other parrot used the plan",
+                "captive bird acted at the right time"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": [
+            "only the trader made the plan",
+            "neither parrot understood"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the freedom-and-reason test to a responsible choice involving another wild bird.",
+          "passage": "A rescued owl has recovered, can hunt, and responds well to its woodland habitat. One volunteer wants to display it permanently; another plans a quiet release with a wildlife expert.",
+          "prompt": "Which plan is fairer to the owl, and what evidence supports your choice?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "release_choice",
+              "description": "Chooses the planned release with the wildlife expert.",
+              "any_of": [
+                "release with the wildlife expert",
+                "quiet release is fairer",
+                "return the owl to the woodland",
+                "second volunteer's plan"
+              ]
+            },
+            {
+              "id": "recovery_evidence",
+              "description": "Uses the owl's recovery, hunting ability, or habitat response as evidence.",
+              "any_of": [
+                "owl has recovered",
+                "it can hunt",
+                "responds well to the woodland",
+                "healthy enough to live in its habitat"
+              ]
+            },
+            {
+              "id": "freedom_reason",
+              "description": "Connects release to the owl's freedom or natural life.",
+              "any_of": [
+                "lets the owl live freely",
+                "wild owl belongs in its habitat",
+                "respects its freedom",
+                "can live naturally in the woodland"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "forbidden_phrases": [
+            "permanent display is fairer",
+            "the owl cannot hunt"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_words_phrases",
+      "title": "Use story words and phrases",
+      "focus": "infer meanings and use chapter vocabulary accurately",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use nearby actions and results to understand and apply words and phrases connected to the story.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context can reveal a feeling through the action that follows it.",
+          "passage": "Kavya felt distressed when the injured parakeet stopped drinking, so she called the animal clinic.",
+          "prompt": "What does distressed mean in this sentence?",
+          "options": [
+            "worried and upset",
+            "proud and relaxed",
+            "amused by a joke",
+            "ready to celebrate"
+          ],
+          "accepted_answers": [
+            "worried and upset",
+            "worried",
+            "upset"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Use an object's position and purpose to infer an unfamiliar noun.",
+          "passage": "The parrot gripped a wooden perch high inside the shelter and rested there through the night.",
+          "prompt": "What is a perch?",
+          "options": [
+            "a place where a bird sits",
+            "a bowl used for water",
+            "a cloth over a cage",
+            "a box used for travel"
+          ],
+          "accepted_answers": [
+            "a place where a bird sits",
+            "a place for a bird to sit",
+            "a bird's resting bar"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Replace a phrase with a short meaning, then check whether the whole sentence still makes sense.",
+          "passage": "Farah offered to look after the rescued chick while the wildlife worker prepared a safe nest.",
+          "prompt": "What does look after mean here?",
+          "options": [
+            "care for",
+            "search behind",
+            "watch from far away",
+            "follow secretly"
+          ],
+          "accepted_answers": [
+            "care for",
+            "take care of",
+            "keep safe"
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "Infer a time phrase from a new event without using answer choices.",
+          "passage": "The school bus was about to leave when Ishaan reached the gate and waved to the driver.",
+          "prompt": "What does about to leave mean?",
+          "options": [],
+          "accepted_answers": [
+            "going to leave very soon",
+            "ready to leave",
+            "nearly leaving",
+            "would leave in a moment"
+          ],
+          "response_mode": "short"
+        },
+        "transfer_check": {
+          "teaching_block": "Apply two chapter expressions to a fresh care situation and explain both meanings.",
+          "passage": "A fledgling shivered beside the path. Noor was distressed, but she knew a trained rescuer should look after it.",
+          "prompt": "Explain what distressed and look after mean in this situation.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "distressed_meaning",
+              "description": "Explains that Noor is worried, upset, or concerned.",
+              "any_of": [
+                "Noor is worried",
+                "she feels upset",
+                "distressed means concerned",
+                "worried about the fledgling"
+              ]
+            },
+            {
+              "id": "look_after_meaning",
+              "description": "Explains that the rescuer should care for, protect, or help the fledgling.",
+              "any_of": [
+                "rescuer should care for it",
+                "look after means take care of",
+                "protect and help the fledgling",
+                "keep the bird safe"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "distressed means delighted",
+            "look after means ignore"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_collective_nouns",
+      "title": "Name groups precisely",
+      "focus": "use collective nouns as precise naming words",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Choose collective nouns that name familiar groups of animals and objects.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A collective noun names a group as one unit. A flight can name parrots moving together.",
+          "passage": "A ___ of parrots crossed the orange evening sky.",
+          "prompt": "Which collective noun completes the sentence?",
+          "options": [
+            "flight",
+            "bouquet",
+            "bundle",
+            "library"
+          ],
+          "accepted_answers": [
+            "flight",
+            "a flight"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Match each group word to the kind of animal it usually names.",
+          "passage": "A ___ of sheep followed the farmer through the open gate.",
+          "prompt": "Which group word fits?",
+          "options": [
+            "flock",
+            "swarm",
+            "pack",
+            "flight"
+          ],
+          "accepted_answers": [
+            "flock",
+            "a flock"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Some collective nouns are specific: bees gather in a swarm, while wolves travel in a pack.",
+          "passage": "A ___ of bees circled the flowering tree.",
+          "prompt": "Which collective noun completes the sentence?",
+          "options": [
+            "swarm",
+            "pack",
+            "bouquet",
+            "bunch"
+          ],
+          "accepted_answers": [
+            "swarm",
+            "a swarm"
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "Supply the naming word independently and check that it names the whole group.",
+          "passage": "Father placed a ___ of keys beside the door.",
+          "prompt": "Which collective noun belongs in the blank?",
+          "options": [],
+          "accepted_answers": [
+            "bunch",
+            "a bunch",
+            "bunch of keys"
+          ],
+          "response_mode": "short"
+        },
+        "transfer_check": {
+          "teaching_block": "Use two different collective nouns in a new scene, matching each group word to its noun.",
+          "passage": "At the lakeside, a ___ of geese passed overhead while Mira carried a ___ of flowers.",
+          "prompt": "Complete both blanks with suitable collective nouns.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "geese_group",
+              "description": "Uses flock or flight for the group of geese.",
+              "any_of": [
+                "flock of geese",
+                "a flock",
+                "flight of geese",
+                "a flight"
+              ]
+            },
+            {
+              "id": "flowers_group",
+              "description": "Uses bouquet or bunch for the group of flowers.",
+              "any_of": [
+                "bouquet of flowers",
+                "a bouquet",
+                "bunch of flowers",
+                "a bunch"
+              ]
+            }
+          ],
+          "min_response_words": 4,
+          "ordered_concept_slot_ids": [
+            "geese_group",
+            "flowers_group"
+          ],
+          "forbidden_phrases": [
+            "swarm of geese",
+            "pack of flowers"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_present_perfect",
+      "title": "Connect past actions to now",
+      "focus": "form complete present-perfect sentences",
+      "skill_ids": [
+        "grammar.tense_usage",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use has or have with the correct past participle for completed actions that matter now.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Present perfect uses has or have plus a past participle. Use have with I.",
+          "passage": "I ___ the bird sanctuary three times. (visit)",
+          "prompt": "Which words complete the sentence?",
+          "options": [
+            "have visited",
+            "has visit",
+            "am visited",
+            "will visiting"
+          ],
+          "accepted_answers": [
+            "have visited"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Use has with she, he, it, or one named person, then choose the past participle.",
+          "passage": "She ___ ten pictures of forest birds. (draw)",
+          "prompt": "Which present-perfect form fits?",
+          "options": [
+            "has drawn",
+            "have drew",
+            "has draw",
+            "is drawing yesterday"
+          ],
+          "accepted_answers": [
+            "has drawn"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Check both parts of the verb phrase: the helper must match the subject, and the main verb needs its participle form.",
+          "passage": "Mr Roy ___ a pair of binoculars for the nature club. (buy)",
+          "prompt": "Which complete verb phrase is correct?",
+          "options": [
+            "has bought",
+            "have buy",
+            "has buyed",
+            "is bought"
+          ],
+          "accepted_answers": [
+            "has bought"
+          ],
+          "response_mode": "short"
+        },
+        "independent_check": {
+          "teaching_block": "Form the verb phrase without choices by matching the plural subject with have.",
+          "passage": "They ___ thank-you letters to the wildlife team. (write)",
+          "prompt": "Write the missing present-perfect verb phrase.",
+          "options": [],
+          "accepted_answers": [
+            "have written",
+            "they have written"
+          ],
+          "response_mode": "short"
+        },
+        "transfer_check": {
+          "teaching_block": "Apply subject agreement and participle choice to two new completed actions.",
+          "passage": "Meera ___ the feeder today. (clean) The children ___ the water twice. (replace)",
+          "prompt": "Write both complete present-perfect sentences.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "meera_sentence",
+              "description": "Uses has cleaned with the singular subject Meera.",
+              "any_of": [
+                "Meera has cleaned the feeder",
+                "Meera has cleaned it",
+                "she has cleaned the feeder"
+              ]
+            },
+            {
+              "id": "children_sentence",
+              "description": "Uses have replaced with the plural subject children.",
+              "any_of": [
+                "children have replaced the water",
+                "the children have replaced it twice",
+                "they have replaced the water twice"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "ordered_concept_slot_ids": [
+            "meera_sentence",
+            "children_sentence"
+          ],
+          "forbidden_phrases": [
+            "Meera have cleaned",
+            "children has replaced"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_bird_sanctuary",
+      "title": "Read about safe bird habitats",
+      "focus": "identify a main idea and infer why protection matters",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Combine details from an informational paragraph to explain how protected habitats help birds.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The main idea is the statement supported by most details in a paragraph.",
+          "passage": "A protected wetland offers shallow water, insects, nesting plants, and quiet resting places to visiting birds.",
+          "prompt": "What is the main idea?",
+          "options": [
+            "protected wetlands meet several bird needs",
+            "every bird eats only insects",
+            "wetlands should contain no plants",
+            "visiting birds never need rest"
+          ],
+          "accepted_answers": [
+            "protected wetlands meet several bird needs",
+            "wetlands provide what birds need",
+            "safe wetlands help birds"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Infer a benefit by connecting an action to the need it meets.",
+          "passage": "Migrating birds stop at a protected lake, feed for two days, and continue their long journey with more energy.",
+          "prompt": "Why is the lake important during migration?",
+          "options": [
+            "it lets the birds rest and rebuild energy",
+            "it makes their journey longer",
+            "it removes every source of food",
+            "it prevents them from flying again"
+          ],
+          "accepted_answers": [
+            "it lets the birds rest and rebuild energy",
+            "birds can feed and regain energy",
+            "it gives food and rest"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A strong main-idea answer combines several supporting details instead of repeating only one.",
+          "passage": "In a forest reserve, old trees provide nesting holes, berry bushes supply food, and guards keep hunters away.",
+          "prompt": "State the main idea and support it with two details.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "reserve_main_idea",
+              "description": "States that the reserve protects birds or meets their needs.",
+              "any_of": [
+                "reserve protects birds",
+                "forest gives birds a safe habitat",
+                "birds find what they need in the reserve",
+                "protected forest supports bird life"
+              ]
+            },
+            {
+              "id": "first_support",
+              "description": "Uses nesting holes or berries as one supporting detail.",
+              "any_of": [
+                "old trees provide nesting holes",
+                "trees give nesting spaces",
+                "berry bushes supply food",
+                "birds can eat berries"
+              ]
+            },
+            {
+              "id": "second_support",
+              "description": "Uses a different detail about food, nests, or protection from hunters.",
+              "any_of": [
+                "guards keep hunters away",
+                "birds are protected from hunters",
+                "berry bushes provide food",
+                "old trees provide nests"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "forbidden_phrases": [
+            "hunters protect the nests",
+            "the reserve removes food"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a new habitat paragraph and express its central idea with evidence in your own words.",
+          "passage": "A city grove keeps tall native trees, leaves fallen twigs under hedges, and avoids loud work during nesting months. Bulbuls and sunbirds return each spring.",
+          "prompt": "What is the grove's main benefit for birds? Give one supporting detail.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "grove_benefit",
+              "description": "States that the grove provides a safe or suitable place for birds to return and nest.",
+              "any_of": [
+                "grove gives birds a safe habitat",
+                "birds can return and nest safely",
+                "city grove supports nesting birds",
+                "provides a suitable home for birds"
+              ]
+            },
+            {
+              "id": "grove_detail",
+              "description": "Uses native trees, fallen twigs, or quiet nesting months as support.",
+              "any_of": [
+                "keeps tall native trees",
+                "leaves twigs under hedges",
+                "avoids loud work during nesting",
+                "stays quiet in nesting months"
+              ]
+            }
+          ],
+          "min_response_words": 11,
+          "forbidden_phrases": [
+            "grove drives birds away",
+            "loud work helps nests"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply habitat reasoning to a new school design and connect its features to the birds' return.",
+          "passage": "A school roof garden has flowering shrubs, a shallow water tray, and one quiet corner away from games. Small birds visit it every morning.",
+          "prompt": "Why might the birds keep returning? Use two details from the garden.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "garden_need",
+              "description": "Explains that the garden offers useful food, water, or safety.",
+              "any_of": [
+                "garden meets their needs",
+                "birds find food and water",
+                "garden is useful and safe",
+                "it provides resources for birds"
+              ]
+            },
+            {
+              "id": "food_or_water",
+              "description": "Uses flowering shrubs or the water tray as one detail.",
+              "any_of": [
+                "flowering shrubs provide food",
+                "flowers attract food",
+                "shallow tray gives water",
+                "birds can drink from the tray"
+              ]
+            },
+            {
+              "id": "quiet_detail",
+              "description": "Uses the quiet corner as a safety or resting detail.",
+              "any_of": [
+                "quiet corner is away from games",
+                "birds can rest in the quiet corner",
+                "corner keeps them away from noise",
+                "quiet space feels safe"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "forbidden_phrases": [
+            "there is no water",
+            "games make the corner quiet"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "wise_parrot_story_continuation",
+      "title": "Continue the parrot's story",
+      "focus": "write an original, coherent ending in past tense",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.reason_answer",
+        "grammar.tense_usage"
+      ],
+      "teaching_goal": "Continue a known story with connected events, a reasoned choice, a consequence, and a clear ending.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A continuation begins from the last known event and adds a new event rather than retelling the escape.",
+          "passage": "Plan A repeats how the cage opened. Plan B begins with the freed parrot reaching the forest and meeting the bird that sent the clue.",
+          "prompt": "Which plan creates a genuine continuation?",
+          "options": [
+            "Plan B",
+            "Plan A",
+            "both only repeat the escape",
+            "neither connects to the story"
+          ],
+          "accepted_answers": [
+            "Plan B",
+            "plan b",
+            "b"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Build a bridge sentence that names the known ending, then points towards a new goal or problem.",
+          "passage": "Known ending: the parrot has just flown beyond the trader's window. New goal: it wants to find the forest flock.",
+          "prompt": "Write one past-tense sentence that connects the escape to the new goal.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "escape_connection",
+              "description": "States that the parrot flew from the window, cage, or trader.",
+              "any_of": [
+                "parrot flew from the window",
+                "bird escaped from the cage",
+                "flew away from the trader",
+                "freed parrot crossed the rooftops"
+              ]
+            },
+            {
+              "id": "forest_goal",
+              "description": "States that the parrot headed towards the forest or searched for the flock.",
+              "any_of": [
+                "headed towards the forest",
+                "searched for the forest flock",
+                "flew to find the wild parrots",
+                "looked for the bird that helped"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "ordered_concept_slot_ids": [
+            "escape_connection",
+            "forest_goal"
+          ],
+          "forbidden_phrases": [
+            "parrot stayed in the cage",
+            "never looked for the forest"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Plan a continuation as connection, new problem, reasoned action, consequence, and ending.",
+          "passage": "The freed parrot reaches a dry stream where the flock cannot find water. It remembers a garden fountain near the town.",
+          "prompt": "Give a three-part plan showing the problem, the parrot's reasoned action, and the result.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "water_problem",
+              "description": "Identifies that the stream is dry or the flock lacks water.",
+              "any_of": [
+                "stream is dry",
+                "flock cannot find water",
+                "birds need water",
+                "there is no water in the stream"
+              ]
+            },
+            {
+              "id": "guiding_action",
+              "description": "States that the parrot leads the flock towards the remembered fountain.",
+              "any_of": [
+                "leads the flock to the fountain",
+                "guides the birds towards town",
+                "shows them the garden fountain",
+                "flies ahead to guide the flock"
+              ]
+            },
+            {
+              "id": "helpful_result",
+              "description": "States that the flock drinks, recovers, or reaches water safely.",
+              "any_of": [
+                "flock finds water",
+                "birds drink safely",
+                "parrots recover at the fountain",
+                "they reach the water"
+              ]
+            }
+          ],
+          "min_response_words": 15,
+          "ordered_concept_slot_ids": [
+            "water_problem",
+            "guiding_action",
+            "helpful_result"
+          ],
+          "forbidden_phrases": [
+            "parrot hides the water",
+            "flock refuses to drink"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write independently in your own words. Continue from the escape, keep events connected, use past tense, and show what changed.",
+          "passage": "The parrot cleared the last rooftop and saw the forest ahead. A storm had broken several branches near the flock's nesting tree.",
+          "prompt": "Continue the story in 60 to 90 words. Show how the parrot responded to the damaged nests and end with a clear result.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "story_continuation_60_90",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "independent_word_range",
+              "description": "Contains 60 to 90 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "independent_story_connection",
+              "description": "Begins from the freed parrot reaching the storm-damaged nesting area.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "independent_reasoned_action",
+              "description": "Shows a sensible action the parrot takes because the nests are damaged.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "independent_consequence",
+              "description": "Shows how the parrot's action affects the flock or nests.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "independent_past_tense",
+              "description": "Uses past tense consistently enough for completed story events.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "independent_clear_ending",
+              "description": "Ends with a clear result rather than stopping in the middle of the action.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the continuation structure to a later challenge. Connect the new scene to the lesson about freedom and show a reasoned outcome.",
+          "passage": "Months later, the trader saw a child carrying a frightened wild bird in a tiny cage. He remembered the parrot that had outwitted him.",
+          "prompt": "Continue this scene in 60 to 90 words. Show the trader's decision, explain why he made it, and end with what happened to the wild bird.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "story_continuation_60_90",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "transfer_word_range",
+              "description": "Contains 60 to 90 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "transfer_scene_connection",
+              "description": "Continues from the trader seeing the child and caged wild bird.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "transfer_decision",
+              "description": "Gives the trader a clear and humane decision about the bird.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "transfer_reason",
+              "description": "Explains how the earlier parrot experience influences the trader's choice.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "transfer_past_tense",
+              "description": "Uses past tense consistently enough for completed story events.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "transfer_bird_outcome",
+              "description": "Ends with a clear outcome for the wild bird.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 14,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c5_ch04_assess_01",
+        "passage": "Before entering the forest, the traveller repeated the caged parrot's greeting twice so that he would not change a word.",
+        "prompt": "Why did the traveller repeat the greeting?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "to remember it accurately",
+          "to teach it to another trader",
+          "to make the greeting longer",
+          "to hide it from the forest birds"
+        ],
+        "accepted_answers": [
+          "to remember it accurately",
+          "so he would not change a word",
+          "to remember the exact greeting"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_02",
+        "passage": "A shopkeeper gave a parakeet a mirror, sweet fruit, and a bright cage. The bird still watched every flock crossing the sky and flew out as soon as a door was left open.",
+        "prompt": "State the main idea in your own words.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "comfort_detail",
+            "description": "Recognizes that the parakeet had food or a comfortable cage.",
+            "any_of": [
+              "bird had food and a bright cage",
+              "parakeet had comforts",
+              "shopkeeper provided fruit and a mirror",
+              "cage was comfortable"
+            ]
+          },
+          {
+            "id": "freedom_main_idea",
+            "description": "States that comfort did not replace the bird's wish for freedom.",
+            "any_of": [
+              "comfort could not replace freedom",
+              "bird still wanted to be free",
+              "parakeet valued freedom more than the cage",
+              "flew out when it had the chance"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "the bird preferred the cage",
+          "the bird never wanted freedom"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_03",
+        "passage": "The wild parrot could not open the distant cage. Instead, it demonstrated an action that the captive bird could copy when the trader returned.",
+        "prompt": "Why was the demonstration a wise response?",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [
+          "it gave the captive bird a usable clue from far away",
+          "it forced the trader to break the cage in the forest",
+          "it distracted the captive bird from wanting freedom",
+          "it proved that the wild parrot was physically stronger"
+        ],
+        "accepted_answers": [
+          "it gave the captive bird a usable clue from far away",
+          "the action could be copied as an escape clue",
+          "it communicated a plan without opening the cage itself"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_04",
+        "passage": "Leena was distressed when a nest fell during the wind, and she immediately called an adult for help.",
+        "prompt": "What does distressed mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "worried and upset",
+          "calm and sleepy",
+          "pleased with the wind",
+          "uninterested in the nest"
+        ],
+        "accepted_answers": [
+          "worried and upset",
+          "worried",
+          "upset"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_05",
+        "passage": "The wildlife worker asked Dev to look after the water bowl while she checked the injured bird.",
+        "prompt": "Explain what look after means and name the action Dev should take.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "care_meaning",
+            "description": "Explains that look after means care for or take responsibility for.",
+            "any_of": [
+              "look after means care for",
+              "take care of",
+              "be responsible for",
+              "keep it ready for the bird"
+            ]
+          },
+          {
+            "id": "water_action",
+            "description": "States that Dev should check, clean, fill, or protect the water bowl.",
+            "any_of": [
+              "check the water bowl",
+              "keep the bowl clean",
+              "fill it with fresh water",
+              "make sure the bowl is ready"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "look after means ignore",
+          "Dev should remove all water"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_06",
+        "passage": "A flock of cranes circled above the field before landing together.",
+        "prompt": "Which word is the collective noun?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "flock",
+          "circled",
+          "above",
+          "landing"
+        ],
+        "accepted_answers": [
+          "flock",
+          "a flock"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_07",
+        "passage": "Rohan ___ both water bowls before the birds arrived. (fill)",
+        "prompt": "Which words make a complete present-perfect sentence?",
+        "skill_ids": [
+          "grammar.tense_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "has filled",
+          "have fill",
+          "has filling",
+          "is filled yesterday"
+        ],
+        "accepted_answers": [
+          "has filled",
+          "Rohan has filled both water bowls before the birds arrived."
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_08",
+        "passage": "The pet bird became still. The owner carried it into the courtyard. Once outside, the bird opened its wings and disappeared over the wall.",
+        "prompt": "State the two events after the bird became still, in the correct order.",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "carried_out",
+            "description": "States that the owner carried the bird into the courtyard or outside.",
+            "any_of": [
+              "owner carried it into the courtyard",
+              "bird was taken outside",
+              "carried the bird out",
+              "owner moved it beyond the cage"
+            ]
+          },
+          {
+            "id": "escaped_over_wall",
+            "description": "States that the bird opened its wings and flew over the wall.",
+            "any_of": [
+              "bird opened its wings",
+              "flew over the wall",
+              "bird disappeared over the wall",
+              "then it flew away"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "ordered_concept_slot_ids": [
+          "carried_out",
+          "escaped_over_wall"
+        ],
+        "forbidden_phrases": [
+          "bird flew before it was carried out",
+          "owner never moved the bird"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_09",
+        "passage": "A village pond keeps a belt of reeds around one side. Birds hide their nests among the stems, feed on insects above the water, and rest there away from the road.",
+        "prompt": "Summarize the paragraph's main idea in your own words.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "reed_habitat",
+            "description": "States that the reeds create a useful or safe bird habitat.",
+            "any_of": [
+              "reeds provide a safe bird habitat",
+              "pond reeds meet bird needs",
+              "reed belt helps birds",
+              "birds use the reeds as a home"
+            ]
+          },
+          {
+            "id": "supporting_needs",
+            "description": "Mentions at least one supported need such as nests, food, rest, or safety.",
+            "any_of": [
+              "places for nests",
+              "insects for food",
+              "quiet place to rest",
+              "shelter away from the road"
+            ]
+          }
+        ],
+        "min_response_words": 11,
+        "forbidden_phrases": [
+          "reeds make the pond unsafe",
+          "birds find no food there"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_10",
+        "passage": "An injured kite backed away whenever people crowded its box. A volunteer dimmed the light, lowered her voice, and asked everyone else to step back.",
+        "prompt": "Why were the volunteer's actions helpful? Use one detail as evidence.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "calming_reason",
+            "description": "Infers that the volunteer reduced fear, stress, or disturbance.",
+            "any_of": [
+              "helped the kite feel calmer",
+              "reduced the bird's fear",
+              "made the space less stressful",
+              "gave the injured kite quiet"
+            ]
+          },
+          {
+            "id": "calming_evidence",
+            "description": "Uses dim light, a low voice, or people stepping back as evidence.",
+            "any_of": [
+              "dimmed the light",
+              "lowered her voice",
+              "asked people to step back",
+              "gave the kite more space"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "crowding made the kite calm",
+          "volunteer tried to frighten it"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_11",
+        "passage": "A green bee-eater perched on the fence, rested for a moment, and then flew towards the field.",
+        "prompt": "What does perched mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "sat or rested on a raised place",
+          "dug below the fence",
+          "called loudly from the ground",
+          "carried food across the field"
+        ],
+        "accepted_answers": [
+          "sat or rested on a raised place",
+          "sat on the fence",
+          "rested on a raised place"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_12",
+        "passage": "The final bell will ring in one minute, and the art club members are packing their brushes.",
+        "prompt": "Write one complete sentence using about to correctly.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "about_to_phrase",
+            "description": "Uses the phrase about to in a complete sentence.",
+            "any_of": [
+              "is about to",
+              "are about to",
+              "bell is about to ring",
+              "club members are about to leave"
+            ]
+          },
+          {
+            "id": "soon_action",
+            "description": "Names an action that will happen very soon in the scene.",
+            "any_of": [
+              "bell will ring",
+              "bell is about to ring",
+              "members will leave",
+              "club is about to finish",
+              "students are about to leave"
+            ]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": [
+          "about to happened yesterday",
+          "bell is never going to ring"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_13",
+        "passage": "Word notes: parrot is a noun; bright is an adjective; fluttered is a verb.",
+        "prompt": "Write one complete sentence using all three words in their correct jobs.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "parrot_noun",
+            "description": "Uses parrot as the naming word.",
+            "any_of": [
+              "parrot",
+              "the parrot",
+              "a parrot"
+            ]
+          },
+          {
+            "id": "bright_adjective",
+            "description": "Uses bright to describe the parrot or something in the sentence.",
+            "any_of": [
+              "bright parrot",
+              "bright wings",
+              "bright feathers",
+              "bright sky"
+            ]
+          },
+          {
+            "id": "fluttered_verb",
+            "description": "Uses fluttered as the action.",
+            "any_of": [
+              "fluttered",
+              "parrot fluttered",
+              "fluttered its wings",
+              "fluttered across"
+            ]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": [
+          "parrot is fluttered bright",
+          "brightly is a noun"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_14",
+        "passage": "The children ___ two clay water dishes since Monday. (make)",
+        "prompt": "Which present-perfect verb phrase fits the plural subject?",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [
+          "have made",
+          "has made",
+          "have maked",
+          "are made yesterday"
+        ],
+        "accepted_answers": [
+          "have made",
+          "the children have made two clay water dishes since Monday"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_15",
+        "passage": "Notes: nature-club volunteers; clean the shallow bowl; add fresh water before noon.",
+        "prompt": "Turn all the notes into one complete sentence.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "volunteer_subject",
+            "description": "Names the nature-club volunteers as the subject.",
+            "any_of": [
+              "nature club volunteers",
+              "the volunteers",
+              "club volunteers"
+            ]
+          },
+          {
+            "id": "clean_action",
+            "description": "States that they clean the shallow bowl.",
+            "any_of": [
+              "clean the shallow bowl",
+              "wash the bowl",
+              "cleaned the water bowl"
+            ]
+          },
+          {
+            "id": "water_action",
+            "description": "States that they add fresh water before noon.",
+            "any_of": [
+              "add fresh water before noon",
+              "fill it with fresh water before noon",
+              "put clean water in it by noon"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "ordered_concept_slot_ids": [
+          "volunteer_subject",
+          "clean_action",
+          "water_action"
+        ],
+        "forbidden_phrases": [
+          "leave the bowl dirty",
+          "add stale water"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_16",
+        "passage": "A young bulbul struck a glass window and could not fly. A trained rescuer placed it in a quiet ventilated box, a vet checked its wing, and the bird rested overnight. The next morning it flew strongly, so the team released it near the hedge where it had been found.",
+        "prompt": "Summarize the rescue, recovery, and release in your own words.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "rescue_start",
+            "description": "States that the injured or stunned bulbul was rescued after hitting the window.",
+            "any_of": [
+              "bulbul hit a window",
+              "bird could not fly",
+              "rescuer placed it in a quiet box",
+              "stunned bird was rescued"
+            ]
+          },
+          {
+            "id": "recovery_step",
+            "description": "States that a vet checked it and it rested or recovered.",
+            "any_of": [
+              "vet checked its wing",
+              "bird rested overnight",
+              "recovered after resting",
+              "team cared for it until it flew strongly"
+            ]
+          },
+          {
+            "id": "release_end",
+            "description": "States that the recovered bird was released near its original hedge.",
+            "any_of": [
+              "released near the hedge",
+              "team returned it where it was found",
+              "bird was set free the next morning",
+              "released after it flew strongly"
+            ]
+          }
+        ],
+        "min_response_words": 15,
+        "ordered_concept_slot_ids": [
+          "rescue_start",
+          "recovery_step",
+          "release_end"
+        ],
+        "forbidden_phrases": [
+          "bird was released before recovery",
+          "vet damaged the wing"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_17",
+        "passage": "First, Asha tied a note to the empty seed box. Next, her brother read it and refilled the box. Finally, sparrows returned to feed.",
+        "prompt": "What happened immediately before the sparrows returned?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "Asha's brother refilled the box",
+          "Asha removed the seed box",
+          "the sparrows tied a note",
+          "the brother closed the garden"
+        ],
+        "accepted_answers": [
+          "Asha's brother refilled the box",
+          "her brother refilled the box",
+          "the box was refilled"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_18",
+        "passage": "A community wetland keeps fishing nets away from nesting corners, plants reeds along bare banks, and tests the water each month. More water birds now raise chicks there.",
+        "prompt": "Which statement best gives the main idea?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "careful habitat protection helps water birds breed safely",
+          "monthly water tests are the only useful action",
+          "fishing nets create better nesting corners",
+          "bare banks always attract more chicks"
+        ],
+        "accepted_answers": [
+          "careful habitat protection helps water birds breed safely",
+          "protecting the wetland helps birds raise chicks",
+          "habitat care supports nesting birds"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_19",
+        "passage": "After escaping, a parrot waited in a leafy tree until the crowded courtyard became quiet. Only then did it fly towards the forest.",
+        "prompt": "Why did the parrot probably wait?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "to leave more safely when fewer people could stop it",
+          "to return willingly to the cage",
+          "to learn the trader's daily song",
+          "to wait for the courtyard to become noisier"
+        ],
+        "accepted_answers": [
+          "to leave more safely when fewer people could stop it",
+          "it waited for a safer time to fly",
+          "fewer people could catch it when the courtyard was quiet"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_20",
+        "passage": "A healthy wild bird has room to fly in its woodland, but a family wants to keep it in a small cage because its feathers look beautiful.",
+        "prompt": "What should the family do, and why?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "humane_action",
+            "description": "States that the family should leave, return, or release the wild bird in its habitat.",
+            "any_of": [
+              "leave the bird in the woodland",
+              "release the wild bird",
+              "return it to its habitat",
+              "do not keep it in the cage"
+            ]
+          },
+          {
+            "id": "freedom_reason",
+            "description": "Explains that the bird needs freedom, room to fly, or its natural habitat.",
+            "any_of": [
+              "bird needs room to fly",
+              "wild bird belongs in its habitat",
+              "it should live freely",
+              "small cage limits its freedom"
+            ]
+          }
+        ],
+        "min_response_words": 9,
+        "forbidden_phrases": [
+          "keep it because it is beautiful",
+          "wild birds do not need to fly"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_21",
+        "passage": "The keeper hesitated before opening the aviary door. She checked the weather once more, then slowly turned the latch.",
+        "prompt": "What does hesitated suggest about the keeper?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "pause_meaning",
+            "description": "Explains that the keeper paused or waited before acting.",
+            "any_of": [
+              "keeper paused",
+              "waited before opening",
+              "did not act immediately",
+              "stopped for a moment"
+            ]
+          },
+          {
+            "id": "uncertainty_reason",
+            "description": "Infers that she was unsure, cautious, or checking safety.",
+            "any_of": [
+              "she was unsure",
+              "wanted to be careful",
+              "checked whether it was safe",
+              "felt uncertain about opening"
+            ]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": [
+          "rushed without thinking",
+          "was completely careless"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_22",
+        "passage": "Four students describe their reactions to a missing class pet.",
+        "prompt": "Which sentence uses distressed correctly?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "Mina felt distressed and searched every safe corner for the missing bird.",
+          "Mina felt distressed because she had won the cheerful music contest.",
+          "Mina distressed the blue notebook onto the shelf.",
+          "Mina was distressed, so she ignored the missing bird and laughed."
+        ],
+        "accepted_answers": [
+          "Mina felt distressed and searched every safe corner for the missing bird.",
+          "mina felt distressed and searched every safe corner for the missing bird"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_23",
+        "passage": "Choose the sentence in which a collective noun names the group, an adjective describes it, and a verb tells its action.",
+        "prompt": "Which sentence uses all three word jobs correctly?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "A noisy flock crossed the field.",
+          "Noisy crossed flock the field.",
+          "A crossed flock noisy the field.",
+          "Flock the noisy across."
+        ],
+        "accepted_answers": [
+          "A noisy flock crossed the field.",
+          "a noisy flock crossed the field"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch04_assess_24",
+        "passage": "After reaching the forest edge, the freed parrot found a younger bird tangled in loose thread near a bush. The younger bird could not free one wing.",
+        "prompt": "Continue the scene in 60 to 90 words. Show what the parrot noticed, the reason for its action, how it helped, and the result. Use past tense and write in your own words.",
+        "skill_ids": [
+          "grammar.tense_usage",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "story_continuation_60_90",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "assessment_word_range",
+            "description": "Contains 60 to 90 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "assessment_scene_connection",
+            "description": "Continues from the freed parrot finding the younger bird caught in thread.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "assessment_reasoned_action",
+            "description": "Shows a sensible helping action and explains why the parrot chose it.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "assessment_help_process",
+            "description": "Describes how the thread problem is addressed rather than skipping directly to the ending.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "assessment_past_tense",
+            "description": "Uses past tense consistently enough for completed story events.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "assessment_clear_result",
+            "description": "Ends with a clear outcome for the younger bird.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      }
+    ]
+  }
+}

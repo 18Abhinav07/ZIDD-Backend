@@ -1,0 +1,95 @@
+{
+  "book_code": "desa1",
+  "book_title": "Santoor",
+  "chapter_count": 12,
+  "chapters": [
+    {
+      "chapter_id": "eng_c4_ch01",
+      "chapter_no": 1,
+      "chapter_title": "Together We Can",
+      "selector_ref": "desa1=1-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=1-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch02",
+      "chapter_no": 2,
+      "chapter_title": "The Tinkling Bells",
+      "selector_ref": "desa1=2-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=2-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch03",
+      "chapter_no": 3,
+      "chapter_title": "Be Smart, Be Safe",
+      "selector_ref": "desa1=3-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=3-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch04",
+      "chapter_no": 4,
+      "chapter_title": "One Thing at a Time",
+      "selector_ref": "desa1=4-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=4-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch05",
+      "chapter_no": 5,
+      "chapter_title": "The Old Stag",
+      "selector_ref": "desa1=5-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=5-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch06",
+      "chapter_no": 6,
+      "chapter_title": "Braille",
+      "selector_ref": "desa1=6-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=6-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch07",
+      "chapter_no": 7,
+      "chapter_title": "Fit Body, Fit Mind, Fit Nation",
+      "selector_ref": "desa1=7-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=7-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch08",
+      "chapter_no": 8,
+      "chapter_title": "The Lagori Champions",
+      "selector_ref": "desa1=8-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=8-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch09",
+      "chapter_no": 9,
+      "chapter_title": "Hekko",
+      "selector_ref": "desa1=9-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=9-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch10",
+      "chapter_no": 10,
+      "chapter_title": "The Swing",
+      "selector_ref": "desa1=10-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=10-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch11",
+      "chapter_no": 11,
+      "chapter_title": "A Journey to the Magical Mountains",
+      "selector_ref": "desa1=11-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=11-12"
+    },
+    {
+      "chapter_id": "eng_c4_ch12",
+      "chapter_no": 12,
+      "chapter_title": "Maheshwar",
+      "selector_ref": "desa1=12-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?desa1=12-12"
+    }
+  ],
+  "class_no": 4,
+  "source_url": "https://ncert.nic.in/textbook.php",
+  "structural_note": "NCERT selector metadata only. Zidd stores original teaching content and does not copy textbook body text.",
+  "subject_id": "english"
+}

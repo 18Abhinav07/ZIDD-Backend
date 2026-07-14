@@ -1,0 +1,819 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class2-pedagogy-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "codex self-review: pedagogy, grammar, ambiguity, grading, passage independence, and age fit"
+  ],
+  "runtime_sha256": "607dad3c8ddcec3778cb179ae955d40e3dee2680417a34e272f3f43b9ca0f743",
+  "chapter_id": "eng_c2_ch04",
+  "chapter_no": 4,
+  "title": "Seeing without Seeing",
+  "book_title": "Mridang",
+  "unit_title": "Welcome to My World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr104.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "sense_clues",
+      "title": "Choose the sense clue",
+      "focus": "identify whether touch, hearing, smell, or taste gives the clue",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read a short situation and identify the sense that helps the child learn about an object.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A sense clue tells how we learn something. Worked example: a ringing phone gives a hearing clue. Do not choose sight when the passage says the eyes are covered.",
+          "passage": "With her eyes covered, Joya feels a rough shell in her hand.",
+          "prompt": "Which sense helps Joya notice that it is rough?",
+          "options": [
+            "touch",
+            "hearing",
+            "smell",
+            "taste"
+          ],
+          "accepted_answers": [
+            "touch",
+            "sense of touch"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Listen for sound words such as buzz, ring, or clap. These point to hearing.",
+          "passage": "Arun hears a steady buzz near the flower pot.",
+          "prompt": "Which sense gives Arun the clue?",
+          "options": [
+            "hearing",
+            "touch",
+            "taste",
+            "smell"
+          ],
+          "accepted_answers": [
+            "hearing",
+            "sense of hearing"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A scent reaches the nose. The word “sweet” can describe taste or smell, so use the action “sniffs” to decide.",
+          "passage": "Mili sniffs a sweet scent from a closed box.",
+          "prompt": "Which sense is Mili using?",
+          "options": [
+            "smell",
+            "taste",
+            "hearing",
+            "touch"
+          ],
+          "accepted_answers": [
+            "smell",
+            "sense of smell"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Name the sense from the action in the passage. Keep the answer to one short phrase.",
+          "passage": "Before eating, Rehan touches a cup and notices that it is warm.",
+          "prompt": "Which sense tells Rehan the cup is warm?",
+          "options": [],
+          "accepted_answers": [
+            "touch",
+            "sense of touch"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer sense-clue reading to cooking. The setting changes, but the clue still comes through the nose.",
+          "passage": "From the doorway, Sana notices the scent of toasted bread.",
+          "prompt": "Which sense helps Sana?",
+          "options": [],
+          "accepted_answers": [
+            "smell",
+            "sense of smell"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "sense_word_meanings",
+      "title": "Understand clue words",
+      "focus": "use context to understand texture, scent, and sound words",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Infer the meaning of a sense word from the action and result around it.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context can explain a new word. Worked example: “The stone scratched my hand; it was rough” shows rough means not smooth.",
+          "passage": "The blanket felt fuzzy. Tiny soft fibres brushed Kavi’s fingers.",
+          "prompt": "What does “fuzzy” mean here?",
+          "options": [
+            "covered with soft fibres",
+            "making a loud sound",
+            "very cold to taste",
+            "full of water"
+          ],
+          "accepted_answers": [
+            "covered with soft fibres",
+            "soft and furry",
+            "soft"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use the result as a clue. If a sound is faint, someone may move closer to hear it.",
+          "passage": "The bell made a faint sound, so Tara stepped nearer to hear it.",
+          "prompt": "What does “faint” mean?",
+          "options": [
+            "quiet and hard to hear",
+            "very loud",
+            "rough to touch",
+            "sweet to smell"
+          ],
+          "accepted_answers": [
+            "quiet and hard to hear",
+            "quiet",
+            "soft"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "“Aroma” is explained by the nose and food clue, not by the object’s colour.",
+          "passage": "A warm, spicy aroma came from the soup. Dev noticed it with his nose.",
+          "prompt": "What does “aroma” mean?",
+          "options": [
+            "a pleasant smell",
+            "a sharp corner",
+            "a bright colour",
+            "a heavy weight"
+          ],
+          "accepted_answers": [
+            "a pleasant smell",
+            "smell",
+            "a smell"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the touch clues without choices.",
+          "passage": "The wooden block was smooth; Meera’s finger moved over it without catching.",
+          "prompt": "What does “smooth” mean here?",
+          "options": [],
+          "accepted_answers": [
+            "even and not rough",
+            "not rough",
+            "even",
+            "flat and not rough"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer context reading to a weather sound. The surrounding words explain the new sound word.",
+          "passage": "A low rumble rolled across the sky before the rain. It sounded like a distant drum.",
+          "prompt": "What does “rumble” mean here?",
+          "options": [],
+          "accepted_answers": [
+            "a low deep sound",
+            "low sound",
+            "deep sound",
+            "a deep rolling sound"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "sense_tools_words",
+      "title": "Use sense and access words",
+      "focus": "use words such as chime, raised dots, texture, and direction correctly",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Choose a chapter word that accurately names a clue, feature, or helpful tool.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A “texture” is how a surface feels. Worked example: smooth and bumpy are two textures. It is not the name of the object itself.",
+          "passage": "One card is silky and another is rough.",
+          "prompt": "Which word names the way their surfaces feel?",
+          "options": [
+            "texture",
+            "direction",
+            "chime",
+            "flavour"
+          ],
+          "accepted_answers": [
+            "texture"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Raised dots stand above a flat surface and can be felt. Focus on the touch clue rather than the page colour.",
+          "passage": "Nikhil runs his fingertips over dots that stand above the page.",
+          "prompt": "Which words describe the dots?",
+          "options": [
+            "raised dots",
+            "faint scent",
+            "smooth line",
+            "bright ink"
+          ],
+          "accepted_answers": [
+            "raised dots",
+            "raised"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A chime is a clear ringing sound. If you chose “direction,” check whether the question asks what was heard or where it came from.",
+          "passage": "A clear ring sounds when the door opens.",
+          "prompt": "Which chapter word names this sound?",
+          "options": [
+            "chime",
+            "texture",
+            "direction",
+            "surface"
+          ],
+          "accepted_answers": [
+            "chime",
+            "a chime"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "The passage contains both the target direction and the sound clue. Use them together.",
+          "passage": "A bell rings on Lata’s right side. She turns right towards the bell.",
+          "prompt": "Which direction does Lata turn?",
+          "options": [],
+          "accepted_answers": [
+            "right",
+            "to the right",
+            "right side"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer access-word use to a lift. The raised mark can be found by touch rather than sight.",
+          "passage": "Inside a lift, Omar feels a raised arrow on one button.",
+          "prompt": "Which word describes the arrow?",
+          "options": [],
+          "accepted_answers": [
+            "raised",
+            "a raised arrow"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "sense_word_jobs",
+      "title": "Actions and describing clues",
+      "focus": "distinguish action and describing words in sense sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Find verbs that show sensing actions and adjectives that describe sounds, smells, tastes, or textures.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sensing actions are verbs: touches, hears, sniffs, and tastes. Worked example: in “Mina sniffs the flower,” sniffs is the action.",
+          "passage": "Aarav gently taps the metal cup.",
+          "prompt": "Which word shows the action?",
+          "options": [
+            "taps",
+            "gently",
+            "metal",
+            "cup"
+          ],
+          "accepted_answers": [
+            "taps"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A describing word tells what a thing is like. “Sharp” describes the sound; “rings” is the action.",
+          "passage": "The sharp bell rings once.",
+          "prompt": "Which word describes the sound?",
+          "options": [
+            "sharp",
+            "rings",
+            "bell",
+            "once"
+          ],
+          "accepted_answers": [
+            "sharp"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Match the action to the named person. Another descriptive clue may appear nearby.",
+          "passage": "Nora smells the fresh mint leaf.",
+          "prompt": "Which word tells what Nora does?",
+          "options": [
+            "smells",
+            "fresh",
+            "mint",
+            "leaf"
+          ],
+          "accepted_answers": [
+            "smells"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Find the describing word without choices.",
+          "passage": "Ishan feels the bumpy stone.",
+          "prompt": "Which word describes the stone?",
+          "options": [],
+          "accepted_answers": [
+            "bumpy",
+            "bumpy stone"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the word-job test to food preparation. Look for the action done with the ears.",
+          "passage": "The cook listens for the soft timer bell.",
+          "prompt": "Write the sensing action word.",
+          "options": [],
+          "accepted_answers": [
+            "listens",
+            "listen"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "helpful_access_sentence",
+      "title": "Explain a helpful way",
+      "focus": "write a respectful complete sentence about using a sense clue or offering help",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write a sentence that names a useful action and respects the other person’s choice and independence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Helpful language says what can be done without assuming a person cannot act. Worked example: “Ask before offering your arm.” is clear and respectful.",
+          "passage": "A classmate is finding the classroom door by touch.",
+          "prompt": "Which sentence is the most respectful?",
+          "options": [
+            "Ask if the classmate would like help.",
+            "Pull the classmate without asking.",
+            "They cannot do anything.",
+            "Help classmate."
+          ],
+          "accepted_answers": [
+            "Ask if the classmate would like help.",
+            "ask if the classmate would like help"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A complete direction needs a landmark or sound. “Go there” is unclear because it gives no usable clue.",
+          "passage": "A soft drum is sounding near the reading corner.",
+          "prompt": "Which direction is clear and complete?",
+          "options": [
+            "Walk towards the drum sound near the reading corner.",
+            "Go there.",
+            "The drum.",
+            "Walking corner."
+          ],
+          "accepted_answers": [
+            "Walk towards the drum sound near the reading corner.",
+            "walk towards the drum sound near the reading corner"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Choose an action that increases access. Moving an obstacle is more useful than describing its colour.",
+          "passage": "A school bag blocks the clear path to the desk.",
+          "prompt": "Which sentence gives helpful action?",
+          "options": [
+            "Move the bag away from the path.",
+            "The bag is blue.",
+            "Leave it there.",
+            "Bag path."
+          ],
+          "accepted_answers": [
+            "Move the bag away from the path.",
+            "move the bag away from the path"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write one respectful sentence. Include asking first and the kind of help that could be offered.",
+          "passage": "Viren is listening for his group near a noisy doorway.",
+          "prompt": "Write what a classmate could say or do to offer help respectfully.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "permission",
+              "description": "Asks before helping.",
+              "any_of": [
+                "would you like help",
+                "may i help",
+                "can i help",
+                "do you want help"
+              ]
+            },
+            {
+              "id": "help",
+              "description": "Offers a useful clue or guidance.",
+              "any_of": [
+                "tell you where",
+                "guide you",
+                "describe the way",
+                "point out the sound",
+                "walk with you"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer respectful support to a museum visit. Offer access to information without taking over.",
+          "passage": "A visitor wants to learn about a model by touch, but the display has a “staff assistance” sign.",
+          "prompt": "Write one complete sentence suggesting a respectful next step.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "person",
+              "description": "Involves museum staff.",
+              "any_of": [
+                "staff",
+                "guide",
+                "museum worker"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "Asks for permission or assistance.",
+              "any_of": [
+                "ask",
+                "request",
+                "check",
+                "help",
+                "permission"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c4_sense_01",
+        "passage": "Pavi hears a whistle from the playground.",
+        "prompt": "Which sense gives Pavi the clue?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "hearing",
+          "touch",
+          "smell",
+          "taste"
+        ],
+        "accepted_answers": [
+          "hearing",
+          "sense of hearing"
+        ]
+      },
+      {
+        "item_id": "c4_sense_02",
+        "passage": "With eyes closed, Yana feels a cool marble in her palm.",
+        "prompt": "How does Yana notice the marble is cool?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "by touch",
+          "by hearing",
+          "by smell",
+          "by taste"
+        ],
+        "accepted_answers": [
+          "by touch",
+          "touch",
+          "sense of touch"
+        ]
+      },
+      {
+        "item_id": "c4_sense_03",
+        "passage": "A fresh orange scent comes from the lunch box.",
+        "prompt": "Which sense can notice the scent?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "smell",
+          "hearing",
+          "touch",
+          "sight only"
+        ],
+        "accepted_answers": [
+          "smell",
+          "sense of smell"
+        ]
+      },
+      {
+        "item_id": "c4_sense_04",
+        "passage": "Raghu tastes one tiny drop of safe lemon water and notices it is sour.",
+        "prompt": "Which sense tells Raghu it is sour?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "taste",
+          "sense of taste"
+        ]
+      },
+      {
+        "item_id": "c4_mean_01",
+        "passage": "The towel was damp, with a little water still in it.",
+        "prompt": "What does “damp” mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "slightly wet",
+          "very loud",
+          "fully dry",
+          "rough and sharp"
+        ],
+        "accepted_answers": [
+          "slightly wet",
+          "a little wet"
+        ]
+      },
+      {
+        "item_id": "c4_mean_02",
+        "passage": "The perfume had a strong scent that reached the hallway.",
+        "prompt": "What does “scent” mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "smell",
+          "sound",
+          "shape",
+          "weight"
+        ],
+        "accepted_answers": [
+          "smell",
+          "a smell"
+        ]
+      },
+      {
+        "item_id": "c4_mean_03",
+        "passage": "The alarm gave a piercing beep that made everyone cover their ears.",
+        "prompt": "What does “piercing” mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "very sharp and loud",
+          "soft and distant",
+          "sweet to taste",
+          "smooth to touch"
+        ],
+        "accepted_answers": [
+          "very sharp and loud",
+          "sharp and loud",
+          "loud"
+        ]
+      },
+      {
+        "item_id": "c4_mean_04",
+        "passage": "The cushion felt springy and rose again after Mina pressed it.",
+        "prompt": "What does “springy” mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "bounces back after being pressed",
+          "bounces back",
+          "soft and able to spring back",
+          "returns to shape"
+        ]
+      },
+      {
+        "item_id": "c4_vocab_01",
+        "passage": "A surface has many tiny bumps.",
+        "prompt": "Which word names how the surface feels?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "texture",
+          "direction",
+          "chime",
+          "taste"
+        ],
+        "accepted_answers": [
+          "texture"
+        ]
+      },
+      {
+        "item_id": "c4_vocab_02",
+        "passage": "Dots stand above a flat card and can be felt with a finger.",
+        "prompt": "Which phrase describes the dots?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "raised dots",
+          "silent dots",
+          "painted scent",
+          "flat sound"
+        ],
+        "accepted_answers": [
+          "raised dots"
+        ]
+      },
+      {
+        "item_id": "c4_vocab_03",
+        "passage": "A clear ringing note comes from a hanging metal tube.",
+        "prompt": "Which word names the sound?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "chime",
+          "texture",
+          "surface",
+          "flavour"
+        ],
+        "accepted_answers": [
+          "chime",
+          "a chime"
+        ]
+      },
+      {
+        "item_id": "c4_vocab_04",
+        "passage": "The guide says, “The doorway is on your left,” and taps once beside the left wall.",
+        "prompt": "Which direction is the doorway?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "left",
+          "on the left",
+          "left side"
+        ]
+      },
+      {
+        "item_id": "c4_grammar_01",
+        "passage": "Tina sniffs the warm soup.",
+        "prompt": "Which word shows the action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "sniffs",
+          "warm",
+          "soup",
+          "Tina"
+        ],
+        "accepted_answers": [
+          "sniffs"
+        ]
+      },
+      {
+        "item_id": "c4_grammar_02",
+        "passage": "A low drum beats slowly.",
+        "prompt": "Which word describes the drum sound?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "low",
+          "beats",
+          "drum",
+          "slowly"
+        ],
+        "accepted_answers": [
+          "low"
+        ]
+      },
+      {
+        "item_id": "c4_grammar_03",
+        "passage": "Kabir touches the silky ribbon.",
+        "prompt": "Which word describes the ribbon?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "silky",
+          "touches",
+          "Kabir",
+          "ribbon"
+        ],
+        "accepted_answers": [
+          "silky"
+        ]
+      },
+      {
+        "item_id": "c4_grammar_04",
+        "passage": "The child listens beside the open window.",
+        "prompt": "Write the sensing action word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "listens",
+          "listen"
+        ]
+      },
+      {
+        "item_id": "c4_help_01",
+        "passage": "A chair blocks the walking path.",
+        "prompt": "Which sentence gives useful action?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Move the chair out of the path.",
+          "The chair is brown.",
+          "Chair path.",
+          "Leave the block."
+        ],
+        "accepted_answers": [
+          "Move the chair out of the path.",
+          "move the chair out of the path"
+        ]
+      },
+      {
+        "item_id": "c4_help_02",
+        "passage": "A classmate is searching for the correct desk.",
+        "prompt": "Which sentence offers help respectfully?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Would you like me to describe where it is?",
+          "You cannot find anything.",
+          "I will pull you now.",
+          "Desk there."
+        ],
+        "accepted_answers": [
+          "Would you like me to describe where it is?",
+          "would you like me to describe where it is"
+        ]
+      },
+      {
+        "item_id": "c4_help_03",
+        "passage": "The exit bell sounds beside the main door.",
+        "prompt": "Which sentence gives a clear clue?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The main door is beside the exit bell.",
+          "Go somewhere.",
+          "A bell door.",
+          "The bell is nice."
+        ],
+        "accepted_answers": [
+          "The main door is beside the exit bell.",
+          "the main door is beside the exit bell"
+        ]
+      },
+      {
+        "item_id": "c4_help_04",
+        "passage": "A visitor asks how to reach the quiet reading room. A soft music player is outside its door.",
+        "prompt": "Write one complete sentence giving a useful direction.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "place",
+            "description": "Names the reading room or its door.",
+            "any_of": [
+              "reading room",
+              "room",
+              "door"
+            ]
+          },
+          {
+            "id": "clue",
+            "description": "Uses the soft music as the landmark.",
+            "any_of": [
+              "music",
+              "sound",
+              "music player"
+            ]
+          },
+          {
+            "id": "direction",
+            "description": "Connects the room to the landmark.",
+            "any_of": [
+              "near",
+              "beside",
+              "next to",
+              "towards"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      }
+    ]
+  }
+}

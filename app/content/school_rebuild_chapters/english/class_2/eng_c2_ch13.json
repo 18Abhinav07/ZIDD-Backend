@@ -1,0 +1,1049 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-content-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Original Zidd passages checked against the corrected NCERT title and chapter theme.",
+    "Every independent, transfer, and assessment scenario checked for stage freshness.",
+    "Masterclass checks verified deterministic with non-empty accepted answers.",
+    "Prompts, alternatives, misconceptions, age fit, and answer contracts reviewed item by item."
+  ],
+  "runtime_sha256": "201574021f9f33807e5bd1ff1154d98bc550bd337eb09f58e503fc8ad0af5dd2",
+  "content_version": "2026-07-12.2",
+  "chapter_id": "eng_c2_ch13",
+  "chapter_no": 13,
+  "title": "We are all Indians",
+  "book_title": "Mridang",
+  "unit_title": "Our Country, Our Home",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr113.pdf",
+  "source_note": "NCERT structural and thematic alignment only. All teaching passages, checks, feedback, and assessment situations are original Zidd content.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch13_people_places",
+      "title": "Read an Indian child's profile",
+      "focus": "match a child with a state, language, art, or interest",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read short original profiles and retrieve the correct detail without mixing information from two children.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Profiles contain several details. Match the question word: where asks for a place; what language asks for a language name.",
+          "passage": "Aditi lives in Assam. She speaks Assamese with her grandparents and enjoys weaving paper mats.",
+          "prompt": "Where does Aditi live?",
+          "options": [
+            "Assam",
+            "Kerala",
+            "Punjab",
+            "Goa"
+          ],
+          "accepted_answers": [
+            "Assam",
+            "assam",
+            "in Assam",
+            "in assam"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Keep person, place, and activity together. A nearby place name from another profile would be a mix-up.",
+          "passage": "Joel comes from Goa. He speaks Konkani and likes playing football near his school.",
+          "prompt": "Which language does Joel speak?",
+          "options": [
+            "Konkani",
+            "Assamese",
+            "Tamil"
+          ],
+          "accepted_answers": [
+            "Konkani",
+            "konkani"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use the action clue. The state tells where; the hobby tells what the child enjoys doing.",
+          "passage": "Navya lives in Karnataka and speaks Kannada. On weekends, she learns to play the veena.",
+          "prompt": "What does Navya learn on weekends?",
+          "options": [],
+          "accepted_answers": [
+            "to play the veena",
+            "play the veena",
+            "the veena",
+            "veena"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Answer without choices. Return only the requested profile detail, not every fact.",
+          "passage": "Harnoor's family lives in Punjab. He speaks Punjabi and grows mint in a window pot.",
+          "prompt": "What does Harnoor grow?",
+          "options": [],
+          "accepted_answers": [
+            "mint",
+            "mint in a window pot",
+            "a mint plant"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer profile reading to an international pen-pal card. Match the question to the exact field.",
+          "passage": "Maya lives in Nairobi, speaks Swahili and English, and enjoys making model planes.",
+          "prompt": "Which hobby is listed on Maya's card?",
+          "options": [],
+          "accepted_answers": [
+            "making model planes",
+            "makes model planes",
+            "model planes"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch13_unique_together",
+      "title": "Find unity across differences",
+      "focus": "identify the main idea that people can differ and still belong together",
+      "skill_ids": [
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Combine details about languages, homes, foods, and arts into the chapter's unity message.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea must include both difference and belonging. Do not choose one festival or language as the whole message.",
+          "passage": "Our class families speak six languages and cook many kinds of food. Everyone works together on the same school garden.",
+          "prompt": "Which statement gives the main idea?",
+          "options": [
+            "People can be different and still work as one group.",
+            "Only one language belongs in school.",
+            "Gardens grow six foods.",
+            "All families cook the same dish."
+          ],
+          "accepted_answers": [
+            "People can be different and still work as one group.",
+            "people can be different and still work together",
+            "differences do not stop people belonging together"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Unique means each person has special details. The shared identity does not erase those details.",
+          "passage": "One child paints village scenes; another practises a hill dance. Both proudly call India their home.",
+          "prompt": "What idea connects the sentences?",
+          "options": [
+            "Different traditions can belong to one country.",
+            "Only painters belong to India.",
+            "Every dance is the same."
+          ],
+          "accepted_answers": [
+            "Different traditions can belong to one country.",
+            "different traditions belong to one country",
+            "people with different traditions are all Indian"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Look beyond the list of objects. The repeated sharing shows respect and curiosity across differences.",
+          "passage": "Children bring a folk song, a family game, and a favourite story to culture day. They listen to every presentation.",
+          "prompt": "What is the paragraph mainly about?",
+          "options": [],
+          "accepted_answers": [
+            "sharing and respecting different traditions",
+            "children share different traditions",
+            "respecting each other's traditions",
+            "learning about different cultures"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "State the main idea in your own words. Include one difference and one way the group remains united.",
+          "passage": "The neighbours celebrate different festivals. When the lane floods, every family carries supplies to the same dry hall.",
+          "prompt": "What does this scene show about the neighbours?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "difference",
+              "description": "Mention different festivals or customs.",
+              "any_of": [
+                "different festivals",
+                "celebrate differently",
+                "customs"
+              ]
+            },
+            {
+              "id": "unity",
+              "description": "Mention helping together during the flood.",
+              "any_of": [
+                "every family",
+                "together",
+                "helps",
+                "supplies",
+                "same hall"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer unity to a mixed-ability team. Show different strengths serving one shared goal.",
+          "passage": "For a science model, Chen draws labels, Salma measures pieces, and Deep fixes the wheels. Their single model works well.",
+          "prompt": "How are the teammates different yet united?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "differences",
+              "description": "Mention different tasks or strengths.",
+              "any_of": [
+                "draws",
+                "measures",
+                "fixes",
+                "different tasks"
+              ]
+            },
+            {
+              "id": "unity",
+              "description": "Mention the one working model or common goal.",
+              "any_of": [
+                "single model",
+                "one model",
+                "together",
+                "common goal",
+                "works well"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch13_culture_words",
+      "title": "Use clues for culture words",
+      "focus": "understand language, festival, neighbour, monument, and unique",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Infer cultural and community words from examples while keeping language names as names.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A language is a system people use to speak, sign, read, or write with one another. Hindi and Tamil are examples, not describing words.",
+          "passage": "At home, Rohan speaks Hindi. His friend writes a note in Tamil. Both are using a language.",
+          "prompt": "What does language mean here?",
+          "options": [
+            "a way people communicate with words or signs",
+            "a style of shoe",
+            "a describing colour",
+            "a kind of building"
+          ],
+          "accepted_answers": [
+            "a way people communicate with words or signs",
+            "a way to communicate",
+            "words people use to communicate",
+            "a system of communication"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A festival is a special time of celebration. Food and lights are clues, but one dish alone is not the meaning.",
+          "passage": "The town holds a festival with songs, lamps, and a community meal.",
+          "prompt": "Which meaning fits festival?",
+          "options": [
+            "a special celebration",
+            "an ordinary school desk",
+            "a road sign"
+          ],
+          "accepted_answers": [
+            "a special celebration",
+            "special celebration",
+            "a time when people celebrate"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A neighbour is someone who lives close by. Friendship is possible, but living nearby is the key clue.",
+          "passage": "Mrs Das lives in the flat next to ours. She is our neighbour.",
+          "prompt": "What does neighbour mean?",
+          "options": [],
+          "accepted_answers": [
+            "someone who lives nearby",
+            "a person who lives near us",
+            "someone living close by",
+            "person next door"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "A monument is a special building or structure remembered for history. The age and visitor clues support the meaning.",
+          "passage": "The old stone monument has stood for hundreds of years, and visitors come to learn its history.",
+          "prompt": "What is a monument?",
+          "options": [],
+          "accepted_answers": [
+            "a special historic building or structure",
+            "historic building",
+            "a structure from history",
+            "an old important structure"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer unique to a fingerprint activity. Different patterns show one of a kind, not better or worse.",
+          "passage": "Every fingerprint card has a different pattern. Each print is unique.",
+          "prompt": "What does unique mean?",
+          "options": [],
+          "accepted_answers": [
+            "one of a kind",
+            "different from all others",
+            "special and different",
+            "not exactly like another"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch13_names_and_describers",
+      "title": "Separate names from describing words",
+      "focus": "recognise proper names, actions, and describing words in profile sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Treat names of people, places, and languages as naming words; identify adjectives only when they describe a noun.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Marathi is the name of a language, so it is a proper naming word. Bright describes the shawl. Never classify Marathi as a describing word.",
+          "passage": "Vibha speaks Marathi and wears a bright shawl.",
+          "prompt": "Which word names a language?",
+          "options": [
+            "Marathi",
+            "bright",
+            "speaks",
+            "shawl"
+          ],
+          "accepted_answers": [
+            "Marathi",
+            "marathi"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A place name is also a proper naming word. A describing word tells what kind, such as coastal.",
+          "passage": "Luis visits coastal Goa during the holidays.",
+          "prompt": "Which word describes Goa?",
+          "options": [
+            "coastal",
+            "visits",
+            "Luis"
+          ],
+          "accepted_answers": [
+            "coastal"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "An action word shows what someone does. Punjabi names a language; sings shows the action.",
+          "passage": "Gurleen sings in Punjabi at the school event.",
+          "prompt": "Which word shows an action?",
+          "options": [],
+          "accepted_answers": [
+            "sings"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Classify by job in this fresh sentence. Kerala names a place even though it appears after a describing word.",
+          "passage": "Green Kerala welcomes the travellers.",
+          "prompt": "What job does Kerala do?",
+          "options": [],
+          "accepted_answers": [
+            "naming word",
+            "a naming word",
+            "proper naming word",
+            "proper noun",
+            "it names a place"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer proper names to a world map. Spanish names a language; lively describes the music.",
+          "passage": "Ana speaks Spanish and enjoys lively music.",
+          "prompt": "Which word describes the music?",
+          "options": [],
+          "accepted_answers": [
+            "lively"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch13_contrast_but",
+      "title": "Join differences with but",
+      "focus": "use but to connect two different true details without making one seem wrong",
+      "skill_ids": [
+        "grammar.connectors_because_and_but"
+      ],
+      "teaching_goal": "Use but for a neutral contrast between preferences, abilities, or places, and because only for a reason.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "But can join different preferences. Both sides remain true; neither food is presented as better.",
+          "passage": "Ritu likes idli, ____ her brother prefers poha.",
+          "prompt": "Which connector shows the difference?",
+          "options": [
+            "but",
+            "because",
+            "so",
+            "when"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use because only when the second part explains why. Here the second activity contrasts with the first.",
+          "passage": "Zain plays the flute, ____ his friend dances.",
+          "prompt": "Which word contrasts the two activities?",
+          "options": [
+            "but",
+            "because",
+            "after"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A contrast can describe two languages without ranking them. Keep the names capitalised in the written sentence.",
+          "passage": "Mira speaks Bengali at home, ____ she uses English in science class.",
+          "prompt": "Which word joins the home and school language uses?",
+          "options": [],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Check whether the second idea is a cause. This sentence gives the reason everyone can join.",
+          "passage": "The game includes pictures ____ not everyone reads the same language.",
+          "prompt": "Which connector introduces the reason for using pictures?",
+          "options": [],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer contrast to a family routine. Write one respectful sentence that uses but and keeps both choices equal.",
+          "passage": "One cousin walks to the library. The other cousin cycles there.",
+          "prompt": "Join the two travel choices in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "connector",
+              "description": "Use the contrast connector.",
+              "any_of": [
+                "but"
+              ]
+            },
+            {
+              "id": "walk",
+              "description": "Include the first travel choice.",
+              "any_of": [
+                "walk",
+                "walks"
+              ]
+            },
+            {
+              "id": "cycle",
+              "description": "Include the second travel choice.",
+              "any_of": [
+                "cycle",
+                "cycles",
+                "bike"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch13_compare_welcome",
+      "title": "Compare and welcome respectfully",
+      "focus": "write a short comparison or message that values both difference and belonging",
+      "skill_ids": [
+        "writing.compare_contrast",
+        "writing.friendly_message"
+      ],
+      "teaching_goal": "Create concise comparisons and welcome messages that include accurate details and respectful common ground.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A fair comparison states one difference and one shared point. It does not call either child strange.",
+          "passage": "Tashi enjoys thukpa, and Kavya enjoys dosa. Both love listening to stories.",
+          "prompt": "Which sentence compares them respectfully?",
+          "options": [
+            "They like different foods, but both enjoy stories.",
+            "Tashi's food is right and Kavya's is wrong.",
+            "They have nothing in common."
+          ],
+          "accepted_answers": [
+            "They like different foods, but both enjoy stories.",
+            "they like different foods but both enjoy stories",
+            "their foods differ but they both like stories"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A welcome message names something the newcomer can share and shows interest without making guesses about the person's culture.",
+          "passage": "A new student says she speaks Odia and likes badminton.",
+          "prompt": "Which reply is welcoming?",
+          "options": [
+            "Welcome! Would you like to play badminton with us?",
+            "You must teach us every Odia word now.",
+            "Your language is unusual."
+          ],
+          "accepted_answers": [
+            "Welcome! Would you like to play badminton with us?",
+            "welcome would you like to play badminton with us",
+            "Welcome. Would you like to play badminton with us?"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass check: include the different languages and the common activity in one clear sentence.",
+          "passage": "Rima speaks Nepali, and Ali speaks Urdu. Both enjoy chess club.",
+          "prompt": "How can we compare Rima and Ali?",
+          "options": [],
+          "accepted_answers": [
+            "They speak different languages, but both enjoy chess club.",
+            "they speak different languages but both enjoy chess club",
+            "Rima speaks Nepali and Ali speaks Urdu, but both enjoy chess.",
+            "rima speaks nepali and ali speaks urdu but both enjoy chess"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write a natural comparison. Include one accurate difference and one common point; exact wording is not required.",
+          "passage": "Nivedita paints clay pots. Farah makes paper flowers. Both decorate the school hall.",
+          "prompt": "Compare the two children in one or two sentences.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "difference",
+              "description": "Mention their different crafts.",
+              "any_of": [
+                "clay pots",
+                "paper flowers",
+                "paints",
+                "makes"
+              ]
+            },
+            {
+              "id": "common",
+              "description": "Mention the shared hall decoration.",
+              "any_of": [
+                "both",
+                "decorate",
+                "school hall",
+                "hall"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer respectful welcome to a sports camp with children from different countries. Include greeting and common ground.",
+          "passage": "A camper from Bhutan joins Leena's team and says he loves table tennis. Leena loves the game too.",
+          "prompt": "Write a short welcome Leena could give.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "welcome",
+              "description": "Include a friendly greeting.",
+              "any_of": [
+                "welcome",
+                "glad",
+                "hello",
+                "nice to meet"
+              ]
+            },
+            {
+              "id": "common",
+              "description": "Mention their shared interest in table tennis.",
+              "any_of": [
+                "table tennis",
+                "both",
+                "play together",
+                "team"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch13_assess_01",
+        "passage": "Pari lives in Himachal Pradesh, speaks Hindi, and enjoys growing beans.",
+        "prompt": "What does Pari enjoy doing?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "growing beans",
+          "painting boats",
+          "playing drums",
+          "making kites"
+        ],
+        "accepted_answers": [
+          "growing beans",
+          "grow beans",
+          "gardening"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_02",
+        "passage": "Biren comes from Sikkim. He speaks Nepali and likes sketching mountain birds.",
+        "prompt": "Which language does Biren speak?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "Nepali",
+          "Odia",
+          "Konkani"
+        ],
+        "accepted_answers": [
+          "Nepali",
+          "nepali"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_03",
+        "passage": "Fathima lives in Kerala and reads Malayalam stories to her little brother.",
+        "prompt": "Where does Fathima live?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "Kerala",
+          "kerala",
+          "in Kerala",
+          "in kerala"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_04",
+        "passage": "Ritwik lives in West Bengal. He speaks Bengali and collects fallen leaves for art.",
+        "prompt": "What does Ritwik collect?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "fallen leaves",
+          "leaves",
+          "fallen leaves for art"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_05",
+        "passage": "At lunch, children open boxes with many different dishes. They trade recipes and eat at one table.",
+        "prompt": "Which statement captures the lunch-table scene?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Different food traditions can be shared with friendship.",
+          "Everyone must eat the same dish.",
+          "Recipes should stay secret.",
+          "Only one box is needed."
+        ],
+        "accepted_answers": [
+          "Different food traditions can be shared with friendship.",
+          "different foods can be shared with friendship",
+          "different traditions can bring friends together"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_06",
+        "passage": "The choir sings verses in three languages. All singers join the same chorus.",
+        "prompt": "What larger idea does the multilingual chorus show?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Different languages can be part of one performance.",
+          "A choir should use only one voice.",
+          "The chorus has no words."
+        ],
+        "accepted_answers": [
+          "Different languages can be part of one performance.",
+          "different languages can belong in one song",
+          "many languages can unite in one performance"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_07",
+        "passage": "Families wear different styles of dress at the school fair. Everyone helps serve water to visitors.",
+        "prompt": "Explain how the families are different yet united.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "difference",
+            "description": "Mention different dress styles.",
+            "any_of": [
+              "different",
+              "dress",
+              "styles",
+              "clothes"
+            ]
+          },
+          {
+            "id": "unity",
+            "description": "Mention everyone serving water together.",
+            "any_of": [
+              "everyone",
+              "serve water",
+              "helps",
+              "visitors"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_08",
+        "passage": "Some children travel by bus and some walk. They all arrive to plant trees in the same park.",
+        "prompt": "State the larger message.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "difference",
+            "description": "Mention different ways of travelling.",
+            "any_of": [
+              "bus",
+              "walk",
+              "different ways"
+            ]
+          },
+          {
+            "id": "unity",
+            "description": "Mention the shared tree-planting goal.",
+            "any_of": [
+              "all",
+              "plant trees",
+              "same park",
+              "together"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_09",
+        "passage": "Our neighbour lives across the landing and waters our plant when we travel.",
+        "prompt": "Which choice tells who a neighbour is?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a person who lives nearby",
+          "a visitor from far away",
+          "a musical instrument",
+          "a festival"
+        ],
+        "accepted_answers": [
+          "a person who lives nearby",
+          "someone living close by",
+          "person who lives near us"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_10",
+        "passage": "The harvest festival includes dancing, a special meal, and decorated carts.",
+        "prompt": "What do these details show a festival is?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a special celebration",
+          "a normal pencil",
+          "a type of road"
+        ],
+        "accepted_answers": [
+          "a special celebration",
+          "special celebration",
+          "time of celebration"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_11",
+        "passage": "The fort is a monument visited by people who want to learn about the city's past.",
+        "prompt": "What does monument mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "a historic building or structure",
+          "historic structure",
+          "important old building",
+          "a structure from history"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_12",
+        "passage": "No two rangoli cards have the same pattern; every design is unique.",
+        "prompt": "How are the card patterns described?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "one of a kind",
+          "different from all others",
+          "not exactly like another",
+          "special and different"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_13",
+        "passage": "Suhana speaks Marathi and carries a heavy drum.",
+        "prompt": "Identify the proper name of the language.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "Marathi",
+          "heavy",
+          "carries",
+          "drum"
+        ],
+        "accepted_answers": [
+          "Marathi",
+          "marathi"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_14",
+        "passage": "The lively dancer performs in Jaipur.",
+        "prompt": "Which word describes the dancer?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "lively",
+          "dancer",
+          "performs",
+          "Jaipur"
+        ],
+        "accepted_answers": [
+          "lively"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_15",
+        "passage": "Anand reads Telugu beside the open window.",
+        "prompt": "What job does Telugu do?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "naming word",
+          "a naming word",
+          "proper naming word",
+          "proper noun",
+          "it names a language"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_16",
+        "passage": "The bright boat crosses the lake.",
+        "prompt": "Write the action word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "crosses"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_17",
+        "passage": "Aman enjoys chess, ____ Zara prefers carrom.",
+        "prompt": "Choose the contrast connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "but",
+          "because",
+          "then",
+          "so"
+        ],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_18",
+        "passage": "The welcome card uses pictures ____ the new child is still learning English.",
+        "prompt": "Which connector introduces the reason?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "because",
+          "but",
+          "after"
+        ],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_19",
+        "passage": "Jaya speaks Kannada at home, ____ she reads English books at school.",
+        "prompt": "Write the connector showing contrast.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_20",
+        "passage": "We ask politely ____ a new word may need explanation.",
+        "prompt": "Which word introduces the explanation?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_21",
+        "passage": "Lalita makes a bamboo basket. Yusuf paints a cloth bag. Both bring their work to craft day.",
+        "prompt": "Choose the respectful comparison.",
+        "skill_ids": [
+          "writing.compare_contrast",
+          "writing.friendly_message"
+        ],
+        "options": [
+          "They make different crafts, but both share their work.",
+          "One craft is strange.",
+          "They do exactly the same task."
+        ],
+        "accepted_answers": [
+          "They make different crafts, but both share their work.",
+          "they make different crafts but both share their work"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_22",
+        "passage": "A new student says he speaks Tamil and enjoys cricket.",
+        "prompt": "Which reply is most welcoming?",
+        "skill_ids": [
+          "writing.compare_contrast",
+          "writing.friendly_message"
+        ],
+        "options": [
+          "Welcome! We can play cricket together.",
+          "Your language sounds wrong.",
+          "You must like only cricket."
+        ],
+        "accepted_answers": [
+          "Welcome! We can play cricket together.",
+          "welcome we can play cricket together",
+          "Welcome. We can play cricket together."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_23",
+        "passage": "Mansi learns Bharatanatyam. Dorjee practises a mask dance. Both perform at the school event.",
+        "prompt": "Compare Mansi and Dorjee respectfully.",
+        "skill_ids": [
+          "writing.compare_contrast",
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "difference",
+            "description": "Mention their different dances.",
+            "any_of": [
+              "bharatanatyam",
+              "mask dance",
+              "different dances"
+            ]
+          },
+          {
+            "id": "common",
+            "description": "Mention both performing at school.",
+            "any_of": [
+              "both",
+              "perform",
+              "school event",
+              "event"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch13_assess_24",
+        "passage": "A new neighbour from Nagaland joins the lane's reading circle and says she likes adventure stories.",
+        "prompt": "Write a short welcome from the group.",
+        "skill_ids": [
+          "writing.compare_contrast",
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "welcome",
+            "description": "Include a friendly welcome.",
+            "any_of": [
+              "welcome",
+              "glad",
+              "hello",
+              "nice to meet"
+            ]
+          },
+          {
+            "id": "common",
+            "description": "Mention reading or adventure stories together.",
+            "any_of": [
+              "adventure stories",
+              "reading circle",
+              "read together",
+              "stories"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      }
+    ]
+  }
+}

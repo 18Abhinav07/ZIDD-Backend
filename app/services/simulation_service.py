@@ -3501,6 +3501,11 @@ def assessment_progress_snapshot(state: dict) -> dict:
             if message.get("role") == "user"
             and message.get("message_kind") == "simulation_control"
         )
+    validity_flags = [
+        flag
+        for flag in (state.get("assessment_validity_flags") or [])
+        if isinstance(flag, dict)
+    ]
     return {
         "scorable_turn_count": scorable_turn_count,
         "min_scorable_turns": _MIN_FINAL_SCORABLE_TURNS.get(task_type, 1),
@@ -3510,6 +3515,10 @@ def assessment_progress_snapshot(state: dict) -> dict:
             state.get("simulation_round")
             or (state.get("blackboard") or {}).get("turn")
             or 0
+        ),
+        "integrity_note_count": len(_simulator_integrity_notes(state, task_type)),
+        "report_affecting_flag_count": sum(
+            1 for flag in validity_flags if _flag_affects_final_score(flag)
         ),
         "coverage_map": _coverage_summary(state, task_type, answered_messages),
     }

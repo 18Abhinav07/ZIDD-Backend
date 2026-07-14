@@ -1,0 +1,1075 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 4 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: source-map alignment, original prose, Class 4 pedagogy, answer keys, and own-words grading",
+    "Focused checks: canonical hash, key-option consistency, stage and assessment freshness, skill coverage, and chapter/corpus quality"
+  ],
+  "runtime_sha256": "cbfff3dbd42d7cd570e0d2805601c513ec8870519713953847f088be53beecf6",
+  "chapter_id": "eng_c4_ch01",
+  "chapter_no": 1,
+  "title": "Together We Can",
+  "book_title": "Santoor",
+  "unit_title": "My Land",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa101.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "together_we_can_main_idea",
+      "title": "Find how a team succeeds",
+      "focus": "identify a paragraph main idea and support it with evidence",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "State what a teamwork paragraph is mainly about and point to actions that support that idea.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea covers the whole paragraph. Here every action repairs the same play area, so the main idea is the class working together to improve it.",
+          "passage": "The play corner was untidy after art club. Rhea stacked the games, Zubin sorted the crayons, and Farah wiped the tables. Before the bell, the corner was ready for the next class.",
+          "prompt": "Which sentence best states the paragraph's main idea?",
+          "options": [
+            "The children worked together to prepare the play corner.",
+            "Farah likes clean tables.",
+            "The bell rang before lunch.",
+            "Only the crayons needed attention."
+          ],
+          "accepted_answers": [
+            "The children worked together to prepare the play corner."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Break the paragraph into three parts: shared problem, different actions, shared result. Then combine those parts into one idea.",
+          "passage": "A windstorm scattered paper across the courtyard. One group collected sheets, another held open sacks, and a third checked the drains. The courtyard was clear by assembly.",
+          "prompt": "What shared result did the groups produce?",
+          "options": [
+            "They cleared the courtyard.",
+            "They cancelled assembly.",
+            "They made more paper.",
+            "They closed the school."
+          ],
+          "accepted_answers": [
+            "They cleared the courtyard."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is choosing one memorable detail as the main idea. The main idea must explain why all the listed jobs belong in the paragraph.",
+          "passage": "For the class exhibition, Arun tested the lamp, Diya fixed the labels, and Hamid placed models on the table. Their different jobs made the science stall ready.",
+          "prompt": "Which answer is broad enough to include every detail?",
+          "options": [
+            "Different contributions prepared one science stall.",
+            "Arun tested a lamp.",
+            "The labels were made of paper.",
+            "Hamid stood near a table."
+          ],
+          "accepted_answers": [
+            "Different contributions prepared one science stall."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the new paragraph and decide what all its details show.",
+          "passage": "The lane library had received two boxes of books. Mehak recorded the titles, Joel stamped each cover, and Bina arranged the books by topic. Visitors could borrow them that evening.",
+          "prompt": "State the main idea and mention one detail that supports it.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "main_idea",
+              "description": "states that the group prepared or organised the library books",
+              "any_of": [
+                "prepared",
+                "organised",
+                "organized",
+                "library",
+                "books",
+                "ready"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "mentions one supporting action from the paragraph",
+              "any_of": [
+                "recorded",
+                "stamped",
+                "arranged",
+                "titles",
+                "covers",
+                "topic"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same main-idea-and-evidence method in a community setting.",
+          "passage": "After heavy rain, residents wanted the bus stop usable again. Mr Sen swept mud, two teenagers moved fallen branches, and Lata placed a warning sign beside a puddle. Commuters soon had a clear place to wait.",
+          "prompt": "Explain the paragraph's main idea in your own words and support it with one action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "transfer_idea",
+              "description": "states that residents worked together to make the bus stop usable or safe",
+              "any_of": [
+                "residents",
+                "together",
+                "bus stop",
+                "usable",
+                "safe",
+                "clear"
+              ]
+            },
+            {
+              "id": "transfer_evidence",
+              "description": "uses one action as evidence",
+              "any_of": [
+                "swept",
+                "moved",
+                "branches",
+                "warning sign",
+                "puddle"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    },
+    {
+      "level_id": "together_we_can_context_words",
+      "title": "Read teamwork words in context",
+      "focus": "infer the meaning of cooperation words from nearby clues",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use actions and results around an unfamiliar word to explain its meaning.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context clues can show a word's meaning. When people plan together, divide jobs, and finish one goal, the clues show that cooperate means work together.",
+          "passage": "The young gardeners cooperated: one dug holes, one placed seeds, and one carried water.",
+          "prompt": "What does cooperated mean here?",
+          "options": [
+            "worked together",
+            "rested alone",
+            "argued loudly",
+            "forgot the task"
+          ],
+          "accepted_answers": [
+            "worked together"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look for the result caused by the unfamiliar word. If combined efforts make a heavy object move, combined means joined together.",
+          "passage": "Their combined effort moved the cupboard: Neel pushed while Sara guided it.",
+          "prompt": "Which meaning fits combined?",
+          "options": [
+            "joined together",
+            "very quiet",
+            "broken apart",
+            "done tomorrow"
+          ],
+          "accepted_answers": [
+            "joined together"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not guess from a word's sound. Test each meaning against the whole sentence. A contribution is something a person gives or does to help a shared task.",
+          "passage": "Everyone made a contribution to the mural. Pema sketched birds, Laksh mixed paint, and Ira cleaned the brushes.",
+          "prompt": "What is Pema's contribution?",
+          "options": [
+            "sketching the birds",
+            "watching from home",
+            "hiding the paint",
+            "closing the classroom"
+          ],
+          "accepted_answers": [
+            "sketching the birds"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the consequence in this fresh sentence to infer the central word.",
+          "passage": "The relay team showed unity. Even after one runner stumbled, the others encouraged her and finished together.",
+          "prompt": "What does unity mean in this sentence?",
+          "options": [],
+          "accepted_answers": [
+            "togetherness",
+            "being united",
+            "staying together",
+            "supporting one another"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Carry context reading into a music setting.",
+          "passage": "The musicians were in harmony: the drum kept a steady beat while the flute and voices fitted smoothly around it.",
+          "prompt": "What does in harmony suggest about how the musicians performed?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "meaning",
+              "description": "explains that the musicians worked or sounded well together",
+              "any_of": [
+                "together",
+                "matched",
+                "fitted",
+                "smoothly",
+                "coordinated",
+                "cooperated"
+              ]
+            },
+            {
+              "id": "context_clue",
+              "description": "refers to a clue from the sentence",
+              "any_of": [
+                "steady beat",
+                "flute",
+                "voices",
+                "fitted smoothly"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "together_we_can_collective_nouns",
+      "title": "Choose precise group nouns",
+      "focus": "use collective nouns as naming words in meaningful sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Identify a collective noun by the group it names and use agreement clues in context.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A collective noun is one naming word for a group. Team names a group of players, so it is the collective noun in the sentence.",
+          "passage": "The team practises passing the ball every morning.",
+          "prompt": "In this sentence, which word gathers the players into one group?",
+          "options": [
+            "team",
+            "practises",
+            "passing",
+            "morning"
+          ],
+          "accepted_answers": [
+            "team"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "First identify what is grouped, then choose the matching group word. A choir is a group of singers.",
+          "passage": "A choir of twelve singers performs at the school fair.",
+          "prompt": "What does choir name?",
+          "options": [
+            "a group of singers",
+            "a row of shops",
+            "a pile of stones",
+            "a pair of shoes"
+          ],
+          "accepted_answers": [
+            "a group of singers"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is treating every plural noun as a collective noun. Children names more than one child; class is the single word naming them as one group.",
+          "passage": "The class carries its notebooks to the hall.",
+          "prompt": "Which word is the collective noun?",
+          "options": [
+            "class",
+            "notebooks",
+            "carries",
+            "hall"
+          ],
+          "accepted_answers": [
+            "class"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the sentence meaning to supply the precise group word.",
+          "passage": "A _____ of dancers moved onto the stage together.",
+          "prompt": "Complete the sentence with a suitable collective noun.",
+          "options": [],
+          "accepted_answers": [
+            "troupe",
+            "group",
+            "team"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a group noun in a nature context rather than a school context.",
+          "passage": "At dusk, a _____ of birds crossed the orange sky.",
+          "prompt": "Write a collective noun that fits the sentence.",
+          "options": [],
+          "accepted_answers": [
+            "flock"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "together_we_can_reasons",
+      "title": "Join an action to its reason",
+      "focus": "use because, but, and so to connect teamwork evidence and reasons",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Select a connector that shows cause, contrast, or result and write an evidence-backed reason.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Because introduces a cause. The second idea explains why Tara held the chart steady.",
+          "passage": "Tara held the chart steady because Vikram was pinning the corners.",
+          "prompt": "Which connector signals why Tara holds the chart steady?",
+          "options": [
+            "because",
+            "steady",
+            "chart",
+            "corners"
+          ],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Ask how the ideas are related. Use but for contrast and so for a result.",
+          "passage": "The first plan failed, _____ the group tried a simpler design.",
+          "prompt": "Which connector fits the unexpected change in the group's plan?",
+          "options": [
+            "but",
+            "because",
+            "so",
+            "and then"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not use because when the second part is a result. In 'The rope was short, so they joined another rope,' joining is the result of the problem.",
+          "passage": "The boxes were heavy, _____ four neighbours carried them together.",
+          "prompt": "Which connector correctly shows the result?",
+          "options": [
+            "so",
+            "because",
+            "but",
+            "although"
+          ],
+          "accepted_answers": [
+            "so"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Connect the action and the evidence without a sentence frame.",
+          "passage": "The poster stayed straight. Ayaan measured the top edge while Mira held the ruler.",
+          "prompt": "Explain why the poster stayed straight.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "result",
+              "description": "states that the poster stayed straight or was aligned",
+              "any_of": [
+                "poster",
+                "straight",
+                "aligned",
+                "even"
+              ]
+            },
+            {
+              "id": "evidence_reason",
+              "description": "mentions measuring or holding the ruler as the cause",
+              "any_of": [
+                "measured",
+                "top edge",
+                "held",
+                "ruler",
+                "because"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Use a connector to explain a cause in a kitchen task.",
+          "passage": "The fruit salad was ready quickly. One cousin washed the fruit while another chopped it and a third set out bowls.",
+          "prompt": "Write one sentence explaining why the salad was ready quickly.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "cause_connector",
+              "description": "uses a cause or result connector",
+              "any_of": [
+                "because",
+                "so",
+                "since"
+              ]
+            },
+            {
+              "id": "shared_work",
+              "description": "mentions two or more people dividing the work",
+              "any_of": [
+                "one cousin",
+                "another",
+                "third",
+                "washed",
+                "chopped",
+                "bowls",
+                "shared",
+                "together"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    },
+    {
+      "level_id": "together_we_can_own_words",
+      "title": "Write a fair team solution",
+      "focus": "summarise a group problem and propose a fair solution in own words",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write complete sentences that name a disagreement, propose a fair action, and explain how it helps the group.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A fair solution recognises both needs. Worked example: 'The groups can take turns using the court, so each gets practice time.' It gives an action and a fair result.",
+          "passage": "The red team and blue team both want the only skipping rope during break.",
+          "prompt": "Which solution is fairest?",
+          "options": [
+            "The teams can take equal turns with the rope.",
+            "The red team should hide the rope.",
+            "No one should ever use the rope.",
+            "The louder team should keep it."
+          ],
+          "accepted_answers": [
+            "The teams can take equal turns with the rope."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the solution in three steps: name both sides, choose a share-or-turn action, then state the benefit.",
+          "passage": "Two project groups need the same tablet to record their presentations.",
+          "prompt": "Which first step leads to a fair plan?",
+          "options": [
+            "ask how long each group needs the tablet",
+            "give it to the tallest child",
+            "switch off the tablet",
+            "cancel both presentations"
+          ],
+          "accepted_answers": [
+            "ask how long each group needs the tablet"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Fair does not always mean doing exactly the same thing. It means each person gets what is reasonably needed. A child with a larger map may need a little more table space.",
+          "passage": "A small model and a large map must share one display table.",
+          "prompt": "Which plan responds to the actual needs?",
+          "options": [
+            "Give the map more space and keep a clear area for the model.",
+            "Cut the map until both objects are the same size.",
+            "Put both objects on top of each other.",
+            "Remove the model without asking."
+          ],
+          "accepted_answers": [
+            "Give the map more space and keep a clear area for the model."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write the solution yourself; do not copy a model sentence.",
+          "passage": "Four children must present, but there are only two speaking parts in the current plan.",
+          "prompt": "Write two complete sentences: summarise the problem and propose a fair solution.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "problem_summary",
+              "description": "states that four children need roles but only two speaking parts exist",
+              "any_of": [
+                "four",
+                "children",
+                "two",
+                "speaking parts",
+                "roles",
+                "not enough"
+              ]
+            },
+            {
+              "id": "fair_solution",
+              "description": "proposes adding, sharing, rotating, or dividing roles",
+              "any_of": [
+                "add",
+                "share",
+                "take turns",
+                "rotate",
+                "divide",
+                "roles",
+                "each"
+              ]
+            },
+            {
+              "id": "complete_ideas",
+              "description": "uses enough words to express the problem and solution",
+              "any_of": [
+                "because",
+                "so",
+                "but",
+                "can",
+                "should"
+              ]
+            }
+          ],
+          "min_response_words": 14
+        },
+        "transfer_check": {
+          "teaching_block": "Apply fair problem-solving beyond school.",
+          "passage": "Three families in a building want to water the shared terrace plants, but watering them three times would waste water.",
+          "prompt": "In your own words, describe the problem and suggest a fair plan.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "transfer_problem",
+              "description": "notes that repeated watering would waste water",
+              "any_of": [
+                "three",
+                "families",
+                "water",
+                "waste",
+                "too much",
+                "repeated"
+              ]
+            },
+            {
+              "id": "transfer_plan",
+              "description": "suggests a schedule, rotation, or shared responsibility",
+              "any_of": [
+                "schedule",
+                "turns",
+                "rotate",
+                "one family",
+                "each day",
+                "plan"
+              ]
+            },
+            {
+              "id": "fair_result",
+              "description": "explains that plants are cared for without wasting water",
+              "any_of": [
+                "plants",
+                "cared",
+                "enough water",
+                "save",
+                "without waste"
+              ]
+            }
+          ],
+          "min_response_words": 15
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c4c1_main_01",
+        "passage": "A class wanted a weather board. Kian drew symbols, Rupa checked temperatures, and Ben wrote the dates. The board was finished before lunch.",
+        "prompt": "Which statement captures the weather-board paragraph as a whole?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Children used different jobs to complete a weather board.",
+          "The class cancelled science.",
+          "Only Ben worked on the board.",
+          "The weather changed at lunch."
+        ],
+        "accepted_answers": [
+          "Children used different jobs to complete a weather board."
+        ]
+      },
+      {
+        "item_id": "c4c1_main_02",
+        "passage": "At the book sale, Ina arranged prices, Mohit packed purchases, and Saira answered visitors' questions.",
+        "prompt": "State the main idea and one detail that supports it.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "idea",
+            "description": "states that people worked together to run the book sale",
+            "any_of": [
+              "worked together",
+              "book sale",
+              "shared jobs",
+              "team"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "mentions one action as evidence",
+            "any_of": [
+              "arranged prices",
+              "packed",
+              "purchases",
+              "answered",
+              "questions"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c1_main_03",
+        "passage": "The footpath was blocked by dry twigs. Dev gathered them, his sister held the basket, and their neighbour swept the dust.",
+        "prompt": "Which detail best supports the idea that the neighbours cooperated?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "Each person completed a different part of clearing the path.",
+          "The twigs were dry.",
+          "The basket had a handle.",
+          "The dust was brown."
+        ],
+        "accepted_answers": [
+          "Each person completed a different part of clearing the path."
+        ]
+      },
+      {
+        "item_id": "c4c1_main_04",
+        "passage": "A puppet show needed a curtain, voices, and music. Three friends each prepared one of those parts.",
+        "prompt": "Explain why the show could go ahead.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "reason",
+            "description": "explains that friends completed the needed parts",
+            "any_of": [
+              "each",
+              "different part",
+              "divided",
+              "prepared",
+              "curtain",
+              "voices",
+              "music"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "connects their work to the show being ready",
+            "any_of": [
+              "show",
+              "ready",
+              "go ahead",
+              "complete"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c4c1_vocab_01",
+        "passage": "The hikers coordinated their steps: the front walker called out stones while the others followed the same safe path.",
+        "prompt": "What does coordinated mean?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "organised their actions together",
+          "walked in opposite directions",
+          "forgot the route",
+          "stopped speaking"
+        ],
+        "accepted_answers": [
+          "organised their actions together"
+        ]
+      },
+      {
+        "item_id": "c4c1_vocab_02",
+        "passage": "The committee reached a consensus after every member agreed to hold the fair on Friday.",
+        "prompt": "Use the context to explain consensus.",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "agreement",
+          "everyone agreeing",
+          "a shared agreement",
+          "all members agreed"
+        ]
+      },
+      {
+        "item_id": "c4c1_vocab_03",
+        "passage": "Roshni's contribution was designing the invitation while others planned the games.",
+        "prompt": "Which action was Roshni's contribution?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "designing the invitation",
+          "planning every game",
+          "printing the tickets",
+          "serving the food"
+        ],
+        "accepted_answers": [
+          "designing the invitation"
+        ]
+      },
+      {
+        "item_id": "c4c1_vocab_04",
+        "passage": "The rowers moved in unison; every paddle entered the water at the same moment.",
+        "prompt": "What clue shows the meaning of in unison?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "every paddle entered at the same moment",
+          "at the same moment",
+          "every paddle moved together",
+          "the paddles moved together"
+        ]
+      },
+      {
+        "item_id": "c4c1_group_01",
+        "passage": "A band of musicians waited beside the stage.",
+        "prompt": "Identify the collective noun in the sentence.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "band",
+          "musicians",
+          "waited",
+          "stage"
+        ],
+        "accepted_answers": [
+          "band"
+        ]
+      },
+      {
+        "item_id": "c4c1_group_02",
+        "passage": "A _____ of bees circled the flowering tree.",
+        "prompt": "Supply the precise collective noun.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "swarm"
+        ]
+      },
+      {
+        "item_id": "c4c1_group_03",
+        "passage": "The fleet sailed out of the harbour at dawn.",
+        "prompt": "What does fleet name?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a group of ships",
+          "a group of singers",
+          "a group of wolves",
+          "a group of keys"
+        ],
+        "accepted_answers": [
+          "a group of ships"
+        ]
+      },
+      {
+        "item_id": "c4c1_group_04",
+        "passage": "A _____ of actors bowed after the play.",
+        "prompt": "Write a suitable collective noun.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "cast",
+          "troupe",
+          "company"
+        ]
+      },
+      {
+        "item_id": "c4c1_reason_01",
+        "passage": "The glue had dried, _____ the group opened a fresh bottle.",
+        "prompt": "Which connector links the dry glue to the group's next action?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "so",
+          "because",
+          "but",
+          "although"
+        ],
+        "accepted_answers": [
+          "so"
+        ]
+      },
+      {
+        "item_id": "c4c1_reason_02",
+        "passage": "The lanterns hung evenly. Gita marked equal spaces before Omar tied them.",
+        "prompt": "Explain why the lanterns hung evenly.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "result",
+            "description": "mentions that the lanterns were equally spaced",
+            "any_of": [
+              "lanterns",
+              "evenly",
+              "equal",
+              "spaced"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "uses Gita's marking as the reason",
+            "any_of": [
+              "Gita",
+              "marked",
+              "equal spaces",
+              "before",
+              "because"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c4c1_reason_03",
+        "passage": "The room was small, _____ everyone found a useful job.",
+        "prompt": "Choose the connector that shows contrast.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "but",
+          "because",
+          "so",
+          "therefore"
+        ],
+        "accepted_answers": [
+          "but"
+        ]
+      },
+      {
+        "item_id": "c4c1_reason_04",
+        "passage": "The seed packets were sorted quickly because two children read labels while another filled the trays.",
+        "prompt": "Give the evidence-backed reason for the quick sorting.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "cause",
+            "description": "mentions the divided sorting actions",
+            "any_of": [
+              "two children",
+              "read labels",
+              "another",
+              "filled",
+              "trays",
+              "divided"
+            ]
+          },
+          {
+            "id": "effect",
+            "description": "links those actions to quick sorting",
+            "any_of": [
+              "sorted",
+              "quickly",
+              "because",
+              "so"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c1_write_01",
+        "passage": "Two clubs need the hall at the same time for rehearsals.",
+        "prompt": "Which plan is fair?",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Make a timetable that gives each club rehearsal time.",
+          "Let one club lock the hall.",
+          "Cancel both rehearsals.",
+          "Give the hall to the club with more members."
+        ],
+        "accepted_answers": [
+          "Make a timetable that gives each club rehearsal time."
+        ]
+      },
+      {
+        "item_id": "c4c1_write_02",
+        "passage": "Five students want to paint, but the group has only two wide brushes.",
+        "prompt": "Summarise the problem and propose a fair response.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "problem",
+            "description": "states that five students share only two brushes",
+            "any_of": [
+              "five",
+              "students",
+              "two",
+              "brushes",
+              "not enough"
+            ]
+          },
+          {
+            "id": "solution",
+            "description": "proposes turns, sharing, or other jobs",
+            "any_of": [
+              "turns",
+              "share",
+              "rotate",
+              "other brushes",
+              "different jobs"
+            ]
+          },
+          {
+            "id": "complete_response",
+            "description": "expresses both parts in complete ideas",
+            "any_of": [
+              "can",
+              "should",
+              "so",
+              "while"
+            ]
+          }
+        ],
+        "min_response_words": 13
+      },
+      {
+        "item_id": "c4c1_write_03",
+        "passage": "A community kitchen has one oven and three trays waiting to bake.",
+        "prompt": "What should the cooks do first to share the oven fairly?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "agree on an order for the trays",
+          "hide the oven switch",
+          "bake only the largest tray",
+          "leave all trays unbaked"
+        ],
+        "accepted_answers": [
+          "agree on an order for the trays"
+        ]
+      },
+      {
+        "item_id": "c4c1_write_04",
+        "passage": "Two neighbours disagree about whether a shared wall should be blue or green.",
+        "prompt": "In your own words, describe a solution that listens to both neighbours.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "both_views",
+            "description": "recognises both colour choices or neighbours",
+            "any_of": [
+              "both",
+              "blue",
+              "green",
+              "neighbours",
+              "each"
+            ]
+          },
+          {
+            "id": "solution",
+            "description": "offers a compromise or decision method",
+            "any_of": [
+              "combine",
+              "two colours",
+              "sections",
+              "vote",
+              "sample",
+              "agree",
+              "compromise"
+            ]
+          },
+          {
+            "id": "respect",
+            "description": "shows discussion or fairness",
+            "any_of": [
+              "listen",
+              "discuss",
+              "fair",
+              "together",
+              "agree"
+            ]
+          }
+        ],
+        "min_response_words": 12
+      }
+    ]
+  }
+}

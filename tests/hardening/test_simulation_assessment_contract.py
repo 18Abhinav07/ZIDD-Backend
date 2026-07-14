@@ -643,6 +643,33 @@ def test_assessment_progress_does_not_double_count_typed_control_messages():
     assert snapshot["control_turn_count"] == 1
 
 
+def test_assessment_progress_separates_safe_notes_from_report_affecting_flags():
+    from app.services.simulation_service import assessment_progress_snapshot
+
+    snapshot = assessment_progress_snapshot({
+        "task_type": TaskType.GD_TEST.value,
+        "assessment_validity_flags": [
+            {
+                "code": "self_label_or_meta_response",
+                "message": "A panelist self-label was repaired.",
+                "severity": "repaired",
+                "speaker_id": "data_driven_analyst",
+            },
+            {
+                "code": "self_label_or_meta_response",
+                "message": "A panelist self-label was repaired.",
+                "severity": "repaired",
+                "speaker_id": "consensus_builder",
+            },
+            {"code": "assessment_turn_call_failed", "severity": "invalid"},
+        ],
+        "messages": [],
+    })
+
+    assert snapshot["integrity_note_count"] == 2
+    assert snapshot["report_affecting_flag_count"] == 1
+
+
 def test_round_qualities_use_only_scorable_typed_event_values():
     from app.services.simulation_service import _normalized_round_qualities
 

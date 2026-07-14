@@ -1,0 +1,846 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class2-pedagogy-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "codex self-review: pedagogy, grammar, ambiguity, grading, passage independence, and age fit"
+  ],
+  "runtime_sha256": "03f182dace284fde0893892400bad97675c8477f0cf638c6ef42d531e7184e09",
+  "chapter_id": "eng_c2_ch03",
+  "chapter_no": 3,
+  "title": "It is Fun",
+  "book_title": "Mridang",
+  "unit_title": "Welcome to My World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr103.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "animal_move_words",
+      "title": "Move like an animal",
+      "focus": "use chapter movement words accurately",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Connect hop, crawl, glide, trot, and swing with the movements they name.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Movement words are precise. Worked example: a rabbit hops with short jumps; it does not glide. Match the body movement, not only the animal.",
+          "passage": "A tiny frog makes short jumps from stone to stone.",
+          "prompt": "Which movement word matches the frog's short jumps?",
+          "options": [
+            "hops",
+            "glides",
+            "trots",
+            "swings"
+          ],
+          "accepted_answers": [
+            "hops",
+            "hop"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "“Glide” means moving smoothly. A bird may flap first, then glide with still wings.",
+          "passage": "The kite moves smoothly across the open sky without jerking.",
+          "prompt": "Which word best describes the movement?",
+          "options": [
+            "glides",
+            "crawls",
+            "stomps",
+            "digs"
+          ],
+          "accepted_answers": [
+            "glides",
+            "glide"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A trot uses quick, even steps. Do not choose “run” only because the animal is moving quickly.",
+          "passage": "The pony moves around the ring with quick, even steps.",
+          "prompt": "Choose the exact movement word.",
+          "options": [
+            "trots",
+            "swims",
+            "climbs",
+            "slides"
+          ],
+          "accepted_answers": [
+            "trots",
+            "trot"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Name the movement from the body clue without choices.",
+          "passage": "A caterpillar moves slowly along a leaf with its body close to the surface.",
+          "prompt": "Name the movement shown by the caterpillar.",
+          "options": [],
+          "accepted_answers": [
+            "crawls",
+            "crawl",
+            "creeps",
+            "creep"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer movement vocabulary from animals to a playground object.",
+          "passage": "A child holds the ropes and moves back and forth through the air.",
+          "prompt": "Which movement word describes the child?",
+          "options": [],
+          "accepted_answers": [
+            "swings",
+            "swinging",
+            "swing"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "fun_action_words",
+      "title": "Actions make the game lively",
+      "focus": "identify verbs in playful sentences",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Find the word that tells what a child, animal, or object does.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Ask “What happens?” Worked example: in “Cats stretch,” stretch is the action. An animal name answers who, not what happens.",
+          "passage": "The children leap over a chalk line.",
+          "prompt": "Which word is the action?",
+          "options": [
+            "leap",
+            "children",
+            "chalk",
+            "line"
+          ],
+          "accepted_answers": [
+            "leap"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A describing word can sit beside an action word. In “The quick bird flies,” quick describes and flies acts.",
+          "passage": "A playful monkey climbs the low branch.",
+          "prompt": "Which word tells what the monkey does?",
+          "options": [
+            "climbs",
+            "playful",
+            "low",
+            "branch"
+          ],
+          "accepted_answers": [
+            "climbs"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "When two actions appear, use the person named in the question to select the right one.",
+          "passage": "Mira spins while Jay claps.",
+          "prompt": "Which word shows Jay’s action?",
+          "options": [
+            "claps",
+            "spins",
+            "Mira",
+            "while"
+          ],
+          "accepted_answers": [
+            "claps"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the action test without choices.",
+          "passage": "The ducks paddle across the pond.",
+          "prompt": "Write the action word.",
+          "options": [],
+          "accepted_answers": [
+            "paddle",
+            "paddles"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the verb skill from animal play to music time.",
+          "passage": "The class taps the table to make a beat.",
+          "prompt": "Write the word that shows the class action.",
+          "options": [],
+          "accepted_answers": [
+            "taps",
+            "tap"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "who_can_do_it",
+      "title": "Who can do what?",
+      "focus": "read an ability sentence and find the correct doer",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read can-sentences carefully and match each ability with the person or animal that has it.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The word “can” tells an ability. Worked example: “A fish can swim” says the fish has the ability; it does not say every animal can swim.",
+          "passage": "A squirrel can climb the rough tree. A duck can cross the pond.",
+          "prompt": "Which animal can climb the tree?",
+          "options": [
+            "squirrel",
+            "duck",
+            "both animals",
+            "neither animal"
+          ],
+          "accepted_answers": [
+            "squirrel",
+            "the squirrel"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Keep the two abilities separate. Find the exact action asked in the question.",
+          "passage": "Nima can balance on one foot. Her brother can roll a hoop.",
+          "prompt": "What can Nima do?",
+          "options": [
+            "balance on one foot",
+            "roll a hoop",
+            "fly a kite",
+            "climb a wall"
+          ],
+          "accepted_answers": [
+            "balance on one foot",
+            "she can balance on one foot"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A negative clue changes the meaning. “Cannot fly” does not remove the ability stated after “can.”",
+          "passage": "An ostrich cannot fly, but it can run quickly.",
+          "prompt": "What can the ostrich do?",
+          "options": [
+            "run quickly",
+            "fly high",
+            "swim deep",
+            "swing"
+          ],
+          "accepted_answers": [
+            "run quickly",
+            "it can run quickly"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Answer from the stated ability only.",
+          "passage": "Rehan can copy the slow walk of a tortoise.",
+          "prompt": "Whose movement can Rehan copy?",
+          "options": [],
+          "accepted_answers": [
+            "a tortoise",
+            "the tortoise",
+            "tortoise",
+            "the movement of a tortoise"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer ability reading from movement play to making something.",
+          "passage": "Lopa can fold a paper bird. Manu can paint its wings.",
+          "prompt": "What can Manu do?",
+          "options": [],
+          "accepted_answers": [
+            "paint its wings",
+            "he can paint its wings",
+            "paint the wings"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "i_can_sentence",
+      "title": "Build an “I can” sentence",
+      "focus": "arrange words into a complete ability sentence",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Place I first, can next, and the action after can to make a clear ability sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The pattern is I + can + action. Worked example: “draw / can / I” becomes “I can draw.” Do not add “am” after can.",
+          "passage": "Words: I / can / hop / like a frog",
+          "prompt": "Which sentence is ordered correctly?",
+          "options": [
+            "I can hop like a frog.",
+            "I hop can like a frog.",
+            "Can like I frog hop."
+          ],
+          "accepted_answers": [
+            "I can hop like a frog.",
+            "i can hop like a frog"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Keep the action phrase together. “Across the mat” belongs after crawl.",
+          "passage": "Words: can / across the mat / I / crawl",
+          "prompt": "Choose the clear sentence.",
+          "options": [
+            "I can crawl across the mat.",
+            "I across can crawl the mat.",
+            "Can the mat I across crawl."
+          ],
+          "accepted_answers": [
+            "I can crawl across the mat.",
+            "i can crawl across the mat"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "When another person is the subject, use that name first but keep can before the action.",
+          "passage": "Words: can / Tara / spin / slowly",
+          "prompt": "Choose the best order.",
+          "options": [
+            "Tara can spin slowly.",
+            "Can Tara slowly spin.",
+            "Spin can slowly Tara."
+          ],
+          "accepted_answers": [
+            "Tara can spin slowly.",
+            "tara can spin slowly"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Build the ability sentence without choices.",
+          "passage": "Words: like a bird / I / can / stretch",
+          "prompt": "Arrange the words to tell what you can do like a bird.",
+          "options": [],
+          "accepted_answers": [
+            "I can stretch like a bird.",
+            "i can stretch like a bird"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the pattern to a classroom skill instead of a movement.",
+          "passage": "Words: a short poem / can / read / I",
+          "prompt": "Arrange the words to tell a classroom reading skill.",
+          "options": [],
+          "accepted_answers": [
+            "I can read a short poem.",
+            "i can read a short poem"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "playful_comparison",
+      "title": "Make a playful comparison",
+      "focus": "write a complete sentence comparing an action with an animal",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write a sentence with a doer, an action, and a like-comparison that makes sense.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A comparison joins a real action to a clear image. Worked example: “I stretch like a cat.” names who, what, and the comparison.",
+          "passage": "Ravi takes one large, heavy step during the action game.",
+          "prompt": "Which sentence makes a sensible comparison?",
+          "options": [
+            "Ravi stomps like an elephant.",
+            "Ravi swims like a pencil.",
+            "Like an.",
+            "The elephant Ravi."
+          ],
+          "accepted_answers": [
+            "Ravi stomps like an elephant.",
+            "ravi stomps like an elephant"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "The animal should match the movement. A butterfly can flutter; a stone cannot.",
+          "passage": "Mina moves her arms lightly and quickly.",
+          "prompt": "Choose the clearest comparison.",
+          "options": [
+            "Mina flutters like a butterfly.",
+            "Mina trots like a cupboard.",
+            "Mina butterfly.",
+            "Flutters like."
+          ],
+          "accepted_answers": [
+            "Mina flutters like a butterfly.",
+            "mina flutters like a butterfly"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A complete comparison still needs a sensible action. Check meaning as well as sentence shape.",
+          "passage": "The child moves slowly with hands and feet close to the floor.",
+          "prompt": "Which sentence matches?",
+          "options": [
+            "The child crawls like a tortoise.",
+            "The child flies like a spoon.",
+            "Crawls a.",
+            "The child like."
+          ],
+          "accepted_answers": [
+            "The child crawls like a tortoise.",
+            "the child crawls like a tortoise"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Create your own comparison. Include I, one movement, and an animal that can reasonably move that way.",
+          "passage": "During the game, you choose a movement that you can act out safely.",
+          "prompt": "Write one “I” sentence with an action and a like-comparison.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "speaker",
+              "description": "Uses I as the doer.",
+              "any_of": [
+                "i"
+              ]
+            },
+            {
+              "id": "movement",
+              "description": "Names a movement.",
+              "any_of": [
+                "hop",
+                "jump",
+                "crawl",
+                "stretch",
+                "glide",
+                "trot",
+                "swing",
+                "stomp",
+                "flutter"
+              ]
+            },
+            {
+              "id": "comparison",
+              "description": "Uses like with an animal.",
+              "any_of": [
+                "like a frog",
+                "like a rabbit",
+                "like a cat",
+                "like a bird",
+                "like a horse",
+                "like a monkey",
+                "like an elephant",
+                "like a butterfly",
+                "like a tortoise"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer comparison writing from animals to weather. Keep the sentence complete and the image sensible.",
+          "passage": "A ribbon moves gently in the wind.",
+          "prompt": "Write one sentence comparing the ribbon’s movement with something else that moves gently.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "subject",
+              "description": "Names the ribbon.",
+              "any_of": [
+                "ribbon",
+                "it"
+              ]
+            },
+            {
+              "id": "movement",
+              "description": "Uses a gentle movement.",
+              "any_of": [
+                "moves",
+                "floats",
+                "waves",
+                "dances",
+                "swirls"
+              ]
+            },
+            {
+              "id": "comparison",
+              "description": "Adds a sensible comparison.",
+              "any_of": [
+                "like a leaf",
+                "like a feather",
+                "like a wave",
+                "like a dancer",
+                "like a cloud"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3_move_01",
+        "passage": "A snail moves with its body close to the ground.",
+        "prompt": "Which movement word fits?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "crawls",
+          "flies",
+          "trots",
+          "swings"
+        ],
+        "accepted_answers": [
+          "crawls",
+          "crawl"
+        ]
+      },
+      {
+        "item_id": "c3_move_02",
+        "passage": "The skater moves smoothly across the floor.",
+        "prompt": "Choose the best movement word.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "glides",
+          "digs",
+          "hops",
+          "roars"
+        ],
+        "accepted_answers": [
+          "glides",
+          "glide"
+        ]
+      },
+      {
+        "item_id": "c3_move_03",
+        "passage": "A goat makes a quick jump onto a low rock.",
+        "prompt": "Which word names the movement?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "leaps",
+          "sails",
+          "paddles",
+          "sleeps"
+        ],
+        "accepted_answers": [
+          "leaps",
+          "leap"
+        ]
+      },
+      {
+        "item_id": "c3_move_04",
+        "passage": "A monkey moves from one hanging rope to another.",
+        "prompt": "Write the movement word.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "swings",
+          "swing",
+          "swings across"
+        ]
+      },
+      {
+        "item_id": "c3_action_01",
+        "passage": "The lamb skips beside its mother.",
+        "prompt": "Which word is the action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "skips",
+          "lamb",
+          "beside",
+          "mother"
+        ],
+        "accepted_answers": [
+          "skips"
+        ]
+      },
+      {
+        "item_id": "c3_action_02",
+        "passage": "A bright fish darts under a rock.",
+        "prompt": "Which word tells what the fish does?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "darts",
+          "bright",
+          "fish",
+          "rock"
+        ],
+        "accepted_answers": [
+          "darts"
+        ]
+      },
+      {
+        "item_id": "c3_action_03",
+        "passage": "Neha bends while Omar stretches.",
+        "prompt": "Which word shows Omar’s action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "stretches",
+          "bends",
+          "Neha",
+          "while"
+        ],
+        "accepted_answers": [
+          "stretches"
+        ]
+      },
+      {
+        "item_id": "c3_action_04",
+        "passage": "The horse gallops across the field.",
+        "prompt": "Write the action word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "gallops",
+          "gallop"
+        ]
+      },
+      {
+        "item_id": "c3_read_01",
+        "passage": "A penguin can waddle. A seal can clap its flippers.",
+        "prompt": "Which animal can waddle?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "penguin",
+          "seal",
+          "both",
+          "neither"
+        ],
+        "accepted_answers": [
+          "penguin",
+          "the penguin"
+        ]
+      },
+      {
+        "item_id": "c3_read_02",
+        "passage": "Anaya can skip ten times. Guri can balance a beanbag.",
+        "prompt": "What can Guri do?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "balance a beanbag",
+          "skip ten times",
+          "swim",
+          "climb"
+        ],
+        "accepted_answers": [
+          "balance a beanbag",
+          "he can balance a beanbag",
+          "she can balance a beanbag"
+        ]
+      },
+      {
+        "item_id": "c3_read_03",
+        "passage": "The crab can move sideways, but it cannot hop like a rabbit.",
+        "prompt": "How can the crab move?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "sideways",
+          "by hopping",
+          "through the air",
+          "up a tree"
+        ],
+        "accepted_answers": [
+          "sideways",
+          "it can move sideways"
+        ]
+      },
+      {
+        "item_id": "c3_read_04",
+        "passage": "Vani can make the shape of a tall giraffe with her arms.",
+        "prompt": "Which animal shape can Vani make?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "a giraffe",
+          "giraffe",
+          "a tall giraffe",
+          "the shape of a giraffe"
+        ]
+      },
+      {
+        "item_id": "c3_order_01",
+        "passage": "Words: I / can / balance / carefully",
+        "prompt": "Choose the correct sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "I can balance carefully.",
+          "I balance can carefully.",
+          "Can carefully I balance."
+        ],
+        "accepted_answers": [
+          "I can balance carefully.",
+          "i can balance carefully"
+        ]
+      },
+      {
+        "item_id": "c3_order_02",
+        "passage": "Words: can / the duck / swim",
+        "prompt": "Choose the correct sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "The duck can swim.",
+          "Can swim the duck.",
+          "Swim duck can the."
+        ],
+        "accepted_answers": [
+          "The duck can swim.",
+          "the duck can swim"
+        ]
+      },
+      {
+        "item_id": "c3_order_03",
+        "passage": "Words: like a monkey / can / Rohit / climb",
+        "prompt": "Choose the clearest sentence.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Rohit can climb like a monkey.",
+          "Can Rohit monkey like climb.",
+          "Climb like can Rohit monkey."
+        ],
+        "accepted_answers": [
+          "Rohit can climb like a monkey.",
+          "rohit can climb like a monkey"
+        ]
+      },
+      {
+        "item_id": "c3_order_04",
+        "passage": "Words: can / we / together / march",
+        "prompt": "Write the sentence in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "We can march together.",
+          "we can march together"
+        ]
+      },
+      {
+        "item_id": "c3_compare_01",
+        "passage": "Jatin moves with slow, heavy steps.",
+        "prompt": "Which comparison makes sense?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Jatin walks like an elephant.",
+          "Jatin flies like a plate.",
+          "Walks an.",
+          "Elephant Jatin."
+        ],
+        "accepted_answers": [
+          "Jatin walks like an elephant.",
+          "jatin walks like an elephant"
+        ]
+      },
+      {
+        "item_id": "c3_compare_02",
+        "passage": "Leena makes quick little jumps.",
+        "prompt": "Choose the clearest comparison.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Leena hops like a rabbit.",
+          "Leena swims like a chair.",
+          "Hops like.",
+          "The rabbit Leena."
+        ],
+        "accepted_answers": [
+          "Leena hops like a rabbit.",
+          "leena hops like a rabbit"
+        ]
+      },
+      {
+        "item_id": "c3_compare_03",
+        "passage": "A paper plane moves smoothly through the room.",
+        "prompt": "Which sentence matches?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The plane glides like a bird.",
+          "The plane digs like a mole.",
+          "Glides plane.",
+          "A bird like."
+        ],
+        "accepted_answers": [
+          "The plane glides like a bird.",
+          "the plane glides like a bird"
+        ]
+      },
+      {
+        "item_id": "c3_compare_04",
+        "passage": "You choose a safe movement for the class action circle.",
+        "prompt": "Write a complete sentence comparing your movement with an animal.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "speaker",
+            "description": "Uses I.",
+            "any_of": [
+              "i"
+            ]
+          },
+          {
+            "id": "movement",
+            "description": "Names a movement.",
+            "any_of": [
+              "hop",
+              "jump",
+              "crawl",
+              "stretch",
+              "stomp",
+              "glide",
+              "swing",
+              "trot"
+            ]
+          },
+          {
+            "id": "animal",
+            "description": "Adds a sensible animal comparison.",
+            "any_of": [
+              "frog",
+              "rabbit",
+              "tortoise",
+              "cat",
+              "elephant",
+              "bird",
+              "monkey",
+              "horse"
+            ]
+          }
+        ],
+        "min_response_words": 5
+      }
+    ]
+  }
+}

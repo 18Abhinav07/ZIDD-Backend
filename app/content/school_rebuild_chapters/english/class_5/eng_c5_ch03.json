@@ -1,0 +1,1880 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex School English launch-content QA",
+  "reviewed_at": "2026-07-12T12:00:00+05:30",
+  "review_evidence": [
+    "tests/hardening/test_school_rebuild_class5_ch01_ch03_launch_contract.py",
+    "scripts/audit_school_rebuild_content.py --class 5",
+    "Original Zidd-authored English content; NCERT structural alignment reviewed against the source map"
+  ],
+  "runtime_sha256": "a2ec54e3cfd8b0bd7f6ae551de8bb34c00464fc37054f9538777764ff76d1a4f",
+  "chapter_id": "eng_c5_ch03",
+  "chapter_no": 3,
+  "content_version": "2026-07-12.1",
+  "certification_version": "2026-07-12.1",
+  "title": "The Rainbow",
+  "book_title": "Santoor",
+  "unit_title": "My Colourful World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/eesa103.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "rainbow_sky_bridge",
+      "title": "See the bridge in the sky",
+      "focus": "understand the rainbow image and its central comparison",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "Explain how details about shape, colour, and position make a rainbow resemble a bridge between earth and sky.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A poetic image helps a reader picture an idea. A high curved band can resemble a bridge even though nobody can walk across it.",
+          "passage": "When the shower ended, a bright arc curved above the mango trees and seemed to reach from one side of the field to the other.",
+          "prompt": "Which image best matches the bright arc?",
+          "options": [
+            "a bridge across the sky",
+            "a tunnel below the field",
+            "a wall around the trees",
+            "a boat beside the shore"
+          ],
+          "accepted_answers": [
+            "a bridge across the sky",
+            "bridge across the sky"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "To understand a comparison, name the feature both things share. An arched gate and a rainbow both make a curve above an open space.",
+          "passage": "Kabir looked through a curved garden gate. Beyond it, a band of colours made a second curve in the distance.",
+          "prompt": "What shared feature makes the gate and the band of colours look alike?",
+          "options": [
+            "both have a curved shape",
+            "both are made of iron",
+            "both can be opened by hand",
+            "both stand on the garden path"
+          ],
+          "accepted_answers": [
+            "both have a curved shape",
+            "they are both curved",
+            "both make a curve"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "A main idea combines the strongest details. Here, height, colour, and a long curve work together to create a sky-bridge image.",
+          "passage": "The coloured band rose beyond the rooftops, stretched over the wet lane, and appeared to join two far edges of the neighbourhood.",
+          "prompt": "State the main image and give two details that create it.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "sky_bridge_image",
+              "description": "Identifies the band as a bridge-like crossing in the sky.",
+              "any_of": [
+                "looks like a bridge",
+                "forms a sky bridge",
+                "appears to be a crossing",
+                "makes a bridge above the lane"
+              ]
+            },
+            {
+              "id": "height_or_curve_detail",
+              "description": "Uses the height or curved stretch as one supporting detail.",
+              "any_of": [
+                "rose beyond the rooftops",
+                "stretched over the lane",
+                "curved above the lane",
+                "was high above the rooftops"
+              ]
+            },
+            {
+              "id": "joining_detail",
+              "description": "Uses the detail about joining two far edges.",
+              "any_of": [
+                "joined two far edges",
+                "appeared to join the neighbourhood",
+                "reached between two edges",
+                "linked the far sides"
+              ]
+            }
+          ],
+          "min_response_words": 12,
+          "forbidden_phrases": [
+            "it was a real road",
+            "people walked on it",
+            "it was built from stone"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the new scene, then explain the comparison with evidence from its shape and position.",
+          "passage": "From a hill path, Sana saw colours bend over the valley. The two ends seemed to touch fields on opposite sides.",
+          "prompt": "Why could Sana describe the colours as a path between the fields?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "curved_path_shape",
+              "description": "Uses the bending or path-like shape as evidence.",
+              "any_of": [
+                "colours bend over the valley",
+                "made a curved path",
+                "looked like a path",
+                "formed an arc over the valley"
+              ]
+            },
+            {
+              "id": "opposite_fields_link",
+              "description": "Explains that the ends seemed to connect opposite fields.",
+              "any_of": [
+                "ends touched opposite fields",
+                "seemed to join the two fields",
+                "linked fields on opposite sides",
+                "reached from one field to the other"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "the colours were on the ground",
+            "there was no curve",
+            "only one field was visible"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the comparison method to a different natural image: name what is compared and the feature that supports it.",
+          "passage": "A break in the clouds let one wide beam of sunlight fall across the dark hills. Dev called it a golden road from the sky.",
+          "prompt": "Explain why golden road is an effective comparison for the beam of light.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "light_beam_named",
+              "description": "Identifies the beam of sunlight as the thing being compared.",
+              "any_of": [
+                "beam of sunlight",
+                "wide beam of light",
+                "sunlight across the hills",
+                "light from the clouds"
+              ]
+            },
+            {
+              "id": "road_feature",
+              "description": "Explains that the long bright strip resembles a road or route.",
+              "any_of": [
+                "looked like a long road",
+                "made a bright path",
+                "stretched across the hills",
+                "formed a golden strip",
+                "resembled a road from the sky"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "cars drove on the light",
+            "the road was built",
+            "the beam was under the hills"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_context_and_reference",
+      "title": "Unlock words and references",
+      "focus": "use context to understand key words and track what reference words mean",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Infer the meanings of bow, bridge, and overtop, then connect words such as it, they, and these to the correct ideas.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Nearby details can reveal meaning. If one object is higher than another, it overtops the lower object.",
+          "passage": "The festival wheel overtopped every tent, so its highest seats could be seen from outside the fairground.",
+          "prompt": "What does overtopped mean in this sentence?",
+          "options": [
+            "rose higher than",
+            "rolled underneath",
+            "stood inside",
+            "moved behind"
+          ],
+          "accepted_answers": [
+            "rose higher than",
+            "was higher than",
+            "stood above"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A familiar word can have several meanings. The rest of the sentence tells whether bow means a curved shape, a ribbon knot, or an action.",
+          "passage": "The acrobat lifted a ribbon into a wide bow above her head, making a smooth arc.",
+          "prompt": "Which meaning of bow fits this scene?",
+          "options": [
+            "a curved shape",
+            "a polite bend forward",
+            "the front of a boat",
+            "a tool for shooting arrows"
+          ],
+          "accepted_answers": [
+            "a curved shape",
+            "curved shape",
+            "an arc"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Reference words avoid repetition. Replace these with the nearest group of nouns that can perform the action in the next clause.",
+          "passage": "Small ferries and fishing boats waited near the jetty. These would cross the inlet after the fog lifted.",
+          "prompt": "What does these refer to, and which clue confirms your answer?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "vessels_reference",
+              "description": "Identifies the ferries and fishing boats as the reference.",
+              "any_of": [
+                "ferries and fishing boats",
+                "small ferries and boats",
+                "the ferries and the fishing boats",
+                "boats near the jetty"
+              ]
+            },
+            {
+              "id": "crossing_clue",
+              "description": "Uses their ability or plan to cross the inlet as confirmation.",
+              "any_of": [
+                "would cross the inlet",
+                "they can cross the water",
+                "planned to cross after the fog",
+                "vessels cross the inlet"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "these means the fog",
+            "these means the jetty",
+            "the inlet would cross"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use both sentence meaning and reference tracking in this new scene. Explain the word rather than guessing from spelling.",
+          "passage": "Two kites climbed beyond the school roof. They soon overtopped the water tank as well.",
+          "prompt": "What does they refer to, and what does overtopped tell you about their position?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "kites_reference",
+              "description": "Identifies the two kites as the meaning of they.",
+              "any_of": [
+                "they means the two kites",
+                "they refers to the kites",
+                "the two kites",
+                "both kites"
+              ]
+            },
+            {
+              "id": "higher_position",
+              "description": "Explains that the kites rose or flew above the tank.",
+              "any_of": [
+                "flew above the water tank",
+                "rose higher than the tank",
+                "were above the tank",
+                "climbed past the tank"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "they means the roof",
+            "kites were below the tank",
+            "the tank flew"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply both strategies to an unfamiliar market scene: infer a word from position and resolve a pronoun from the action.",
+          "passage": "A striped canopy overtopped the fruit stalls. It kept the sellers shaded at noon.",
+          "prompt": "Explain overtopped and identify what it refers to.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "canopy_above",
+              "description": "Explains that the canopy was higher than or above the stalls.",
+              "any_of": [
+                "canopy was above the stalls",
+                "rose higher than the stalls",
+                "covered the stalls from above",
+                "stood over the fruit stalls"
+              ]
+            },
+            {
+              "id": "it_canopy_reference",
+              "description": "Identifies the striped canopy as the meaning of it.",
+              "any_of": [
+                "it refers to the canopy",
+                "it means the striped canopy",
+                "the canopy kept them shaded",
+                "striped canopy"
+              ]
+            }
+          ],
+          "min_response_words": 9,
+          "forbidden_phrases": [
+            "it means the sellers",
+            "canopy was below the stalls",
+            "stalls shaded the canopy"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_rhyme_and_opposites",
+      "title": "Hear rhyme and contrast",
+      "focus": "listen for matching end sounds and use opposites to sharpen meaning",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Recognize rhyme by sound, identify opposites from context, and combine both answers in a complete sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Rhyming words share an ending sound. Say each choice aloud; spelling alone may not reveal the rhyme.",
+          "passage": "Target word: rain. Listen to train, tree, road, and cloud.",
+          "prompt": "Which word rhymes with rain?",
+          "options": [
+            "train",
+            "tree",
+            "road",
+            "cloud"
+          ],
+          "accepted_answers": [
+            "train"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Opposite words contrast one feature at a time. Curved and straight describe different shapes.",
+          "passage": "The ribbon made a curved loop, but the ruler formed a ___ line.",
+          "prompt": "Which opposite completes the sentence?",
+          "options": [
+            "straight",
+            "bright",
+            "gentle",
+            "narrow"
+          ],
+          "accepted_answers": [
+            "straight"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Sound and meaning are different tests. Through rhymes with blue, while dim contrasts with bright.",
+          "passage": "Word set: blue, through, dim, bright.",
+          "prompt": "Name the rhyming pair and the opposite pair in one complete sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "blue_through_rhyme",
+              "description": "Identifies blue and through as the rhyming pair.",
+              "any_of": [
+                "blue and through rhyme",
+                "through rhymes with blue",
+                "rhyming pair is blue and through"
+              ]
+            },
+            {
+              "id": "dim_bright_opposites",
+              "description": "Identifies dim and bright as opposites.",
+              "any_of": [
+                "dim and bright are opposites",
+                "bright is the opposite of dim",
+                "opposite pair is dim and bright"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": [
+            "blue and dim rhyme",
+            "through and bright are opposites"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Work without choices. Use the target words, then state both findings as a complete sentence.",
+          "passage": "Target rhyme: bright. Word set: night, narrow, dull, bright.",
+          "prompt": "Which word rhymes with bright, and which word is the opposite of dull?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "night_rhyme",
+              "description": "Identifies night as the word that rhymes with bright.",
+              "any_of": [
+                "night rhymes with bright",
+                "bright and night rhyme",
+                "rhyme is night"
+              ]
+            },
+            {
+              "id": "bright_opposite",
+              "description": "Identifies bright as the opposite of dull.",
+              "any_of": [
+                "bright is the opposite of dull",
+                "dull and bright are opposites",
+                "opposite is bright"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": [
+            "narrow rhymes with bright",
+            "night is the opposite of dull"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the two tests to a fresh set. Listen for sound first, then compare meaning.",
+          "passage": "Target rhyme: play. Word set: grey, rough, smooth, tall.",
+          "prompt": "Identify the rhyme for play and the opposite of rough in one complete sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "grey_rhyme",
+              "description": "Identifies grey as the word that rhymes with play.",
+              "any_of": [
+                "grey rhymes with play",
+                "play and grey rhyme",
+                "rhyme is grey"
+              ]
+            },
+            {
+              "id": "smooth_opposite",
+              "description": "Identifies smooth as the opposite of rough.",
+              "any_of": [
+                "smooth is the opposite of rough",
+                "rough and smooth are opposites",
+                "opposite is smooth"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": [
+            "tall rhymes with play",
+            "grey is the opposite of rough"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_compounds_and_word_jobs",
+      "title": "Build and use words",
+      "focus": "form compound words and distinguish noun, verb, and adjective jobs",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Join meaningful word parts, then use sentence context to explain how a familiar word functions.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A compound word combines two smaller words while keeping both ideas. Rain plus bow names a colourful arc seen with rain and light.",
+          "passage": "rain + bow = ___",
+          "prompt": "Which compound word is formed?",
+          "options": [
+            "rainbow",
+            "rainy",
+            "bowrain",
+            "raining"
+          ],
+          "accepted_answers": [
+            "rainbow"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A noun names something; a verb shows an action. The same spelling can do either job, so read the whole sentence.",
+          "passage": "Mira used a wide brush to spread blue paint across the chart.",
+          "prompt": "What job does brush do in this sentence?",
+          "options": [
+            "noun",
+            "verb",
+            "adjective",
+            "connector"
+          ],
+          "accepted_answers": [
+            "noun",
+            "a noun"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Build the compound in its original order, then place it in a sentence that shows its meaning.",
+          "passage": "sun + light = ___",
+          "prompt": "Form the compound word and use it in a complete sentence about a room.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "sunlight_compound",
+              "description": "Forms and uses the compound word sunlight.",
+              "any_of": [
+                "sunlight",
+                "sun light"
+              ]
+            },
+            {
+              "id": "room_meaning",
+              "description": "Connects sunlight with entering, lighting, or warming a room.",
+              "any_of": [
+                "sunlight entered the room",
+                "sunlight lit the room",
+                "sunlight warmed the room",
+                "room filled with sunlight",
+                "sunlight came through the window"
+              ]
+            }
+          ],
+          "min_response_words": 6,
+          "forbidden_phrases": [
+            "sunlight made the room dark",
+            "sun and light are unrelated"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Compare two uses of one word. Decide whether each use names a thing or shows an action, and cite the sentence clue.",
+          "passage": "Ravi opened a tin of paint. Later, he will paint a blue arc on the wall.",
+          "prompt": "Explain the two jobs performed by paint.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "paint_noun",
+              "description": "Identifies paint in a tin as a noun naming a material.",
+              "any_of": [
+                "first paint is a noun",
+                "paint in the tin is a noun",
+                "names the material in the tin",
+                "the first use names a thing"
+              ]
+            },
+            {
+              "id": "paint_verb",
+              "description": "Identifies will paint as a verb showing an action.",
+              "any_of": [
+                "second paint is a verb",
+                "will paint is a verb",
+                "shows Ravi's action",
+                "the second use is an action"
+              ]
+            }
+          ],
+          "min_response_words": 10,
+          "forbidden_phrases": [
+            "both uses are adjectives",
+            "both uses are verbs",
+            "both uses are nouns"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Apply compound-building and sentence-writing to a new nature word. Keep the two word parts in the given order.",
+          "passage": "water + fall = ___",
+          "prompt": "Form the compound word and use it in a complete sentence that shows its meaning.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "waterfall_compound",
+              "description": "Forms and uses the compound word waterfall.",
+              "any_of": [
+                "waterfall",
+                "water fall"
+              ]
+            },
+            {
+              "id": "falling_water_meaning",
+              "description": "Shows water dropping from a height or over rocks.",
+              "any_of": [
+                "waterfall dropped over rocks",
+                "water fell from the cliff",
+                "waterfall flowed down the hill",
+                "waterfall poured into the pool",
+                "falling water reached the pool"
+              ]
+            }
+          ],
+          "min_response_words": 7,
+          "forbidden_phrases": [
+            "water flowed uphill",
+            "waterfall means dry land"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_colour_sequence",
+      "title": "Trace the colour sequence",
+      "focus": "read and explain the seven-colour order using VIBGYOR",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Use the VIBGYOR memory aid to locate missing colours, check order, and explain sequence corrections in complete short answers.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "VIBGYOR stores the standard sequence: Violet, Indigo, Blue, Green, Yellow, Orange, Red.",
+          "passage": "V I B G Y O R",
+          "prompt": "Which colour is represented by the first letter?",
+          "options": [
+            "violet",
+            "red",
+            "green",
+            "orange"
+          ],
+          "accepted_answers": [
+            "violet"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "Read the sequence from left to right and compare each position with VIBGYOR rather than relying on the colour names alone.",
+          "passage": "Violet, Indigo, Blue, Green, ___, Orange, Red",
+          "prompt": "Which colour belongs in the empty fifth position?",
+          "options": [
+            "yellow",
+            "pink",
+            "white",
+            "brown"
+          ],
+          "accepted_answers": [
+            "yellow"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "To repair a sequence, locate the first position that breaks the remembered order and replace only that entry.",
+          "passage": "A chart reads: Violet, Indigo, Green, Blue, Yellow, Orange, Red.",
+          "prompt": "Which two colours are out of order, and how should that part read?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "blue_green_error",
+              "description": "Identifies blue and green as the misplaced pair.",
+              "any_of": [
+                "blue and green are out of order",
+                "green and blue are swapped",
+                "the error is green before blue"
+              ]
+            },
+            {
+              "id": "correct_blue_green_order",
+              "description": "States that blue must come before green.",
+              "any_of": [
+                "blue then green",
+                "blue should come before green",
+                "it should read blue, green",
+                "correct order is blue and green"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "ordered_concept_slot_ids": [
+            "blue_green_error",
+            "correct_blue_green_order"
+          ],
+          "forbidden_phrases": [
+            "green comes before blue",
+            "red comes before orange"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the sequence in a new craft context and explain the missing position without answer choices.",
+          "passage": "Anu threads beads in this order: violet, indigo, blue, green, yellow, ___, red.",
+          "prompt": "Name the missing bead colour and explain where it belongs.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "orange_missing",
+              "description": "Identifies orange as the missing colour.",
+              "any_of": [
+                "missing colour is orange",
+                "orange bead is missing",
+                "the answer is orange"
+              ]
+            },
+            {
+              "id": "orange_position",
+              "description": "Places orange between yellow and red.",
+              "any_of": [
+                "between yellow and red",
+                "after yellow and before red",
+                "orange belongs before red",
+                "orange comes after yellow"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "forbidden_phrases": [
+            "orange comes before yellow",
+            "green is missing"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the sequence to initials only. Expand the relevant letters and describe their position clearly.",
+          "passage": "A light display is labelled V-I-B-G-Y-O-R. The technician asks about the letters on either side of G.",
+          "prompt": "Which colours come immediately before and after green?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "blue_before_green",
+              "description": "States that blue comes immediately before green.",
+              "any_of": [
+                "blue comes before green",
+                "blue is immediately before green",
+                "the colour before green is blue"
+              ]
+            },
+            {
+              "id": "yellow_after_green",
+              "description": "States that yellow comes immediately after green.",
+              "any_of": [
+                "yellow comes after green",
+                "yellow is immediately after green",
+                "the colour after green is yellow"
+              ]
+            }
+          ],
+          "min_response_words": 8,
+          "ordered_concept_slot_ids": [
+            "blue_before_green",
+            "yellow_after_green"
+          ],
+          "forbidden_phrases": [
+            "yellow comes before green",
+            "blue comes after green"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_journey_paragraph",
+      "title": "Shape a journey paragraph",
+      "focus": "plan and write an organized past-tense account of a journey",
+      "skill_ids": [
+        "grammar.tense_usage",
+        "writing.complete_sentence",
+        "writing.short_answer",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Select past-tense verbs, order journey details, and write a clear first-person paragraph in original language.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A journey that has already happened needs past-tense verbs such as travelled, reached, noticed, and returned.",
+          "passage": "Last Sunday, we ___ by bus to the lake and returned before sunset.",
+          "prompt": "Which verb completes the past-tense sentence?",
+          "options": [
+            "travelled",
+            "travel",
+            "will travel",
+            "travelling"
+          ],
+          "accepted_answers": [
+            "travelled"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A useful plan includes when and where, who travelled, how the group moved, one memorable event, and a closing feeling.",
+          "passage": "Plan A lists only a place. Plan B lists time, destination, companion, transport, one event, and a final feeling.",
+          "prompt": "Which plan can support a complete journey paragraph?",
+          "options": [
+            "Plan B",
+            "Plan A",
+            "both plans contain equal detail",
+            "neither plan can be used"
+          ],
+          "accepted_answers": [
+            "Plan B",
+            "B"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Order notes as beginning, event, and reflection. Keep verbs in the past so the reader can follow the completed journey.",
+          "passage": "Notes: felt proud at the end / cycled to the old fort with my sister / climbed the final slope slowly.",
+          "prompt": "Summarize the journey in order using at least two past-tense actions and the ending feeling.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "journey_start",
+              "description": "Begins with cycling to the old fort with the sister.",
+              "any_of": [
+                "cycled to the old fort with my sister",
+                "rode with my sister to the old fort",
+                "my sister and I cycled to the fort"
+              ]
+            },
+            {
+              "id": "slope_event",
+              "description": "Includes climbing the final slope slowly.",
+              "any_of": [
+                "climbed the final slope slowly",
+                "slowly climbed the last slope",
+                "rode up the final slope slowly"
+              ]
+            },
+            {
+              "id": "proud_reflection",
+              "description": "Ends with feeling proud.",
+              "any_of": [
+                "felt proud at the end",
+                "I was proud",
+                "ended the trip feeling proud"
+              ]
+            }
+          ],
+          "min_response_words": 18,
+          "ordered_concept_slot_ids": [
+            "journey_start",
+            "slope_event",
+            "proud_reflection"
+          ],
+          "forbidden_phrases": [
+            "will cycle tomorrow",
+            "never reached the fort",
+            "felt proud before leaving"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write an original account with a clear beginning, ordered events, at least three past-tense actions, and a relevant reflection.",
+          "passage": "Think of a real or imagined journey during which the weather changed and you noticed something colourful outdoors.",
+          "prompt": "Write an 80 to 100 word first-person journey paragraph. Include the destination, how and with whom you travelled, at least three past-tense actions, the weather change, and your final feeling.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "journey_paragraph_80_100",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "rainbow_journey_word_range",
+              "description": "Contains 80 to 100 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "rainbow_journey_context",
+              "description": "Names a destination and explains how and with whom the writer travelled.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "rainbow_journey_past_actions",
+              "description": "Uses at least three clear past-tense actions in a logical order.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "rainbow_journey_weather_detail",
+              "description": "Includes a weather change and one specific colourful outdoor detail.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "rainbow_journey_reflection",
+              "description": "Ends with a relevant feeling or reflection in the writer's own words.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the planning method to diary notes. Turn every note into an ordered past-tense account rather than copying the slash-separated list.",
+          "passage": "Saturday notes: bicycle ride to the library / cousin came along / sudden drizzle / colour arc above the playground / returned before dark.",
+          "prompt": "Write a three-sentence diary summary of at least 25 words using all the notes in a sensible order.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "library_trip",
+              "description": "States that the writer rode a bicycle to the library with a cousin.",
+              "any_of": [
+                "rode my bicycle to the library with my cousin",
+                "cycled with my cousin to the library",
+                "my cousin and I rode to the library"
+              ]
+            },
+            {
+              "id": "drizzle_and_arc",
+              "description": "Includes the drizzle and the colour arc above the playground.",
+              "any_of": [
+                "drizzle began and a colour arc appeared",
+                "saw a colour arc above the playground after the drizzle",
+                "rain fell before colours appeared over the playground",
+                "sudden drizzle revealed a colourful arc"
+              ]
+            },
+            {
+              "id": "return_before_dark",
+              "description": "Ends with returning before dark.",
+              "any_of": [
+                "returned before dark",
+                "came home before dark",
+                "rode back before it became dark"
+              ]
+            }
+          ],
+          "min_response_words": 25,
+          "ordered_concept_slot_ids": [
+            "library_trip",
+            "drizzle_and_arc",
+            "return_before_dark"
+          ],
+          "forbidden_phrases": [
+            "will go to the library",
+            "returned before the drizzle",
+            "went alone"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "rainbow_natural_and_built",
+      "title": "Compare two kinds of bridges",
+      "focus": "compare a natural rainbow with human-made crossings and support conclusions with evidence",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason",
+        "writing.reason_answer",
+        "writing.compare_contrast"
+      ],
+      "teaching_goal": "State an accurate similarity and difference, classify natural and human-made features, and justify the comparison with passage evidence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "People construct human-made objects. Natural events form without being assembled by people.",
+          "passage": "Engineers fixed steel beams across the canal so walkers could reach the opposite bank.",
+          "prompt": "How should the steel crossing be classified?",
+          "options": [
+            "human-made",
+            "natural",
+            "both natural and human-made",
+            "neither natural nor human-made"
+          ],
+          "accepted_answers": [
+            "human-made",
+            "human made",
+            "made by people"
+          ],
+          "response_mode": "short"
+        },
+        "bridge": {
+          "teaching_block": "A strong comparison names one shared feature and one important difference. Both images may look like crossings, but only one is built for travel.",
+          "passage": "A stone bridge curved over a stream. Above it, a rainbow curved through the clearing sky.",
+          "prompt": "Which statement gives both a similarity and a difference?",
+          "options": [
+            "Both curve over a space, but only the stone bridge carries travellers.",
+            "Both are made from stone and steel.",
+            "The rainbow carries people while the bridge fades.",
+            "The two shapes have nothing in common."
+          ],
+          "accepted_answers": [
+            "Both curve over a space, but only the stone bridge carries travellers.",
+            "both curve over a space but only the stone bridge carries travellers"
+          ],
+          "response_mode": "short"
+        },
+        "masterclass": {
+          "teaching_block": "Use evidence for each side of a comparison: shape can support the similarity, while material, purpose, or permanence can support the difference.",
+          "passage": "Workers built an arched walkway from brick. Later, sunlight and fine spray formed a coloured arc above a fountain.",
+          "prompt": "Compare the walkway and the coloured arc with one similarity and one evidence-based difference.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "shared_arch_shape",
+              "description": "States that both have an arch or curved shape.",
+              "any_of": [
+                "both are arched",
+                "both have a curved shape",
+                "each forms an arc",
+                "both curve over a space"
+              ]
+            },
+            {
+              "id": "built_natural_difference",
+              "description": "Explains that people built the brick walkway while light and spray formed the natural arc.",
+              "any_of": [
+                "walkway was built by workers",
+                "brick walkway is human-made",
+                "coloured arc formed from sunlight and spray",
+                "arc formed naturally but the walkway was built",
+                "one is brick and the other is light and spray"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "forbidden_phrases": [
+            "workers built the coloured arc",
+            "the walkway formed from sunlight",
+            "both carry travellers"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the fresh valley scene, then compare purpose and appearance without answer choices.",
+          "passage": "A rope footbridge helped farmers cross a narrow valley. After a shower, a rainbow appeared much higher and faded within minutes.",
+          "prompt": "Give one similarity and one difference between the footbridge and the rainbow, using evidence from the scene.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "valley_crossing_similarity",
+              "description": "States that both span, cross, or arc over the valley space.",
+              "any_of": [
+                "both cross the valley",
+                "both span the valley",
+                "both look like crossings",
+                "each stretches over the valley"
+              ]
+            },
+            {
+              "id": "purpose_or_duration_difference",
+              "description": "Contrasts the bridge's travel purpose or lasting structure with the high, temporary rainbow.",
+              "any_of": [
+                "farmers can cross the footbridge",
+                "rainbow cannot carry farmers",
+                "rainbow faded within minutes",
+                "footbridge remained after the rainbow faded",
+                "bridge is for travel but the rainbow is not"
+              ]
+            }
+          ],
+          "min_response_words": 14,
+          "forbidden_phrases": [
+            "farmers walked on the rainbow",
+            "the footbridge faded",
+            "both were made of rope"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer comparison and reasoning to a new pair. Organize the answer around a shared shape, different origins, and different duration or purpose.",
+          "passage": "A greenhouse has a clear arched roof that protects plants throughout the year. One misty morning, a colour arc formed above the garden and disappeared as the air dried.",
+          "prompt": "In 35 to 55 words, compare the greenhouse roof and the colour arc. Include one accurate similarity, two differences, and a reason the colour arc is natural.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must contain 35 to 55 original English words comparing the greenhouse roof with the temporary natural colour arc.",
+          "pass_score": 0.8,
+          "rubric_criteria": [
+            {
+              "id": "greenhouse_word_range",
+              "description": "Contains 35 to 55 words.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "greenhouse_shared_arch",
+              "description": "States that both the roof and colour arc have a curved or arched shape.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "greenhouse_origin_difference",
+              "description": "Explains that people built the greenhouse roof while mist, light, or weather formed the colour arc.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "greenhouse_duration_or_purpose",
+              "description": "Contrasts the lasting protective roof with the temporary arc that disappeared.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "greenhouse_natural_reason",
+              "description": "Gives a clear reason the colour arc is a natural event.",
+              "required": true,
+              "min_quality": 0.7
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c5_ch03_assess_01",
+        "passage": "At dusk, a band of colours curved above the football field while puddles still shone near the goalposts.",
+        "prompt": "What appeared above the football field?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a band of colours",
+          "a row of goalposts",
+          "a group of players",
+          "a line of puddles"
+        ],
+        "accepted_answers": [
+          "a band of colours",
+          "band of colours"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_02",
+        "passage": "A brief shower cooled the village. When sunlight returned, a coloured arc appeared above the grain market, and families stopped to admire it.",
+        "prompt": "What is the main idea of the passage?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "A rainbow appeared after rain and drew people's attention.",
+          "The grain market closed because the village became cold.",
+          "Families hurried away before the sunlight returned.",
+          "A storm damaged every shop in the grain market."
+        ],
+        "accepted_answers": [
+          "A rainbow appeared after rain and drew people's attention.",
+          "a rainbow appeared after rain and people admired it"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_03",
+        "passage": "Leela left the narrow courtyard and walked to the open terrace when the western sky brightened after rain.",
+        "prompt": "Why did Leela probably move to the open terrace? Use two clues from the passage.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "open_view_reason",
+            "description": "Infers that Leela wanted a wider or clearer view of the sky.",
+            "any_of": [
+              "wanted a clear view of the sky",
+              "could see more from the terrace",
+              "moved for an open view",
+              "terrace gave her a wider view"
+            ]
+          },
+          {
+            "id": "weather_clues",
+            "description": "Uses the brightening western sky after rain as supporting evidence.",
+            "any_of": [
+              "sky brightened after rain",
+              "western sky was brightening",
+              "rain had ended and the sky brightened",
+              "bright sky after the rain"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "terrace had no view",
+          "she wanted to hide from the sky"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_04",
+        "passage": "A row of lamps arched over the entrance, forming a smooth curve from one pillar to the other.",
+        "prompt": "What does arched mean in this sentence?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "curved overhead",
+          "lay flat on the ground",
+          "broke into small pieces",
+          "moved in a straight tunnel"
+        ],
+        "accepted_answers": [
+          "curved overhead",
+          "formed a curve",
+          "curved"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_05",
+        "passage": "Word bank: overtop - to rise higher than something else.",
+        "prompt": "Use overtop in a complete sentence about a kite and a tree.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "overtop_word",
+            "description": "Uses overtop or an inflected form correctly.",
+            "any_of": [
+              "kite overtops",
+              "kite overtopped",
+              "kite will overtop",
+              "kites overtop"
+            ]
+          },
+          {
+            "id": "kite_above_tree",
+            "description": "Shows that the kite is or becomes higher than the tree.",
+            "any_of": [
+              "overtops the tree",
+              "overtopped the tree",
+              "rise higher than the tree",
+              "flew higher than the tree",
+              "above the tree"
+            ]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": [
+          "kite stayed below the tree",
+          "tree flew above the kite"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_06",
+        "passage": "Notes: colours / spread / above the paddy field.",
+        "prompt": "Turn all the notes into one complete sentence.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "colours_subject",
+            "description": "Uses colours as the subject.",
+            "any_of": [
+              "colours spread",
+              "the colours spread",
+              "bright colours spread"
+            ]
+          },
+          {
+            "id": "field_location",
+            "description": "Places the colours above the paddy field.",
+            "any_of": [
+              "above the paddy field",
+              "over the paddy field",
+              "across the sky above the paddy field"
+            ]
+          }
+        ],
+        "min_response_words": 6,
+        "forbidden_phrases": [
+          "below the paddy field",
+          "field spread above colours"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_07",
+        "passage": "The artists colour the paper strips before hanging them across the hall.",
+        "prompt": "What job does colour perform in this sentence?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "verb",
+          "noun",
+          "adjective",
+          "pronoun"
+        ],
+        "accepted_answers": [
+          "verb",
+          "a verb"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_08",
+        "passage": "The rain stopped before the school picnic began, and the class could spread its mats on the grass.",
+        "prompt": "In one complete sentence, explain what the class could do after the rain stopped.",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "class_spread_mats",
+            "description": "States that the class could spread or place its mats.",
+            "any_of": [
+              "class could spread its mats",
+              "students spread their mats",
+              "they could put out the mats",
+              "class placed mats"
+            ]
+          },
+          {
+            "id": "grass_location",
+            "description": "States that the mats were spread on the grass.",
+            "any_of": [
+              "on the grass",
+              "over the grass",
+              "on the grassy ground"
+            ]
+          }
+        ],
+        "min_response_words": 8,
+        "forbidden_phrases": [
+          "picnic was cancelled",
+          "mats stayed in the rain"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_09",
+        "passage": "Yesterday, Farhan ___ across the river by ferry and watched clouds gather behind the hills.",
+        "prompt": "Which verb correctly completes the past-tense sentence?",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [
+          "travelled",
+          "travels",
+          "will travel",
+          "travelling"
+        ],
+        "accepted_answers": [
+          "travelled"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_10",
+        "passage": "A short shower darkened the playground. Soon the sun returned, a pale rainbow appeared, and the children resumed their cricket match.",
+        "prompt": "Summarize the changing scene in one sentence using your own words.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "rain_to_sun_change",
+            "description": "Captures the change from a shower to returning sunlight.",
+            "any_of": [
+              "rain stopped and the sun returned",
+              "after a short shower the sun came out",
+              "playground changed from rainy to sunny",
+              "shower ended before sunlight returned"
+            ]
+          },
+          {
+            "id": "rainbow_and_play",
+            "description": "Includes the rainbow and the children resuming cricket.",
+            "any_of": [
+              "rainbow appeared and children played cricket",
+              "children resumed cricket under a rainbow",
+              "pale rainbow appeared before the match continued",
+              "cricket restarted when the rainbow appeared"
+            ]
+          }
+        ],
+        "min_response_words": 12,
+        "forbidden_phrases": [
+          "children stopped forever",
+          "sun disappeared after the rainbow"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_11",
+        "passage": "Nisha called the rainbow a silent bridge because its long curve seemed to connect the wet orchard with a distant hill.",
+        "prompt": "Why did Nisha use the word bridge? Answer with the visual evidence.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "bridge_reason",
+            "description": "Explains that the rainbow looked like a connection or crossing.",
+            "any_of": [
+              "looked like a bridge",
+              "seemed to connect two places",
+              "resembled a crossing",
+              "formed a path between places"
+            ]
+          },
+          {
+            "id": "orchard_hill_evidence",
+            "description": "Uses the curve between the orchard and hill as evidence.",
+            "any_of": [
+              "curve connected the orchard and hill",
+              "stretched from the wet orchard to the hill",
+              "long curve reached toward a distant hill",
+              "linked the orchard with the hill"
+            ]
+          }
+        ],
+        "min_response_words": 10,
+        "forbidden_phrases": [
+          "people crossed the rainbow",
+          "rainbow was made of wood"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_12",
+        "passage": "A blue kite makes a curved path only while the wind carries it. A rainbow forms a coloured curve after rain and remains in one part of the sky for a short time.",
+        "prompt": "In 25 to 45 words, compare the kite's path and the rainbow. Name both, give one similarity, and give one accurate difference.",
+        "skill_ids": [
+          "writing.compare_contrast"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must contain 25 to 45 original English words comparing the moving kite path with the short-lived rainbow.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "kite_rainbow_word_range",
+            "description": "Contains 25 to 45 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "kite_rainbow_named",
+            "description": "Names both the kite or kite path and the rainbow.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "kite_rainbow_similarity",
+            "description": "States that both make a curved shape or path in the sky.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "kite_rainbow_difference",
+            "description": "Explains that the wind moves the kite while the rainbow is a coloured weather image that briefly stays in one area.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_13",
+        "passage": "Three cyclists paused beside the canal and pointed toward a faint arc beyond the sugarcane fields.",
+        "prompt": "What did the cyclists point toward?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a faint arc",
+          "the canal bank",
+          "three bicycles",
+          "the nearest sugarcane plant"
+        ],
+        "accepted_answers": [
+          "a faint arc",
+          "faint arc",
+          "the arc"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_14",
+        "passage": "The science club sprayed a fine mist beside a sunny window. Tiny colours appeared in the mist, helping the group see how light and water can create a rainbow effect.",
+        "prompt": "Which sentence states the main idea?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "The club used sunlight and mist to observe a rainbow effect.",
+          "The club washed every window before science class.",
+          "The students avoided using water during the activity.",
+          "The mist blocked all light from entering the room."
+        ],
+        "accepted_answers": [
+          "The club used sunlight and mist to observe a rainbow effect.",
+          "sunlight and mist helped the club observe rainbow colours"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_15",
+        "passage": "Aarav packed the painted banner indoors when dark clouds covered the sun, but he carried it outside again as soon as a bright patch opened in the sky.",
+        "prompt": "Why did Aarav carry the banner outside again?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "The weather looked brighter and safer for displaying it.",
+          "He wanted the dark clouds to soak the banner.",
+          "The room had become too sunny for the banner.",
+          "He had forgotten that the banner was painted."
+        ],
+        "accepted_answers": [
+          "The weather looked brighter and safer for displaying it.",
+          "the sky brightened so he could display it outside"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_16",
+        "passage": "The new flyover spanned the railway tracks, reaching from the bus depot to the hospital road.",
+        "prompt": "What does spanned mean here?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "stretched across",
+          "stopped before",
+          "fell below",
+          "turned away from"
+        ],
+        "accepted_answers": [
+          "stretched across",
+          "reached across",
+          "crossed over"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_17",
+        "passage": "Word bank: arc - a curved line or shape.",
+        "prompt": "Use arc in a complete sentence about water from a fountain.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "arc_word",
+            "description": "Uses the word arc to name a curved shape.",
+            "any_of": [
+              "arc of water",
+              "water made an arc",
+              "water formed an arc",
+              "fountain created an arc"
+            ]
+          },
+          {
+            "id": "fountain_context",
+            "description": "Connects the arc to water moving from or above a fountain.",
+            "any_of": [
+              "from the fountain",
+              "above the fountain",
+              "fountain sent water",
+              "water curved over the pool",
+              "fountain water"
+            ]
+          }
+        ],
+        "min_response_words": 7,
+        "forbidden_phrases": [
+          "arc was a straight line",
+          "fountain had no water"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_18",
+        "passage": "Notes: the orange scarf / fluttered / beside the open window.",
+        "prompt": "Write one complete sentence using every note.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "scarf_action",
+            "description": "Uses the orange scarf as subject with the action fluttered.",
+            "any_of": [
+              "orange scarf fluttered",
+              "the orange scarf fluttered",
+              "scarf was fluttering"
+            ]
+          },
+          {
+            "id": "window_location",
+            "description": "Places the scarf beside the open window.",
+            "any_of": [
+              "beside the open window",
+              "next to the open window",
+              "near the open window"
+            ]
+          }
+        ],
+        "min_response_words": 7,
+        "forbidden_phrases": [
+          "window fluttered beside the scarf",
+          "scarf was behind a closed door"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_19",
+        "passage": "A narrow bridge connected the two garden paths.",
+        "prompt": "What job does bridge perform in this sentence?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "noun",
+          "verb",
+          "adjective",
+          "adverb"
+        ],
+        "accepted_answers": [
+          "noun",
+          "a noun"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_20",
+        "passage": "A colour chart reads violet, indigo, blue, green, yellow, orange, red.",
+        "prompt": "In one sentence, state which colour comes after green and before orange.",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "yellow_answer",
+            "description": "Identifies yellow as the colour in the requested position.",
+            "any_of": [
+              "colour is yellow",
+              "yellow comes after green",
+              "yellow is between green and orange",
+              "the answer is yellow"
+            ]
+          },
+          {
+            "id": "sequence_position",
+            "description": "Places yellow after green and before orange.",
+            "any_of": [
+              "after green and before orange",
+              "between green and orange",
+              "green, yellow, orange",
+              "yellow follows green"
+            ]
+          }
+        ],
+        "min_response_words": 7,
+        "forbidden_phrases": [
+          "orange comes before yellow",
+          "blue is between green and orange"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_21",
+        "passage": "During our trip last month, we ___ the hill station before noon and explored the market after lunch.",
+        "prompt": "Which past-tense verb completes the sentence?",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [
+          "reached",
+          "reach",
+          "will reach",
+          "reaching"
+        ],
+        "accepted_answers": [
+          "reached"
+        ],
+        "response_mode": "short"
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_22",
+        "passage": "Mehul and his grandmother rode a train through heavy rain. Near the final station, sunlight broke through, colours appeared over the farms, and both travellers smiled.",
+        "prompt": "Summarize the journey and its final change in one sentence using your own words.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "train_in_rain",
+            "description": "Includes Mehul and his grandmother travelling by train through rain.",
+            "any_of": [
+              "Mehul and his grandmother travelled by train through rain",
+              "they rode a train in heavy rain",
+              "train journey began in heavy rain",
+              "grandmother and Mehul travelled through rain"
+            ]
+          },
+          {
+            "id": "sun_colours_smile",
+            "description": "Captures the later sunlight, colours, and positive reaction.",
+            "any_of": [
+              "sunlight and colours made them smile",
+              "colours appeared over farms when the sun returned",
+              "journey brightened near the station",
+              "they smiled when colours appeared"
+            ]
+          }
+        ],
+        "min_response_words": 14,
+        "forbidden_phrases": [
+          "they never reached the station",
+          "sunlight came before the rain began"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_23",
+        "passage": "Carpenters built a wooden arch for the school stage. That evening, a rainbow formed above the playground after a shower.",
+        "prompt": "Why is the wooden arch human-made while the rainbow is natural?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "arch_built_reason",
+            "description": "Explains that carpenters or people constructed the wooden arch.",
+            "any_of": [
+              "carpenters built the wooden arch",
+              "people constructed the arch",
+              "arch was made by people",
+              "wooden arch was built"
+            ]
+          },
+          {
+            "id": "rainbow_natural_reason",
+            "description": "Explains that the rainbow formed through weather, light, or rain without people building it.",
+            "any_of": [
+              "rainbow formed after the shower",
+              "rainbow formed naturally",
+              "light and rain made the rainbow",
+              "people did not build the rainbow",
+              "weather created the rainbow"
+            ]
+          }
+        ],
+        "min_response_words": 12,
+        "forbidden_phrases": [
+          "carpenters built the rainbow",
+          "wooden arch grew naturally"
+        ]
+      },
+      {
+        "item_id": "eng_c5_ch03_assess_24",
+        "passage": "A concrete flyover carries buses above a busy road every day. A rainbow may arch above the same road after rain, but it cannot carry traffic and soon fades.",
+        "prompt": "In 30 to 50 words, compare the flyover and rainbow. Name both, give one visual similarity, and give two accurate differences.",
+        "skill_ids": [
+          "writing.compare_contrast"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "The response must contain 30 to 50 original English words comparing the lasting traffic flyover with the temporary natural rainbow.",
+        "pass_score": 0.8,
+        "rubric_criteria": [
+          {
+            "id": "flyover_rainbow_word_range",
+            "description": "Contains 30 to 50 words.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "flyover_rainbow_named",
+            "description": "Names both the concrete flyover and the rainbow.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "flyover_rainbow_similarity",
+            "description": "States that both arch, curve, or stretch above the road.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "flyover_rainbow_purpose_difference",
+            "description": "Explains that the flyover carries traffic while the rainbow cannot.",
+            "required": true,
+            "min_quality": 0.7
+          },
+          {
+            "id": "flyover_rainbow_duration_or_origin",
+            "description": "Contrasts the lasting built flyover with the temporary natural rainbow.",
+            "required": true,
+            "min_quality": 0.7
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -41,19 +41,6 @@ _NODE_INDEX: dict[str, tuple[str, Concept]] = {
     n.id: (m.id, n) for m in MODULES for n in m.nodes
 }
 
-# Merge the NCERT school curriculum chapters into the engine indexes. A chapter
-# IS a Module, so registering its levels here lets the EXISTING coaching engine
-# (get_node / module_of / next_node / start_session) tutor a chapter's levels
-# exactly like any other module — no parallel serving path needed. Chapters are
-# NOT added to MODULES, so they never appear in the onboarding module picker.
-from app.content import curriculum as _curriculum  # noqa: E402
-
-for _ch in _curriculum.all_chapters():
-    if _ch.id not in _BY_MODULE:
-        _BY_MODULE[_ch.id] = _ch
-        for _n in _ch.nodes:
-            _NODE_INDEX[_n.id] = (_ch.id, _n)
-
 # CEFR ordering for placement. Higher rank == more advanced.
 CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
 # Self-report buckets the onboarding UI offers, mapped to a target CEFR band.
@@ -202,4 +189,3 @@ def placement_node(module_id: str, target_cefr: str) -> Concept:
         if CEFR_RANK.get(node.cefr, 0) >= target:
             return node
     return pool[-1]
-

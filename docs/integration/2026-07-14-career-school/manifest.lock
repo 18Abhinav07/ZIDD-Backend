@@ -1,0 +1,14 @@
+{
+  "career_parent": "25a5d4bc878e42455587231bf8c04058cde670d0",
+  "core_tree": "f873c41417f2bd962391354b3b8865ad436c1f53",
+  "generated_at": "2026-07-14T02:40:00.192746+00:00",
+  "manifest_rows": 275,
+  "manifest_sha256": "7691cb808eddd5087613eb8e4b1dbbe8e369a514f8dfa66d5483f0d9fe1fd8db",
+  "manual_patch_paths": 44,
+  "merge_base": "ee7a4b3ddf1a4733a112fc3f38c7cb2b3f542a0f",
+  "patch_sha256": "2243dd00ade2edf11a3adb8d41d71c1da01f4009d8c09a49d55237041ed41428",
+  "repository": "ZIDD-Backend",
+  "schema": 1,
+  "school_parent": "e0e63b3b6750e96842dfc7b6147d939b501a6e0e",
+  "scope": "application tree before docs/integration/2026-07-14-career-school metadata"
+}

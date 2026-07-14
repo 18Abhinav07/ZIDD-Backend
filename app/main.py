@@ -17,14 +17,23 @@ from app.api.onboarding_routes import router as profile_onboarding_router
 from app.api.routes import onboarding as onboarding_router
 from app.api.routes import router as session_router
 from app.api.billing_routes import router as billing_router
-from app.api.school_routes import router as school_router
+from app.api.school_retirement_routes import router as school_retirement_router
 from app.config import get_jwt_secret, get_settings
 from app.db.engine import get_engine
 from app.db.schema_guard import validate_runtime_schema
 from app.storage import get_storage
+from app.services.school.authority import validate_canonical_school_routes
+from app.services.school.availability import school_availability
 from app.services.session_service import load_sessions, save_sessions
 from app.middleware.auth import JWTAuthMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
+
+
+_school_runtime_enabled = school_availability().available
+if _school_runtime_enabled:
+    from app.api.school_rebuild_routes import router as school_router
+else:
+    from app.api.school_availability_routes import router as school_router
 
 
 @asynccontextmanager
@@ -83,6 +92,11 @@ app.include_router(session_router)
 app.include_router(onboarding_router)
 app.include_router(billing_router)
 app.include_router(school_router)
+app.include_router(school_retirement_router)
+validate_canonical_school_routes(
+    app.routes,
+    school_enabled=_school_runtime_enabled,
+)
 
 
 @app.get("/")

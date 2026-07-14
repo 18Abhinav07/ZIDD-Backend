@@ -111,17 +111,6 @@ def test_clean_pass_without_completion_does_not_render_mastered(store):
     assert by_id[NODE]["display_mastery"] == 0.42
 
 
-def test_school_lesson_progress_requires_node_completion(store):
-    _run(store.ensure_profile("test_user"))
-    _run(store.upsert_mastery("test_user", "c2_ch01_l1_new_words", 0.35, 1, clean_pass=True, node_completed=False))
-
-    client = TestClient(app)
-    response = client.get("/school/progress?class_no=2", headers=AUTH)
-
-    assert response.status_code == 200
-    assert response.json()["lesson_progress"]["c2_ch01_l1_new_words"] == "in_progress"
-
-
 def test_progression_keeps_completed_node_mastered_during_reattempt(store):
     _run(store.ensure_profile("test_user"))
     _run(store.upsert_mastery("test_user", NODE, 0.82, 2, clean_pass=True, node_completed=True))

@@ -150,6 +150,46 @@ class PgStore:
                 s, user_id, display_name, primary_motive, school_profile, career_profile
             )
 
+    async def get_active_school_profile_version(self, user_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_school_profile_version(s, user_id)
+
+    async def get_school_state_snapshot(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_state_snapshot(s, user_id)
+
+    async def get_school_profile_draft(self, user_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_profile_draft(s, user_id)
+
+    async def get_school_profile_version(
+        self,
+        user_id: str,
+        profile_version_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_profile_version(s, user_id, profile_version_id)
+
+    async def save_school_profile_draft(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.save_school_profile_draft(s, **kwargs)
+
+    async def activate_school_profile_draft(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.activate_school_profile_draft(s, **kwargs)
+
     async def create_session(
         self,
         session_id: str,
@@ -439,6 +479,12 @@ class PgStore:
 
         async with _session() as s:
             return await repo.get_learning_graph(s, user_id)
+
+    async def get_school_learning_graph(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_learning_graph(s, user_id)
 
     async def get_active_career_session_runtimes(self, user_id: str) -> list[dict]:
         from app.db import repo
@@ -768,6 +814,390 @@ class PgStore:
 
         async with _session() as s:
             return await repo.get_school_results(s, user_id, class_no)
+
+    async def upsert_school_session(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_school_session(s, **kwargs)
+
+    async def get_or_create_school_session(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_or_create_school_session(s, **kwargs)
+
+    async def persist_school_curriculum_attempt(
+        self,
+        *,
+        learning_event: dict,
+        school_session: dict,
+        expected_state_json: dict,
+        request_activity_id: str | None = None,
+        request_answer_hash: str | None = None,
+        request_claim_token: str | None = None,
+        response_json: dict | None = None,
+        projection_evidence: dict | None = None,
+        language_evaluation: dict | None = None,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.persist_school_curriculum_attempt(
+                s,
+                learning_event=learning_event,
+                school_session=school_session,
+                expected_state_json=expected_state_json,
+                request_activity_id=request_activity_id,
+                request_answer_hash=request_answer_hash,
+                request_claim_token=request_claim_token,
+                response_json=response_json,
+                projection_evidence=projection_evidence,
+                language_evaluation=language_evaluation,
+            )
+
+    async def persist_school_answer_attempt(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.persist_school_answer_attempt(s, **kwargs)
+
+    async def compare_and_set_school_session(
+        self,
+        *,
+        school_session: dict,
+        expected_state_json: dict,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.compare_and_set_school_session(
+                s,
+                school_session=school_session,
+                expected_state_json=expected_state_json,
+            )
+
+    async def get_school_answer_request(
+        self, user_id: str, session_id: str, activity_id: str
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_answer_request(s, user_id, session_id, activity_id)
+
+    async def claim_school_answer_request(
+        self, user_id: str, session_id: str, activity_id: str, answer_hash: str
+    ) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.claim_school_answer_request(
+                s, user_id, session_id, activity_id, answer_hash
+            )
+
+    async def fail_school_answer_request(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        claim_token: str,
+    ) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.fail_school_answer_request(
+                s, user_id, session_id, activity_id, answer_hash, claim_token
+            )
+
+    async def renew_school_answer_request(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        claim_token: str,
+    ) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.renew_school_answer_request(
+                s,
+                user_id,
+                session_id,
+                activity_id,
+                answer_hash,
+                claim_token,
+            )
+
+    async def get_school_session(
+        self,
+        user_id: str,
+        session_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_session(s, user_id, session_id)
+
+    async def get_active_school_session(
+        self,
+        user_id: str,
+        api_version: str,
+        flow_type: str,
+        subject_id: str,
+        class_no: int,
+        *,
+        profile_version_id: str | None = None,
+        source_placement_report_id: str | None = None,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_school_session(
+                s,
+                user_id,
+                api_version,
+                flow_type,
+                subject_id,
+                class_no,
+                profile_version_id=profile_version_id,
+                source_placement_report_id=source_placement_report_id,
+            )
+
+    async def get_latest_school_session(
+        self,
+        user_id: str,
+        api_version: str,
+        flow_type: str,
+        subject_id: str,
+        class_no: int,
+        *,
+        profile_version_id: str | None = None,
+        source_placement_report_id: str | None = None,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_latest_school_session(
+                s,
+                user_id,
+                api_version,
+                flow_type,
+                subject_id,
+                class_no,
+                profile_version_id=profile_version_id,
+                source_placement_report_id=source_placement_report_id,
+            )
+
+    async def get_or_create_active_school_placement_session(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_or_create_active_school_placement_session(s, **kwargs)
+
+    async def get_school_sessions_linked_to(
+        self,
+        user_id: str,
+        linked_session_id: str,
+    ) -> list[dict]:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_sessions_linked_to(s, user_id, linked_session_id)
+
+    async def expire_active_school_sessions_from_other_profiles(
+        self,
+        user_id: str,
+        current_profile_version_id: str,
+    ) -> int:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.expire_active_school_sessions_from_other_profiles(
+                s,
+                user_id,
+                current_profile_version_id,
+            )
+
+    async def upsert_school_placement_report(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.upsert_school_placement_report(s, **kwargs)
+
+    async def get_school_placement_report(
+        self,
+        user_id: str,
+        placement_session_id: str,
+        *,
+        profile_version_id: str | None = None,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_placement_report(
+                s,
+                user_id,
+                placement_session_id,
+                profile_version_id=profile_version_id,
+            )
+
+    async def get_school_placement_report_by_id(
+        self,
+        user_id: str,
+        report_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_placement_report_by_id(
+                s,
+                user_id,
+                report_id,
+            )
+
+    async def get_latest_compatible_school_placement_report(
+        self,
+        user_id: str,
+        profile_version_id: str,
+        subject_id: str,
+        target_class_no: int,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_latest_compatible_school_placement_report(
+                s,
+                user_id,
+                profile_version_id,
+                subject_id,
+                target_class_no,
+            )
+
+    async def upsert_school_language_confidence(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_school_language_confidence(s, **kwargs)
+
+    async def get_school_language_confidence(self, user_id: str) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_language_confidence(s, user_id)
+
+    async def upsert_school_v2_placement_session(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_school_v2_placement_session(s, **kwargs)
+
+    async def get_school_v2_placement_session(
+        self,
+        user_id: str,
+        placement_session_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_v2_placement_session(
+                s,
+                user_id,
+                placement_session_id,
+            )
+
+    async def get_active_school_v2_placement_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_school_v2_placement_session(
+                s,
+                user_id,
+                subject_id,
+                target_class_no,
+            )
+
+    async def upsert_school_v2_practice_session(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_school_v2_practice_session(s, **kwargs)
+
+    async def get_school_v2_practice_session(
+        self,
+        user_id: str,
+        practice_session_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_v2_practice_session(
+                s,
+                user_id,
+                practice_session_id,
+            )
+
+    async def get_active_school_v2_practice_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+        skill_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_school_v2_practice_session(
+                s,
+                user_id,
+                subject_id,
+                target_class_no,
+                skill_id,
+            )
+
+    async def upsert_school_v2_curriculum_session(self, **kwargs) -> None:
+        from app.db import repo
+
+        async with _session() as s:
+            await repo.upsert_school_v2_curriculum_session(s, **kwargs)
+
+    async def get_school_v2_curriculum_session(
+        self,
+        user_id: str,
+        curriculum_session_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_v2_curriculum_session(
+                s,
+                user_id,
+                curriculum_session_id,
+            )
+
+    async def get_active_school_v2_curriculum_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+        chapter_id: str,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_active_school_v2_curriculum_session(
+                s,
+                user_id,
+                subject_id,
+                target_class_no,
+                chapter_id,
+            )
 
     async def get_activity_snapshot(self, user_id: str) -> dict:
         from app.db import repo

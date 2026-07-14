@@ -1,0 +1,318 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": ["Focused schema, runtime hash, pedagogy, freshness, coverage, and key self-review for eng_c4_ch06 on 2026-07-12"],
+  "runtime_sha256": "85bc17420722e96fcaab5db081f034ec47aad421d6d412e1450949dc84b48d6a",
+  "chapter_id": "eng_c4_ch06",
+  "chapter_no": 6,
+  "title": "Braille",
+  "book_title": "Santoor",
+  "unit_title": "My Beautiful World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa106.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "braille_main_idea",
+      "title": "Understand how dot patterns carry meaning",
+      "focus": "identify the main idea and key details in an informational paragraph",
+      "skill_ids": ["reading.paragraph_main_idea", "reading.sentence_comprehension"],
+      "teaching_goal": "Explain how organised raised-dot cells let a reader recognise letters, words, and signs by touch.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The main idea joins the important details. Worked example: raised dots are arranged in small cells; each arrangement stands for something; fingertips detect the arrangements. Together, these details explain how Braille carries written meaning through touch.",
+          "passage": "Meera moves her fingertip across a row of firm dots. Each small group has a different arrangement. She recognises the groups as letters and reads the label without seeing it.",
+          "prompt": "Which statement gives the paragraph's main idea?",
+          "options": ["different raised-dot patterns can be read by touch", "all labels must be made of paper", "fingertips can see colours", "every dot group means the same letter"],
+          "accepted_answers": ["different raised-dot patterns can be read by touch", "raised dot patterns can be read by touch"]
+        },
+        "bridge": {
+          "teaching_block": "Break the process into three parts: what is felt, how it is organised, and what it means. Raised dots + distinct pattern + letter meaning explains the system.",
+          "passage": "One cell has two raised dots. The next has four in a different pattern. Arun feels the difference and identifies two letters.",
+          "prompt": "What lets Arun tell the letters apart?",
+          "options": ["the different dot patterns", "the colour of the page", "the size of his hand", "the sound of the paper"],
+          "accepted_answers": ["the different dot patterns", "different patterns"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: Braille is not a row of random bumps and it is not a separate spoken language. The planned position of each raised dot represents written symbols.",
+          "passage": "A card contains several six-position cells. Some positions are raised and others are flat. Tara reads the cells as a room number.",
+          "prompt": "Why must the dot positions be arranged carefully?",
+          "options": ["each pattern represents a particular symbol", "every raised dot is decoration", "flat positions erase the card", "the positions make the card louder"],
+          "accepted_answers": ["each pattern represents a particular symbol", "patterns have different meanings"]
+        },
+        "independent_check": {
+          "teaching_block": "Read the unseen information and state the main idea in your own words without choices.",
+          "passage": "Beside each lift button, a small metal plate carries raised dots. A visitor feels the plates, matches the patterns she knows, and selects the correct floor independently.",
+          "prompt": "What is the main idea of this paragraph?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "braille_use", "description": "States that raised-dot labels identify lift floors or buttons by touch.", "any_of": ["raised dots identify floors", "read lift buttons by touch", "braille labels", "dot patterns on lift buttons"]},
+            {"id": "independence", "description": "Explains that the labels help a blind reader choose a floor independently.", "any_of": ["choose the correct floor", "independently", "without seeing", "use the lift on her own"]}
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the same main-idea method to accessible packaging. Combine the label feature with its practical result.",
+          "passage": "Two medicine boxes feel similar. One company adds distinct raised-dot names to each box. A customer reads the names with her fingers before choosing the prescribed medicine.",
+          "prompt": "State the paragraph's main idea in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "feature", "description": "Mentions raised-dot or Braille names on medicine boxes.", "any_of": ["raised dot names", "braille labels", "dots on medicine boxes", "labels by touch"]},
+            {"id": "result", "description": "Explains that the customer can identify or choose the correct medicine.", "any_of": ["choose the correct medicine", "identify the boxes", "read the medicine name", "avoid mixing the medicines"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "braille_evidence_reason",
+      "title": "Explain why an invention solves a need",
+      "focus": "infer a design purpose and support it with evidence",
+      "skill_ids": ["reading.inference_reason", "writing.reason_answer"],
+      "teaching_goal": "Connect a difficulty, a design choice, and its useful result in an evidence-backed reason.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An invention reason has three links: problem, design, result. Worked example: printed signs cannot be read by touch, so raised symbols are added, allowing more people to read the information.",
+          "passage": "The library's shelf numbers were printed only in ink. Staff added raised-dot number labels so readers who use touch could find sections without waiting for help.",
+          "prompt": "Why were raised-dot labels added?",
+          "options": ["to let touch readers find sections independently", "to make the shelves heavier", "to hide the printed numbers", "to change the books' stories"],
+          "accepted_answers": ["to let touch readers find sections independently", "so touch readers could find sections"]
+        },
+        "bridge": {
+          "teaching_block": "Separate need from solution. Need: identify classroom rooms. Solution: place touch-readable signs at a reachable height.",
+          "passage": "Rafi could not use signs placed high above the doors. The school fixed Braille room labels beside each handle.",
+          "prompt": "Which detail shows how the school addressed Rafi's need?",
+          "options": ["labels were placed beside each handle", "doors were painted after lunch", "the corridor had many windows", "rooms had different curtains"],
+          "accepted_answers": ["labels were placed beside each handle", "braille labels beside each handle"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: saying 'because Braille is useful' is too vague. Name the exact barrier and explain how the feature removes it.",
+          "passage": "A bus timetable was available only behind glass. The depot added a durable touch-readable copy at hand level.",
+          "prompt": "Which answer gives the strongest reason for the change?",
+          "options": ["travellers who read by touch can check times themselves", "glass is always the wrong material", "the depot wanted another timetable", "buses arrive at different times"],
+          "accepted_answers": ["travellers who read by touch can check times themselves", "touch readers can check times independently"]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the design choice in the unseen situation. Include both the access problem and the result.",
+          "passage": "The buttons on a new water dispenser felt identical. Designers added distinct raised symbols beside cold, normal, and warm so users could select safely by touch.",
+          "prompt": "Why do the raised symbols improve the dispenser?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "problem", "description": "Identifies that the buttons felt identical or could not be told apart by touch.", "any_of": ["buttons felt identical", "could not tell the buttons apart", "same by touch", "identical buttons"]},
+            {"id": "result", "description": "Explains that users can identify temperatures and choose safely.", "any_of": ["choose safely", "identify cold and warm", "select the right temperature", "tell the buttons apart"]}
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Apply problem-design-result reasoning to a tactile map rather than written labels.",
+          "passage": "A park map used only coloured lines. A second map added raised paths, textured lawns, and a bumpy mark for each gate.",
+          "prompt": "Explain why the second map gives better access, using evidence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must explain in English how tactile map features answer a touch reader's navigation need and cite at least one given feature.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "need", "description": "Identifies that colour-only information is not accessible to every map reader.", "required": true, "min_quality": 0.6},
+            {"id": "evidence", "description": "Uses raised paths, textured lawns, or bumpy gate marks as evidence.", "required": true, "min_quality": 0.65},
+            {"id": "result", "description": "Explains how touch features help locate or follow places independently.", "required": true, "min_quality": 0.65}
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "braille_context_words",
+      "title": "Read access words in context",
+      "focus": "infer the meaning of tactile and invention vocabulary",
+      "skill_ids": ["vocab.chapter_word_usage", "reading.word_meaning_context"],
+      "teaching_goal": "Use nearby definitions and examples to understand raised, pattern, fingertip, tactile, and accessible.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A definition clue may follow the word. Worked example: a raised mark stands above a flat surface, so a finger can feel it.",
+          "passage": "The raised dots stood slightly above the card instead of lying flat.",
+          "prompt": "What does raised mean here?",
+          "options": ["higher than the surface", "printed in blue ink", "hidden inside the card", "soft enough to erase"],
+          "accepted_answers": ["higher than the surface", "standing above the surface"]
+        },
+        "bridge": {
+          "teaching_block": "A pattern is an organised arrangement. Find the clue that tells how parts are placed, not what colour they are.",
+          "passage": "The dots formed a pattern: two at the top, one in the middle, and none at the bottom.",
+          "prompt": "Which meaning fits pattern?",
+          "options": ["an organised arrangement", "a paper tear", "a spoken question", "a single colour"],
+          "accepted_answers": ["an organised arrangement", "arrangement"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: accessible does not merely mean nearby. Something accessible can be used or understood by people with different needs.",
+          "passage": "The museum made its guide accessible by offering large print, audio, and Braille versions.",
+          "prompt": "What does accessible mean in this sentence?",
+          "options": ["usable by people with different needs", "kept behind a locked door", "available in only one form", "written with difficult words"],
+          "accepted_answers": ["usable by people with different needs", "easy for different people to use"]
+        },
+        "independent_check": {
+          "teaching_block": "Use the unseen context to explain the word without choices.",
+          "passage": "The tactile diagram had rough rivers, smooth roads, and raised mountain lines that students could explore with their hands.",
+          "prompt": "What does tactile mean here?",
+          "options": [],
+          "accepted_answers": ["designed to be felt", "understood by touch", "touchable", "felt with the hands"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the word to a science activity and use the action clue.",
+          "passage": "During the tactile sorting game, children closed their eyes and grouped shells by feeling their surfaces.",
+          "prompt": "What does tactile tell you about the game?",
+          "options": [],
+          "accepted_answers": ["it uses touch", "the game is done by feeling", "it is based on touch", "objects are sorted by feeling them"]
+        }
+      }
+    },
+    {
+      "level_id": "braille_context_tense",
+      "title": "Use was and were with ongoing actions",
+      "focus": "match past-progressive grammar to singular and plural subjects",
+      "skill_ids": ["grammar.tense_usage", "writing.complete_sentence"],
+      "teaching_goal": "Use was or were plus an -ing verb to describe an action continuing at a past moment.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use was with one person or thing and were with more than one. Worked example: 'Asha was reading' has one reader; 'The students were reading' has several.",
+          "passage": "At ten o'clock, Kavya ___ tracing a Braille line with her fingertip.",
+          "prompt": "Which phrase completes the sentence?",
+          "options": ["was tracing", "were tracing", "is traced", "are trace"],
+          "accepted_answers": ["was tracing"]
+        },
+        "bridge": {
+          "teaching_block": "Find the subject first. 'The volunteers' is plural, so choose were. Then keep the action in its -ing form.",
+          "passage": "The volunteers ___ adding touch labels to the room doors.",
+          "prompt": "Choose the correct verb phrase.",
+          "options": ["were adding", "was adding", "is added", "were add"],
+          "accepted_answers": ["were adding"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: the nearest noun does not control the verb. The full subject does. In 'A box of labels was waiting', box is singular even though labels is plural.",
+          "passage": "A packet of Braille cards ___ lying beside the embosser.",
+          "prompt": "Which phrase agrees with the subject packet?",
+          "options": ["was lying", "were lying", "are lie", "were lain"],
+          "accepted_answers": ["was lying"]
+        },
+        "independent_check": {
+          "teaching_block": "Complete the unseen past-action sentence without choices.",
+          "passage": "When the bell rang, the two learners ___ reading the tactile notice.",
+          "prompt": "Write the correct two-word verb phrase.",
+          "options": [],
+          "accepted_answers": ["were reading"]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same tense pattern in a sports context. Write a complete sentence, not only the verb phrase.",
+          "passage": "Past moment: sunset. Subject: one runner. Continuing action: practising on the track.",
+          "prompt": "Write a complete sentence using was and the action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "subject", "description": "Uses one runner as the subject.", "any_of": ["the runner", "one runner", "a runner"]},
+            {"id": "verb", "description": "Uses the past-progressive phrase was practising or was practicing.", "any_of": ["was practising", "was practicing"]},
+            {"id": "place_time", "description": "Includes the track or sunset context.", "any_of": ["on the track", "at sunset", "when the sun set"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "braille_compare_summary",
+      "title": "Compare reading formats in your own words",
+      "focus": "compare access features and summarise their shared purpose",
+      "skill_ids": ["writing.compare_contrast", "writing.summary_own_words"],
+      "teaching_goal": "Select relevant similarities and differences between Braille, print, and audio without ranking one reader's method above another.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A comparison names what is similar and what is different. Worked example: print and Braille both record words; print is read mainly with sight, while Braille is read through raised patterns by touch.",
+          "passage": "A poem appears in dark ink on one page and in raised-dot cells on another. Both pages contain the same lines.",
+          "prompt": "Which comparison is accurate and respectful?",
+          "options": ["both carry the poem, but readers use different senses", "only the ink page carries words", "raised dots are pictures, not writing", "every reader must use both pages"],
+          "accepted_answers": ["both carry the poem, but readers use different senses", "both have the poem but are read differently"]
+        },
+        "bridge": {
+          "teaching_block": "Use a two-column plan: same purpose, different feature. Same purpose: share directions. Difference: audio is heard; Braille is felt.",
+          "passage": "A station offers spoken platform announcements and Braille signs beside the stairs.",
+          "prompt": "What shared purpose do both formats serve?",
+          "options": ["they give travellers useful information", "they make trains move faster", "they replace every staff member", "they decorate the staircase"],
+          "accepted_answers": ["they give travellers useful information", "give information"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: compare features, not people's worth. Avoid saying one format is always better. The useful format depends on the reader and situation.",
+          "passage": "Dev listens to an audio story while cooking. Later, he reads its Braille recipe list quietly with both hands free from sound controls.",
+          "prompt": "Which conclusion best fits the evidence?",
+          "options": ["different formats can be useful in different situations", "audio is always better than Braille", "Braille can only be used in kitchens", "a reader should choose only one format forever"],
+          "accepted_answers": ["different formats can be useful in different situations", "each format suits a different situation"]
+        },
+        "independent_check": {
+          "teaching_block": "Compare the unseen formats in your own words. Include one shared purpose and one clear difference.",
+          "passage": "A seed packet gives planting steps in large print and Braille. Both versions list the same depth and watering time; one uses enlarged letters and the other raised dots.",
+          "prompt": "Write a two-sentence comparison.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must compare the two seed-packet formats in English using evidence from the passage and respectful wording.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "similarity", "description": "States that both versions give the same planting information.", "required": true, "min_quality": 0.65},
+            {"id": "difference", "description": "Contrasts enlarged print with raised-dot Braille.", "required": true, "min_quality": 0.65},
+            {"id": "clarity", "description": "Uses clear comparison language such as both, while, or but.", "required": true, "min_quality": 0.6},
+            {"id": "own_words", "description": "Expresses the comparison in original wording.", "required": true, "min_quality": 0.6}
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer comparison to two non-reading tools. Summarise their common goal and different signals.",
+          "passage": "At a crossing, a flashing symbol tells some pedestrians when to walk. A beeping signal gives the same timing through sound.",
+          "prompt": "Compare the two signals in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "similarity", "description": "States that both signals tell pedestrians when it is safe or time to cross.", "any_of": ["both tell when to cross", "same crossing time", "help pedestrians cross", "both give the signal"]},
+            {"id": "difference", "description": "Contrasts a visible flash with an audible beep.", "any_of": ["one flashes and one beeps", "light and sound", "seen and heard", "visual and audio"]}
+          ],
+          "min_response_words": 9
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"eng_c4_ch06_assess_01","passage":"A board-game rule card has raised-dot instructions along its lower edge. Players who read through touch follow the same turns and scoring rules as other players.","prompt":"Which main idea covers the paragraph?","skill_ids":["reading.paragraph_main_idea"],"options":["touch-readable rules let more players use the same game","raised dots change the score","all board games have lower edges","players must memorise every rule"],"accepted_answers":["touch-readable rules let more players use the same game","braille rules make the game accessible"]},
+      {"item_id":"eng_c4_ch06_assess_02","passage":"At a clinic, numbered doors also carry raised-dot room names. Patients can feel the labels, locate the testing room, and move through the corridor with less assistance.","prompt":"State the main idea in your own words.","skill_ids":["reading.paragraph_main_idea"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"feature","description":"Mentions raised-dot or touch-readable room labels.","any_of":["raised dot labels","braille room names","touch readable signs","feel the labels"]},{"id":"purpose","description":"Explains that patients can find rooms with greater independence.","any_of":["find the rooms","move independently","need less help","locate the testing room"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch06_assess_03","passage":"Rupa feels the title first, opens to the marked page, and reads the first Braille line with both index fingers.","prompt":"What does Rupa do immediately after feeling the title?","skill_ids":["reading.sentence_comprehension"],"options":["she opens to the marked page","she closes the book","she writes the title","she reads the final line"],"accepted_answers":["she opens to the marked page","opens to the marked page"]},
+      {"item_id":"eng_c4_ch06_assess_04","passage":"The teacher places a tactile alphabet card on each desk. The class first explores one cell and then compares it with the next.","prompt":"What does the class compare?","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["one cell with the next","the braille cells","two cells","one dot cell and the next"]},
+      {"item_id":"eng_c4_ch06_assess_05","passage":"The emergency exit sign was high and printed only. The hall added a Braille sign near the handrail.","prompt":"Why is the new sign more useful to a touch reader?","skill_ids":["reading.inference_reason"],"options":["it can be reached and read by touch","it makes the handrail longer","it changes where the exit is","it removes the printed sign"],"accepted_answers":["it can be reached and read by touch","it is reachable and touch readable"]},
+      {"item_id":"eng_c4_ch06_assess_06","passage":"A calendar has raised dots on important dates and a key explaining each pattern. Sameer checks the dates without asking someone to read them aloud.","prompt":"Explain how the design supports Sameer's independence.","skill_ids":["reading.inference_reason"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"design","description":"Mentions raised dots, patterns, or the tactile key.","any_of":["raised dots","dot patterns","tactile key","patterns on dates"]},{"id":"result","description":"Explains that Sameer can identify important dates without another reader.","any_of":["check dates himself","without asking someone","read important dates","use the calendar independently"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch06_assess_07","passage":"A hotel added Braille numbers beside room doors after guests reported that the identical handles gave no clue.","prompt":"Complete the reason: The labels were needed because ___.","skill_ids":["writing.reason_answer"],"options":["the handles did not identify the rooms by touch","the doors opened into rooms","hotel guests carried bags","numbers can be printed"],"accepted_answers":["the handles did not identify the rooms by touch","identical handles gave no clue"]},
+      {"item_id":"eng_c4_ch06_assess_08","passage":"A science model labels the moon, Earth, and sun with distinct raised patterns beside each shape.","prompt":"Write an evidence-backed reason for adding the patterns.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"feature","description":"Names distinct raised patterns or tactile labels.","any_of":["raised patterns","tactile labels","different dot patterns","patterns beside each shape"]},{"id":"reason","description":"Explains that learners can identify or distinguish the three objects by touch.","any_of":["identify the objects","tell them apart","learn by touch","know the moon earth and sun"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch06_assess_09","passage":"The embossed arrow rose above the flat plastic and could be felt clearly.","prompt":"Which chapter word could replace embossed here?","skill_ids":["vocab.chapter_word_usage"],"options":["raised","silent","printed","distant"],"accepted_answers":["raised"]},
+      {"item_id":"eng_c4_ch06_assess_10","passage":"The dot arrangement for the letter was repeated on every practice card.","prompt":"Write the word that means an organised arrangement.","skill_ids":["vocab.chapter_word_usage"],"options":[],"accepted_answers":["pattern"]},
+      {"item_id":"eng_c4_ch06_assess_11","passage":"The accessible menu was offered in print, audio, and Braille so diners could choose a useful format.","prompt":"What does accessible mean here?","skill_ids":["reading.word_meaning_context"],"options":["usable by people with different needs","available only to staff","difficult to understand","placed far from diners"],"accepted_answers":["usable by people with different needs","easy for different people to use"]},
+      {"item_id":"eng_c4_ch06_assess_12","passage":"The tactile puzzle uses rough, smooth, and bumpy pieces that players identify with their hands.","prompt":"What does tactile mean in this context?","skill_ids":["reading.word_meaning_context"],"options":[],"accepted_answers":["based on touch","felt with the hands","designed to be touched","using touch"]},
+      {"item_id":"eng_c4_ch06_assess_13","passage":"At noon, the students ___ testing the new tactile globe.","prompt":"Choose the correct past-progressive phrase.","skill_ids":["grammar.tense_usage"],"options":["were testing","was testing","are tested","were test"],"accepted_answers":["were testing"]},
+      {"item_id":"eng_c4_ch06_assess_14","passage":"When the visitor arrived, one guide ___ explaining the Braille map.","prompt":"Which past-progressive phrase completes the sentence about one guide?","skill_ids":["grammar.tense_usage"],"options":[],"accepted_answers":["was explaining"]},
+      {"item_id":"eng_c4_ch06_assess_15","passage":"Subject: two children. Past action in progress: sorting tactile cards at the table.","prompt":"Which is a complete sentence?","skill_ids":["writing.complete_sentence"],"options":["Two children were sorting tactile cards at the table.","Two children was sorting tactile cards.","Were sorting at table.","Tactile cards two children."],"accepted_answers":["Two children were sorting tactile cards at the table."]},
+      {"item_id":"eng_c4_ch06_assess_16","passage":"Past moment: evening. Subject: one librarian. Action: preparing Braille labels for new books.","prompt":"Write one complete sentence using was and the action.","skill_ids":["writing.complete_sentence"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"subject","description":"Names one librarian.","any_of":["the librarian","one librarian","a librarian"]},{"id":"verb","description":"Uses was preparing.","any_of":["was preparing"]},{"id":"object","description":"Mentions Braille labels for new books.","any_of":["braille labels","labels for new books","new book labels"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch06_assess_17","passage":"One weather report appears as large print on a screen. The same report is available as refreshable Braille on a touch device.","prompt":"Which comparison is supported?","skill_ids":["writing.compare_contrast"],"options":["both give the same weather information in different forms","only the screen contains the report","the Braille device predicts different weather","both formats must be read by sight"],"accepted_answers":["both give the same weather information in different forms"]},
+      {"item_id":"eng_c4_ch06_assess_18","passage":"A talking clock announces the time aloud. A tactile watch shows the time through raised markers under its cover.","prompt":"Compare the shared purpose and one difference in your own words.","skill_ids":["writing.compare_contrast"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"similarity","description":"States that both tools tell or show the time.","any_of":["both tell the time","both show the time","same purpose","give the time"]},{"id":"difference","description":"Contrasts hearing the clock with feeling the watch.","any_of":["one is heard and one is felt","sound and touch","announces aloud and raised markers","listen and feel"]}],"min_response_words":9},
+      {"item_id":"eng_c4_ch06_assess_19","passage":"A bakery printed its price list, recorded an audio version, and added a Braille copy at the counter. Customers selected whichever version they could use most easily.","prompt":"Which summary keeps the central idea?","skill_ids":["writing.summary_own_words"],"options":["The bakery offered the same prices in several accessible formats.","The bakery sold bread beside a counter.","Every customer listened to the same recording.","The printed list was the only useful one."],"accepted_answers":["The bakery offered the same prices in several accessible formats."]},
+      {"item_id":"eng_c4_ch06_assess_20","passage":"A school election ballot has large print, clear audio instructions, and Braille candidate names. Each voter can review the same choices using a suitable format.","prompt":"Summarise the design and its purpose in your own words.","skill_ids":["writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"design","description":"Mentions multiple formats such as print, audio, and Braille.","any_of":["print audio and braille","several formats","large print and braille","audio instructions"]},{"id":"purpose","description":"Explains that voters can access the same choices in a suitable way.","any_of":["same choices","vote independently","choose a suitable format","accessible to voters"]}],"min_response_words":9}
+    ]
+  }
+}

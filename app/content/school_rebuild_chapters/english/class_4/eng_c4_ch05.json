@@ -1,0 +1,313 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": ["Focused schema, runtime hash, pedagogy, freshness, coverage, and key self-review for eng_c4_ch05 on 2026-07-12"],
+  "runtime_sha256": "499ce73c6cd6bcc1f08560ac1edd527f4c6361c928d1c19fea8dfd7f57ebb4c9",
+  "chapter_id": "eng_c4_ch05",
+  "chapter_no": 5,
+  "title": "The Old Stag",
+  "book_title": "Santoor",
+  "unit_title": "My Beautiful World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa105.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "old_stag_main_idea",
+      "title": "Find the lesson in a forest story",
+      "focus": "identify a paragraph main idea from linked actions",
+      "skill_ids": ["reading.paragraph_main_idea", "reading.sentence_comprehension"],
+      "teaching_goal": "Connect several forest events to one main idea about care, need, and returning help.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea covers the whole paragraph, not just one detail. Worked example: if one animal shares shade, another brings water, and both are safer, the larger idea is that helping one another protects the group.",
+          "passage": "At noon, an old stag rested beneath a sal tree. A myna warned him about a loose branch, and the stag moved away. That evening, the stag nudged fallen berries toward the hungry bird.",
+          "prompt": "Which idea connects both animals' actions?",
+          "options": ["help can be returned", "berries grow at night", "old animals cannot move", "birds dislike branches"],
+          "accepted_answers": ["help can be returned", "they help each other", "kindness is returned"]
+        },
+        "bridge": {
+          "teaching_block": "Break the paragraph into two parts: first the myna prevents harm; later the stag shares food. Join those details into one idea that explains both.",
+          "passage": "A drongo called when smoke drifted toward a deer. Days later, the deer uncovered seeds where the drongo was searching.",
+          "prompt": "What repeated pattern links the two events?",
+          "options": ["each animal helps the other", "both animals leave the forest", "the weather changes twice", "the seeds cause smoke"],
+          "accepted_answers": ["each animal helps the other", "they help each other"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: the first sentence is not automatically the main idea. A main idea must fit every important action, including the return of help.",
+          "passage": "A tired stag could not reach tender leaves. A monkey dropped a leafy twig. Later, the stag stamped near a snake and alerted the monkey above.",
+          "prompt": "Which statement covers the complete paragraph?",
+          "options": ["kind actions can travel both ways", "the monkey likes high branches", "the stag eats only leaves", "snakes live under every tree"],
+          "accepted_answers": ["kind actions can travel both ways", "the animals return each other's help"]
+        },
+        "independent_check": {
+          "teaching_block": "Read the unseen paragraph and state its main idea in your own words. Use both events; no choices are provided.",
+          "passage": "A porcupine showed an ageing antelope a quiet path to the pond. The next morning, the antelope stood beside the porcupine's burrow and blocked a jackal's view until the danger passed.",
+          "prompt": "What is the main idea of this paragraph?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "mutual_help", "description": "States that the animals help or protect one another.", "any_of": ["help each other", "help one another", "return help", "kindness is returned", "protect each other"]},
+            {"id": "whole_paragraph", "description": "Refers to both guidance and protection, or clearly expresses the shared lesson.", "any_of": ["path to the pond", "blocked the jackal", "guidance and protection", "both animals", "one good turn"]}
+          ],
+          "min_response_words": 7
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the same main-idea method to a classroom setting. Combine the two helpful actions into one broad statement.",
+          "passage": "Mitali helped Arun carry chart paper before assembly. During the display, Arun noticed her labels were falling and brought tape from the cupboard.",
+          "prompt": "State the main idea in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "idea", "description": "Expresses classmates returning or sharing help.", "any_of": ["help each other", "return help", "support one another", "teamwork", "kindness is returned"]},
+            {"id": "evidence", "description": "Mentions carrying paper, fixing labels, or both useful actions.", "any_of": ["carry chart paper", "brought tape", "fixed the labels", "both helped", "two helpful actions"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "old_stag_evidence_reason",
+      "title": "Give reasons with story evidence",
+      "focus": "support an inference with a precise clue",
+      "skill_ids": ["reading.inference_reason", "writing.reason_answer"],
+      "teaching_goal": "Answer why by naming a character choice and the result that makes it sensible.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A strong reason answer has a claim and evidence. Worked example: 'The stag is thoughtful because he leaves water for smaller animals' names both the trait and the clue.",
+          "passage": "The old stag drank only half the water in a shallow hollow. He stepped back when two fawns arrived panting.",
+          "prompt": "Why can the stag be called considerate?",
+          "options": ["he leaves water for the thirsty fawns", "he makes the hollow deeper", "he arrives before noon", "he watches the clouds"],
+          "accepted_answers": ["he leaves water for the thirsty fawns", "he saves water for the fawns"]
+        },
+        "bridge": {
+          "teaching_block": "Build the reason in two steps: identify the need, then identify the action that answers it. Need: the doe is weak. Action: the stag chooses the shorter route.",
+          "passage": "A doe limped behind the herd. The old stag led everyone along the shorter path instead of racing toward the meadow.",
+          "prompt": "Which clue best explains the stag's choice?",
+          "options": ["the doe was limping", "the meadow was green", "the herd liked racing", "the path had stones"],
+          "accepted_answers": ["the doe was limping", "a doe limped"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: repeating the action is not a reason. 'He waited' tells what happened; 'because the calf was still crossing' explains why.",
+          "passage": "The stag paused at the riverbank until the youngest calf climbed onto dry ground.",
+          "prompt": "Which answer gives an evidence-backed reason for the pause?",
+          "options": ["because the youngest calf was not safely across", "because the stag paused", "because rivers have water", "because the bank was dry"],
+          "accepted_answers": ["because the youngest calf was not safely across", "the calf was still crossing"]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the character's choice with evidence from this unseen scene. Do not copy the whole passage.",
+          "passage": "Dry grass crackled near a nest. Though his legs ached, the elderly stag scraped a clear ring in the grass so the small flame would not reach the eggs.",
+          "prompt": "Why does this action show courage and care?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must explain the stag's choice in English and refer to relevant evidence from the passage without copying it wholesale.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "claim", "description": "Explains that the stag acts despite age, pain, or danger to protect the nest.", "required": true, "min_quality": 0.65},
+            {"id": "evidence", "description": "Uses the aching legs, dry grass, fire ring, or eggs as specific evidence.", "required": true, "min_quality": 0.65},
+            {"id": "own_words", "description": "Connects claim and evidence in the learner's own words.", "required": true, "min_quality": 0.6}
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the claim-plus-evidence pattern in a neighbourhood situation rather than a forest story.",
+          "passage": "Mr Sen was carrying groceries when he noticed a loose drain cover near the play lane. He placed his bags down, stood beside the spot, and called an adult neighbour to secure it.",
+          "prompt": "Explain why Mr Sen's decision was responsible, using one clue as evidence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "responsibility", "description": "Explains that he prevents danger or protects people using the lane.", "any_of": ["prevent an accident", "kept people safe", "warned others", "protected children", "stopped someone falling"]},
+            {"id": "evidence", "description": "Uses a concrete action from the scene.", "any_of": ["stood beside the spot", "called a neighbour", "put his bags down", "loose drain cover", "asked an adult to secure it"]}
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "old_stag_context_words",
+      "title": "Work out forest words from context",
+      "focus": "infer chapter vocabulary from nearby actions and descriptions",
+      "skill_ids": ["vocab.chapter_word_usage", "reading.word_meaning_context"],
+      "teaching_goal": "Use definition, action, and contrast clues to understand words such as weary, shelter, scarce, and grateful.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context can define a word through action. Worked example: if a traveller moves slowly and needs rest, weary means very tired.",
+          "passage": "After climbing the rocky slope, the weary stag lowered his head and rested in the shade.",
+          "prompt": "What does weary mean here?",
+          "options": ["very tired", "ready to race", "brightly coloured", "easy to hear"],
+          "accepted_answers": ["very tired", "tired"]
+        },
+        "bridge": {
+          "teaching_block": "Look after the unknown word for a clue. The hollow tree keeps rain away, so it provides shelter.",
+          "passage": "The animals crowded into the hollow tree for shelter while rain swept across the clearing.",
+          "prompt": "Which meaning fits shelter?",
+          "options": ["a safe covered place", "a loud warning", "a narrow footprint", "a bundle of food"],
+          "accepted_answers": ["a safe covered place", "safe place"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: do not choose a meaning because it sounds familiar. Test it in the sentence. If berries are scarce, there are too few to share freely.",
+          "passage": "By late summer, berries were scarce; the animals searched for hours and found only a handful.",
+          "prompt": "What does scarce mean in this sentence?",
+          "options": ["hard to find because there are few", "sweet and fully ripe", "hidden under water", "large enough for everyone"],
+          "accepted_answers": ["hard to find because there are few", "few", "not enough"]
+        },
+        "independent_check": {
+          "teaching_block": "Use only the unseen sentence clues to work out the word.",
+          "passage": "The grateful hare returned with fresh shoots after the stag freed its foot from a thorny vine.",
+          "prompt": "What does grateful mean here?",
+          "options": [],
+          "accepted_answers": ["thankful", "showing thanks", "feeling thankful"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer context reading to a weather report. Use the explanation after the semicolon.",
+          "passage": "Clean drinking water was scarce after the pipe broke; each family received only one small bucket.",
+          "prompt": "What does scarce mean in this new context?",
+          "options": [],
+          "accepted_answers": ["not enough", "limited", "hard to get", "available in a small amount"]
+        }
+      }
+    },
+    {
+      "level_id": "old_stag_context_grammar",
+      "title": "Describe actions and connect reasons",
+      "focus": "use adjectives and reason or contrast connectors in context",
+      "skill_ids": ["grammar.noun_verb_adjective", "grammar.connectors_because_and_but"],
+      "teaching_goal": "Choose a precise describing word and use because or but according to the relationship between ideas.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An adjective describes a noun. In 'the patient stag waited', patient describes the stag. Because introduces a reason: he waited because the fawn was slow.",
+          "passage": "The patient stag waited because the smallest fawn was still climbing.",
+          "prompt": "Which word describes the stag?",
+          "options": ["patient", "waited", "because", "climbing"],
+          "accepted_answers": ["patient"]
+        },
+        "bridge": {
+          "teaching_block": "First decide the relationship. A reason answers why, so use because. A contrast shows an unexpected difference, so use but.",
+          "passage": "The stag was weary, ___ he continued until the herd reached shade.",
+          "prompt": "Which connector shows the contrast?",
+          "options": ["but", "because", "and", "so"],
+          "accepted_answers": ["but"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: because and but are not interchangeable. 'He shared because others were hungry' gives a reason; 'he was hungry but shared' shows contrast.",
+          "passage": "The water was limited, ___ the stag left some for the birds because they were thirsty too.",
+          "prompt": "Which connector correctly shows the surprising contrast?",
+          "options": ["but", "because", "when", "or"],
+          "accepted_answers": ["but"]
+        },
+        "independent_check": {
+          "teaching_block": "Choose the connector from the meaning of this unseen sentence; no options are given.",
+          "passage": "The path was steep, ___ the old stag climbed slowly and safely.",
+          "prompt": "Write the connector that shows contrast.",
+          "options": [],
+          "accepted_answers": ["but", "yet"]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same reason relationship in a school sentence.",
+          "passage": "Naveen carried an umbrella ___ dark clouds were gathering above the field.",
+          "prompt": "Write the connector that introduces the reason.",
+          "options": [],
+          "accepted_answers": ["because", "since"]
+        }
+      }
+    },
+    {
+      "level_id": "old_stag_own_words_message",
+      "title": "Retell the lesson in a thank-you message",
+      "focus": "summarise a helpful act and respond in one's own words",
+      "skill_ids": ["writing.friendly_message", "writing.summary_own_words"],
+      "teaching_goal": "Select the important action and result, then write a brief friendly message that does more than copy the passage.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A useful thank-you message names the help and its effect. Worked example: 'Dear Kavi, thank you for sharing your torch. It helped me find the path safely. From, Rina.'",
+          "passage": "A squirrel showed the old stag where rainwater had collected between two rocks.",
+          "prompt": "Which message includes both the help and its result?",
+          "options": ["Dear Squirrel, thank you for showing me the rainwater. I could drink safely. From, Stag.", "Dear Squirrel, water is wet. From, Stag.", "Thank you because forest.", "The rocks were beside water."],
+          "accepted_answers": ["Dear Squirrel, thank you for showing me the rainwater. I could drink safely. From, Stag."]
+        },
+        "bridge": {
+          "teaching_block": "Plan three parts: greeting, specific thanks, and effect. Leave out small details that do not explain the help.",
+          "passage": "A tortoise guided the stag around a patch of sinking mud, so he reached firm ground.",
+          "prompt": "Which detail belongs in the thank-you message?",
+          "options": ["the tortoise showed a safe way around the mud", "the mud was brown in one corner", "three reeds stood nearby", "the afternoon was warm"],
+          "accepted_answers": ["the tortoise showed a safe way around the mud", "showed a safe way"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: a summary is not every event, and a thank-you is not only 'thanks'. Keep the key help and explain why it mattered.",
+          "passage": "A kingfisher called sharply when a fishing net lay hidden beside the pond. The stag heard the warning and led the herd away.",
+          "prompt": "Which sentence best summarises what the stag should thank the bird for?",
+          "options": ["The bird warned the herd about a hidden net, helping them avoid danger.", "The pond had fish and a blue bird.", "The herd walked for a long time near water.", "The kingfisher made a sharp sound."],
+          "accepted_answers": ["The bird warned the herd about a hidden net, helping them avoid danger.", "the bird's warning helped the herd avoid danger"]
+        },
+        "independent_check": {
+          "teaching_block": "Write a complete friendly message from the stag. Summarise the help in your own words and include why it mattered.",
+          "passage": "During a storm, a family of rabbits led the old stag to a wide cave. Inside, he stayed dry until the lightning passed.",
+          "prompt": "Write the stag's thank-you message to the rabbits.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must be a short English thank-you message with a greeting or direct address, specific help, and a meaningful result.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "message_form", "description": "Uses a friendly greeting or direct address and clearly expresses thanks.", "required": true, "min_quality": 0.6},
+            {"id": "specific_help", "description": "Summarises that the rabbits led the stag to a cave or shelter.", "required": true, "min_quality": 0.65},
+            {"id": "result", "description": "Explains that the cave kept him dry or safe during the storm.", "required": true, "min_quality": 0.65},
+            {"id": "own_words", "description": "Uses original wording rather than copying the passage sentence by sentence.", "required": true, "min_quality": 0.6}
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the same message structure to a community situation. Select the key help and effect from the new context.",
+          "passage": "The librarian found Isha's missing project folder, kept it safely at the desk, and phoned her class teacher before the exhibition.",
+          "prompt": "Write a brief thank-you message from Isha to the librarian in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must be a brief English thank-you message that identifies the librarian's help and why it mattered before the exhibition.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "thanks", "description": "Directly thanks or addresses the librarian in a friendly way.", "required": true, "min_quality": 0.6},
+            {"id": "help", "description": "States that the folder was found, protected, or reported to the teacher.", "required": true, "min_quality": 0.65},
+            {"id": "importance", "description": "Connects the help to having the project ready for the exhibition.", "required": true, "min_quality": 0.65},
+            {"id": "own_words", "description": "Presents a concise message in the learner's own wording.", "required": true, "min_quality": 0.6}
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"eng_c4_ch05_assess_01","passage":"A nilgai pushed aside thorny stems so a smaller chital could reach the stream. At dusk, the chital called when wild dogs approached, giving the nilgai time to leave.","prompt":"Which main idea covers the whole paragraph?","skill_ids":["reading.paragraph_main_idea"],"options":["animals can return useful help","streams always have thorns","wild dogs hunt only at dusk","large animals need no warnings"],"accepted_answers":["animals can return useful help","they help each other"]},
+      {"item_id":"eng_c4_ch05_assess_02","passage":"A hornbill dropped fruit near an injured boar. Weeks later, the boar broke a hard termite mound where the hornbill was searching for insects.","prompt":"State the main idea in your own words and use both actions.","skill_ids":["reading.paragraph_main_idea"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"idea","description":"States that help or kindness is returned.","any_of":["help each other","return help","kindness is returned","one good turn"]},{"id":"events","description":"Refers to food and opening the mound, or clearly mentions both actions.","any_of":["dropped fruit","broke the mound","food and insects","both actions","hornbill and boar"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch05_assess_03","passage":"The sambar heard a cracking branch, moved away from the tree, and then called to warn two deer behind him.","prompt":"What does the sambar do after moving away?","skill_ids":["reading.sentence_comprehension"],"options":["he warns two deer","he climbs the tree","he drinks from a pond","he follows the branch"],"accepted_answers":["he warns two deer","warns two deer","calls to warn the deer"]},
+      {"item_id":"eng_c4_ch05_assess_04","passage":"A spotted deer waited beside the salt lick until the young animals finished. It then stepped forward and ate.","prompt":"What happens immediately before the deer eats?","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["the young animals finish","the young animals finished","it waits for the young animals to finish"]},
+      {"item_id":"eng_c4_ch05_assess_05","passage":"A calf was trapped between two fallen logs. The old stag called the herd instead of trying to shift the heavy wood alone.","prompt":"Why was calling the herd a sensible choice?","skill_ids":["reading.inference_reason"],"options":["several animals could move the heavy logs safely","the calf wanted a louder sound","the herd knew a new song","the logs would become lighter at night"],"accepted_answers":["several animals could move the heavy logs safely","the herd could help move the logs"]},
+      {"item_id":"eng_c4_ch05_assess_06","passage":"A peacock's feathers were caught in a creeper. The stag stood still while the bird used his antler to pull the vine loose.","prompt":"Explain why standing still was helpful, using evidence.","skill_ids":["reading.inference_reason"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"action","description":"Mentions that the stag stayed still or offered his antler.","any_of":["stood still","stayed still","used his antler","offered his antler"]},{"id":"result","description":"Explains that the peacock could free its feathers or pull the vine loose safely.","any_of":["free its feathers","pull the vine loose","escape the creeper","get unstuck"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch05_assess_07","passage":"The stag moved to one side so the thirsty pups could reach the puddle without being pushed.","prompt":"Complete the reason: The stag was fair because ___.","skill_ids":["writing.reason_answer"],"options":["he made room for the thirsty pups","the puddle reflected the sky","the pups had brown fur","he stood near a tree"],"accepted_answers":["he made room for the thirsty pups","he let the pups drink"]},
+      {"item_id":"eng_c4_ch05_assess_08","passage":"The herd wanted to cross a flooded path. The oldest stag led them uphill to a narrow bridge that remained above the water.","prompt":"Write an evidence-backed reason for choosing the bridge.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"choice","description":"Identifies the bridge or uphill route.","any_of":["choose the bridge","used the bridge","went uphill","narrow bridge"]},{"id":"reason","description":"Explains that it stayed above the flood or was safer than the flooded path.","any_of":["above the water","not flooded","safer","avoid the flood","dry route"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch05_assess_09","passage":"The exhausted deer breathed heavily after running across the open plain.","prompt":"Which chapter word could replace exhausted?","skill_ids":["vocab.chapter_word_usage"],"options":["weary","grateful","scarce","gentle"],"accepted_answers":["weary"]},
+      {"item_id":"eng_c4_ch05_assess_10","passage":"After Maya returned his lost sketchbook, Rohan wrote her a note to show that he was grateful.","prompt":"Write one word that means grateful.","skill_ids":["vocab.chapter_word_usage"],"options":[],"accepted_answers":["thankful","appreciative"]},
+      {"item_id":"eng_c4_ch05_assess_11","passage":"The hikers found shelter beneath a rock ledge when hail began to fall.","prompt":"What does shelter mean in this sentence?","skill_ids":["reading.word_meaning_context"],"options":["a protected place","a steep climb","a bag of food","a weather sound"],"accepted_answers":["a protected place","safe place","cover from the hail"]},
+      {"item_id":"eng_c4_ch05_assess_12","passage":"Seats on the morning bus were scarce; only two remained when Diya reached the stop.","prompt":"What does scarce mean here?","skill_ids":["reading.word_meaning_context"],"options":[],"accepted_answers":["few","limited","not many","hard to get"]},
+      {"item_id":"eng_c4_ch05_assess_13","passage":"The alert doe lifted her ears at the faint rustle.","prompt":"Which word is the adjective describing the doe?","skill_ids":["grammar.noun_verb_adjective"],"options":["alert","lifted","ears","at"],"accepted_answers":["alert"]},
+      {"item_id":"eng_c4_ch05_assess_14","passage":"Noun: fawn. Details: young, cautious. Action: steps across the stones.","prompt":"Write one complete sentence using the noun and at least one adjective.","skill_ids":["grammar.noun_verb_adjective"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"noun","description":"Names the fawn.","any_of":["fawn","young fawn"]},{"id":"adjective","description":"Uses young or cautious to describe it.","any_of":["young","cautious"]},{"id":"action","description":"States that it steps or moves across the stones.","any_of":["steps across the stones","crosses the stones","moves across the stones"]}],"min_response_words":7},
+      {"item_id":"eng_c4_ch05_assess_15","passage":"The fruit was high, ___ the stag could reach it with his antlers.","prompt":"Choose the connector that shows contrast.","skill_ids":["grammar.connectors_because_and_but"],"options":["but","because","so","and"],"accepted_answers":["but"]},
+      {"item_id":"eng_c4_ch05_assess_16","passage":"The herd rested early ___ a long climb waited the next morning.","prompt":"Which connector belongs in the blank to explain why the herd rested?","skill_ids":["grammar.connectors_because_and_but"],"options":[],"accepted_answers":["because","since"]},
+      {"item_id":"eng_c4_ch05_assess_17","passage":"Javed repaired Leela's bicycle chain, allowing her to ride home before dark.","prompt":"Which line belongs in a specific thank-you message?","skill_ids":["writing.friendly_message"],"options":["Thank you for repairing my chain; I could ride home safely.","Bicycles have two wheels.","The evening sky was orange.","I saw a chain near the road."],"accepted_answers":["Thank you for repairing my chain; I could ride home safely."]},
+      {"item_id":"eng_c4_ch05_assess_18","passage":"A neighbour watered Tara's seedlings for three days while her family was away. The plants remained healthy.","prompt":"Write Tara's brief thank-you message in your own words.","skill_ids":["writing.friendly_message"],"options":[],"accepted_answers":[],"response_mode":"paragraph","evaluation_mode":"llm_rubric","preflight_rule":"The response must be a brief English thank-you message naming the watering and its effect on the seedlings.","pass_score":0.7,"rubric_criteria":[{"id":"thanks","description":"Clearly thanks or addresses the neighbour.","required":true,"min_quality":0.6},{"id":"help","description":"Names watering the seedlings while the family was away.","required":true,"min_quality":0.65},{"id":"effect","description":"Explains that the plants stayed healthy or alive.","required":true,"min_quality":0.65},{"id":"own_words","description":"Uses concise original wording.","required":true,"min_quality":0.6}]},
+      {"item_id":"eng_c4_ch05_assess_19","passage":"A gaur found a salt patch and called the herd instead of keeping it for himself. The others arrived, shared the patch, and later followed him safely through thick bamboo.","prompt":"Which summary keeps the important actions and lesson?","skill_ids":["writing.summary_own_words"],"options":["The gaur shared a useful place, and the herd later travelled together safely.","The bamboo had many green leaves beside salt.","Every animal stood in exactly the same spot.","The gaur walked once and the day ended."],"accepted_answers":["The gaur shared a useful place, and the herd later travelled together safely."]},
+      {"item_id":"eng_c4_ch05_assess_20","passage":"Nandita noticed an elderly passenger standing on a crowded bus. She offered her seat, and the passenger could rest during the bumpy journey.","prompt":"Summarise the helpful action and result in your own words.","skill_ids":["writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"action","description":"States that Nandita offered or gave up her seat.","any_of":["offered her seat","gave her seat","let the passenger sit"]},{"id":"result","description":"Explains that the elderly passenger could rest or travel more comfortably.","any_of":["could rest","sat comfortably","safer on the bumpy journey","did not have to stand"]}],"min_response_words":8}
+    ]
+  }
+}

@@ -1,0 +1,313 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-content-worker",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": ["Focused schema, runtime hash, pedagogy, freshness, coverage, and key self-review for eng_c4_ch07 on 2026-07-12"],
+  "runtime_sha256": "b2fec15239c046be5383369352af45f1fbd11aa665811384bebe957b76a70d34",
+  "chapter_id": "eng_c4_ch07",
+  "chapter_no": 7,
+  "title": "Fit Body, Fit Mind, Fit Nation",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa107.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "fit_body_main_idea",
+      "title": "Find the message in an active routine",
+      "focus": "identify a paragraph main idea from several healthy habits",
+      "skill_ids": ["reading.paragraph_main_idea", "reading.sentence_comprehension"],
+      "teaching_goal": "Connect movement, rest, food, and regular practice to a balanced idea about fitness.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A paragraph's main idea must fit all key details. Worked example: skipping builds movement, water replaces fluid, and sleep restores energy. The broad idea is that fitness depends on a balanced routine, not on one hard exercise.",
+          "passage": "Before school, Dev skips for ten minutes. He carries water, eats a fresh breakfast, and goes to bed at a regular time. He feels ready for class and games.",
+          "prompt": "Which statement gives the whole paragraph's main idea?",
+          "options": ["several regular habits support fitness and energy", "skipping is the only useful exercise", "breakfast should be eaten at night", "games make sleep unnecessary"],
+          "accepted_answers": ["several regular habits support fitness and energy", "balanced habits keep Dev fit"]
+        },
+        "bridge": {
+          "teaching_block": "Group the details: cycling and stretching are movement; water and rest support recovery. Then choose an idea that includes both groups.",
+          "passage": "Lata cycles in the park, stretches after the ride, drinks water, and rests before homework.",
+          "prompt": "What links all four actions?",
+          "options": ["they form a balanced fitness routine", "they happen inside a classroom", "they require a competition", "they replace every meal"],
+          "accepted_answers": ["they form a balanced fitness routine", "a healthy routine"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: a catchy detail is not always the main idea. If a paragraph includes exercise, rest, and steady practice, an answer only about winning a race is too narrow.",
+          "passage": "The relay team practises short runs three days a week. On other days, members walk, stretch, and rest tired muscles. Their coach praises steady improvement rather than only first place.",
+          "prompt": "Which idea best covers the paragraph?",
+          "options": ["regular practice and recovery matter more than only winning", "relay runners must train every hour", "walking is faster than running", "first place is the coach's only goal"],
+          "accepted_answers": ["regular practice and recovery matter more than only winning", "steady practice and rest build fitness"]
+        },
+        "independent_check": {
+          "teaching_block": "Read the unseen paragraph and state the main idea in your own words without choices.",
+          "passage": "Each afternoon, the children choose a different activity: kho-kho on Monday, dance on Tuesday, and yoga on Wednesday. They warm up first and cool down afterwards. No one is forced to move beyond a safe limit.",
+          "prompt": "What is the main idea of this paragraph?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "variety", "description": "Recognises regular or varied physical activity.", "any_of": ["different activities", "regular exercise", "varied movement", "active each afternoon"]},
+            {"id": "safety", "description": "Includes safe limits, warming up, or cooling down.", "any_of": ["warm up", "cool down", "safe limit", "exercise safely", "balanced routine"]}
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer main-idea reading to a study routine. Combine work habits and recovery into one broad statement.",
+          "passage": "Before a mathematics test, Ina studies in twenty-minute blocks. Between blocks she stands, stretches, and looks away from the screen. She stops early enough to sleep well.",
+          "prompt": "State the paragraph's main idea in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "study", "description": "Mentions planned or focused study periods.", "any_of": ["study in short blocks", "planned study", "focused study", "twenty minute blocks"]},
+            {"id": "wellbeing", "description": "Connects breaks, movement, or sleep to effective preparation.", "any_of": ["takes breaks", "stretches", "sleeps well", "balanced preparation", "rest helps learning"]}
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "fit_body_evidence_reason",
+      "title": "Explain how movement supports body and mind",
+      "focus": "infer a benefit and support it with a passage clue",
+      "skill_ids": ["reading.inference_reason", "writing.reason_answer"],
+      "teaching_goal": "Use an observed change as evidence when explaining why a healthy choice helps.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A reason needs evidence. Worked example: 'The walk helped Riya concentrate because she returned calmer and completed her work without leaving her seat.' The result supports the claim.",
+          "passage": "After sitting over a puzzle for a long time, Kabir took a brisk walk. He returned, noticed a missed clue, and solved the puzzle calmly.",
+          "prompt": "Why can the walk be said to help Kabir's mind?",
+          "options": ["he returns calm and notices a clue", "the road becomes shorter", "the puzzle changes its pieces", "walking gives him the answer directly"],
+          "accepted_answers": ["he returns calm and notices a clue", "he became calmer and focused"]
+        },
+        "bridge": {
+          "teaching_block": "Build the explanation in two steps: action, then observed result. Action: practise balance. Result: steadier movement on uneven ground.",
+          "passage": "Nima practised standing on one foot each morning. After a week, she crossed the stepping stones with fewer wobbles.",
+          "prompt": "Which result is evidence that practice helped?",
+          "options": ["she crossed with fewer wobbles", "the stones were grey", "morning came every day", "one foot wore a shoe"],
+          "accepted_answers": ["she crossed with fewer wobbles", "fewer wobbles"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: 'exercise is good' is a claim, not evidence. Point to a measurable or visible change in the passage.",
+          "passage": "At first, Omar paused twice while climbing the school stairs. After a month of regular swimming, he reached the top without stopping and could still speak comfortably.",
+          "prompt": "Which detail best supports improved stamina?",
+          "options": ["he reaches the top without stopping", "the stairs are at school", "he swims in water", "a month has many days"],
+          "accepted_answers": ["he reaches the top without stopping", "he climbed without stopping"]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the benefit in this unseen scene using a precise clue. Do not rely on a general slogan.",
+          "passage": "Mira felt restless after an hour of reading. She joined a five-minute rhythm exercise, returned to her desk, and wrote the next paragraph without tapping or looking around.",
+          "prompt": "How did the movement break help Mira? Use evidence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "benefit", "description": "Explains improved calm, focus, or readiness to work.", "any_of": ["focused better", "became calmer", "less restless", "ready to write", "improved concentration"]},
+            {"id": "evidence", "description": "Uses the completed paragraph or stopped tapping and looking around as evidence.", "any_of": ["wrote the next paragraph", "without tapping", "stopped looking around", "returned to her desk"]}
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Apply action-result reasoning to a community habit rather than a school exercise.",
+          "passage": "Residents began walking to nearby shops on weekend mornings. After six weeks, they reported less breathlessness on the hill and talked with neighbours more often.",
+          "prompt": "Give two evidence-backed reasons the walking habit was useful.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must give two distinct English reasons and link each to evidence in the passage.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "physical", "description": "Explains the fitness benefit using reduced breathlessness on the hill.", "required": true, "min_quality": 0.65},
+            {"id": "social", "description": "Explains the community benefit using more neighbour conversations.", "required": true, "min_quality": 0.65},
+            {"id": "evidence_link", "description": "Clearly connects each claimed benefit to the observed result.", "required": true, "min_quality": 0.6}
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "fit_body_context_words",
+      "title": "Use fitness words from context",
+      "focus": "infer precise meanings from actions and results",
+      "skill_ids": ["vocab.chapter_word_usage", "reading.word_meaning_context"],
+      "teaching_goal": "Use context to understand stamina, balance, flexible, pulse, and recover.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Context often shows a word through a result. Worked example: if a cyclist can continue for a long distance without tiring, stamina means the ability to keep doing an activity.",
+          "passage": "Aarav built stamina by cycling a little farther each week until he could ride for forty minutes without stopping.",
+          "prompt": "What does stamina mean here?",
+          "options": ["ability to continue an activity", "skill at repairing a cycle", "speed during one short second", "fear of long distances"],
+          "accepted_answers": ["ability to continue an activity", "endurance"]
+        },
+        "bridge": {
+          "teaching_block": "Use the action clue. If someone stays steady and does not tip, the word is balance.",
+          "passage": "Leena held her balance on the low beam, keeping her body steady from one end to the other.",
+          "prompt": "Which meaning fits balance?",
+          "options": ["ability to remain steady", "need to run quickly", "sound of a whistle", "number of team members"],
+          "accepted_answers": ["ability to remain steady", "remain steady"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: flexible can describe a body that bends easily or a plan that can change. Test the meaning against the surrounding sentence.",
+          "passage": "After gentle stretching, her shoulders felt flexible and moved through a wider range without strain.",
+          "prompt": "What does flexible mean in this fitness context?",
+          "options": ["able to bend or move easily", "unable to change direction", "tired after one step", "moving only at top speed"],
+          "accepted_answers": ["able to bend or move easily", "bends easily"]
+        },
+        "independent_check": {
+          "teaching_block": "Use the unseen sentence clue to explain the word.",
+          "passage": "After the sprint, Jay placed two fingers on his wrist and counted his pulse, the repeated beat caused by his heart pumping blood.",
+          "prompt": "What does pulse mean here?",
+          "options": [],
+          "accepted_answers": ["heartbeat", "repeated heartbeat", "beat felt at the wrist", "the beat caused by the heart"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the word recover to a music rehearsal. Use the rest-and-return clue.",
+          "passage": "After singing the difficult section, the choir paused to recover. A few minutes later, their breathing was calm and they began again.",
+          "prompt": "What does recover mean in this context?",
+          "options": [],
+          "accepted_answers": ["rest and regain strength", "return to normal", "regain energy", "feel ready again"]
+        }
+      }
+    },
+    {
+      "level_id": "fit_body_context_grammar",
+      "title": "Describe routines in the right tense",
+      "focus": "use adjectives and present or past tense according to context",
+      "skill_ids": ["grammar.noun_verb_adjective", "grammar.tense_usage"],
+      "teaching_goal": "Choose precise adjectives and match verb tense to regular habits or completed past actions.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An adjective describes a noun; tense locates an action in time. In 'The steady runner practises daily', steady describes runner and practises shows a regular habit.",
+          "passage": "The agile goalkeeper moves quickly from one side of the goal to the other every evening.",
+          "prompt": "Which word describes the goalkeeper?",
+          "options": ["agile", "moves", "quickly", "evening"],
+          "accepted_answers": ["agile"]
+        },
+        "bridge": {
+          "teaching_block": "Look for the time marker. Every morning signals a routine, so use the simple present. Yesterday signals a completed past action.",
+          "passage": "Every morning, Pia ___ her ankles before she runs.",
+          "prompt": "Which verb fits a regular habit?",
+          "options": ["stretches", "stretched", "was stretching", "will stretched"],
+          "accepted_answers": ["stretches"]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: an -ed form does not fit every sentence about exercise. Match the verb to the time clue, not to the topic.",
+          "passage": "Last Saturday, the team ___ a five-kilometre charity walk.",
+          "prompt": "Which verb correctly shows a finished past action?",
+          "options": ["completed", "completes", "complete", "is completing"],
+          "accepted_answers": ["completed"]
+        },
+        "independent_check": {
+          "teaching_block": "Use the time clue to write the correct verb without choices.",
+          "passage": "On school days, Rohan ___ two rounds of the field before assembly. Verb: walk.",
+          "prompt": "Which present-tense form completes Rohan's school-day routine?",
+          "options": [],
+          "accepted_answers": ["walks"]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer tense choice to a completed gardening action.",
+          "passage": "Yesterday, the neighbours ___ ten saplings along the lane. Verb: plant.",
+          "prompt": "Which past-tense form completes the sentence about yesterday's planting?",
+          "options": [],
+          "accepted_answers": ["planted"]
+        }
+      }
+    },
+    {
+      "level_id": "fit_body_own_words_plan",
+      "title": "Summarise and write a balanced activity plan",
+      "focus": "select key advice and produce a clear plan in one's own words",
+      "skill_ids": ["writing.summary_own_words", "writing.complete_sentence"],
+      "teaching_goal": "Turn several fitness details into a concise summary and a realistic sequence of complete sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A summary keeps the central advice, not every example. Worked example: walking, dance, and games are different activities; warm-up and rest are safety habits. A concise summary is 'Choose enjoyable movement regularly and allow the body to prepare and recover.'",
+          "passage": "The coach suggests brisk walking, folk dance, or a ball game for movement. She also asks children to warm up, drink water, and rest when pain begins.",
+          "prompt": "Which sentence best summarises the advice?",
+          "options": ["Move regularly in an enjoyable way and follow safe habits.", "Only ball games count as movement.", "Pain should always be ignored.", "Every child must choose the same activity."],
+          "accepted_answers": ["Move regularly in an enjoyable way and follow safe habits.", "move regularly and exercise safely"]
+        },
+        "bridge": {
+          "teaching_block": "Plan before writing: choose one movement action, one safety action, and one recovery action. Turn each into a complete sentence with a subject and verb.",
+          "passage": "Plan notes: Tuesday - cycle 20 minutes; before - warm up; after - drink water and rest.",
+          "prompt": "Which opening sentence is complete and follows the plan?",
+          "options": ["On Tuesday, I will cycle for twenty minutes.", "Tuesday cycle twenty.", "Before and after water.", "Will for minutes on."],
+          "accepted_answers": ["On Tuesday, I will cycle for twenty minutes."]
+        },
+        "masterclass": {
+          "teaching_block": "Misconception check: a harder plan is not automatically a better plan. A useful plan is specific, balanced, safe, and possible to repeat.",
+          "passage": "Plan A: sprint for two hours every day without rest. Plan B: walk or play for twenty minutes on four days, warm up first, and rest if pain begins.",
+          "prompt": "Which plan is more balanced and sustainable?",
+          "options": ["Plan B", "Plan A", "both plans are identical", "neither plan includes movement"],
+          "accepted_answers": ["Plan B", "plan b"]
+        },
+        "independent_check": {
+          "teaching_block": "Write an original three-sentence plan from the unseen notes. Include movement, safety, and recovery without copying the note fragments.",
+          "passage": "Thursday notes: playground badminton / five-minute warm-up / water break after the game.",
+          "prompt": "Write a clear three-sentence activity plan in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must contain complete English sentences that turn all three notes into a realistic Thursday activity plan.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "movement", "description": "Plans badminton or equivalent play on Thursday.", "required": true, "min_quality": 0.65},
+            {"id": "warm_up", "description": "Includes a five-minute warm-up before play.", "required": true, "min_quality": 0.65},
+            {"id": "recovery", "description": "Includes a water break after the game.", "required": true, "min_quality": 0.65},
+            {"id": "sentences", "description": "Uses clear, complete sentences and original wording.", "required": true, "min_quality": 0.6}
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer balanced planning to a school event. Summarise the work-and-rest schedule in complete sentences.",
+          "passage": "Clean-up day notes: sweep one classroom / pause and wash hands / sort paper for recycling / finish before lunch.",
+          "prompt": "Write a short, ordered plan in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "paragraph",
+          "evaluation_mode": "llm_rubric",
+          "preflight_rule": "The response must present the clean-up actions in a sensible order using complete English sentences and include the hygiene break.",
+          "pass_score": 0.7,
+          "rubric_criteria": [
+            {"id": "sweep", "description": "Begins with or clearly includes sweeping one classroom.", "required": true, "min_quality": 0.6},
+            {"id": "break", "description": "Includes pausing and washing hands.", "required": true, "min_quality": 0.65},
+            {"id": "recycle", "description": "Includes sorting paper for recycling before lunch.", "required": true, "min_quality": 0.65},
+            {"id": "clarity", "description": "Uses an understandable sequence of complete sentences in original wording.", "required": true, "min_quality": 0.6}
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"eng_c4_ch07_assess_01","passage":"The class begins games period with gentle stretches, plays in small groups, drinks water, and ends with slow breathing. The routine helps everyone move safely from start to finish.","prompt":"Which main idea covers all the details?","skill_ids":["reading.paragraph_main_idea"],"options":["a complete activity routine includes preparation play and recovery","slow breathing is the only exercise","water should be saved until bedtime","small groups never need safety rules"],"accepted_answers":["a complete activity routine includes preparation play and recovery","a balanced activity routine"]},
+      {"item_id":"eng_c4_ch07_assess_02","passage":"Sana alternates active days with easier days. She jogs on Monday, walks on Tuesday, practises dance on Wednesday, and sleeps at a regular time. Her energy remains steady through the week.","prompt":"State the main idea in your own words.","skill_ids":["reading.paragraph_main_idea"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"routine","description":"Mentions varied or regular activity across the week.","any_of":["varied activities","regular routine","active and easy days","jogs walks and dances"]},{"id":"balance","description":"Connects rest or steady sleep to maintaining energy.","any_of":["sleeps regularly","balanced week","steady energy","includes rest"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch07_assess_03","passage":"The group warms up, completes two relay rounds, and then walks slowly until breathing returns to normal.","prompt":"What does the group do after the relay rounds?","skill_ids":["reading.sentence_comprehension"],"options":["walks slowly","starts warming up","runs two more rounds","sits without moving"],"accepted_answers":["walks slowly","they walk slowly"]},
+      {"item_id":"eng_c4_ch07_assess_04","passage":"Vikram packs a banana and water before practice. At the field, he eats the banana first and saves the water for breaks.","prompt":"What does Vikram save for breaks?","skill_ids":["reading.sentence_comprehension"],"options":[],"accepted_answers":["water","the water"]},
+      {"item_id":"eng_c4_ch07_assess_05","passage":"After daily throwing practice, Neha's passes land closer to her partner and fewer balls roll away.","prompt":"Which evidence shows that practice improved her control?","skill_ids":["reading.inference_reason"],"options":["her passes land closer and fewer balls roll away","she practises every day","the ball is round","her partner stands on grass"],"accepted_answers":["her passes land closer and fewer balls roll away","fewer balls roll away"]},
+      {"item_id":"eng_c4_ch07_assess_06","passage":"Before the breathing exercise, Ali rushed through his reading. Afterwards, he read the next page at an even pace and corrected a missed word himself.","prompt":"Explain how the exercise may have helped, using evidence.","skill_ids":["reading.inference_reason"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"benefit","description":"Infers improved calm, focus, or control.","any_of":["became calmer","focused better","slowed down","improved concentration"]},{"id":"evidence","description":"Uses even pace or self-correction as evidence.","any_of":["read at an even pace","corrected a missed word","did not rush","self corrected"]}],"min_response_words":9},
+      {"item_id":"eng_c4_ch07_assess_07","passage":"The children moved the practice cones farther apart only after everyone could turn safely at the first distance.","prompt":"Why did they wait before increasing the distance?","skill_ids":["writing.reason_answer"],"options":["to build difficulty after mastering safe turns","because cones can move themselves","to make practice shorter","because nobody wanted to turn"],"accepted_answers":["to build difficulty after mastering safe turns","everyone needed to turn safely first"]},
+      {"item_id":"eng_c4_ch07_assess_08","passage":"It was very hot, so the coach shortened each running round and added more water breaks under shade.","prompt":"Write an evidence-backed reason for changing the practice.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"condition","description":"Mentions the heat or hot weather.","any_of":["very hot","hot weather","heat"]},{"id":"safety","description":"Explains that shorter rounds and water or shade reduce risk and keep players safe.","any_of":["keep players safe","avoid overheating","stay hydrated","cool down","prevent exhaustion"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch07_assess_09","passage":"The hikers built endurance until they could walk the full trail without an extra stop.","prompt":"Which chapter word means endurance?","skill_ids":["vocab.chapter_word_usage"],"options":["stamina","balance","pulse","stretch"],"accepted_answers":["stamina"]},
+      {"item_id":"eng_c4_ch07_assess_10","passage":"After the race, the runner rested until her breathing returned to normal and her strength came back.","prompt":"Write the chapter word for resting and regaining strength.","skill_ids":["vocab.chapter_word_usage"],"options":[],"accepted_answers":["recover","recovery"]},
+      {"item_id":"eng_c4_ch07_assess_11","passage":"The gymnast remained stable on the narrow platform even when she lifted one foot.","prompt":"What does stable suggest about her balance?","skill_ids":["reading.word_meaning_context"],"options":["she stayed steady","she moved at top speed","she became exhausted","she left the platform"],"accepted_answers":["she stayed steady","steady"]},
+      {"item_id":"eng_c4_ch07_assess_12","passage":"The flexible branch bent in the wind and returned to its shape instead of snapping.","prompt":"What does flexible mean here?","skill_ids":["reading.word_meaning_context"],"options":[],"accepted_answers":["able to bend","bends easily","not stiff","can bend without breaking"]},
+      {"item_id":"eng_c4_ch07_assess_13","passage":"The energetic dancers completed the final routine with wide smiles.","prompt":"Which adjective describes the dancers?","skill_ids":["grammar.noun_verb_adjective"],"options":["energetic","completed","routine","with"],"accepted_answers":["energetic"]},
+      {"item_id":"eng_c4_ch07_assess_14","passage":"Noun: swimmer. Details: calm, skilled. Action: crosses the pool with even strokes.","prompt":"Write a complete sentence using the noun and at least one adjective.","skill_ids":["grammar.noun_verb_adjective"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"noun","description":"Names the swimmer.","any_of":["swimmer","the swimmer"]},{"id":"adjective","description":"Uses calm or skilled.","any_of":["calm","skilled"]},{"id":"action","description":"States that the swimmer crosses the pool with even strokes.","any_of":["crosses the pool","swims across the pool","with even strokes"]}],"min_response_words":8},
+      {"item_id":"eng_c4_ch07_assess_15","passage":"Every Sunday, the family ___ along the river path. Verb: cycle.","prompt":"Choose the correct verb for a regular habit.","skill_ids":["grammar.tense_usage"],"options":["cycles","cycled","was cycling","will cycled"],"accepted_answers":["cycles"]},
+      {"item_id":"eng_c4_ch07_assess_16","passage":"Last evening, the players ___ their new passing drill. Verb: practise.","prompt":"Write the correct past-tense verb.","skill_ids":["grammar.tense_usage"],"options":[],"accepted_answers":["practised","practiced"]},
+      {"item_id":"eng_c4_ch07_assess_17","passage":"A coach advises children to move on most days, choose activities they enjoy, begin gently, and stop when sharp pain appears.","prompt":"Which summary keeps the coach's central message about regular and safe movement?","skill_ids":["writing.summary_own_words"],"options":["Exercise regularly in an enjoyable and safe way.","Sharp pain proves an activity is working.","Only one kind of movement is useful.","Children should always begin at full speed."],"accepted_answers":["Exercise regularly in an enjoyable and safe way.","exercise regularly and safely"]},
+      {"item_id":"eng_c4_ch07_assess_18","passage":"The school opens its field before class for walking, skipping, or quiet stretching. Students choose one activity, warm up, and finish in time for breakfast.","prompt":"Summarise the routine in your own words.","skill_ids":["writing.summary_own_words"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"choice","description":"Mentions choosing an activity before class.","any_of":["choose an activity","walking skipping or stretching","move before class","morning activity"]},{"id":"safe_order","description":"Includes warming up and finishing before breakfast or class.","any_of":["warm up","before breakfast","finish on time","safe routine"]}],"min_response_words":9},
+      {"item_id":"eng_c4_ch07_assess_19","passage":"Plan: Saturday morning / ten-minute walk / gentle stretches afterwards / water before returning home.","prompt":"Which is a complete plan sentence?","skill_ids":["writing.complete_sentence"],"options":["On Saturday morning, I will walk for ten minutes.","Saturday ten walk morning.","Will stretches after.","Water returning before."],"accepted_answers":["On Saturday morning, I will walk for ten minutes."]},
+      {"item_id":"eng_c4_ch07_assess_20","passage":"Wednesday notes: play catch for fifteen minutes / keep a safe distance / cool down with slow walking.","prompt":"Write two complete sentences that turn all the notes into a plan.","skill_ids":["writing.complete_sentence"],"options":[],"accepted_answers":[],"response_mode":"paragraph","evaluation_mode":"llm_rubric","preflight_rule":"The response must use complete English sentences and include the activity, safe distance, and cool-down from the notes.","pass_score":0.7,"rubric_criteria":[{"id":"activity","description":"Plans fifteen minutes of catch on Wednesday.","required":true,"min_quality":0.65},{"id":"safety","description":"Includes keeping a safe distance.","required":true,"min_quality":0.65},{"id":"cool_down","description":"Includes slow walking as a cool-down.","required":true,"min_quality":0.65},{"id":"sentences","description":"Uses at least two clear complete sentences.","required":true,"min_quality":0.6}]}
+    ]
+  }
+}

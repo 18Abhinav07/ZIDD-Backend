@@ -380,6 +380,40 @@ def _gd_task_participant_claims(node_id: str, text: str) -> list[dict[str, str]]
             "display_name": name,
             "status": "quiet",
         }]
+    if node_id == "gd_09_manage_dominator":
+        claims: list[dict[str, str]] = []
+
+        def add_claim(name: str, status: str) -> None:
+            clean = str(name or "").strip()
+            if not clean or any(
+                claim["participant_id"] == clean.casefold()
+                for claim in claims
+            ):
+                return
+            claims.append({
+                "participant_id": clean.casefold(),
+                "display_name": clean,
+                "status": status,
+            })
+
+        dominant = re.search(
+            r"\b([A-Z][\w'’-]{1,24})\s+(?:keeps?\s+|repeatedly\s+|continues?\s+to\s+)?"
+            r"(?:interrupt(?:s|ing)?|cuts?\s+(?:in|off)|dominat(?:es|ing)|"
+            r"repeat(?:s|ing)?|takes?\s+another\s+long\s+turn)\b",
+            text,
+        )
+        if dominant:
+            add_claim(dominant.group(1), "dominant")
+
+        waiting = re.search(
+            r"\b([A-Z][\w'’-]{1,24})\s+(?:has\s+not|hasn't|had\s+not)\s+"
+            r"(?:had\s+(?:a\s+)?chance\s+to\s+contribute|spoken|contributed|entered)\b",
+            text,
+        )
+        if waiting:
+            add_claim(waiting.group(1), "waiting")
+
+        return claims
     if node_id != "gd_10_drive_consensus":
         return []
     if not re.search(r"\bMaya\b", text, re.IGNORECASE) or not re.search(r"\bDev\b", text, re.IGNORECASE):
@@ -1575,7 +1609,10 @@ def _early_interview_feedback_text(state: dict) -> str | None:
                     f'answer that began: "{core_excerpt}". Defend that same weakness, habit, and '
                     "result; change only the defense."
                 )
-        return f"{anchor}The missing step is to {focus}. Revise only that part using the same story."
+        return (
+            f"{anchor}The missing step is to {focus}. Give the full answer again, "
+            "keeping the same story and changing only that part."
+        )
 
     action = validated_tutor_next_action(plan, state)
     if node_id == "int_02_strength_with_evidence":
@@ -2042,8 +2079,8 @@ def _int07_feedback_text(state: dict) -> str | None:
         missing = [labels[item] for item in required_missing if item in labels]
         gap = "; and ".join(missing) or "ask one scope-narrowing question, then answer the chosen scope"
         return (
-            f"{anchor}The missing step is to {gap}. Revise only that part using the same "
-            "question."
+            f"{anchor}The missing step is to {gap}. Give the full response again, "
+            "keeping the same question and changing only that part."
         )
 
     next_action = validated_tutor_next_action(plan, state)
@@ -2133,7 +2170,10 @@ def _int08_feedback_text(state: dict) -> str | None:
             f'The measurable evidence you already gave is "{metric}"{sentence_end} '
             if metric else ""
         )
-        return f"{anchor}The missing step is to {gap}. Revise only that part."
+        return (
+            f"{anchor}The missing step is to {gap}. Give the full answer again, "
+            "changing only that part."
+        )
 
     metric_end = "" if metric.endswith((".", "!", "?")) else "."
     if action and metric and action.casefold() == metric.casefold():
@@ -2320,7 +2360,10 @@ def _late_interview_feedback_text(state: dict) -> str | None:
             if proven else ""
         )
         gap = "; and ".join(gaps) or "complete the active skill using the same facts"
-        return f"{anchor}The missing step is to {gap}. Revise only that part."
+        return (
+            f"{anchor}The missing step is to {gap}. Give the full answer again, "
+            "changing only that part."
+        )
 
     quoted: list[str] = []
     for quote in evidence.values():
@@ -2420,8 +2463,8 @@ def _gd02_feedback_text(state: dict) -> str | None:
         else:
             repair = "Add one sentence explaining why the same evidence supports your stated position"
         return (
-            f"{anchor}{repair}. Revise only that missing link using the same evidence and motion; "
-            "do not move to a new topic yet."
+            f"{anchor}{repair}. Give the complete discussion response again, fixing only "
+            "that missing link with the same evidence and motion; do not move to a new topic yet."
         )
 
     next_action = validated_tutor_next_action(plan, state)
@@ -2481,7 +2524,10 @@ def _gd03_feedback_text(state: dict) -> str | None:
             repair = "Add one implication, example, or mitigation after the link"
         else:
             repair = "Claim the floor in one polite sentence, then add one substantive idea"
-        return f"{anchor}{repair}. Revise only that entry; keep the same discussion context."
+        return (
+            f"{anchor}{repair}. Give the complete discussion move again, changing only "
+            "that entry and keeping the same discussion context."
+        )
 
     current_topic = _gd_prompt_topic_for_state(state)
     next_action = validated_tutor_next_action(plan, state)
@@ -2544,7 +2590,10 @@ def _gd04_feedback_text(state: dict) -> str | None:
             repair = "Keep the extension tied to the active motion"
         else:
             repair = "Name the prior point, then extend it with one distinct idea"
-        return f"{anchor}{repair}. Revise only that link and extension in the same context."
+        return (
+            f"{anchor}{repair}. Give the complete discussion move again, changing only "
+            "that link and extension in the same context."
+        )
 
     current_topic = _gd_prompt_topic_for_state(state)
     next_action = validated_tutor_next_action(plan, state)
@@ -2653,7 +2702,10 @@ def _gd05_feedback_text(state: dict) -> str | None:
             repair = "Give one topic-based reason for the counterpoint"
         else:
             repair = "Challenge the idea without judging the person"
-        return f"{anchor}{repair}. Revise only that disagreement in the same context."
+        return (
+            f"{anchor}{repair}. Give the complete discussion move again, changing only "
+            "that disagreement in the same context."
+        )
 
     current_topic = _gd_prompt_topic_for_state(state)
     next_action = validated_tutor_next_action(plan, state)
@@ -2900,7 +2952,10 @@ def _late_gd_feedback_text(state: dict) -> str | None:
         gap_labels = {**_LATE_GD_COMMON_LABELS, **labels}
         gaps = [gap_labels[item] for item in missing if item in gap_labels]
         gap = "; and ".join(gaps) or "complete the active discussion move on the stated motion"
-        return f"{anchor}The missing move is to {gap}. Revise only that part; do not change motions yet."
+        return (
+            f"{anchor}The missing move is to {gap}. Give the complete discussion move "
+            "again, changing only that part; do not change motions yet."
+        )
 
     action = validated_tutor_next_action(plan, state)
     if action in {"request_pressure", "request_consolidation"}:

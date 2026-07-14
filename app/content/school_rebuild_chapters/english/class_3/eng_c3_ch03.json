@@ -1,0 +1,430 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: pedagogy, answer keys, concept slots, unseen passages, age fit, and source independence"
+  ],
+  "runtime_sha256": "ebe35add9a80a86bbd78fcfd6ee421b2f2388904acdc64c5100df0621c360f55",
+  "chapter_id": "eng_c3_ch03",
+  "chapter_no": 3,
+  "title": "Best Friends",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Friends",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa103.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "best_friends_team_reason",
+      "title": "Why friends work better together",
+      "focus": "find the main idea",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Understand that different friends can each add something useful, then explain the lesson in a short answer.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In this chapter, shape friends first compare themselves. A strong answer should move from 'who is best' to 'what can they do as a team'.",
+          "passage": "Circle can make a sun. Triangle can make a roof. Square can make a window. Rectangle can make a door.",
+          "prompt": "What should the shape friends do to make one complete picture?",
+          "options": [
+            "together",
+            "fight",
+            "hide",
+            "erase"
+          ],
+          "accepted_answers": [
+            "together",
+            "work together",
+            "make it together"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: each shape is useful in a different way. When useful parts join, the picture becomes better.",
+          "passage": "One shape makes the sun. Another shape makes the roof. Another makes the door.",
+          "prompt": "Which idea helps all shapes make a better picture?",
+          "options": [
+            "working together",
+            "arguing",
+            "sleeping",
+            "tearing"
+          ],
+          "accepted_answers": [
+            "working together",
+            "together"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: the main idea is the lesson that covers the whole story. Here the lesson is not that one shape wins. The lesson is that friends can create more together.",
+          "passage": "Four children each know one part of a song. When they sing together, the song is complete.",
+          "prompt": "What lesson matches this passage?",
+          "options": [
+            "friends work together",
+            "one child is best",
+            "songs are always short",
+            "nobody should help"
+          ],
+          "accepted_answers": [
+            "friends work together",
+            "work together",
+            "together"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now answer without hints. Write the lesson in your own words.",
+          "passage": "The shape friends stop arguing and make a picture by using each shape well.",
+          "prompt": "What lesson do the shape friends learn?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "shape_friends", "description": "refers to the shapes or friends as a group", "any_of": ["shapes", "friends", "they", "circle", "triangle", "square", "rectangle"]},
+            {"id": "team_lesson", "description": "states that different parts become useful when they work together", "any_of": ["work together", "teamwork", "each shape", "different", "complete picture", "help"]}
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Carry the teamwork lesson into a task without shapes.",
+          "passage": "For a class play, Ina remembers the lines, Faraz makes props, and Diya plays music. The show needs all three jobs.",
+          "prompt": "Explain why the children should work as a team.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "different_jobs", "description": "recognises that the children contribute different jobs or strengths", "any_of": ["lines", "props", "music", "different jobs", "each", "strengths"]},
+            {"id": "shared_result", "description": "explains that combining the jobs helps complete the play", "any_of": ["play", "show", "complete", "together", "team", "all three"]}
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "best_friends_shape_clues",
+      "title": "Use shape clues",
+      "focus": "use context to understand a word",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Use clues like round, sides, corners, and roof to identify shape words.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A clue can tell us the shape even when we are not shown a picture. Round and no corners point to a circle.",
+          "passage": "Nina draws a round moon. It has no corners.",
+          "prompt": "Which shape is Nina drawing?",
+          "options": [
+            "circle",
+            "square",
+            "triangle",
+            "rectangle"
+          ],
+          "accepted_answers": [
+            "circle"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: count sides and corners. Three sides often point to a triangle.",
+          "passage": "The kite has three sharp corners and three sides.",
+          "prompt": "Which shape has three sides?",
+          "options": [
+            "triangle",
+            "circle",
+            "rectangle",
+            "oval"
+          ],
+          "accepted_answers": [
+            "triangle"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: match the clue to the shape feature. Equal sides can point to a square; two long sides and two short sides can point to a rectangle.",
+          "passage": "A small tile has four equal sides.",
+          "prompt": "Which shape clue fits the tile?",
+          "options": [
+            "square",
+            "circle",
+            "triangle",
+            "star"
+          ],
+          "accepted_answers": [
+            "square"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the clue without help.",
+          "passage": "The roof in the drawing has three sides and sits above the house.",
+          "prompt": "Which shape is the roof?",
+          "options": [],
+          "accepted_answers": [
+            "triangle",
+            "a triangle"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use shape clues in an object outside a drawing lesson.",
+          "passage": "A warning sign has three straight sides and three corners.",
+          "prompt": "Write the shape of the sign.",
+          "options": [],
+          "accepted_answers": ["triangle", "a triangle"]
+        }
+      }
+    },
+    {
+      "level_id": "best_friends_a_an",
+      "title": "Use a and an",
+      "focus": "use a and an",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose a before consonant sounds and an before vowel sounds in simple sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use 'an' before words that begin with a vowel sound. The word umbrella begins with a vowel sound.",
+          "passage": "Meera carries ___ umbrella on a rainy day.",
+          "prompt": "Which word completes the sentence?",
+          "options": [
+            "an",
+            "a",
+            "the shape",
+            "and"
+          ],
+          "accepted_answers": [
+            "an"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: say the first sound. Apple starts with a vowel sound, so we say an apple.",
+          "passage": "Rohan eats ___ apple after school.",
+          "prompt": "Choose a or an.",
+          "options": [
+            "an",
+            "a",
+            "am",
+            "are"
+          ],
+          "accepted_answers": [
+            "an"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not look for any vowel anywhere in the word. Listen to the first sound: a star begins with a consonant sound; an orange begins with a vowel sound.",
+          "passage": "Tara draws ___ star and ___ orange sun.",
+          "prompt": "Which pair completes the sentence?",
+          "options": [
+            "a, an",
+            "an, a",
+            "a, a",
+            "an, an"
+          ],
+          "accepted_answers": [
+            "a, an",
+            "a an"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose without hints.",
+          "passage": "Ayan draws ___ square on his notebook.",
+          "prompt": "Write a or an.",
+          "options": [],
+          "accepted_answers": [
+            "a"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the starting-sound rule with a new pair of objects.",
+          "passage": "Neha packed ___ orange and ___ banana for the trip.",
+          "prompt": "Write the two articles in order.",
+          "options": [],
+          "accepted_answers": ["an, a", "an a"]
+        }
+      }
+    },
+    {
+      "level_id": "best_friends_describe_friend",
+      "title": "Write about a friend",
+      "focus": "write a complete sentence",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Write a simple complete sentence that tells one clear quality of a friend.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A complete sentence can tell one thing about a friend. Use a describing word like kind, helpful, funny, or brave.",
+          "passage": "My friend helps me carry my books.",
+          "prompt": "Which word describes this friend?",
+          "options": [
+            "kind",
+            "late",
+            "empty",
+            "round"
+          ],
+          "accepted_answers": [
+            "kind",
+            "helpful"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: first choose the quality, then put it in a sentence.",
+          "passage": "Reva shares her crayons with others.",
+          "prompt": "Which quality does Reva show?",
+          "options": [
+            "kind",
+            "square",
+            "loud",
+            "broken"
+          ],
+          "accepted_answers": [
+            "kind",
+            "helpful"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: one describing word such as helpful is only a fragment. A complete friend sentence needs a naming part and a telling part: 'My friend is helpful.'",
+          "passage": "Kabir waits for his friend and helps him finish the drawing.",
+          "prompt": "Which sentence is complete?",
+          "options": [
+            "My friend is helpful.",
+            "Helpful friend",
+            "Is helpful",
+            "My friend"
+          ],
+          "accepted_answers": [
+            "My friend is helpful.",
+            "my friend is helpful"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write one complete sentence about a friend.",
+          "passage": "Think of a friend who helps others.",
+          "prompt": "Write one complete sentence about that friend.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "friend_reference", "description": "names or clearly refers to a friend", "any_of": ["friend", "she", "he", "they", "Riya", "Aman"]},
+            {"id": "positive_quality", "description": "states a helpful friendship quality or action", "any_of": ["kind", "helpful", "shares", "helps", "listens", "honest", "caring", "patient"]}
+          ],
+          "min_response_words": 5
+        },
+        "transfer_check": {
+          "teaching_block": "Describe a teammate in a new setting with a complete idea.",
+          "passage": "During a relay game, one teammate waits calmly and cheers when others run.",
+          "prompt": "Write one complete sentence describing this teammate.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {"id": "teammate", "description": "clearly refers to the teammate", "any_of": ["teammate", "player", "child", "they", "he", "she"]},
+            {"id": "shown_quality", "description": "describes patience, support, or encouragement shown in the scene", "any_of": ["patient", "supportive", "encouraging", "calm", "cheers", "kind", "helpful"]}
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "best_friends_action_words",
+      "title": "Find action words",
+      "focus": "use action words",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Identify action words that tell what a person, animal, or thing does.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An action word tells what someone or something does. In 'Dogs bark at the gate', bark is the action.",
+          "passage": "Dogs bark when they hear a knock.",
+          "prompt": "Which word shows the action?",
+          "options": [
+            "bark",
+            "dogs",
+            "gate",
+            "hear"
+          ],
+          "accepted_answers": [
+            "bark"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: ask, 'What do they do?' Birds sing, children run, monkeys jump.",
+          "passage": "Monkeys jump from branch to branch.",
+          "prompt": "What do monkeys do?",
+          "options": [
+            "jump",
+            "branch",
+            "monkeys",
+            "from"
+          ],
+          "accepted_answers": [
+            "jump"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not choose cats or birds just because they come first. Those words name; sleep and fly tell what they do.",
+          "passage": "Cats sleep in the shade. Birds fly above the tree.",
+          "prompt": "Which pair has two action words?",
+          "options": [
+            "sleep, fly",
+            "cats, birds",
+            "shade, tree",
+            "in, above"
+          ],
+          "accepted_answers": [
+            "sleep, fly",
+            "sleep fly"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now find the action word without hints.",
+          "passage": "The children jump near the painted shapes.",
+          "prompt": "Which verb names what the baker does?",
+          "options": [],
+          "accepted_answers": [
+            "jump"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Find an action word in a setting away from the shape picture.",
+          "passage": "The baker kneads soft dough before sunrise.",
+          "prompt": "Write the action word.",
+          "options": [],
+          "accepted_answers": ["kneads"]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {"item_id":"c3c3_team_01","passage":"Circle makes wheels, rectangle makes a cart body, and two small squares make windows.","prompt":"Which idea makes the objects useful as one picture?","skill_ids":["reading.paragraph_main_idea"],"options":["The shapes combine their different parts.","Only the circle matters.","Every shape should hide.","The windows should be erased."],"accepted_answers":["The shapes combine their different parts.","the shapes combine their different parts","they work together"]},
+      {"item_id":"c3c3_team_02","passage":"Maya writes labels, Ravi draws the map, and Salim checks the spellings for their poster.","prompt":"Explain why the group can make a stronger poster together.","skill_ids":["reading.paragraph_main_idea","writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"different_strengths","description":"mentions the different useful jobs or strengths","any_of":["labels","map","spellings","different jobs","each","strengths"]},{"id":"better_result","description":"connects teamwork to a complete or stronger poster","any_of":["poster","complete","stronger","better","together","team"]}],"min_response_words":7},
+      {"item_id":"c3c3_team_03","passage":"One shape makes a clock face. Two other shapes make hands that point to the time.","prompt":"What lesson does this example support?","skill_ids":["reading.paragraph_main_idea"],"options":["Different parts can work together.","Clocks should have no hands.","Round things cannot tell time.","Only one shape is useful."],"accepted_answers":["Different parts can work together.","different parts can work together","work together"]},
+      {"item_id":"c3c3_team_04","passage":"A drummer keeps the beat while two singers carry the tune. The song sounds empty when either part stops.","prompt":"Give a reason the performers need one another.","skill_ids":["writing.reason_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"two_parts","description":"mentions the beat and tune or drummer and singers","any_of":["beat","tune","drummer","singers","both parts"]},{"id":"whole_song","description":"explains that both parts make the song complete or full","any_of":["song","complete","full","together","need each other"]}],"min_response_words":7},
+      {"item_id":"c3c3_shape_01","passage":"A coaster is round and has no corners.","prompt":"Which shape matches the coaster?","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":["circle","triangle","square","rectangle"],"accepted_answers":["circle","a circle"]},
+      {"item_id":"c3c3_shape_02","passage":"A tile has four equal sides and four corners.","prompt":"Write the shape name.","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":[],"accepted_answers":["square","a square"]},
+      {"item_id":"c3c3_shape_03","passage":"A door is taller than it is wide and has four corners.","prompt":"Which shape best describes the door?","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":["rectangle","circle","triangle","oval"],"accepted_answers":["rectangle","a rectangle"]},
+      {"item_id":"c3c3_shape_04","passage":"The face of a coin is round, while the edge has no pointed corner.","prompt":"Write the shape clue that tells you it is a circle.","skill_ids":["vocab.chapter_word_usage","reading.sentence_comprehension"],"options":[],"accepted_answers":["round","it is round","no corners","it has no corners"]},
+      {"item_id":"c3c3_article_01","passage":"We saw ___ elephant beside the pond.","prompt":"Choose the article.","skill_ids":["grammar.noun_verb_adjective","writing.complete_sentence"],"options":["an","a","thee","and"],"accepted_answers":["an"]},
+      {"item_id":"c3c3_article_02","passage":"Kabir drew ___ square flag.","prompt":"Which article belongs in the blank?","skill_ids":["grammar.noun_verb_adjective","writing.complete_sentence"],"options":[],"accepted_answers":["a"]},
+      {"item_id":"c3c3_article_03","passage":"The picture has ___ orange sun and ___ blue cloud.","prompt":"Select the articles for the sun and cloud.","skill_ids":["grammar.noun_verb_adjective","writing.complete_sentence"],"options":["an, a","a, an","an, an","a, a"],"accepted_answers":["an, a","an a"]},
+      {"item_id":"c3c3_article_04","passage":"Rina carries ___ umbrella and ___ raincoat.","prompt":"Complete both blanks with the correct articles.","skill_ids":["grammar.noun_verb_adjective","writing.complete_sentence"],"options":[],"accepted_answers":["an, a","an a"]},
+      {"item_id":"c3c3_friend_01","passage":"Arun waits while his partner ties a shoelace, then they walk together.","prompt":"Which word best describes Arun?","skill_ids":["writing.short_answer"],"options":["patient","selfish","careless","unkind"],"accepted_answers":["patient"]},
+      {"item_id":"c3c3_friend_02","passage":"Lata shares her ruler and explains the first step without doing the work for Nia.","prompt":"Write one word that describes Lata.","skill_ids":["writing.short_answer"],"options":[],"accepted_answers":["helpful","kind","supportive","patient"]},
+      {"item_id":"c3c3_friend_03","passage":"A friend listens carefully when I speak and remembers my ideas.","prompt":"Which sentence describes the friend clearly?","skill_ids":["writing.complete_sentence"],"options":["My friend is a careful listener.","Friend listen maybe.","Careful a friend.","My is listener."],"accepted_answers":["My friend is a careful listener.","my friend is a careful listener"]},
+      {"item_id":"c3c3_friend_04","passage":"Your partner returns a lost pencil and tells you where it was found.","prompt":"Write one complete sentence describing the partner.","skill_ids":["writing.complete_sentence","writing.short_answer"],"options":[],"accepted_answers":[],"response_mode":"short","answer_rule":"concept_slots","concept_slots":[{"id":"partner_reference","description":"clearly refers to the partner or friend","any_of":["partner","friend","classmate","they","he","she"]},{"id":"honest_quality","description":"describes honesty, helpfulness, or returning the pencil","any_of":["honest","helpful","kind","returned","returns","truthful"]}],"min_response_words":5},
+      {"item_id":"c3c3_action_01","passage":"The children build a tower from shape blocks.","prompt":"Which verb names the building action?","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":["build","children","tower","blocks"],"accepted_answers":["build"]},
+      {"item_id":"c3c3_action_02","passage":"A rabbit hops across the path.","prompt":"Which word tells what the rabbit does?","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":[],"accepted_answers":["hops"]},
+      {"item_id":"c3c3_action_03","passage":"The bright kite floats above the field.","prompt":"Which word tells what the kite does?","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":["floats","bright","kite","field"],"accepted_answers":["floats"]},
+      {"item_id":"c3c3_action_04","passage":"Two friends solve the puzzle together.","prompt":"Write the word that names their action.","skill_ids":["reading.sentence_comprehension","writing.short_answer"],"options":[],"accepted_answers":["solve"]}
+    ]
+  }
+}

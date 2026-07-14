@@ -799,6 +799,17 @@ _WEAKNESS_MITIGATION_TERMS = (
     "plain language",
     "compare options",
 )
+_WEAKNESS_MITIGATION_ACTION_RE = re.compile(
+    r"\b(?:i|we)\s+(?:now\s+)?(?:adopted|began|changed|created|introduced|"
+    r"implemented|proposed|set|started|switched|use|used)\b",
+    re.IGNORECASE,
+)
+_WEAKNESS_MITIGATION_MECHANISM_RE = re.compile(
+    r"\b(?:ask(?:ing)?|checklist|criteria|delegat(?:e|ing|ion)|escalat(?:e|ing|ion)|"
+    r"framework|habit|involv(?:e|ing)|naming|pair(?:ed|ing)?|practice|process|"
+    r"review|role|routine|rule|seek(?:ing)?|template|time\s+limit|timer)\b",
+    re.IGNORECASE,
+)
 _WEAKNESS_BOUNDED_TERMS = (
     "sometimes",
     "used to",
@@ -830,6 +841,11 @@ _WEAKNESS_PROGRESS_TERMS = (
     "reduced",
     "improved",
     "increased",
+    "decreased",
+    "dropped",
+    "fell",
+    "lowered",
+    "restored",
     "finished",
     "saved",
     "rollback",
@@ -847,6 +863,11 @@ _WEAKNESS_PROGRESS_OUTCOME_TERMS = (
     "reduced",
     "improved",
     "increased",
+    "decreased",
+    "dropped",
+    "fell",
+    "lowered",
+    "restored",
     "finished",
     "finish",
     "saved",
@@ -903,11 +924,112 @@ _WEAKNESS_PROGRESS_CONTEXT_TERMS = (
     "support ticket",
     "escalation",
 )
+_WEAKNESS_SAFE_PREVENTION_OUTCOME_RE = re.compile(
+    r"\b(?:no|zero)\s+(?:(?:additional|further|new|repeat(?:ed)?)\s+)?"
+    r"(?:(?:customer|client|production)\s+)?"
+    r"(?:impact|incidents?|outages?|errors?|defects?|failures?|harm|loss(?:es)?)\b|"
+    r"\bwithout\s+(?:(?:causing|creating|extending|increasing|prolonging|"
+    r"adding\s+to)\s+)?(?:the\s+)?"
+    r"(?:(?:additional|further|new|repeat(?:ed)?)\s+)?"
+    r"(?:(?:customer|client|production)\s+)?"
+    r"(?:impact|incidents?|outages?|errors?|defects?|failures?|harm|loss(?:es)?)\b",
+    re.IGNORECASE,
+)
+_WEAKNESS_COMPLETED_ACTION_RE = re.compile(
+    r"\b(?:i|we)\b[^.!?;]{0,120}\b(?:changed|created|escalated|implemented|"
+    r"introduced|involved|opened|paired|resolved|restored|shipped|started|"
+    r"switched|used)\b",
+    re.IGNORECASE,
+)
 
 
 def _answer_has_any(answer: str, terms: tuple[str, ...]) -> bool:
     lowered = " ".join(str(answer or "").lower().split())
     return any(term in lowered for term in terms)
+
+
+def _has_weakness_mitigation(answer: str) -> bool:
+    lowered = " ".join(str(answer or "").lower().split())
+    if _answer_has_any(lowered, _WEAKNESS_MITIGATION_TERMS):
+        return True
+    return any(
+        _WEAKNESS_MITIGATION_ACTION_RE.search(sentence)
+        and _WEAKNESS_MITIGATION_MECHANISM_RE.search(sentence)
+        for sentence in re.split(r"[.!?;]+", lowered)
+    )
+
+
+def _weakness_mitigation_evidence(answer: str) -> str:
+    for match in re.finditer(r"[^.!?;]+[.!?;]?", str(answer or "")):
+        sentence = match.group(0).strip()
+        if (
+            _WEAKNESS_MITIGATION_ACTION_RE.search(sentence)
+            and _WEAKNESS_MITIGATION_MECHANISM_RE.search(sentence)
+        ):
+            return sentence[:240].strip()
+    return _criterion_evidence(answer, _WEAKNESS_MITIGATION_TERMS)
+
+
+def _weakness_safe_prevention_evidence(answer: str) -> str:
+    sentences = [
+        match.group(0).strip()
+        for match in re.finditer(r"[^.!?;]+[.!?;]?", str(answer or ""))
+        if match.group(0).strip()
+    ]
+    windows = [
+        " ".join(sentences[index:index + width]).strip()
+        for index in range(len(sentences))
+        for width in (1, 2)
+        if index + width <= len(sentences)
+    ]
+    for window in windows:
+        lowered = window.lower()
+        if not _WEAKNESS_SAFE_PREVENTION_OUTCOME_RE.search(window):
+            continue
+        if not _WEAKNESS_COMPLETED_ACTION_RE.search(window):
+            continue
+        if re.search(
+            r"\b(?:could|may|might|should|would|expect(?:ed)?|hope[ds]?|plan(?:ned)?)\b",
+            lowered,
+        ):
+            continue
+        if not _answer_has_any(lowered, _WEAKNESS_PROGRESS_CONTEXT_TERMS):
+            continue
+        if not _answer_has_any(lowered, _WEAKNESS_PROGRESS_DETAIL_TERMS):
+            continue
+        if not _has_number_or_metric(window):
+            continue
+        return window[:240].strip()
+    return ""
+
+
+def _weakness_progress_evidence(answer: str) -> str:
+    outcome_pattern = "|".join(
+        re.escape(term)
+        for term in _WEAKNESS_PROGRESS_OUTCOME_TERMS
+        if " " not in term
+    )
+    candidates: list[str] = []
+    for match in re.finditer(r"[^.!?;]+[.!?;]?", str(answer or "")):
+        sentence = match.group(0).strip()
+        lowered = sentence.lower()
+        if not re.search(rf"\b(?:{outcome_pattern})\b", lowered):
+            continue
+        if re.search(
+            rf"\b(?:did\s+not|didn't|no|not|never)\b[^.!?;]{{0,50}}"
+            rf"\b(?:{outcome_pattern})\b",
+            lowered,
+        ) or re.search(
+            r"\b(?:could|may|might|should|would)\b",
+            lowered,
+        ):
+            continue
+        candidates.append(sentence[:240].strip())
+    evidence = next(
+        (sentence for sentence in candidates if _has_number_or_metric(sentence)),
+        candidates[0] if candidates else "",
+    )
+    return evidence or _weakness_safe_prevention_evidence(answer)
 
 
 def _criterion_evidence(answer: str, terms: tuple[str, ...]) -> str:
@@ -950,12 +1072,17 @@ def _has_concrete_weakness_progress(answer: str) -> bool:
         )
     ):
         return False
+    safe_prevention_evidence = _weakness_safe_prevention_evidence(answer)
     outcome_hits = sum(1 for term in _WEAKNESS_PROGRESS_OUTCOME_TERMS if term in lowered)
+    if safe_prevention_evidence:
+        outcome_hits += 1
     strong_outcome_hits = sum(
         1
         for term in _WEAKNESS_PROGRESS_OUTCOME_TERMS
         if term not in {"helped", "improved", "meant"} and term in lowered
     )
+    if safe_prevention_evidence:
+        strong_outcome_hits += 1
     has_work_detail = _answer_has_any(lowered, _WEAKNESS_PROGRESS_DETAIL_TERMS)
     has_number = bool(re.search(r"\b\d+\b", lowered)) or _answer_has_any(
         lowered,
@@ -974,12 +1101,19 @@ def _has_concrete_weakness_progress(answer: str) -> bool:
     has_learner_action = bool(
         re.search(
             r"\b(?:i|we)\b[^.!?]{0,180}\b(?:changed|change|started|start|used|use|"
-            r"chose|choose|implemented|apply|applied|lead|led|open|opened|manage|managed)\b",
+            r"chose|choose|escalate|escalated|implemented|apply|applied|lead|led|"
+            r"open|opened|manage|managed)\b",
             lowered,
         )
     )
-    owned_completed_result = False
+    owned_completed_result = bool(safe_prevention_evidence)
     for sentence in re.split(r"[.!?;]+", lowered):
+        if (
+            safe_prevention_evidence
+            and safe_prevention_evidence.lower().rstrip(".!?;") in sentence
+        ):
+            owned_completed_result = True
+            break
         if not re.search(rf"\b(?:{outcome_verbs})\b", sentence):
             continue
         if re.search(
@@ -1027,6 +1161,11 @@ def _has_concrete_weakness_progress(answer: str) -> bool:
                     sentence,
                 ))
             )
+        ) or (
+            has_learner_action
+            and _has_number_or_metric(sentence)
+            and _answer_has_any(sentence, _WEAKNESS_PROGRESS_DETAIL_TERMS)
+            and bool(re.search(r"\b(?:across|after|during|over|since)\b", sentence))
         ):
             owned_completed_result = True
             break
@@ -1241,13 +1380,64 @@ def _has_explicit_disqualifying_weakness_reason(reason: str) -> bool:
     )
 
 
+def _has_hard_disqualifying_weakness_reason(reason: str) -> bool:
+    lowered = " ".join(str(reason or "").lower().split())
+    return any(
+        term in lowered
+        for term in (
+            "dishonest",
+            "ethical",
+            "fabricat",
+            "fraud",
+            "harass",
+            "illegal",
+            "integrity",
+            "safety violation",
+            "violent",
+        )
+    )
+
+
+def _has_explicit_non_sabotage_boundary(answer: str) -> bool:
+    lowered = " ".join(str(answer or "").lower().split())
+    if not lowered:
+        return False
+    current_role_failure = bool(re.search(
+        r"\b(?:i|we)\s+(?:(?:still|sometimes|often|usually|consistently)\s+)?"
+        r"(?:avoid|ignore|refuse|neglect)\b|"
+        r"\b(?:i|we)\s+(?:am|are)\s+(?:unable|unwilling|reluctant)\s+to\b",
+        lowered,
+    ))
+    if current_role_failure:
+        return False
+    rejects_role_failure = bool(re.search(
+        r"\b(?:not|never)\b[^.!?;]{0,100}\b(?:avoid(?:ing)?|ignore|ignoring|"
+        r"refus(?:e|ing)|reluctan(?:t|ce)|unable|unsafe|violate|violating)\b",
+        lowered,
+    )) or any(
+        phrase in lowered
+        for phrase in (
+            "does not prevent me",
+            "doesn't prevent me",
+            "does not affect my",
+            "doesn't affect my",
+        )
+    )
+    preserves_capability = bool(re.search(
+        r"\b(?:i|we)\s+(?:can\s+)?still\s+(?:deliver|escalate|follow|meet|own|"
+        r"perform|ship|support|work)\b[^.!?;]{0,80}",
+        lowered,
+    ))
+    return rejects_role_failure and preserves_capability
+
+
 def _has_complete_weakness_shape(packet: EvaluationPacket) -> bool:
     if packet.node_id != "int_03_weakness_framing" or packet.attempt_type != "independent":
         return False
     answer = str(packet.learner_answer or "")
     return (
         _has_real_weakness_signal(answer)
-        and _answer_has_any(answer, _WEAKNESS_MITIGATION_TERMS)
+        and _has_weakness_mitigation(answer)
         and _answer_has_any(answer, _WEAKNESS_PROGRESS_TERMS)
         and _has_concrete_weakness_progress(answer)
     )
@@ -1261,15 +1451,23 @@ def _reconcile_weakness_evidence(packet: EvaluationPacket, result: PrepRubricEva
     updates: dict[str, CriterionEval] = {}
     evidence_by_id = {
         "real_weakness": _criterion_evidence(answer, _WEAKNESS_REAL_TERMS) or answer[:180],
-        "mitigation_habit": _criterion_evidence(answer, _WEAKNESS_MITIGATION_TERMS) or answer[:180],
-        "progress_evidence": _criterion_evidence(answer, _WEAKNESS_PROGRESS_OUTCOME_TERMS) or answer[:180],
+        "mitigation_habit": _weakness_mitigation_evidence(answer) or answer[:180],
+        "progress_evidence": _weakness_progress_evidence(answer) or answer[:180],
     }
     non_self_sabotage = rows_by_id.get("non_self_sabotage")
     if (
         non_self_sabotage is not None
         and not non_self_sabotage.met
         and _has_bounded_weakness_signal(answer)
-        and not _has_explicit_disqualifying_weakness_reason(non_self_sabotage.reason)
+        and (
+            not _has_explicit_disqualifying_weakness_reason(non_self_sabotage.reason)
+            or (
+                _has_explicit_non_sabotage_boundary(answer)
+                and not _has_hard_disqualifying_weakness_reason(
+                    non_self_sabotage.reason
+                )
+            )
+        )
     ):
         evidence_by_id["non_self_sabotage"] = (
             _criterion_evidence(answer, _WEAKNESS_BOUNDED_TERMS) or answer[:180]
@@ -2765,7 +2963,14 @@ def _gd_latest_assistant_prompt(packet: EvaluationPacket) -> str:
             not message_kind
             and not message_node_id
             and packet.attempt_type in {"transfer", "pressure"}
-            and ("?" in content or re.search(r"\b(?:challenge|defend|respond)\b", content, re.IGNORECASE))
+            and (
+                "?" in content
+                or re.search(
+                    r"\b(?:challenge|credit|defend|implication|pushback|repeat(?:ed)?|respond)\b",
+                    content,
+                    re.IGNORECASE,
+                )
+            )
             and not legacy_candidate
         ):
             legacy_candidate = content
@@ -3021,6 +3226,7 @@ def _apply_verified_gd_move(
     *,
     reason: str,
     next_focus: str,
+    allow_partial: bool = False,
 ) -> PrepRubricEval:
     required_base = {
         str(criterion["id"])
@@ -3028,7 +3234,7 @@ def _apply_verified_gd_move(
         if bool(criterion.get("required"))
         and str(criterion["id"]) not in {"transfer_context", "core_consistency"}
     }
-    if not required_base.issubset(set(proof)):
+    if not allow_partial and not required_base.issubset(set(proof)):
         return result
     criteria = []
     for row in result.criteria:
@@ -3071,7 +3277,7 @@ def _reconcile_gd_manage_dominator(
     ):
         return result
     answer = " ".join(str(packet.learner_answer or "").split()).strip()
-    if len(_normalize(answer).split()) < 14 or not _gd_topic_grounded(answer, packet.active_topic):
+    if len(_normalize(answer).split()) < 14:
         return result
     if gd_has_directed_attack(answer):
         return result
@@ -3084,7 +3290,30 @@ def _reconcile_gd_manage_dominator(
         )
         if sentence.strip()
     ]
-    participant_pattern = r"(?:rohan|vik|maya|neha|dev|sara|aman|leena|rohit)"
+    participant_claims = _task_participant_claims(packet)
+    participant_names = [
+        str(claim.get("display_name") or claim.get("participant_id") or "").strip()
+        for claim in participant_claims
+        if isinstance(claim, dict)
+    ]
+    if not participant_names:
+        participant_names.extend(("Rohan", "Vik", "Maya", "Neha", "Dev", "Sara", "Aman", "Leena", "Rohit"))
+    deduped_names = list(dict.fromkeys(
+        name for name in participant_names if name
+    ))
+    dominant_names = {
+        str(claim.get("display_name") or claim.get("participant_id") or "").casefold()
+        for claim in participant_claims
+        if str(claim.get("status") or claim.get("role") or "").casefold() == "dominant"
+    }
+    waiting_names = {
+        str(claim.get("display_name") or claim.get("participant_id") or "").casefold()
+        for claim in participant_claims
+        if str(claim.get("status") or claim.get("role") or "").casefold() == "waiting"
+    }
+    participant_pattern = "(?:" + "|".join(
+        re.escape(name) for name in sorted(deduped_names, key=len, reverse=True)
+    ) + ")"
     acknowledgement_pattern = re.compile(
         rf"\b(?:{participant_pattern}\b.{{0,90}}"
         r"(?:point|argument|concern|evidence|perspective|contribution)\b.{0,50}"
@@ -3094,10 +3323,12 @@ def _reconcile_gd_manage_dominator(
         re.IGNORECASE,
     )
     boundary_pattern = re.compile(
-            r"\b(?:let\s+me\s+(?:pause|stop|interrupt)\s+you|"
-            r"hold\s+that\s+thought|"
-            r"i\s+need\s+to\s+(?:pause|stop|interrupt)\s+you|"
-            r"we(?:'ll|\s+will)\s+come\s+back\s+to\s+you)\b",
+        r"\b(?:(?:please\s+)?let\s+me\s+(?:finish|complete)\s+"
+        r"(?:(?:this|my|the)\s+)?(?:point|thought|sentence|turn)|"
+        r"let\s+me\s+(?:pause|stop|interrupt)\s+you|"
+        r"hold\s+that\s+thought|"
+        r"i\s+need\s+to\s+(?:pause|stop|interrupt)\s+you|"
+        r"(?:i|we)(?:'ll|\s+will)\s+come\s+back\s+to\s+you)\b",
         re.IGNORECASE,
     )
     boundary_index = next((
@@ -3107,6 +3338,8 @@ def _reconcile_gd_manage_dominator(
     respectful_boundary = sentences[boundary_index] if boundary_index >= 0 else ""
     boundary_name_match = re.search(participant_pattern, respectful_boundary, re.IGNORECASE)
     boundary_name = boundary_name_match.group(0).casefold() if boundary_name_match else ""
+    if dominant_names and boundary_name not in dominant_names:
+        respectful_boundary = ""
     acknowledgement = ""
     for index in (boundary_index, boundary_index - 1):
         if index < 0 or index >= len(sentences):
@@ -3116,6 +3349,8 @@ def _reconcile_gd_manage_dominator(
             continue
         candidate_name_match = re.search(participant_pattern, candidate, re.IGNORECASE)
         candidate_name = candidate_name_match.group(0).casefold() if candidate_name_match else ""
+        if dominant_names and candidate_name not in dominant_names:
+            continue
         if boundary_name and candidate_name != boundary_name:
             continue
         if index != boundary_index and not candidate_name:
@@ -3127,13 +3362,20 @@ def _reconcile_gd_manage_dominator(
         if re.search(
             r"\b(?:hear\s+from|bring\s+in|open\s+the\s+floor|another\s+(?:view|voice|participant)|"
             r"other\s+(?:views|voices|participants)|make\s+room|give\s+.+\s+the\s+floor|"
-            r"(?:maya|neha|dev|sara|aman|leena|rohit)\s*,?\s*(?:please\s+)?take\s+the\s+floor|"
-            r"hear\s+(?:from\s+)?(?:maya|neha|dev|sara|aman|leena|rohit)(?:'s|’s)?\s+(?:view|perspective)|"
+            rf"{participant_pattern}\s*,?\s*(?:please\s+)?take\s+the\s+floor|"
+            rf"hear\s+(?:from\s+)?{participant_pattern}(?:'s|’s)?\s+(?:view|perspective)|"
+            rf"give\s+{participant_pattern}\s+(?:a\s+)?(?:chance|space|room)\s+to\s+(?:speak|contribute)|"
+            rf"(?:after|once)\s+{participant_pattern}\s+has\s+(?:had\s+)?(?:a\s+)?chance\s+to\s+(?:speak|contribute)|"
             r"give\s+us\s+(?:your|their)\s+(?:view|perspective))\b",
             sentence,
             re.IGNORECASE,
         )
     ), "")
+    if waiting_names and not any(
+        re.search(rf"\b{re.escape(name)}\b", redistribution, re.IGNORECASE)
+        for name in waiting_names
+    ):
+        redistribution = ""
     topic_link = next((
         sentence for sentence in sentences
         if _gd_topic_grounded(sentence, packet.active_topic)
@@ -3154,6 +3396,7 @@ def _reconcile_gd_manage_dominator(
         proof,
         reason="backend verified acknowledgement, a respectful boundary, topic grounding, and floor redistribution",
         next_focus="Apply the same respectful floor-redistribution move under a different GD pressure.",
+        allow_partial=True,
     )
 
 
@@ -3310,6 +3553,10 @@ def _reconcile_shared_gd_pressure(
     direct_marker = any(marker in lowered for marker in (
         "you are right",
         "you're right",
+        "the exact point i used",
+        "the point i used",
+        "the prior point i used",
+        "my added implication",
         "the new implication",
         "the distinction",
         "to answer that",
@@ -3328,26 +3575,42 @@ def _reconcile_shared_gd_pressure(
         " those safeguards",
         " that means",
     ))
+    operational_markers = (
+        "pilot",
+        "onboarding",
+        "ownership",
+        "threshold",
+        "appeal",
+        "safeguard",
+        "mitigation",
+        "review",
+        "decision",
+        "latency",
+        "engagement",
+        "attrition",
+        "mentorship",
+        "in-person reset",
+    )
+    operational_detail_count = sum(
+        1 for marker in operational_markers if marker in lowered
+    )
+    measurable_plan = bool(
+        re.search(r"\b\d+(?:\.\d+)?(?:-day|\s+day|%|\s+week|\s+month)?\b", lowered)
+        and operational_detail_count >= 2
+    )
     concrete_reason = (
         len(_normalize(answer).split()) >= 24
-        and causal
         and (
-            "," in answer
-            or any(marker in lowered for marker in (
-                "audit",
-                "onboarding",
-                "ownership",
-                "threshold",
-                "appeal",
-                "safeguard",
-                "mitigation",
-                "review",
-                "decision",
-            ))
+            (
+                causal
+                and ("," in answer or operational_detail_count >= 1)
+            )
+            or measurable_plan
         )
     )
     qualified_answer = str(packet.core_qualification_evidence.get("learner_answer") or "")
     core_overlap = _gd_meaningful_tokens(answer) & _gd_meaningful_tokens(qualified_answer)
+    reverses_core = _gd_exclusive_alternative_reverses_core(qualified_answer, answer)
     first_sentence = re.split(r"(?<=[.!?])\s+", answer, maxsplit=1)[0].strip()
     proof: dict[str, str] = {}
     if direct_response:
@@ -3355,7 +3618,15 @@ def _reconcile_shared_gd_pressure(
     if concrete_reason:
         proof["evidence_defense"] = _gd_sentence_evidence(
             answer,
-            ("because", "unless", "so ", "therefore", "which", "safeguard"),
+            (
+                "because", "unless", "so ", "therefore", "which", "safeguard",
+                "pilot", "threshold", "onboarding", "latency", "attrition",
+            ),
+        )
+    if len(core_overlap) >= 2 and not reverses_core:
+        proof["core_consistency"] = _gd_sentence_evidence(
+            answer,
+            tuple(sorted(core_overlap)),
         )
     if not proof:
         return result
@@ -4204,6 +4475,28 @@ def _gd_stance_polarity(text: str) -> str:
     return ""
 
 
+_GD_EXCLUSIVE_POSITION_RE = re.compile(
+    r"(?:^|[.!?;]|\b(?:but|however|instead|yet)\b)\s*"
+    r"(?P<subject>[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,5})\s+"
+    r"(?:is|are)\s+(?:the\s+)?(?:only|sole)\s+"
+    r"(?:viable|workable|acceptable|credible|realistic)\s+"
+    r"(?:approach|choice|model|option|path|policy|position|solution)\b",
+    re.IGNORECASE,
+)
+
+
+def _gd_exclusive_alternative_reverses_core(core_answer: str, answer: str) -> bool:
+    core_tokens = _gd_meaningful_tokens(core_answer) - {
+        "approach", "choice", "model", "option", "path", "policy", "position",
+        "solution", "work",
+    }
+    for match in _GD_EXCLUSIVE_POSITION_RE.finditer(str(answer or "")):
+        subject_tokens = _gd_meaningful_tokens(match.group("subject")) - {"work"}
+        if subject_tokens and not (subject_tokens & core_tokens):
+            return True
+    return False
+
+
 def _task_participant_claims(packet: EvaluationPacket) -> list[dict[str, str]]:
     raw = packet.task_contract.get("participant_claims") if isinstance(packet.task_contract, dict) else []
     return [
@@ -4451,9 +4744,14 @@ def _minimum_gate_missing(packet: EvaluationPacket) -> dict[str, str]:
         core_answer = str(packet.core_qualification_evidence.get("learner_answer") or "")
         if (
             packet.node_id.startswith("gd_")
-            and _gd_stance_polarity(core_answer)
-            and _gd_stance_polarity(answer)
-            and _gd_stance_polarity(core_answer) != _gd_stance_polarity(answer)
+            and (
+                (
+                    _gd_stance_polarity(core_answer)
+                    and _gd_stance_polarity(answer)
+                    and _gd_stance_polarity(core_answer) != _gd_stance_polarity(answer)
+                )
+                or _gd_exclusive_alternative_reverses_core(core_answer, answer)
+            )
         ):
             return {
                 **tone_missing,
@@ -4464,7 +4762,7 @@ def _minimum_gate_missing(packet: EvaluationPacket) -> dict[str, str]:
         missing: dict[str, str] = {}
         if not _has_real_weakness_signal(answer):
             missing["real_weakness"] = "minimum gate requires a real weakness signal in the learner answer"
-        if not _answer_has_any(answer, _WEAKNESS_MITIGATION_TERMS):
+        if not _has_weakness_mitigation(answer):
             missing["mitigation_habit"] = "minimum gate requires a concrete mitigation habit in the learner answer"
         if not _has_concrete_weakness_progress(answer):
             missing["progress_evidence"] = "minimum gate requires concrete progress evidence, not a generic improvement claim"

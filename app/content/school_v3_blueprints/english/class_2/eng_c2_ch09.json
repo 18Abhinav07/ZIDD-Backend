@@ -1,0 +1,1929 @@
+{
+  "approval_status": "seed",
+  "book_title": "Mridang",
+  "chapter_id": "eng_c2_ch09",
+  "chapter_title": "Mridang Chapter 9",
+  "class_no": 2,
+  "curriculum_version": "school-v3-english-seed-2026-07",
+  "outcomes": [
+    {
+      "items": [
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise word meaning from context. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o1_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for word meaning from context: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o1_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for word meaning from context: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o1_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for word meaning from context: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o1_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for word meaning from context: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear word meaning from context answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o1_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear word meaning from context answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o1_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear word meaning from context answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o1_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer word meaning from context to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer word meaning from context to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c2_ch09_o1_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer word meaning from context to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o1_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 2, Chapter 9: which choice best supports word meaning from context?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o1_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 2, Chapter 9: which choice best supports word meaning from context?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o1_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 2, Chapter 9: which choice best supports word meaning from context?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o1_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 2, Chapter 9: which choice best supports word meaning from context?",
+          "skill_ids": [
+            "reading.word_meaning_context"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c2_ch09_outcome_1",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "title": "Build word meaning from context"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise sentence meaning. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o2_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for sentence meaning: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o2_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for sentence meaning: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o2_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for sentence meaning: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o2_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for sentence meaning: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear sentence meaning answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o2_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear sentence meaning answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o2_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear sentence meaning answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o2_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer sentence meaning to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer sentence meaning to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c2_ch09_o2_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer sentence meaning to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o2_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 2, Chapter 9: which choice best supports sentence meaning?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o2_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 2, Chapter 9: which choice best supports sentence meaning?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o2_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 2, Chapter 9: which choice best supports sentence meaning?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o2_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 2, Chapter 9: which choice best supports sentence meaning?",
+          "skill_ids": [
+            "reading.sentence_comprehension"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c2_ch09_outcome_2",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "title": "Build sentence meaning"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise chapter vocabulary use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o3_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for chapter vocabulary use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o3_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for chapter vocabulary use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o3_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for chapter vocabulary use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o3_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for chapter vocabulary use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear chapter vocabulary use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o3_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear chapter vocabulary use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o3_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear chapter vocabulary use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o3_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer chapter vocabulary use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer chapter vocabulary use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c2_ch09_o3_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer chapter vocabulary use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o3_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 2, Chapter 9: which choice best supports chapter vocabulary use?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o3_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 2, Chapter 9: which choice best supports chapter vocabulary use?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o3_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 2, Chapter 9: which choice best supports chapter vocabulary use?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o3_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 2, Chapter 9: which choice best supports chapter vocabulary use?",
+          "skill_ids": [
+            "vocab.chapter_word_usage"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c2_ch09_outcome_3",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "title": "Build chapter vocabulary use"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise noun verb adjective use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o4_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for noun verb adjective use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o4_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for noun verb adjective use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o4_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for noun verb adjective use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o4_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for noun verb adjective use: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear noun verb adjective use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o4_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear noun verb adjective use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o4_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear noun verb adjective use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o4_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer noun verb adjective use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer noun verb adjective use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c2_ch09_o4_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer noun verb adjective use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o4_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 2, Chapter 9: which choice best supports noun verb adjective use?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o4_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 2, Chapter 9: which choice best supports noun verb adjective use?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o4_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 2, Chapter 9: which choice best supports noun verb adjective use?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o4_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 2, Chapter 9: which choice best supports noun verb adjective use?",
+          "skill_ids": [
+            "grammar.noun_verb_adjective"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c2_ch09_outcome_4",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "title": "Build noun verb adjective use"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Mridang Chapter 9, use the sample sentence to practise complete sentence writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o5_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for complete sentence writing: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o5_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for complete sentence writing: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o5_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for complete sentence writing: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c2_ch09_o5_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for complete sentence writing: which option best helps answer a question from Mridang Chapter 9?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear complete sentence writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o5_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear complete sentence writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o5_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Mridang Chapter 9. Give one clear complete sentence writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c2_ch09_o5_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Mridang Chapter 9: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer complete sentence writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer complete sentence writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c2_ch09_o5_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer complete sentence writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o5_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 2, Chapter 9: which choice best supports complete sentence writing?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o5_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 2, Chapter 9: which choice best supports complete sentence writing?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o5_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 2, Chapter 9: which choice best supports complete sentence writing?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c2_ch09_o5_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 2, Chapter 9: which choice best supports complete sentence writing?",
+          "skill_ids": [
+            "writing.complete_sentence"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c2_ch09_outcome_5",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "title": "Build complete sentence writing"
+    }
+  ],
+  "reviewed_at": "2026-07-09",
+  "reviewed_by": "zidd-seed-content-contract",
+  "source_url": "https://ncert.nic.in/textbook.php?bemr1=9-13",
+  "subject_id": "english"
+}

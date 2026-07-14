@@ -52,6 +52,7 @@ from app.services.rubric_engine import (
     build_evaluation_packet,
     invalid_required_evidence_ids,
 )
+from app.services.school.open_answer_ai import evaluate_school_open_answer
 from app.services.rubrics import get_rubric
 
 GROQ_70B = "llama-3.3-70b-versatile"

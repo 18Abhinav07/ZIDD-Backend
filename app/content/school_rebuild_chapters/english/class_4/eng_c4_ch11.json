@@ -1,0 +1,348 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-prep-review",
+  "reviewed_at": "2026-07-11",
+  "review_evidence": [
+    "docs/school-prep-live-browser-qa-2026-07-10.md"
+  ],
+  "runtime_sha256": "de18819f2562e69c9af2641abfa8eba98ddf60c8d0d106ed7f3a115353f9b67b",
+  "chapter_id": "eng_c4_ch11",
+  "chapter_no": 11,
+  "title": "A Journey to the Magical Mountains",
+  "book_title": "Santoor",
+  "unit_title": "Up High",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa111.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "mountain_story_sequence",
+      "title": "Track the journey setting",
+      "focus": "sequence story events and places",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Follow where a mountain journey begins, pauses, and returns.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A journey story often moves from place to place. Track the setting first, then the events.",
+          "passage": "Nima lived near a snowy mountain range. Her uncle told her they would walk toward the Himalayas at sunrise.",
+          "prompt": "Which mountain range is named in the journey plan?",
+          "options": [
+            "Himalayas",
+            "desert",
+            "seashore",
+            "city market"
+          ],
+          "accepted_answers": [
+            "Himalayas",
+            "himalayas"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: a lunch stop is a middle event, not the beginning or the ending.",
+          "passage": "After walking for two hours, the family rested beside a clear stream and opened their lunch box.",
+          "prompt": "Where did they stop to eat?",
+          "options": [
+            "stream",
+            "bus stop",
+            "classroom",
+            "railway station"
+          ],
+          "accepted_answers": [
+            "stream",
+            "river",
+            "beside a clear stream"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: list events in order. Start with the first place, then the stop, then the highest point.",
+          "passage": "First Tara left the village. Next she ate near a river. Last she saw white peaks from a hill.",
+          "prompt": "Which event happened second?",
+          "options": [
+            "she ate near a river",
+            "she left the village",
+            "she saw white peaks",
+            "she slept at home"
+          ],
+          "accepted_answers": [
+            "she ate near a river",
+            "ate near a river"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now find the middle journey stop without hints.",
+          "passage": "The children walked past tall trees, rested beside a river for lunch, and then climbed toward the snowy path.",
+          "prompt": "Where did they rest for lunch?",
+          "options": [],
+          "accepted_answers": [
+            "river",
+            "beside a river",
+            "near a river"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "mountain_vocabulary_context",
+      "title": "Use mountain words in context",
+      "focus": "understand chapter vocabulary",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Use context to understand words linked to mountains and travel.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use the sentence around a new word. A Sherpa is someone connected with helping and guiding in high mountains.",
+          "passage": "The climbers thanked the Sherpa for guiding them safely along the steep path.",
+          "prompt": "Which word names the mountain guide?",
+          "options": [
+            "Sherpa",
+            "basket",
+            "valley",
+            "apple"
+          ],
+          "accepted_answers": [
+            "Sherpa",
+            "sherpa"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: a journey is travel from one place to another.",
+          "passage": "The bus ride from the village to the hill town took all morning.",
+          "prompt": "Which word best describes this travel?",
+          "options": [
+            "journey",
+            "memory",
+            "load",
+            "summit"
+          ],
+          "accepted_answers": [
+            "journey"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: separate place words from action words. A valley is a landform; a journey is the travel.",
+          "passage": "They crossed a valley before the long walk ended.",
+          "prompt": "Which word names the travel itself?",
+          "options": [
+            "journey",
+            "valley",
+            "snow",
+            "wool"
+          ],
+          "accepted_answers": [
+            "journey"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the travel word without hints.",
+          "passage": "Ravi packed water and food before the long walk to the hills.",
+          "prompt": "Which word means this long travel from one place to another?",
+          "options": [],
+          "accepted_answers": [
+            "journey",
+            "trip"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "mountain_animals_and_care",
+      "title": "Connect animals and care for nature",
+      "focus": "read reasons and values in the story",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Explain why mountain animals matter and why nature should be protected.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A reason answer names the useful thing and the proof. Mountain animals can help people in several ways.",
+          "passage": "In the high village, yaks gave families milk and wool. They also carried bags along the rough path.",
+          "prompt": "How did the yaks help the families?",
+          "options": [
+            "milk, wool, and carrying loads",
+            "singing songs",
+            "building houses",
+            "writing letters"
+          ],
+          "accepted_answers": [
+            "milk, wool, and carrying loads",
+            "milk wool and carrying loads"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: protect means take care of something so it is not harmed.",
+          "passage": "Leela picked up plastic from the trail and told her friends not to throw waste near the stream.",
+          "prompt": "What was Leela trying to do?",
+          "options": [
+            "protect the mountains",
+            "hide the mountains",
+            "leave the village",
+            "lose the trail"
+          ],
+          "accepted_answers": [
+            "protect the mountains",
+            "protect nature",
+            "keep the trail clean"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: a promise at the end of a story often shows what the character learned.",
+          "passage": "After seeing the clean white peaks, Aman promised to keep the hill path clean and plant more trees.",
+          "prompt": "What lesson did Aman learn?",
+          "options": [
+            "care for nature",
+            "avoid all journeys",
+            "never eat lunch",
+            "throw waste outside"
+          ],
+          "accepted_answers": [
+            "care for nature",
+            "protect nature"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now answer the value question without hints.",
+          "passage": "At the end of the walk, Nima said she would keep the trails clean and tell others not to harm the hills.",
+          "prompt": "What did Nima promise to do?",
+          "options": [],
+          "accepted_answers": [
+            "protect the mountains",
+            "protect nature",
+            "keep the trails clean"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "mountain_body_part_metaphors",
+      "title": "Understand body-part comparisons",
+      "focus": "use body-part words for objects",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Recognize body-part words used to describe parts of things.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Some body-part words describe objects. The foot of a mountain means the lower part or base.",
+          "passage": "The village stood at the ___ of the mountain, far below the snowy top.",
+          "prompt": "Which word fits the lower part of the mountain?",
+          "options": [
+            "foot",
+            "hand",
+            "eye",
+            "neck"
+          ],
+          "accepted_answers": [
+            "foot"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: a river mouth is the place where a river opens into a larger water body.",
+          "passage": "The boats slowed near the wide ___ of the river.",
+          "prompt": "Which body-part word is often used for a river opening?",
+          "options": [
+            "mouth",
+            "knee",
+            "shoulder",
+            "finger"
+          ],
+          "accepted_answers": [
+            "mouth"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: picture the object part. The eye of a needle is the small hole; the heart of a city is its centre.",
+          "passage": "The thread passed through the ___ of the needle.",
+          "prompt": "Which body-part word names the small hole?",
+          "options": [
+            "eye",
+            "ear",
+            "arm",
+            "foot"
+          ],
+          "accepted_answers": [
+            "eye"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the comparison word without hints.",
+          "passage": "The river became wider near its ___ before meeting the sea.",
+          "prompt": "Which word names the river's opening?",
+          "options": [],
+          "accepted_answers": [
+            "mouth",
+            "river mouth"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "mountain_conjunctions",
+      "title": "Join ideas with conjunctions",
+      "focus": "choose because, but, and, or",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use conjunctions to join ideas with reason, contrast, addition, or choice.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Because gives a reason. Use it when the second idea explains why the first idea happened.",
+          "passage": "The children stayed near the hut ___ heavy rain began.",
+          "prompt": "Choose the reason word.",
+          "options": [
+            "because",
+            "but",
+            "or",
+            "and"
+          ],
+          "accepted_answers": [
+            "because"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: but joins two different or opposite ideas.",
+          "passage": "The path was steep, ___ the group kept walking slowly.",
+          "prompt": "Which word shows contrast?",
+          "options": [
+            "but",
+            "because",
+            "or",
+            "sofa"
+          ],
+          "accepted_answers": [
+            "but"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: decide the relationship first. Reason uses because; choice uses or; contrast uses but; addition uses and.",
+          "passage": "We can visit the river ___ the museum after lunch.",
+          "prompt": "Which word gives a choice?",
+          "options": [
+            "or",
+            "because",
+            "but",
+            "and"
+          ],
+          "accepted_answers": [
+            "or"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the contrast word without hints.",
+          "passage": "Mina was tired, ___ she smiled when she saw the snowy peaks.",
+          "prompt": "Which conjunction fits best?",
+          "options": [],
+          "accepted_answers": [
+            "but"
+          ]
+        }
+      }
+    }
+  ]
+}

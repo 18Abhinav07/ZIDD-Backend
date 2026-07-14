@@ -6,10 +6,13 @@ to PgStore/Supabase.
 """
 from __future__ import annotations
 
+import asyncio
+import copy
 import importlib
 import os
 import time
 from typing import Any
+from uuid import uuid4
 
 import pytest
 
@@ -29,12 +32,19 @@ os.environ.setdefault("GOOGLE_CLIENT_ID", "test-client-id.apps.googleusercontent
 
 class InMemoryStore:
     REQUEST_STALE_SECONDS = 120
+    SCHOOL_ANSWER_REQUEST_STALE_SECONDS = 120
 
     def __init__(self) -> None:
         self.profiles: dict[str, dict[str, Any]] = {}
+        self.school_profile_versions: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_profile_draft_requests: dict[tuple[str, str], dict[str, Any]] = {}
         self.mastery: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_results: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_mastery: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_sessions: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_answer_requests: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_placement_reports: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_language_confidence: dict[str, dict[str, Any]] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self.session_runtime: dict[str, dict[str, Any]] = {}
         self.session_messages: dict[str, list[dict[str, Any]]] = {}
@@ -47,11 +57,19 @@ class InMemoryStore:
         self.learning_events: list[dict[str, Any]] = []
         self.session_reports: dict[tuple[str, str], dict[str, Any]] = {}
         self.learner_skill_profiles: dict[tuple[str, str, str], dict[str, Any]] = {}
+        self.school_v2_placement_sessions: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_v2_practice_sessions: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_v2_curriculum_sessions: dict[tuple[str, str], dict[str, Any]] = {}
         self.unlocks: set[tuple[str, str, str]] = set()
         self.idempotent_charges: dict[tuple[str, str], dict[str, Any]] = {}
         self.credit_transactions: list[dict[str, Any]] = []
         self.google_login_resolutions = 0
         self.activity_snapshot_calls = 0
+        self._school_curriculum_attempt_lock = asyncio.Lock()
+        self._school_lineage_locks: dict[str, asyncio.Lock] = {}
+
+    def _school_lineage_lock(self, user_id: str) -> asyncio.Lock:
+        return self._school_lineage_locks.setdefault(user_id, asyncio.Lock())
 
     def _is_stale_request(self, row: dict[str, Any]) -> bool:
         if row.get("status") != "in_progress":
@@ -173,6 +191,511 @@ class InMemoryStore:
         profile["career_profile"] = dict(career_profile or {})
         profile["onboarding_state"] = {}
         return dict(profile)
+
+    async def get_active_school_profile_version(self, user_id: str) -> dict[str, Any] | None:
+        rows = [
+            row
+            for (uid, _version_id), row in self.school_profile_versions.items()
+            if uid == user_id and row.get("status") == "active"
+        ]
+        rows.sort(key=lambda row: float(row.get("updated_at") or 0), reverse=True)
+        return dict(rows[0]) if rows else None
+
+    async def get_school_state_snapshot(self, user_id: str) -> dict[str, Any]:
+        self.school_state_snapshot_calls = int(
+            getattr(self, "school_state_snapshot_calls", 0)
+        ) + 1
+        learner = self.profiles.get(user_id)
+        profile_rows = [
+            row
+            for (uid, _version_id), row in self.school_profile_versions.items()
+            if uid == user_id and row.get("status") == "active"
+        ]
+        profile_rows.sort(
+            key=lambda row: float(row.get("updated_at") or 0),
+            reverse=True,
+        )
+        profile = profile_rows[0] if profile_rows else None
+        if not profile:
+            return {
+                "learner_profile": copy.deepcopy(learner),
+                "school_profile": None,
+                "placement_session": None,
+                "placement_report": None,
+                "recap_session": None,
+                "curriculum_session": None,
+                "linked_sessions": [],
+                "processing_answer_requests": [],
+                "school_skill_profiles": [],
+            }
+
+        profile_version_id = str(profile["profile_version_id"])
+        subject_id = str((profile.get("subject_ids") or [""])[0])
+        class_no = int(profile.get("target_class_no") or 0)
+        rows = [
+            row
+            for (uid, _session_id), row in self.school_sessions.items()
+            if uid == user_id
+            and row.get("api_version") == "rebuild"
+            and str(row.get("profile_version_id") or "") == profile_version_id
+            and row.get("subject_id") == subject_id
+            and int(row.get("class_no") or 0) == class_no
+        ]
+
+        def latest(flow_type: str, report_id: str | None = None) -> dict | None:
+            candidates = [
+                row
+                for row in rows
+                if row.get("flow_type") == flow_type
+                and (
+                    report_id is None
+                    or str(row.get("source_placement_report_id") or "")
+                    == str(report_id)
+                )
+            ]
+            candidates.sort(
+                key=lambda row: (
+                    row.get("status") in {"active", "paused_for_masterclass"},
+                    float(row.get("updated_at") or 0),
+                ),
+                reverse=True,
+            )
+            return candidates[0] if candidates else None
+
+        placement_session = latest("placement")
+        placement_session_id = (
+            str(placement_session.get("session_id") or "")
+            if placement_session
+            else ""
+        )
+        reports = [
+            row
+            for (report_user_id, report_placement_id), row in self.school_placement_reports.items()
+            if report_user_id == user_id
+            and str(row.get("profile_version_id") or "") == profile_version_id
+            and (
+                str(report_placement_id) == placement_session_id
+                or (
+                    row.get("subject_id") == subject_id
+                    and int(row.get("target_class_no") or 0) == class_no
+                )
+            )
+        ]
+        reports.sort(
+            key=lambda row: (
+                bool(
+                    placement_session
+                    and str(row.get("placement_session_id") or "")
+                    == str(placement_session.get("session_id") or "")
+                ),
+                float(row.get("updated_at") or 0),
+            ),
+            reverse=True,
+        )
+        placement_report = reports[0] if reports else None
+        report_id = (
+            str(placement_report.get("report_id") or "")
+            if placement_report
+            else None
+        )
+        recap_session = latest("recap", report_id) if report_id else None
+        curriculum_session = latest("curriculum", report_id) if report_id else None
+        parent = curriculum_session or recap_session
+        linked_sessions = [
+            row
+            for row in rows
+            if parent
+            and str(row.get("linked_session_id") or "")
+            == str(parent.get("session_id") or "")
+        ]
+        processing_requests = [
+            row
+            for (session_id, _activity_id), row in self.school_answer_requests.items()
+            if curriculum_session
+            and str(session_id) == str(curriculum_session.get("session_id") or "")
+            and row.get("status") == "processing"
+        ]
+        skill_profiles = [
+            row
+            for (uid, domain, _skill_id), row in self.learner_skill_profiles.items()
+            if uid == user_id and domain == "school"
+        ]
+        return {
+            "learner_profile": copy.deepcopy(learner),
+            "school_profile": copy.deepcopy(profile),
+            "placement_session": copy.deepcopy(placement_session),
+            "placement_report": copy.deepcopy(placement_report),
+            "recap_session": copy.deepcopy(recap_session),
+            "curriculum_session": copy.deepcopy(curriculum_session),
+            "linked_sessions": copy.deepcopy(linked_sessions),
+            "processing_answer_requests": copy.deepcopy(processing_requests),
+            "school_skill_profiles": copy.deepcopy(skill_profiles),
+        }
+
+    async def get_school_profile_draft(self, user_id: str) -> dict[str, Any] | None:
+        rows = [
+            row
+            for (uid, _version_id), row in self.school_profile_versions.items()
+            if uid == user_id and row.get("status") == "draft"
+        ]
+        rows.sort(key=lambda row: float(row.get("updated_at") or 0), reverse=True)
+        return dict(rows[0]) if rows else None
+
+    async def get_school_profile_version(
+        self,
+        user_id: str,
+        profile_version_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.school_profile_versions.get((user_id, str(profile_version_id)))
+        return dict(row) if row else None
+
+    @staticmethod
+    def _school_profile_values(
+        row: dict[str, Any],
+        fields: tuple[str, ...],
+    ) -> tuple[Any, ...]:
+        values: list[Any] = []
+        for field in fields:
+            value = row.get(field)
+            if isinstance(value, list):
+                value = tuple(sorted(set(value)))
+            values.append(value)
+        return tuple(values)
+
+    @classmethod
+    def _school_profile_all_values(cls, row: dict[str, Any]) -> tuple[Any, ...]:
+        return cls._school_profile_values(
+            row,
+            (
+            "display_name",
+            "school_name",
+            "board_id",
+            "target_class_no",
+            "subject_ids",
+            "preferred_teaching_language",
+            "english_comfort",
+            "learner_goal",
+            "parent_goal",
+            "prior_difficulty_signals",
+            ),
+        )
+
+    @classmethod
+    def _school_profile_compatibility_values(
+        cls,
+        row: dict[str, Any],
+    ) -> tuple[Any, ...]:
+        return cls._school_profile_values(
+            row,
+            (
+                "board_id",
+                "target_class_no",
+                "subject_ids",
+                "preferred_teaching_language",
+                "english_comfort",
+                "prior_difficulty_signals",
+            ),
+        )
+
+    @staticmethod
+    def _school_profile_draft_snapshot(row: dict[str, Any]) -> dict[str, Any]:
+        target_class_no = row.get("target_class_no")
+        return {
+            "profile_version_id": str(row["profile_version_id"]),
+            "status": "draft",
+            "current_step": int(row.get("current_step") or 0),
+            "draft_revision": int(row.get("draft_revision") or 1),
+            "display_name": row.get("display_name"),
+            "school_name": row.get("school_name"),
+            "board_id": row.get("board_id"),
+            "target_class_no": (
+                int(target_class_no) if target_class_no is not None else None
+            ),
+            "subject_ids": copy.deepcopy(row.get("subject_ids")),
+            "preferred_teaching_language": row.get("preferred_teaching_language"),
+            "english_comfort": row.get("english_comfort"),
+            "learner_goal": row.get("learner_goal"),
+            "parent_goal": row.get("parent_goal"),
+            "prior_difficulty_signals": copy.deepcopy(
+                row.get("prior_difficulty_signals")
+            ),
+        }
+
+    async def save_school_profile_draft(
+        self,
+        *,
+        user_id: str,
+        profile_version_id: str | None,
+        expected_revision: int | None,
+        current_step: int,
+        request_id: str,
+        payload_hash: str,
+        patch: dict[str, Any],
+    ) -> dict[str, Any]:
+        async with self._school_lineage_lock(user_id):
+            request_key = (user_id, str(request_id))
+            saved_request = self.school_profile_draft_requests.get(request_key)
+            if saved_request:
+                if saved_request["payload_hash"] != payload_hash:
+                    raise ValueError("school_draft_request_conflict")
+                return copy.deepcopy(saved_request["response_json"])
+
+            existing = await self.get_school_profile_draft(user_id)
+            if existing:
+                if profile_version_id is None or expected_revision is None:
+                    raise ValueError("school_draft_lineage_required")
+                if (
+                    str(existing["profile_version_id"]) != str(profile_version_id)
+                ):
+                    raise ValueError("school_draft_profile_conflict")
+                if (
+                    int(existing.get("draft_revision") or 1) != int(expected_revision)
+                ):
+                    raise ValueError("school_draft_revision_conflict")
+                row = self.school_profile_versions[
+                    (user_id, str(existing["profile_version_id"]))
+                ]
+                row.update(copy.deepcopy(patch))
+                row["current_step"] = int(current_step)
+                row["draft_revision"] = int(row.get("draft_revision") or 1) + 1
+                row["last_save_request_id"] = str(request_id)
+                row["last_save_payload_hash"] = payload_hash
+                row["updated_at"] = time.time()
+                snapshot = self._school_profile_draft_snapshot(row)
+                self.school_profile_draft_requests[request_key] = {
+                    "user_id": user_id,
+                    "request_id": str(request_id),
+                    "profile_version_id": str(row["profile_version_id"]),
+                    "payload_hash": payload_hash,
+                    "response_json": copy.deepcopy(snapshot),
+                    "created_at": time.time(),
+                    "updated_at": time.time(),
+                }
+                return snapshot
+
+            if profile_version_id is not None or expected_revision is not None:
+                raise ValueError("school_draft_not_found")
+            active = await self.get_active_school_profile_version(user_id)
+            draft_id = str(uuid4())
+            now = time.time()
+            row = {
+                "profile_version_id": draft_id,
+                "user_id": user_id,
+                "status": "draft",
+                "display_name": None,
+                "school_name": None,
+                "board_id": None,
+                "target_class_no": None,
+                "subject_ids": None,
+                "preferred_teaching_language": None,
+                "english_comfort": None,
+                "learner_goal": None,
+                "parent_goal": None,
+                "prior_difficulty_signals": None,
+                "current_step": int(current_step),
+                "draft_revision": 1,
+                "last_save_request_id": str(request_id),
+                "last_save_payload_hash": payload_hash,
+                "source_profile_version_id": (
+                    str(active["profile_version_id"]) if active else None
+                ),
+                "activation_request_id": None,
+                "activation_payload_hash": None,
+                "activation_result_profile_version_id": None,
+                "created_at": now,
+                "updated_at": now,
+                "activated_at": None,
+                "archived_at": None,
+            }
+            if active:
+                for field in (
+                    "display_name",
+                    "school_name",
+                    "board_id",
+                    "target_class_no",
+                    "subject_ids",
+                    "preferred_teaching_language",
+                    "english_comfort",
+                    "learner_goal",
+                    "parent_goal",
+                    "prior_difficulty_signals",
+                ):
+                    row[field] = copy.deepcopy(active.get(field))
+            row.update(copy.deepcopy(patch))
+            self.school_profile_versions[(user_id, draft_id)] = row
+            snapshot = self._school_profile_draft_snapshot(row)
+            self.school_profile_draft_requests[request_key] = {
+                "user_id": user_id,
+                "request_id": str(request_id),
+                "profile_version_id": draft_id,
+                "payload_hash": payload_hash,
+                "response_json": copy.deepcopy(snapshot),
+                "created_at": now,
+                "updated_at": now,
+            }
+            return snapshot
+
+    async def activate_school_profile_draft(
+        self,
+        *,
+        user_id: str,
+        profile_version_id: str,
+        expected_revision: int,
+        request_id: str,
+        payload_hash: str,
+    ) -> dict[str, Any]:
+        async with self._school_lineage_lock(user_id):
+            versions_before = copy.deepcopy(self.school_profile_versions)
+            sessions_before = copy.deepcopy(self.school_sessions)
+            reports_before = copy.deepcopy(self.school_placement_reports)
+            profiles_before = copy.deepcopy(self.profiles)
+            try:
+                replay = next(
+                    (
+                        row
+                        for (uid, _version_id), row in self.school_profile_versions.items()
+                        if uid == user_id
+                        and str(row.get("activation_request_id") or "")
+                        == str(request_id)
+                    ),
+                    None,
+                )
+                if replay:
+                    if replay.get("activation_payload_hash") != payload_hash:
+                        raise ValueError("school_activation_request_conflict")
+                    result_profile_id = (
+                        replay.get("activation_result_profile_version_id")
+                        or replay["profile_version_id"]
+                    )
+                    result = self.school_profile_versions.get(
+                        (user_id, str(result_profile_id))
+                    )
+                    if result is None:
+                        raise ValueError("school_activation_result_missing")
+                    return copy.deepcopy(result)
+
+                target = self.school_profile_versions.get(
+                    (user_id, str(profile_version_id))
+                )
+                if target is None:
+                    raise ValueError("school_profile_not_found")
+                if int(target.get("draft_revision") or 1) != int(expected_revision):
+                    raise ValueError("school_profile_revision_conflict")
+                if target.get("status") == "active":
+                    raise ValueError("school_profile_already_active")
+                if target.get("status") != "draft":
+                    raise ValueError("school_profile_not_draft")
+
+                from app.services.school_rebuild_profile import (
+                    CANONICAL_SCHOOL_COACH_IDS,
+                    choose_school_coach_identity,
+                    school_catalog_selection_available,
+                )
+
+                if not school_catalog_selection_available(target):
+                    raise ValueError("school_catalog_selection_unavailable")
+
+                source = None
+                source_profile_version_id = target.get("source_profile_version_id")
+                if source_profile_version_id is not None:
+                    candidate = self.school_profile_versions.get(
+                        (user_id, str(source_profile_version_id))
+                    )
+                    if candidate and candidate.get("status") == "active":
+                        source = candidate
+                now = time.time()
+                if (
+                    source
+                    and self._school_profile_all_values(source)
+                    == self._school_profile_all_values(target)
+                ):
+                    target["status"] = "archived"
+                    target["archived_at"] = now
+                    target["activation_request_id"] = str(request_id)
+                    target["activation_payload_hash"] = payload_hash
+                    target["activation_result_profile_version_id"] = str(
+                        source["profile_version_id"]
+                    )
+                    target["updated_at"] = now
+                    return copy.deepcopy(source)
+
+                existing_avatar_id = target.get("coach_avatar_id")
+                existing_palette_id = target.get("coach_palette_id")
+                if (
+                    existing_avatar_id in CANONICAL_SCHOOL_COACH_IDS
+                    and existing_palette_id == existing_avatar_id
+                ):
+                    coach_identity = {
+                        "coach_avatar_id": existing_avatar_id,
+                        "coach_palette_id": existing_palette_id,
+                    }
+                else:
+                    coach_identity = choose_school_coach_identity()
+
+                for (uid, _version_id), row in self.school_profile_versions.items():
+                    if uid == user_id and row.get("status") == "active":
+                        row["status"] = "archived"
+                        row["archived_at"] = now
+                        row["updated_at"] = now
+                target["status"] = "active"
+                target["activated_at"] = now
+                target["archived_at"] = None
+                target.update(coach_identity)
+                target["activation_request_id"] = str(request_id)
+                target["activation_payload_hash"] = payload_hash
+                target["activation_result_profile_version_id"] = str(
+                    profile_version_id
+                )
+                target["updated_at"] = now
+                compatible_edit = bool(
+                    source
+                    and self._school_profile_compatibility_values(source)
+                    == self._school_profile_compatibility_values(target)
+                )
+                if compatible_edit:
+                    for row in self.school_sessions.values():
+                        if (
+                            row.get("user_id") == user_id
+                            and str(row.get("profile_version_id") or "")
+                            == str(source["profile_version_id"])
+                            and row.get("status")
+                            in {"active", "paused_for_masterclass"}
+                        ):
+                            row["profile_version_id"] = str(profile_version_id)
+                            row.setdefault("state_json", {})[
+                                "profile_version_id"
+                            ] = str(profile_version_id)
+                            row["updated_at"] = now
+                await self.expire_active_school_sessions_from_other_profiles(
+                    user_id,
+                    str(profile_version_id),
+                )
+                learner = self._profile(user_id)
+                learner["name"] = str(target["display_name"])
+                learner["primary_motive"] = "school"
+                learner["school_profile"] = {
+                    field: copy.deepcopy(target.get(field))
+                    for field in (
+                        "school_name",
+                        "board_id",
+                        "target_class_no",
+                        "subject_ids",
+                        "preferred_teaching_language",
+                        "english_comfort",
+                        "learner_goal",
+                        "parent_goal",
+                        "prior_difficulty_signals",
+                    )
+                }
+                learner["onboarding_completed_at"] = now
+                learner["onboarding_state"] = {}
+                return copy.deepcopy(target)
+            except Exception:
+                self.school_profile_versions = versions_before
+                self.school_sessions = sessions_before
+                self.school_placement_reports = reports_before
+                self.profiles = profiles_before
+                raise
 
     async def grant_credits(self, user_id: str, amount: int, reason: str = "grant") -> int:
         profile = self._profile(user_id)
@@ -610,6 +1133,18 @@ class InMemoryStore:
                 row
                 for row in self.learning_events
                 if row.get("user_id") == user_id
+            ],
+        }
+
+    async def get_school_learning_graph(self, user_id: str) -> dict[str, Any]:
+        graph = await self.get_learning_graph(user_id)
+        return {
+            "profiles": [
+                row for row in graph.get("profiles", []) if row.get("domain") == "school"
+            ],
+            "reports": [],
+            "events": [
+                row for row in graph.get("events", []) if row.get("domain") == "school"
             ],
         }
 
@@ -1191,6 +1726,792 @@ class InMemoryStore:
         rows = await self.get_school_skill_mastery(user_id)
         return [row["skill"] for row in rows if float(row.get("ema") or 0.0) < 0.6]
 
+    async def upsert_school_session(self, **kwargs) -> None:
+        lineage_lock_held = bool(kwargs.pop("_school_lineage_lock_held", False))
+        row = dict(kwargs)
+        user_id = str(row["user_id"])
+        if row.get("api_version") == "rebuild" and not lineage_lock_held:
+            async with self._school_lineage_lock(user_id):
+                self._upsert_school_session(row)
+            return
+        self._upsert_school_session(row)
+
+    async def get_or_create_school_session(self, **kwargs) -> dict[str, Any]:
+        row = dict(kwargs)
+        user_id = str(row["user_id"])
+        async with self._school_lineage_lock(user_id):
+            winner = await self.get_active_school_session(
+                user_id,
+                str(row["api_version"]),
+                str(row["flow_type"]),
+                str(row["subject_id"]),
+                int(row["class_no"]),
+                profile_version_id=row.get("profile_version_id"),
+                source_placement_report_id=row.get("source_placement_report_id"),
+            )
+            if winner:
+                return winner
+            self._upsert_school_session(row)
+            return copy.deepcopy(
+                self.school_sessions[(user_id, str(row["session_id"]))]
+            )
+
+    async def get_or_create_active_school_placement_session(
+        self,
+        **kwargs,
+    ) -> dict[str, Any]:
+        row = {
+            **dict(kwargs),
+            "api_version": "rebuild",
+            "flow_type": "placement",
+            "status": "active",
+            "source_placement_report_id": None,
+        }
+        user_id = str(row["user_id"])
+        profile_version_id = str(row["profile_version_id"])
+        async with self._school_lineage_lock(user_id):
+            active = await self.get_active_school_profile_version(user_id)
+            if (
+                not active
+                or str(active["profile_version_id"]) != profile_version_id
+            ):
+                raise ValueError("stale_school_profile_lineage")
+            winner = await self.get_active_school_session(
+                user_id,
+                "rebuild",
+                "placement",
+                str(row["subject_id"]),
+                int(row["class_no"]),
+                profile_version_id=profile_version_id,
+            )
+            if winner:
+                return winner
+            self._upsert_school_session(row)
+            return copy.deepcopy(
+                self.school_sessions[(user_id, str(row["session_id"]))]
+            )
+
+    def _upsert_school_session(self, row: dict[str, Any]) -> None:
+        session_id = str(row["session_id"])
+        user_id = str(row["user_id"])
+        status = str(row.get("status") or "active")
+        active_statuses = {"active", "paused_for_masterclass"}
+        terminal_statuses = {
+            "complete",
+            "insufficient_evidence",
+            "abandoned",
+            "expired",
+        }
+        if row.get("api_version") != "rebuild" and status in active_statuses:
+            raise ValueError("archived_school_api_version")
+        previous = self.school_sessions.get((user_id, session_id), {})
+        for lineage_key in ("profile_version_id", "source_placement_report_id"):
+            if row.get(lineage_key) is None and previous.get(lineage_key) is not None:
+                row[lineage_key] = previous[lineage_key]
+            elif (
+                row.get("api_version") == "rebuild"
+                and row.get(lineage_key) is not None
+                and previous.get(lineage_key) is not None
+                and str(row[lineage_key]) != str(previous[lineage_key])
+            ):
+                raise ValueError("school_session_lineage_conflict")
+        same_terminal_replay = bool(
+            previous
+            and status in terminal_statuses
+            and previous.get("status") == status
+        )
+        requires_active_profile = False
+        if row.get("api_version") == "rebuild" and status in active_statuses:
+            if previous and previous.get("status") not in active_statuses:
+                raise ValueError("stale_school_session_transition")
+            requires_active_profile = True
+        elif row.get("api_version") == "rebuild" and status in terminal_statuses:
+            if not previous:
+                raise ValueError("school_session_transition_requires_active")
+            if not same_terminal_replay:
+                if previous.get("status") not in active_statuses:
+                    raise ValueError("stale_school_session_transition")
+                requires_active_profile = True
+        if (
+            row.get("api_version") == "rebuild"
+            and requires_active_profile
+            and not row.get("profile_version_id")
+        ):
+            raise ValueError("active_school_session_profile_lineage_required")
+        if row.get("api_version") == "rebuild" and requires_active_profile:
+            profile = self.school_profile_versions.get(
+                (user_id, str(row["profile_version_id"]))
+            )
+            if not profile or profile.get("status") != "active":
+                raise ValueError("stale_school_profile_lineage")
+        if row.get("api_version") == "rebuild" and row.get("profile_version_id"):
+            profile_version_id = str(row["profile_version_id"])
+            state_json = dict(row.get("state_json") or {})
+            embedded_profile_version_id = state_json.get("profile_version_id")
+            if (
+                embedded_profile_version_id not in (None, "")
+                and str(embedded_profile_version_id) != profile_version_id
+            ):
+                raise ValueError("school_session_lineage_conflict")
+        if status in active_statuses:
+            for (uid, sid), existing in self.school_sessions.items():
+                if uid != user_id or sid == session_id:
+                    continue
+                if existing.get("status") not in active_statuses:
+                    continue
+                if (
+                    existing.get("flow_type") == row.get("flow_type")
+                    and existing.get("subject_id") == row.get("subject_id")
+                    and int(existing.get("class_no") or 0) == int(row.get("class_no") or 0)
+                ):
+                    raise ValueError("duplicate_active_school_session")
+        linked_session_id = row.get("linked_session_id")
+        if linked_session_id:
+            linked_key = (user_id, str(linked_session_id))
+            if linked_key not in self.school_sessions:
+                raise ValueError("linked_school_session_not_found")
+        now = time.time()
+        merged = {
+            **previous,
+            **row,
+            "session_id": session_id,
+            "user_id": user_id,
+            "status": status,
+            "state_json": dict(row.get("state_json") or previous.get("state_json") or {}),
+            "updated_at": now,
+        }
+        merged.setdefault("started_at", previous.get("started_at", now))
+        if status in {"complete", "abandoned", "expired", "insufficient_evidence"}:
+            merged.setdefault("completed_at", now)
+        self.school_sessions[(user_id, session_id)] = merged
+
+    async def persist_school_curriculum_attempt(
+        self,
+        *,
+        learning_event: dict,
+        school_session: dict,
+        expected_state_json: dict,
+        request_activity_id: str | None = None,
+        request_answer_hash: str | None = None,
+        request_claim_token: str | None = None,
+        response_json: dict | None = None,
+        projection_evidence: dict | None = None,
+        language_evaluation: dict | None = None,
+    ) -> None:
+        await self.persist_school_answer_attempt(
+            learning_event=learning_event,
+            school_session=school_session,
+            expected_state_json=expected_state_json,
+            request_activity_id=request_activity_id,
+            request_answer_hash=request_answer_hash,
+            request_claim_token=request_claim_token,
+            response_json=response_json,
+            projection_evidence=projection_evidence,
+            language_evaluation=language_evaluation,
+        )
+
+    async def compare_and_set_school_session(
+        self,
+        *,
+        school_session: dict,
+        expected_state_json: dict,
+    ) -> bool:
+        user_id = str(school_session["user_id"])
+        session_id = str(school_session["session_id"])
+        async with self._school_lineage_lock(user_id):
+            async with self._school_curriculum_attempt_lock:
+                current = self.school_sessions.get((user_id, session_id))
+                if current is None or current.get("state_json") != expected_state_json:
+                    return False
+                self._upsert_school_session(dict(school_session))
+                return True
+
+    async def persist_school_answer_attempt(
+        self,
+        *,
+        learning_event: dict,
+        school_session: dict,
+        expected_state_json: dict,
+        request_activity_id: str | None = None,
+        request_answer_hash: str | None = None,
+        request_claim_token: str | None = None,
+        response_json: dict | None = None,
+        placement_report: dict | None = None,
+        projection_evidence: dict | None = None,
+        language_evaluation: dict | None = None,
+    ) -> None:
+        kwargs = {
+            "learning_event": learning_event,
+            "school_session": school_session,
+            "expected_state_json": expected_state_json,
+            "request_activity_id": request_activity_id,
+            "request_answer_hash": request_answer_hash,
+            "request_claim_token": request_claim_token,
+            "response_json": response_json,
+            "placement_report": placement_report,
+            "projection_evidence": projection_evidence,
+            "language_evaluation": language_evaluation,
+        }
+        if school_session.get("api_version") == "rebuild":
+            async with self._school_lineage_lock(str(school_session["user_id"])):
+                await self._persist_school_answer_attempt(**kwargs)
+            return
+        await self._persist_school_answer_attempt(**kwargs)
+
+    async def _persist_school_answer_attempt(
+        self,
+        *,
+        learning_event: dict,
+        school_session: dict,
+        expected_state_json: dict,
+        request_activity_id: str | None = None,
+        request_answer_hash: str | None = None,
+        request_claim_token: str | None = None,
+        response_json: dict | None = None,
+        placement_report: dict | None = None,
+        projection_evidence: dict | None = None,
+        language_evaluation: dict | None = None,
+    ) -> None:
+        async with self._school_curriculum_attempt_lock:
+            key = (str(school_session["user_id"]), str(school_session["session_id"]))
+            current = self.school_sessions.get(key)
+            if current is None or current.get("state_json") != expected_state_json:
+                raise ValueError("stale_school_answer_session")
+            previous_session = copy.deepcopy(current)
+            request_key = (str(school_session["session_id"]), str(request_activity_id))
+            previous_request = copy.deepcopy(self.school_answer_requests.get(request_key))
+            report_key = None
+            previous_report = None
+            if placement_report is not None:
+                report_key = (
+                    str(placement_report["user_id"]),
+                    str(placement_report["placement_session_id"]),
+                )
+                previous_report = copy.deepcopy(
+                    self.school_placement_reports.get(report_key)
+                )
+            event_key = learning_event.get("source_event_key")
+            event_already_existed = bool(
+                event_key
+                and any(row.get("source_event_key") == event_key for row in self.learning_events)
+            )
+            previous_profiles = copy.deepcopy(self.learner_skill_profiles)
+            previous_language = copy.deepcopy(self.school_language_confidence)
+            try:
+                inserted = await self.record_learning_event(**learning_event)
+                if not inserted:
+                    raise ValueError("duplicate_evidence_conflict")
+                if projection_evidence is not None:
+                    from app.services.school.projection import (
+                        SchoolAttemptEvidence,
+                        derive_school_projection_delta,
+                    )
+
+                    existing_profiles = [
+                        dict(row)
+                        for (uid, domain, _skill_id), row in self.learner_skill_profiles.items()
+                        if uid == school_session["user_id"] and domain == "school"
+                    ]
+                    projection = SchoolAttemptEvidence.from_dict(projection_evidence)
+                    for profile in derive_school_projection_delta(
+                        projection,
+                        existing_profiles,
+                    ):
+                        profile["user_id"] = school_session["user_id"]
+                        await self.upsert_learner_skill_profile(**profile)
+                if language_evaluation is not None:
+                    from app.services.school.language_confidence import (
+                        LanguageConfidenceState,
+                        apply_curriculum_language_signal,
+                    )
+
+                    previous = self.school_language_confidence.get(
+                        str(school_session["user_id"]),
+                        {},
+                    )
+                    language_state = apply_curriculum_language_signal(
+                        LanguageConfidenceState(
+                            user_id=str(school_session["user_id"]),
+                            en_production_confidence=float(
+                                previous.get("en_production_confidence") or 0.0
+                            ),
+                            total_signals=int(previous.get("total_signals") or 0),
+                        ),
+                        language_evaluation,
+                    )
+                    await self.upsert_school_language_confidence(
+                        user_id=language_state.user_id,
+                        en_production_confidence=language_state.en_production_confidence,
+                        total_signals=language_state.total_signals,
+                    )
+                    school_session = {
+                        **school_session,
+                        "state_json": {
+                            **dict(school_session.get("state_json") or {}),
+                            "en_production_confidence": language_state.en_production_confidence,
+                            "language_signal_count": language_state.total_signals,
+                        },
+                    }
+                await self.upsert_school_session(
+                    _school_lineage_lock_held=True,
+                    **school_session,
+                )
+                if placement_report is not None:
+                    await self.upsert_school_placement_report(**placement_report)
+                if request_activity_id is not None:
+                    request_row = self.school_answer_requests.get(request_key)
+                    if (
+                        request_answer_hash is None
+                        or request_claim_token is None
+                        or response_json is None
+                        or request_row is None
+                        or request_row.get("user_id") != school_session["user_id"]
+                        or request_row.get("answer_hash") != request_answer_hash
+                        or request_row.get("claim_token") != request_claim_token
+                        or request_row.get("status") != "processing"
+                    ):
+                        raise ValueError("stale_school_answer_request")
+                    request_row.update(
+                        status="completed",
+                        response_json=copy.deepcopy(response_json),
+                        updated_at=time.time(),
+                    )
+            except Exception:
+                self.school_sessions[key] = previous_session
+                self.learner_skill_profiles = previous_profiles
+                self.school_language_confidence = previous_language
+                if request_activity_id is not None:
+                    if previous_request is None:
+                        self.school_answer_requests.pop(request_key, None)
+                    else:
+                        self.school_answer_requests[request_key] = previous_request
+                if report_key is not None:
+                    if previous_report is None:
+                        self.school_placement_reports.pop(report_key, None)
+                    else:
+                        self.school_placement_reports[report_key] = previous_report
+                if event_key and not event_already_existed:
+                    self.learning_events = [
+                        row
+                        for row in self.learning_events
+                        if row.get("source_event_key") != event_key
+                    ]
+                raise
+
+    async def get_school_answer_request(
+        self, user_id: str, session_id: str, activity_id: str
+    ) -> dict[str, Any] | None:
+        row = self.school_answer_requests.get((str(session_id), str(activity_id)))
+        if not row or row.get("user_id") != user_id:
+            return None
+        result = copy.deepcopy(row)
+        result["stale"] = bool(
+            result.get("status") == "processing"
+            and time.time() - float(result.get("updated_at") or 0.0)
+            >= self.SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+        )
+        return result
+
+    async def claim_school_answer_request(
+        self, user_id: str, session_id: str, activity_id: str, answer_hash: str
+    ) -> dict[str, Any]:
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            existing = self.school_answer_requests.get(key)
+            now = time.time()
+            claim_token = str(uuid4())
+            if existing:
+                status = str(existing.get("status") or "")
+                if existing.get("user_id") != user_id:
+                    return {"outcome": "conflict"}
+                if status != "failed" and existing.get("answer_hash") != answer_hash:
+                    return {"outcome": "conflict"}
+                if status == "completed":
+                    return {
+                        "outcome": "completed",
+                        "response_json": copy.deepcopy(existing.get("response_json")),
+                    }
+                stale = (
+                    status == "processing"
+                    and now - float(existing.get("updated_at") or 0.0)
+                    >= self.SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+                )
+                if status == "processing" and not stale:
+                    return {"outcome": "in_progress"}
+                existing.update(
+                    answer_hash=answer_hash,
+                    status="processing",
+                    response_json=None,
+                    claim_token=claim_token,
+                    updated_at=now,
+                )
+                return {"outcome": "claimed", "claim_token": claim_token}
+            if (user_id, str(session_id)) not in self.school_sessions:
+                raise ValueError("school_session_not_found")
+            self.school_answer_requests[key] = {
+                "session_id": str(session_id),
+                "activity_id": str(activity_id),
+                "user_id": user_id,
+                "answer_hash": answer_hash,
+                "claim_token": claim_token,
+                "status": "processing",
+                "response_json": None,
+                "created_at": now,
+                "updated_at": now,
+            }
+            return {"outcome": "claimed", "claim_token": claim_token}
+
+    async def fail_school_answer_request(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        claim_token: str,
+    ) -> None:
+        async with self._school_curriculum_attempt_lock:
+            row = self.school_answer_requests.get((str(session_id), str(activity_id)))
+            if (
+                row
+                and row.get("user_id") == user_id
+                and row.get("answer_hash") == answer_hash
+                and row.get("claim_token") == claim_token
+                and row.get("status") == "processing"
+            ):
+                row.update(status="failed", response_json=None, updated_at=time.time())
+
+    async def renew_school_answer_request(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        claim_token: str,
+    ) -> bool:
+        async with self._school_curriculum_attempt_lock:
+            row = self.school_answer_requests.get((str(session_id), str(activity_id)))
+            if not (
+                row
+                and row.get("user_id") == user_id
+                and row.get("answer_hash") == answer_hash
+                and row.get("claim_token") == claim_token
+                and row.get("status") == "processing"
+            ):
+                return False
+            row["updated_at"] = time.time()
+            return True
+
+    async def get_school_session(
+        self,
+        user_id: str,
+        session_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.school_sessions.get((user_id, str(session_id)))
+        return dict(row) if row else None
+
+    async def get_active_school_session(
+        self,
+        user_id: str,
+        api_version: str,
+        flow_type: str,
+        subject_id: str,
+        class_no: int,
+        *,
+        profile_version_id: str | None = None,
+        source_placement_report_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        for (uid, _session_id), row in self.school_sessions.items():
+            if (
+                uid == user_id
+                and row.get("api_version") == api_version
+                and row.get("flow_type") == flow_type
+                and row.get("subject_id") == subject_id
+                and int(row.get("class_no") or 0) == int(class_no)
+                and (
+                    profile_version_id is None
+                    or str(row.get("profile_version_id") or "")
+                    == str(profile_version_id)
+                )
+                and (
+                    source_placement_report_id is None
+                    or str(row.get("source_placement_report_id") or "")
+                    == str(source_placement_report_id)
+                )
+                and row.get("status") in {"active", "paused_for_masterclass"}
+            ):
+                return dict(row)
+        return None
+
+    async def get_latest_school_session(
+        self,
+        user_id: str,
+        api_version: str,
+        flow_type: str,
+        subject_id: str,
+        class_no: int,
+        *,
+        profile_version_id: str | None = None,
+        source_placement_report_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        rows = [
+            dict(row)
+            for (uid, _session_id), row in self.school_sessions.items()
+            if (
+                uid == user_id
+                and row.get("api_version") == api_version
+                and row.get("flow_type") == flow_type
+                and row.get("subject_id") == subject_id
+                and int(row.get("class_no") or 0) == int(class_no)
+                and (
+                    profile_version_id is None
+                    or str(row.get("profile_version_id") or "")
+                    == str(profile_version_id)
+                )
+                and (
+                    source_placement_report_id is None
+                    or str(row.get("source_placement_report_id") or "")
+                    == str(source_placement_report_id)
+                )
+            )
+        ]
+        rows.sort(key=lambda row: float(row.get("updated_at") or 0.0), reverse=True)
+        return rows[0] if rows else None
+
+    async def get_school_sessions_linked_to(
+        self,
+        user_id: str,
+        linked_session_id: str,
+    ) -> list[dict[str, Any]]:
+        rows = [
+            dict(row)
+            for (uid, _session_id), row in self.school_sessions.items()
+            if uid == user_id and str(row.get("linked_session_id") or "") == str(linked_session_id)
+        ]
+        rows.sort(key=lambda row: float(row.get("updated_at") or 0.0), reverse=True)
+        return rows
+
+    async def expire_active_school_sessions_from_other_profiles(
+        self,
+        user_id: str,
+        current_profile_version_id: str,
+    ) -> int:
+        expired = 0
+        now = time.time()
+        for (uid, _session_id), row in self.school_sessions.items():
+            if uid != user_id:
+                continue
+            if row.get("status") not in {"active", "paused_for_masterclass"}:
+                continue
+            if str(row.get("profile_version_id") or "") == str(current_profile_version_id):
+                continue
+            row.update(status="expired", updated_at=now)
+            row.setdefault("completed_at", now)
+            expired += 1
+        return expired
+
+    async def upsert_school_placement_report(self, **kwargs) -> dict[str, Any]:
+        user_id = str(kwargs["user_id"])
+        placement_session_id = str(kwargs["placement_session_id"])
+        key = (user_id, placement_session_id)
+        now = time.time()
+        previous = self.school_placement_reports.get(key, {})
+        row = {
+            **previous,
+            **dict(kwargs),
+            "user_id": user_id,
+            "placement_session_id": placement_session_id,
+            "updated_at": now,
+        }
+        row.setdefault("created_at", previous.get("created_at", now))
+        self.school_placement_reports[key] = row
+        return dict(row)
+
+    async def get_school_placement_report(
+        self,
+        user_id: str,
+        placement_session_id: str,
+        *,
+        profile_version_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        row = self.school_placement_reports.get((str(user_id), str(placement_session_id)))
+        if not row:
+            return None
+        if (
+            profile_version_id is not None
+            and str(row.get("profile_version_id") or "") != str(profile_version_id)
+        ):
+            return None
+        return dict(row)
+
+    async def get_school_placement_report_by_id(
+        self,
+        user_id: str,
+        report_id: str,
+    ) -> dict[str, Any] | None:
+        for (report_user_id, _session_id), row in self.school_placement_reports.items():
+            if report_user_id == str(user_id) and str(row.get("report_id")) == str(
+                report_id
+            ):
+                return dict(row)
+        return None
+
+    async def get_latest_compatible_school_placement_report(
+        self,
+        user_id: str,
+        profile_version_id: str,
+        subject_id: str,
+        target_class_no: int,
+    ) -> dict[str, Any] | None:
+        current = self.school_profile_versions.get((user_id, str(profile_version_id)))
+        if not current or current.get("status") != "active":
+            return None
+        compatible_profile_ids: list[str] = []
+        visited: set[str] = set()
+        while current:
+            current_id = str(current["profile_version_id"])
+            if current_id in visited:
+                break
+            visited.add(current_id)
+            compatible_profile_ids.append(current_id)
+            source_id = str(current.get("source_profile_version_id") or "")
+            if not source_id:
+                break
+            source = self.school_profile_versions.get((user_id, source_id))
+            if not source or self._school_profile_compatibility_values(
+                current
+            ) != self._school_profile_compatibility_values(source):
+                break
+            current = source
+
+        reports = [
+            row
+            for (report_user_id, _session_id), row in self.school_placement_reports.items()
+            if report_user_id == user_id
+            and row.get("subject_id") == subject_id
+            and int(row.get("target_class_no") or 0) == int(target_class_no)
+        ]
+        reports.sort(key=lambda row: float(row.get("updated_at") or 0), reverse=True)
+        for compatible_profile_id in compatible_profile_ids:
+            report = next(
+                (
+                    row
+                    for row in reports
+                    if str(row.get("profile_version_id") or "")
+                    == compatible_profile_id
+                ),
+                None,
+            )
+            if report:
+                return dict(report)
+        return None
+
+    async def upsert_school_language_confidence(self, **kwargs) -> None:
+        user_id = str(kwargs["user_id"])
+        self.school_language_confidence[user_id] = {
+            "user_id": user_id,
+            "en_production_confidence": max(
+                0.0,
+                min(1.0, float(kwargs.get("en_production_confidence") or 0.0)),
+            ),
+            "total_signals": max(0, int(kwargs.get("total_signals") or 0)),
+            "updated_at": time.time(),
+        }
+
+    async def get_school_language_confidence(self, user_id: str) -> dict[str, Any] | None:
+        row = self.school_language_confidence.get(user_id)
+        return dict(row) if row else None
+
+    async def upsert_school_v2_placement_session(self, **kwargs) -> None:
+        key = (kwargs["user_id"], kwargs["placement_session_id"])
+        previous = self.school_v2_placement_sessions.get(key, {})
+        self.school_v2_placement_sessions[key] = {**previous, **dict(kwargs)}
+
+    async def get_school_v2_placement_session(
+        self,
+        user_id: str,
+        placement_session_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.school_v2_placement_sessions.get((user_id, placement_session_id))
+        return dict(row) if row else None
+
+    async def get_active_school_v2_placement_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+    ) -> dict[str, Any] | None:
+        for (uid, _session_id), row in self.school_v2_placement_sessions.items():
+            if (
+                uid == user_id
+                and row.get("subject_id") == subject_id
+                and int(row.get("target_class_no") or 0) == int(target_class_no)
+                and row.get("status") == "in_progress"
+            ):
+                return dict(row)
+        return None
+
+    async def upsert_school_v2_practice_session(self, **kwargs) -> None:
+        key = (kwargs["user_id"], kwargs["practice_session_id"])
+        previous = self.school_v2_practice_sessions.get(key, {})
+        self.school_v2_practice_sessions[key] = {**previous, **dict(kwargs)}
+
+    async def get_school_v2_practice_session(
+        self,
+        user_id: str,
+        practice_session_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.school_v2_practice_sessions.get((user_id, practice_session_id))
+        return dict(row) if row else None
+
+    async def get_active_school_v2_practice_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+        skill_id: str,
+    ) -> dict[str, Any] | None:
+        for (uid, _session_id), row in self.school_v2_practice_sessions.items():
+            if (
+                uid == user_id
+                and row.get("subject_id") == subject_id
+                and int(row.get("target_class_no") or 0) == int(target_class_no)
+                and row.get("skill_id") == skill_id
+                and row.get("status") == "in_progress"
+            ):
+                return dict(row)
+        return None
+
+    async def upsert_school_v2_curriculum_session(self, **kwargs) -> None:
+        key = (kwargs["user_id"], kwargs["curriculum_session_id"])
+        previous = self.school_v2_curriculum_sessions.get(key, {})
+        self.school_v2_curriculum_sessions[key] = {**previous, **dict(kwargs)}
+
+    async def get_school_v2_curriculum_session(
+        self,
+        user_id: str,
+        curriculum_session_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.school_v2_curriculum_sessions.get((user_id, curriculum_session_id))
+        return dict(row) if row else None
+
+    async def get_active_school_v2_curriculum_session(
+        self,
+        user_id: str,
+        subject_id: str,
+        target_class_no: int,
+        chapter_id: str,
+    ) -> dict[str, Any] | None:
+        for (uid, _session_id), row in self.school_v2_curriculum_sessions.items():
+            if (
+                uid == user_id
+                and row.get("subject_id") == subject_id
+                and int(row.get("target_class_no") or 0) == int(target_class_no)
+                and row.get("chapter_id") == chapter_id
+                and row.get("status") == "in_progress"
+            ):
+                return dict(row)
+        return None
+
     async def get_weaknesses(self, user_id: str, task_type: str | None = None) -> list[dict[str, Any]]:
         return []
 
@@ -1234,6 +2555,7 @@ def hardening_test_env(monkeypatch, store: InMemoryStore):
         "app.api.routes",
         "app.api.health",
         "app.api.school_routes",
+        "app.api.school_rebuild_routes",
         "app.api.onboarding_routes",
         "app.api.me_routes",
         "app.api.billing_routes",

@@ -1,0 +1,95 @@
+{
+  "book_code": "cesa1",
+  "book_title": "Santoor",
+  "chapter_count": 12,
+  "chapters": [
+    {
+      "chapter_id": "eng_c3_ch01",
+      "chapter_no": 1,
+      "chapter_title": "Colours",
+      "selector_ref": "cesa1=1-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=1-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch02",
+      "chapter_no": 2,
+      "chapter_title": "Badal and Moti",
+      "selector_ref": "cesa1=2-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=2-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch03",
+      "chapter_no": 3,
+      "chapter_title": "Best Friends",
+      "selector_ref": "cesa1=3-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=3-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch04",
+      "chapter_no": 4,
+      "chapter_title": "Out in the Garden",
+      "selector_ref": "cesa1=4-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=4-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch05",
+      "chapter_no": 5,
+      "chapter_title": "Talking Toys",
+      "selector_ref": "cesa1=5-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=5-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch06",
+      "chapter_no": 6,
+      "chapter_title": "Paper Boats",
+      "selector_ref": "cesa1=6-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=6-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch07",
+      "chapter_no": 7,
+      "chapter_title": "The Big Laddoo",
+      "selector_ref": "cesa1=7-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=7-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch08",
+      "chapter_no": 8,
+      "chapter_title": "Thank God!",
+      "selector_ref": "cesa1=8-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=8-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch09",
+      "chapter_no": 9,
+      "chapter_title": "Madhu's Wish",
+      "selector_ref": "cesa1=9-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=9-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch10",
+      "chapter_no": 10,
+      "chapter_title": "Night",
+      "selector_ref": "cesa1=10-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=10-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch11",
+      "chapter_no": 11,
+      "chapter_title": "Chanda Mama Counts the Stars",
+      "selector_ref": "cesa1=11-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=11-12"
+    },
+    {
+      "chapter_id": "eng_c3_ch12",
+      "chapter_no": 12,
+      "chapter_title": "Chandrayaan",
+      "selector_ref": "cesa1=12-12",
+      "selector_url": "https://ncert.nic.in/textbook.php?cesa1=12-12"
+    }
+  ],
+  "class_no": 3,
+  "source_url": "https://ncert.nic.in/textbook.php",
+  "structural_note": "NCERT selector metadata only. Zidd stores original teaching content and does not copy textbook body text.",
+  "subject_id": "english"
+}

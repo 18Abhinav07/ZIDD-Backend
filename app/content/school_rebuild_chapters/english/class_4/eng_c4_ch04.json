@@ -1,0 +1,991 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 4 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: focus-theme alignment, original prose and verse, evidence-backed reading, contextual tense work, and own-words production",
+    "Focused checks: canonical hash, key-option consistency, passage freshness, assessment coverage, and chapter/corpus quality"
+  ],
+  "runtime_sha256": "02716ce15e2563edec1a2be1bf60736ef026ed8b6fafab7a7d7887ca3dce2f3a",
+  "chapter_id": "eng_c4_ch04",
+  "chapter_no": 4,
+  "title": "One Thing at a Time",
+  "book_title": "Santoor",
+  "unit_title": "My Beautiful World",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa104.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "one_thing_main_idea",
+      "title": "Find the focus message and evidence",
+      "focus": "identify a paragraph or short poem's main idea and support it",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "State the broad message about focused effort and cite a detail showing its effect.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A main idea explains all the details. Closing extra tabs, finishing the diagram, and then replying all support the message that one task at a time improves work.",
+          "passage": "Mohan tried to answer messages while drawing a food-chain diagram. He kept missing arrows. He closed the messages, finished the diagram carefully, and replied afterwards.",
+          "prompt": "Which statement best expresses the main idea?",
+          "options": [
+            "Focusing on one task helped Mohan work accurately.",
+            "Messages are always unimportant.",
+            "Food chains contain arrows.",
+            "Mohan dislikes drawing."
+          ],
+          "accepted_answers": [
+            "Focusing on one task helped Mohan work accurately."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the change between before and after. The result after focusing is evidence for the central message.",
+          "passage": "Nira switched between packing and reading, so she forgot her notebook. The next day she completed her packing list first and left with everything.",
+          "prompt": "Which result supports the value of focus?",
+          "options": [
+            "She left with everything.",
+            "She owned a notebook.",
+            "She read a book.",
+            "The next day arrived."
+          ],
+          "accepted_answers": [
+            "She left with everything."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is choosing 'work without rest' as the message. Finishing one planned part before changing tasks still allows sensible breaks.",
+          "passage": "I finish one careful row, then stretch and rest; I start the next row when my hands feel their best.",
+          "prompt": "What advice does the verse give?",
+          "options": [
+            "Complete a planned part, then take a sensible break.",
+            "Never stop working.",
+            "Begin many rows together.",
+            "Avoid planning any work."
+          ],
+          "accepted_answers": [
+            "Complete a planned part, then take a sensible break."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Interpret the new scene without a model answer.",
+          "passage": "Sonal was decorating a card while searching for a poem and sharpening pencils. Glue dried on the wrong side. She then chose the poem, completed the card, and sharpened the pencils last.",
+          "prompt": "State the main message and cite the detail that proves it.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "main_idea",
+              "description": "states that handling one task at a time improves work",
+              "any_of": [
+                "one task",
+                "one thing",
+                "focus",
+                "finish",
+                "better",
+                "careful"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "mentions the mistake during switching or successful ordered completion",
+              "any_of": [
+                "glue",
+                "wrong side",
+                "chose",
+                "completed",
+                "last",
+                "sharpened"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the focus message to a performance setting.",
+          "passage": "During rehearsal, a tabla player watched the audience and missed the rhythm. She looked at the conductor, counted the beat, and played her section steadily.",
+          "prompt": "Explain what changed and what lesson the event gives.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "change",
+              "description": "states that she shifted attention to the conductor or beat",
+              "any_of": [
+                "conductor",
+                "counted",
+                "beat",
+                "attention",
+                "focused"
+              ]
+            },
+            {
+              "id": "result",
+              "description": "mentions steady or improved playing",
+              "any_of": [
+                "steadily",
+                "rhythm",
+                "played",
+                "improved"
+              ]
+            },
+            {
+              "id": "lesson",
+              "description": "expresses that focus supports better performance",
+              "any_of": [
+                "focus",
+                "one thing",
+                "attention",
+                "better"
+              ]
+            }
+          ],
+          "min_response_words": 11
+        }
+      }
+    },
+    {
+      "level_id": "one_thing_rhyme_context",
+      "title": "Use sound and sense in short verse",
+      "focus": "identify rhymes and infer a focus word from poetic context",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Recognise matching end sounds and use nearby actions to infer vocabulary meaning.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Rhyming words share an ending sound, even when their first letters differ. Slow and glow end with the same long o sound.",
+          "passage": "Work slowly, row by row; / Soon your careful page will glow.",
+          "prompt": "Which pair rhymes?",
+          "options": [
+            "slow and glow",
+            "work and page",
+            "row and careful",
+            "soon and page"
+          ],
+          "accepted_answers": [
+            "slow and glow"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Say only the final sounds. Bright and right rhyme because both end with the same sound.",
+          "passage": "Choose your task and hold it tight; / Finish well before the night.",
+          "prompt": "Which two words form the end rhyme?",
+          "options": [
+            "tight and night",
+            "task and tight",
+            "choose and finish",
+            "well and before"
+          ],
+          "accepted_answers": [
+            "tight and night"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Words do not rhyme merely because their spellings look alike. Move and love end differently; done and sun share a sound.",
+          "passage": "One job done beneath the sun; / Mark it complete, then choose task two.",
+          "prompt": "Which pair creates the clearest rhyme?",
+          "options": [
+            "done and sun",
+            "one and complete",
+            "job and next",
+            "beneath and then"
+          ],
+          "accepted_answers": [
+            "done and sun"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the fresh couplet for both sound and meaning.",
+          "passage": "Do not scatter thought away; / Give one careful task its day.",
+          "prompt": "Write the two rhyming words.",
+          "options": [],
+          "accepted_answers": [
+            "away and day",
+            "away, day",
+            "away day"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use context to interpret a focus word in prose.",
+          "passage": "During the model build, Eshan ignored side conversations and kept his attention on fitting the wheels. His concentration helped him finish.",
+          "prompt": "What does concentration mean here?",
+          "options": [],
+          "accepted_answers": [
+            "focused attention",
+            "giving full attention",
+            "focus",
+            "keeping attention on one task"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "one_thing_present_actions",
+      "title": "Describe what is happening now",
+      "focus": "use is or are with an -ing verb in context",
+      "skill_ids": [
+        "grammar.tense_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Match a singular or plural subject with is or are and an -ing action to describe current work.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Present continuous describes an action happening now. A singular subject takes is: 'Ravi is sorting.'",
+          "passage": "Ravi _____ sorting the index cards now.",
+          "prompt": "Which helping verb makes Ravi's current action correct?",
+          "options": [
+            "is",
+            "are",
+            "was",
+            "be"
+          ],
+          "accepted_answers": [
+            "is"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "First find the subject. A plural subject such as children takes are.",
+          "passage": "The children _____ painting one panel at a time.",
+          "prompt": "Choose the helping verb.",
+          "options": [
+            "are",
+            "is",
+            "was",
+            "has"
+          ],
+          "accepted_answers": [
+            "are"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not choose is just because the nearest noun is singular. The full subject controls agreement: 'The boxes on the shelf are falling.'",
+          "passage": "The stack of papers _____ sliding towards the edge.",
+          "prompt": "Which helping verb agrees with stack?",
+          "options": [
+            "is",
+            "are",
+            "were",
+            "have"
+          ],
+          "accepted_answers": [
+            "is"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Build the current-action form without choices.",
+          "passage": "Mina and Joel _____ checking the list now.",
+          "prompt": "Write the missing helping verb.",
+          "options": [],
+          "accepted_answers": [
+            "are"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use present continuous in a community setting.",
+          "passage": "The baker _____ weighing one bag of flour at the moment.",
+          "prompt": "Complete the sentence with the helping verb and action word.",
+          "options": [],
+          "accepted_answers": [
+            "is weighing"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "one_thing_sequence",
+      "title": "Order tasks with clear connectors",
+      "focus": "arrange steps and use sequence connectors accurately",
+      "skill_ids": [
+        "grammar.sentence_order",
+        "grammar.connectors_because_and_but"
+      ],
+      "teaching_goal": "Use task dependencies and first, next, after, and finally to express a sensible order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Order depends on what each step needs. You must write the message before checking its spelling.",
+          "passage": "Steps: check spelling; write the invitation; place it in an envelope.",
+          "prompt": "Which step comes first?",
+          "options": [
+            "write the invitation",
+            "check spelling",
+            "place it in an envelope",
+            "deliver an empty envelope"
+          ],
+          "accepted_answers": [
+            "write the invitation"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Ask which result becomes the starting point for the next action. After washing a cup, you can dry it.",
+          "passage": "First wash the paint cup. _____ dry it. Finally return it to the shelf.",
+          "prompt": "Which connector fits the second step?",
+          "options": [
+            "Next",
+            "Because",
+            "But",
+            "Although"
+          ],
+          "accepted_answers": [
+            "Next"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is ordering by sentence length. Use cause and dependency: glue must be applied before pieces can stick.",
+          "passage": "Steps: press the paper pieces together; apply glue to the edges; let the model dry.",
+          "prompt": "Which order is logical?",
+          "options": [
+            "apply glue, press the pieces, let the model dry",
+            "press the pieces, let it dry, apply glue",
+            "let it dry, apply glue, press pieces",
+            "apply glue, let it dry, press pieces"
+          ],
+          "accepted_answers": [
+            "apply glue, press the pieces, let the model dry"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange all steps without connector hints.",
+          "passage": "Steps: revise the draft; submit the story; write the first draft; read the instructions.",
+          "prompt": "Put the four steps in a sensible order.",
+          "options": [],
+          "accepted_answers": [
+            "read the instructions, write the first draft, revise the draft, submit the story",
+            "read the instructions; write the first draft; revise the draft; submit the story",
+            "read instructions, write draft, revise draft, submit story"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Sequence a simple repair outside school.",
+          "passage": "Steps: test whether the torch works; insert fresh batteries; open the battery cover; close the cover.",
+          "prompt": "Write the logical order.",
+          "options": [],
+          "accepted_answers": [
+            "open the battery cover, insert fresh batteries, close the cover, test whether the torch works",
+            "open the battery cover; insert fresh batteries; close the cover; test whether the torch works",
+            "open cover, insert batteries, close cover, test torch"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "one_thing_own_words",
+      "title": "Plan and explain a focused routine",
+      "focus": "summarise a busy situation and write a practical routine in own words",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write connected sentences that prioritise tasks, justify the order, and include a sensible transition or break.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A useful routine names the order and gives a reason. Worked example: 'I will finish the reading first because it is due tomorrow. Then I will pack my art materials.'",
+          "passage": "Alia must complete a worksheet due tomorrow and label a box needed next week.",
+          "prompt": "Which plan uses priority wisely?",
+          "options": [
+            "Finish the worksheet first, then label the box.",
+            "Switch between both every minute.",
+            "Label the box and ignore the worksheet.",
+            "Start a third task instead."
+          ],
+          "accepted_answers": [
+            "Finish the worksheet first, then label the box."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Make a plan by checking deadline, size, and dependency. The task needed soon usually comes first unless another step must precede it.",
+          "passage": "Kartik must charge a camera before filming and choose music after filming.",
+          "prompt": "Which task must begin first?",
+          "options": [
+            "charge the camera",
+            "choose the music",
+            "edit the finished film",
+            "print a poster"
+          ],
+          "accepted_answers": [
+            "charge the camera"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A focused routine is not simply a list. It explains a sensible order. Doing the easiest task first can be unhelpful when a required task has an earlier deadline.",
+          "passage": "A poem recitation is tomorrow; a scrapbook is due next month.",
+          "prompt": "Which plan best handles the deadlines?",
+          "options": [
+            "Practise the recitation, then work on the scrapbook.",
+            "Decorate the scrapbook all evening and skip practice.",
+            "Begin both tasks at the same second.",
+            "Wait until both deadlines pass."
+          ],
+          "accepted_answers": [
+            "Practise the recitation, then work on the scrapbook."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Create an original routine rather than copying a sentence frame.",
+          "passage": "Before dinner, Dev must feed the dog, finish a maths page due tomorrow, and organise a shelf that can wait until Saturday.",
+          "prompt": "Write three connected sentences giving a sensible order and one reason.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "priority_order",
+              "description": "places feeding the dog and/or due maths before the shelf",
+              "any_of": [
+                "feed",
+                "dog",
+                "maths",
+                "due tomorrow",
+                "shelf",
+                "Saturday",
+                "first",
+                "then"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "explains at least one priority",
+              "any_of": [
+                "because",
+                "due",
+                "needs food",
+                "tomorrow",
+                "can wait"
+              ]
+            },
+            {
+              "id": "complete_plan",
+              "description": "gives a connected routine of multiple actions",
+              "any_of": [
+                "first",
+                "next",
+                "then",
+                "finally",
+                "after"
+              ]
+            }
+          ],
+          "min_response_words": 18
+        },
+        "transfer_check": {
+          "teaching_block": "Plan focused work in a shared family event.",
+          "passage": "A family meal begins at seven. Ritu must chill juice, set plates, and make paper decorations that are optional.",
+          "prompt": "In your own words, write a short plan and explain one priority.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "order",
+              "description": "gives a sensible order for chilling juice and setting plates before optional decorations",
+              "any_of": [
+                "juice",
+                "chill",
+                "plates",
+                "set",
+                "decorations",
+                "optional",
+                "first",
+                "then"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "explains time, chilling, or necessity",
+              "any_of": [
+                "because",
+                "time",
+                "seven",
+                "needs to chill",
+                "meal",
+                "necessary"
+              ]
+            },
+            {
+              "id": "own_words_plan",
+              "description": "uses connected complete ideas",
+              "any_of": [
+                "first",
+                "next",
+                "after",
+                "finally",
+                "will"
+              ]
+            }
+          ],
+          "min_response_words": 16
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c4c4_main_01",
+        "passage": "Kavya kept leaving her puzzle to check the door. When she stayed with the puzzle, she saw the pattern and completed it.",
+        "prompt": "Which statement sums up Kavya's puzzle experience?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Sustained attention helped Kavya solve the puzzle.",
+          "Doors should stay closed.",
+          "Patterns are always easy.",
+          "Kavya needs a new puzzle."
+        ],
+        "accepted_answers": [
+          "Sustained attention helped Kavya solve the puzzle."
+        ]
+      },
+      {
+        "item_id": "c4c4_main_02",
+        "passage": "Ritesh first tried to pack, eat, and search for keys together. He spilled juice. Then he ate, packed, and found the keys in order.",
+        "prompt": "State the message and one supporting detail.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "message",
+            "description": "states that doing tasks in order prevents mistakes",
+            "any_of": [
+              "one at a time",
+              "in order",
+              "focus",
+              "prevents",
+              "mistakes"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "mentions the spill or successful ordered actions",
+            "any_of": [
+              "spilled",
+              "juice",
+              "ate",
+              "packed",
+              "keys"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c4_main_03",
+        "passage": "A singer stopped reading side notes and watched the conductor. Her entry came at the correct beat.",
+        "prompt": "Which detail supports the value of focused attention?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "Her entry came at the correct beat.",
+          "The notes were on paper.",
+          "The conductor stood in front.",
+          "The singer had a voice."
+        ],
+        "accepted_answers": [
+          "Her entry came at the correct beat."
+        ]
+      },
+      {
+        "item_id": "c4c4_main_04",
+        "passage": "A carpenter measures one shelf, cuts it, and checks the fit before starting the next shelf.",
+        "prompt": "Explain the work habit shown by this process.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "habit",
+            "description": "identifies completing or checking one shelf before the next",
+            "any_of": [
+              "one shelf",
+              "before",
+              "next",
+              "finish",
+              "check",
+              "one at a time"
+            ]
+          },
+          {
+            "id": "benefit",
+            "description": "connects the habit to accuracy or fit",
+            "any_of": [
+              "measure",
+              "fit",
+              "accurate",
+              "careful",
+              "correct"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c4c4_rhyme_01",
+        "passage": "Keep the guiding marks in sight; / Finish every knot just right.",
+        "prompt": "Which words rhyme?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "sight and right",
+          "marks and knot",
+          "keep and finish",
+          "guiding and every"
+        ],
+        "accepted_answers": [
+          "sight and right"
+        ]
+      },
+      {
+        "item_id": "c4c4_rhyme_02",
+        "passage": "Plan one chore before you roam; / Finish it, then wander home.",
+        "prompt": "Write the two end words that rhyme.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "roam and home",
+          "roam, home",
+          "roam home"
+        ]
+      },
+      {
+        "item_id": "c4c4_rhyme_03",
+        "passage": "The editor was attentive, noticing each missing full stop.",
+        "prompt": "What does attentive mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "carefully observant",
+          "easily distracted",
+          "very sleepy",
+          "unable to read"
+        ],
+        "accepted_answers": [
+          "carefully observant"
+        ]
+      },
+      {
+        "item_id": "c4c4_rhyme_04",
+        "passage": "Mira persisted with the difficult stitch until the cloth was repaired.",
+        "prompt": "Use the outcome to explain persisted.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "kept trying",
+          "continued",
+          "did not give up",
+          "continued despite difficulty"
+        ]
+      },
+      {
+        "item_id": "c4c4_tense_01",
+        "passage": "The mason _____ checking the wall now.",
+        "prompt": "Choose the correct helping verb.",
+        "skill_ids": [
+          "grammar.tense_usage",
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "is",
+          "are",
+          "were",
+          "have"
+        ],
+        "accepted_answers": [
+          "is"
+        ]
+      },
+      {
+        "item_id": "c4c4_tense_02",
+        "passage": "Two nurses _____ preparing the room at the moment.",
+        "prompt": "Supply the helping verb for the plural subject.",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "are"
+        ]
+      },
+      {
+        "item_id": "c4c4_tense_03",
+        "passage": "The row of lamps _____ glowing beside the path.",
+        "prompt": "Which verb agrees with the singular subject row?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "is",
+          "are",
+          "were",
+          "have"
+        ],
+        "accepted_answers": [
+          "is"
+        ]
+      },
+      {
+        "item_id": "c4c4_tense_04",
+        "passage": "The volunteers _____ sorting blankets now.",
+        "prompt": "Complete the current-action phrase.",
+        "skill_ids": [
+          "grammar.tense_usage",
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "are sorting"
+        ]
+      },
+      {
+        "item_id": "c4c4_seq_01",
+        "passage": "Steps: cool the cake; mix the batter; bake it; pour batter into the tin.",
+        "prompt": "Which action comes first?",
+        "skill_ids": [
+          "grammar.sentence_order",
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "mix the batter",
+          "cool the cake",
+          "bake it",
+          "pour it into the tin"
+        ],
+        "accepted_answers": [
+          "mix the batter"
+        ]
+      },
+      {
+        "item_id": "c4c4_seq_02",
+        "passage": "Steps: hang the shirt; rinse it; wash it; let it dry.",
+        "prompt": "Put the steps in logical order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "wash it, rinse it, hang the shirt, let it dry",
+          "wash it; rinse it; hang the shirt; let it dry",
+          "wash, rinse, hang, dry"
+        ]
+      },
+      {
+        "item_id": "c4c4_seq_03",
+        "passage": "The ink was wet, _____ Pavi waited before turning the page.",
+        "prompt": "Which connector links the wet ink to Pavi's decision?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "so",
+          "because",
+          "but",
+          "although"
+        ],
+        "accepted_answers": [
+          "so"
+        ]
+      },
+      {
+        "item_id": "c4c4_seq_04",
+        "passage": "The plant looked dry because nobody had watered it. Asha checked the soil and then added water.",
+        "prompt": "Explain the cause and the next sensible action.",
+        "skill_ids": [
+          "grammar.sentence_order",
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "cause",
+            "description": "states that lack of water made the plant dry",
+            "any_of": [
+              "nobody",
+              "watered",
+              "lack",
+              "dry",
+              "because"
+            ]
+          },
+          {
+            "id": "next_action",
+            "description": "states that checking soil came before adding water",
+            "any_of": [
+              "checked",
+              "soil",
+              "then",
+              "added",
+              "water"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c4_write_01",
+        "passage": "A report is due tomorrow; a poster is due next Friday.",
+        "prompt": "Which plan uses deadlines sensibly?",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Complete the report before starting the poster.",
+          "Decorate the poster and ignore the report.",
+          "Switch tasks after every word.",
+          "Wait until next Friday."
+        ],
+        "accepted_answers": [
+          "Complete the report before starting the poster."
+        ]
+      },
+      {
+        "item_id": "c4c4_write_02",
+        "passage": "Before leaving at eight, Nita must pack lunch, fill a bottle, and polish shoes that are already clean.",
+        "prompt": "Write a short plan and justify one priority.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "essential_order",
+            "description": "prioritises lunch and water over unnecessary polishing",
+            "any_of": [
+              "lunch",
+              "bottle",
+              "water",
+              "before",
+              "shoes",
+              "already clean"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "explains time or necessity",
+            "any_of": [
+              "because",
+              "eight",
+              "needed",
+              "important",
+              "already clean"
+            ]
+          },
+          {
+            "id": "complete_plan",
+            "description": "uses connected actions",
+            "any_of": [
+              "first",
+              "then",
+              "next",
+              "will"
+            ]
+          }
+        ],
+        "min_response_words": 14
+      },
+      {
+        "item_id": "c4c4_write_03",
+        "passage": "A gardener must water wilting seedlings and repaint a sign that is still readable.",
+        "prompt": "What should happen first?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Water the wilting seedlings.",
+          "Repaint the readable sign.",
+          "Begin both with one hand.",
+          "Leave both jobs for a week."
+        ],
+        "accepted_answers": [
+          "Water the wilting seedlings."
+        ]
+      },
+      {
+        "item_id": "c4c4_write_04",
+        "passage": "A student has twenty minutes to review spelling, sharpen pencils, and redesign a notebook cover.",
+        "prompt": "In your own words, make a focused plan and explain the order.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "priority",
+            "description": "places spelling review before optional cover redesign",
+            "any_of": [
+              "spelling",
+              "review",
+              "cover",
+              "redesign",
+              "first",
+              "later"
+            ]
+          },
+          {
+            "id": "preparation",
+            "description": "includes sharpening pencils only as a brief useful step",
+            "any_of": [
+              "sharpen",
+              "pencils",
+              "before",
+              "quickly"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "explains time, importance, or upcoming need",
+            "any_of": [
+              "twenty minutes",
+              "because",
+              "important",
+              "test",
+              "need",
+              "time"
+            ]
+          }
+        ],
+        "min_response_words": 14
+      }
+    ]
+  }
+}

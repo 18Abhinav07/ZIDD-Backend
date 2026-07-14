@@ -1144,9 +1144,20 @@ class CareerLearningProfileService:
         graph = {
             **graph,
             "profiles": _current_profile_rows(
-                [row for row in graph.get("profiles") or [] if isinstance(row, dict)],
+                [
+                    row
+                    for row in graph.get("profiles") or []
+                    if isinstance(row, dict)
+                    and str(row.get("domain") or CAREER_DOMAIN) == CAREER_DOMAIN
+                ],
                 [row for row in graph.get("reports") or [] if isinstance(row, dict)],
             ),
+            "events": [
+                row
+                for row in graph.get("events") or []
+                if isinstance(row, dict)
+                and str(row.get("domain") or CAREER_DOMAIN) == CAREER_DOMAIN
+            ],
         }
         return graph
 

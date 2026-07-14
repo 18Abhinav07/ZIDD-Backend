@@ -1,0 +1,1929 @@
+{
+  "approval_status": "seed",
+  "book_title": "Santoor",
+  "chapter_id": "eng_c3_ch06",
+  "chapter_title": "Santoor Chapter 6",
+  "class_no": 3,
+  "curriculum_version": "school-v3-english-seed-2026-07",
+  "outcomes": [
+    {
+      "items": [
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise main idea. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o1_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for main idea: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o1_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for main idea: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o1_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for main idea: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o1_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for main idea: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear main idea answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o1_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear main idea answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o1_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear main idea answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o1_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer main idea to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer main idea to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "story",
+          "item_id": "eng_c3_ch06_o1_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer main idea to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o1_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 3, Chapter 6: which choice best supports main idea?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o1_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 3, Chapter 6: which choice best supports main idea?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o1_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 3, Chapter 6: which choice best supports main idea?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o1_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 3, Chapter 6: which choice best supports main idea?",
+          "skill_ids": [
+            "reading.paragraph_main_idea"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c3_ch06_outcome_1",
+      "skill_ids": [
+        "reading.paragraph_main_idea"
+      ],
+      "title": "Build main idea"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise reason inference. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o2_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for reason inference: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o2_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for reason inference: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o2_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for reason inference: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o2_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for reason inference: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear reason inference answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o2_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear reason inference answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o2_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear reason inference answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o2_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer reason inference to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer reason inference to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "morning",
+          "item_id": "eng_c3_ch06_o2_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer reason inference to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o2_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 3, Chapter 6: which choice best supports reason inference?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o2_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 3, Chapter 6: which choice best supports reason inference?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o2_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 3, Chapter 6: which choice best supports reason inference?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o2_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 3, Chapter 6: which choice best supports reason inference?",
+          "skill_ids": [
+            "reading.inference_reason"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c3_ch06_outcome_2",
+      "skill_ids": [
+        "reading.inference_reason"
+      ],
+      "title": "Build reason inference"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise tense use. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o3_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for tense use: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o3_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for tense use: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o3_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for tense use: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o3_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for tense use: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear tense use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o3_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear tense use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o3_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear tense use answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o3_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer tense use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer tense use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "festival",
+          "item_id": "eng_c3_ch06_o3_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer tense use to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o3_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 3, Chapter 6: which choice best supports tense use?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o3_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 3, Chapter 6: which choice best supports tense use?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o3_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 3, Chapter 6: which choice best supports tense use?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o3_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 3, Chapter 6: which choice best supports tense use?",
+          "skill_ids": [
+            "grammar.tense_usage"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c3_ch06_outcome_3",
+      "skill_ids": [
+        "grammar.tense_usage"
+      ],
+      "title": "Build tense use"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise connectors. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o4_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for connectors: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o4_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for connectors: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o4_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for connectors: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o4_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for connectors: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear connectors answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o4_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear connectors answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o4_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear connectors answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o4_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer connectors to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer connectors to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "garden",
+          "item_id": "eng_c3_ch06_o4_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer connectors to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o4_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 3, Chapter 6: which choice best supports connectors?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o4_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 3, Chapter 6: which choice best supports connectors?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o4_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 3, Chapter 6: which choice best supports connectors?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o4_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 3, Chapter 6: which choice best supports connectors?",
+          "skill_ids": [
+            "grammar.connectors_because_and_but"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c3_ch06_outcome_4",
+      "skill_ids": [
+        "grammar.connectors_because_and_but"
+      ],
+      "title": "Build connectors"
+    },
+    {
+      "items": [
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_1",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_2",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_3",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_4",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_5",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_guided_6",
+          "item_type": "short_answer",
+          "model_answer": "Use the clue, name the idea, and answer in a complete sentence.",
+          "prompt": "In Santoor Chapter 6, use the sample sentence to practise short answer writing. Write one clear answer with a useful clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "guided"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o5_bridge_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for short answer writing: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o5_bridge_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for short answer writing: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o5_bridge_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for short answer writing: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "sentence clue",
+          "item_id": "eng_c3_ch06_o5_bridge_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "sentence clue",
+            "random guess",
+            "longest word",
+            "page number"
+          ],
+          "prompt": "Bridge support for short answer writing: which option best helps answer a question from Santoor Chapter 6?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "bridge"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_independent_1",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear short answer writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o5_independent_2",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_independent_3",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear short answer writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o5_independent_4",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_independent_5",
+          "item_type": "short_answer",
+          "model_answer": "The answer is clear, relevant, and written without a hint.",
+          "prompt": "Answer independently for Santoor Chapter 6. Give one clear short answer writing answer with your own clue.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "clue",
+          "item_id": "eng_c3_ch06_o5_independent_6",
+          "item_type": "fill_blank",
+          "prompt": "Complete the answer for Santoor Chapter 6: I know this from the sentence __.",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "independent_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_transfer_1",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer short answer writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_transfer_2",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer short answer writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "river",
+          "item_id": "eng_c3_ch06_o5_transfer_3",
+          "item_type": "short_answer",
+          "model_answer": "The same skill is used in a new context.",
+          "prompt": "Transfer short answer writing to a new classroom example. Write one sentence that shows the same idea.",
+          "rubric": {
+            "criteria": [
+              "answers the actual prompt",
+              "uses a relevant clue or reason",
+              "writes in a complete sentence"
+            ]
+          },
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "transfer_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o5_chapter_1",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 1 for Class 3, Chapter 6: which choice best supports short answer writing?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o5_chapter_2",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 2 for Class 3, Chapter 6: which choice best supports short answer writing?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o5_chapter_3",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 3 for Class 3, Chapter 6: which choice best supports short answer writing?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "chapter_check"
+        },
+        {
+          "answer_key": "clear reason",
+          "item_id": "eng_c3_ch06_o5_chapter_4",
+          "item_type": "multiple_choice",
+          "options": [
+            "clear reason",
+            "copied line",
+            "unrelated word",
+            "empty answer"
+          ],
+          "prompt": "Chapter check 4 for Class 3, Chapter 6: which choice best supports short answer writing?",
+          "skill_ids": [
+            "writing.short_answer"
+          ],
+          "stage": "chapter_check"
+        }
+      ],
+      "outcome_id": "eng_c3_ch06_outcome_5",
+      "skill_ids": [
+        "writing.short_answer"
+      ],
+      "title": "Build short answer writing"
+    }
+  ],
+  "reviewed_at": "2026-07-09",
+  "reviewed_by": "zidd-seed-content-contract",
+  "source_url": "https://ncert.nic.in/textbook.php?cesa1=6-12",
+  "subject_id": "english"
+}

@@ -19,6 +19,7 @@ from app.content.schema import Concept
 from app.content.task_types import TaskType, prep_counterpart
 from app.services.learning_profile import scope_career_memory_context
 from app.services.career_skill_taxonomy import taxonomy_prompt_lines
+from app.services.school.open_answer_prompt import build_school_open_answer_prompt
 
 TUTOR_PERSONA = (
     "You are Zidd, a warm, sharp personal communication coach — the kind of "
@@ -442,7 +443,8 @@ def _coach_block(coach: dict | None) -> str:
             parts.append(
                 "A required part is still missing. Keep the feedback corrective and "
                 "specific: name only the missing criterion from the tutor plan focus "
-                "and ask for one targeted revision."
+                "and ask for one targeted full-answer revision. Tell the learner to "
+                "keep their story and evidence, changing only the missing criterion."
             )
         elif plan_verdict == "guided_success":
             parts.append(
@@ -1869,7 +1871,9 @@ def build_teach_prompt(
         feedback_contract = (
             "Give short, targeted career-coaching feedback (2-4 sentences). Required shape: "
             "anchor to the learner's actual answer, name the exact missing gap, then set ONE "
-            "targeted revision task. Rewrite or pressure-test their own answer; Do not introduce "
+            "targeted full-answer revision task. Tell them to keep their own story and evidence "
+            "while changing only the missing criterion; do not request a fragment that cannot be "
+            "assessed independently. Rewrite or pressure-test their own answer; Do not introduce "
             "a different domain, unrelated sample story, unrelated company example, or generic "
             "model answer. For GD prep, stay on the active GD topic. For interview prep, stay "
             "inside the learner's own story/role context. End with the revision task.\n"

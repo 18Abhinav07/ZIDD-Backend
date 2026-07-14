@@ -1,0 +1,974 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class-2-substantive-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Item-by-item review for route accuracy, age fit, distinct support stages, unseen independent and assessment material, deterministic masterclass answers, and flexible constructed grading."
+  ],
+  "runtime_sha256": "db02d21d2e472bdb2a65fdf51fc4dbc515f062d383861ade4dea51539334038a",
+  "chapter_id": "eng_c2_ch06",
+  "chapter_no": 6,
+  "content_version": "2026-07-12.2",
+  "title": "Between Home and School",
+  "book_title": "Mridang",
+  "unit_title": "Going Places",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr106.pdf",
+  "source_note": "Aligned to the NCERT chapter title and themes of walking to school, landmarks, routes, fields, groves, and canals. All Zidd passages, directions, and feedback are original.",
+  "levels": [
+    {
+      "level_id": "eng_c2_ch06_landmark_reading",
+      "title": "Notice landmarks on a school route",
+      "focus": "find route details and distinguish places passed from the destination",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read original home-to-school routes and identify landmarks, movement, and destination details.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A landmark is a place or object that helps us know where we are. Circle the movement word, then notice what the walkers pass. School is the destination, not every place on the way.",
+          "passage": "Nina walks past a pond and a tea shop before she reaches school.",
+          "prompt": "Which landmark does Nina pass first?",
+          "options": [
+            "the pond",
+            "the tea shop",
+            "the school"
+          ],
+          "accepted_answers": [
+            "the pond",
+            "pond"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Read the route from start to finish. Separate where a child stops from what the child only passes.",
+          "passage": "Harsh passes the post office, waits at the crossing, and then enters the school gate.",
+          "prompt": "Where does Harsh wait?",
+          "options": [
+            "at the post office",
+            "at the crossing",
+            "at the school gate"
+          ],
+          "accepted_answers": [
+            "at the crossing",
+            "the crossing",
+            "crossing"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Track both walkers. The question asks for a shared landmark, so reject a place seen by only one child.",
+          "passage": "Mina passes a bakery and the old well. Jo passes a clinic and the old well. They meet beside the well.",
+      "prompt": "Name the place that Jay and Noor both pass.",
+          "options": [
+            "the bakery",
+            "the clinic",
+            "the old well"
+          ],
+          "accepted_answers": [
+            "the old well",
+            "old well",
+            "well"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read without choices. A crossing point is not always the final destination.",
+          "passage": "Aman leaves the narrow lane, crosses the main road with the guard, and continues to the blue school building.",
+          "prompt": "What does Aman cross?",
+          "options": [],
+          "accepted_answers": [
+            "the main road",
+            "main road",
+            "a main road"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use landmark reading on a route to a sports class. Name the object passed just before the destination.",
+          "passage": "Leela walks by the fountain, turns at a clock tower, and enters the skating rink.",
+          "prompt": "Which landmark comes just before the skating rink?",
+          "options": [],
+          "accepted_answers": [
+            "the clock tower",
+            "clock tower",
+            "a clock tower"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch06_route_sequence",
+      "title": "Follow a route step by step",
+      "focus": "use first, next, then, and finally to order movement",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Sequence route steps and notice when a direction has been placed out of order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Route words show order. Start at first and move one step at a time. If you jump to finally, you may miss the turn.",
+          "passage": "First, Ritu leaves home. Next, she crosses a bridge. Finally, she reaches school.",
+          "prompt": "What happens next after Ritu leaves home?",
+          "options": [
+            "she crosses a bridge",
+            "she reaches school",
+            "she goes home"
+          ],
+          "accepted_answers": [
+            "she crosses a bridge",
+            "crosses a bridge"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use place logic when only some time words are given. A child must reach the gate before entering the classroom.",
+          "passage": "Keshav walks along the lane. Then he reaches the school gate. After that, he enters his classroom.",
+          "prompt": "Which step happens after he reaches the gate?",
+          "options": [
+            "he walks along the lane",
+            "he enters his classroom",
+            "he leaves home"
+          ],
+          "accepted_answers": [
+            "he enters his classroom",
+            "enters his classroom"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A route can be told backwards. Rebuild it from the starting point before choosing.",
+          "passage": "At last, Pia reaches the library. Before that, she turns right at the park. She began at the bus stop.",
+          "prompt": "Which is the correct order?",
+          "options": [
+            "bus stop, park, library",
+            "park, bus stop, library",
+            "library, park, bus stop"
+          ],
+          "accepted_answers": [
+            "bus stop, park, library",
+            "the bus stop, the park, the library"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Order the jumbled steps. Use each step once and keep the route sensible.",
+          "passage": "Steps: enter the school / cross the canal bridge / leave the farm gate",
+          "prompt": "Write the three steps in order.",
+          "options": [],
+          "accepted_answers": [
+            "leave the farm gate, cross the canal bridge, enter the school",
+            "leave the farm gate; cross the canal bridge; enter the school"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer sequencing to a fire drill. Safety directions also depend on order.",
+          "passage": "Steps: gather at the field / walk down the stairs / leave the classroom",
+      "prompt": "Put these safety steps from start to finish.",
+          "options": [],
+          "accepted_answers": [
+            "leave the classroom, walk down the stairs, gather at the field",
+            "leave the classroom; walk down the stairs; gather at the field"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch06_route_words",
+      "title": "Work out route words from clues",
+      "focus": "infer the meanings of route, grove, canal, and branch from context",
+      "skill_ids": [
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use nearby descriptions to understand landscape and route vocabulary.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A meaning clue often follows the new word. Read beyond the word before choosing. Do not choose a meaning only because it sounds alike.",
+          "passage": "We rested in a grove, a small group of mango trees growing together.",
+          "prompt": "What is a grove?",
+          "options": [
+            "a group of trees",
+            "a deep river",
+            "a busy road"
+          ],
+          "accepted_answers": [
+            "a group of trees",
+            "small group of trees"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Look at what the place carries or contains. The action can tell you what kind of place it is.",
+          "passage": "A narrow canal carries water from the river to the fields.",
+          "prompt": "What is a canal in this sentence?",
+          "options": [
+            "a water channel",
+            "a tree branch",
+            "a footpath"
+          ],
+          "accepted_answers": [
+            "a water channel",
+            "channel for water",
+            "a narrow waterway"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Use both sentences. A route is the way followed, not the speed or the traveller.",
+          "passage": "Our usual route goes past the temple. Today that way is closed, so we take another road.",
+          "prompt": "What does route mean?",
+          "options": [
+            "the way from one place to another",
+            "a person who travels",
+            "a very fast trip"
+          ],
+          "accepted_answers": [
+            "the way from one place to another",
+            "a way to get somewhere",
+            "path taken"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer the body part of the tree from the action described.",
+          "passage": "The squirrel ran along a branch that grew out from the tree trunk.",
+          "prompt": "What is a branch?",
+          "options": [],
+          "accepted_answers": [
+            "a part that grows from a tree trunk",
+            "part of a tree",
+            "tree limb",
+            "a tree limb"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use context clues in a garden, away from the school route.",
+          "passage": "The gardener dug a shallow channel so rainwater could flow toward the pumpkin bed.",
+          "prompt": "What does channel mean here?",
+          "options": [],
+          "accepted_answers": [
+            "a narrow path for water",
+            "water path",
+            "a passage for water",
+            "a small waterway"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch06_route_message",
+      "title": "Tell the main route clearly",
+      "focus": "choose important route information and leave out side details",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Retell the main path in a short sentence without copying every detail.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A route summary keeps the start, key path, and destination. It leaves out small details such as bag colour. Compare each choice with the whole route.",
+          "passage": "Zoya leaves her flat, walks through Green Park, and reaches school. She carries a purple bottle.",
+      "prompt": "Choose the sentence that keeps Sahil's route and leaves out side details.",
+          "options": [
+            "Zoya walks from her flat through Green Park to school.",
+            "Zoya has a purple bottle.",
+            "Green Park has many colours."
+          ],
+          "accepted_answers": [
+            "Zoya walks from her flat through Green Park to school.",
+            "zoya goes from her flat through green park to school"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Join repeated steps into one clear line. Keep places in order and remove comments that do not change the route.",
+          "passage": "Irfan starts at the farm. He follows the canal. He crosses the stone bridge and arrives at school.",
+          "prompt": "Choose the clearest summary.",
+          "options": [
+            "Irfan goes from the farm along the canal and over the bridge to school.",
+            "Irfan likes stones near his farm.",
+            "School has a bridge inside it."
+          ],
+          "accepted_answers": [
+            "Irfan goes from the farm along the canal and over the bridge to school.",
+            "irfan follows the canal and crosses the bridge on his way to school"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A strong summary includes the route's change. Check whether the choice explains why the child uses a different way.",
+          "passage": "The short lane is muddy today. Sumi uses the longer market road and still reaches class on time.",
+          "prompt": "Which sentence best summarizes the route change?",
+          "options": [
+            "Sumi takes the market road because the short lane is muddy.",
+            "Sumi is always late on the short lane.",
+            "The market closes before school."
+          ],
+          "accepted_answers": [
+            "Sumi takes the market road because the short lane is muddy.",
+            "sumi uses the longer market road because the lane is muddy"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Retell only the route. Include the start, two useful landmarks, and the destination in your own wording.",
+          "passage": "Bimal begins at the bus shelter. He passes the water tank, turns beside the banyan tree, and reaches the music school.",
+          "prompt": "Summarize Bimal's route in one sentence.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "start",
+              "description": "Includes the bus shelter as the starting point.",
+              "any_of": [
+                "bus shelter",
+                "starts at the bus shelter",
+                "begins at the bus shelter"
+              ]
+            },
+            {
+              "id": "landmarks",
+              "description": "Includes both the water tank and banyan tree.",
+              "any_of": [
+                "water tank",
+                "banyan tree",
+                "passes the water tank and turns by the banyan tree"
+              ]
+            },
+            {
+              "id": "destination",
+              "description": "Ends at the music school.",
+              "any_of": [
+                "music school",
+                "reaches the music school"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same summary skill for a nature trail. Keep the route order and destination, not the weather detail.",
+          "passage": "The trail begins at the visitor hut. It bends around a pond, climbs past three rocks, and ends at a bird hide. A cool wind blows.",
+          "prompt": "Write one sentence that summarizes the trail.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "start",
+              "description": "Includes the visitor hut.",
+              "any_of": [
+                "visitor hut",
+                "starts at the visitor hut",
+                "begins at the visitor hut"
+              ]
+            },
+            {
+              "id": "middle",
+              "description": "Includes the pond and rocks in route order.",
+              "any_of": [
+                "pond",
+                "three rocks",
+                "around the pond",
+                "past three rocks"
+              ]
+            },
+            {
+              "id": "end",
+              "description": "Includes the bird hide as the end.",
+              "any_of": [
+                "bird hide",
+                "ends at the bird hide",
+                "reaches the bird hide"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "eng_c2_ch06_give_directions",
+      "title": "Give safe, complete directions",
+      "focus": "write route directions with movement words and landmarks",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Give concise directions that another child can follow safely.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Good directions begin from a known place and use a clear movement word. Include a safe crossing point when the route mentions one.",
+          "passage": "From the school gate, walk to the zebra crossing. Cross with the guard and turn left at the library.",
+          "prompt": "Which first direction is useful and safe?",
+          "options": [
+            "Walk from the gate to the zebra crossing.",
+            "Go somewhere near the books.",
+            "Run across any part of the road."
+          ],
+          "accepted_answers": [
+            "Walk from the gate to the zebra crossing.",
+            "walk to the zebra crossing"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Choose directions that include both the turn and the landmark. Left without a place can confuse the listener.",
+          "passage": "From the clinic, go straight to the fruit shop. Turn right there to find the park.",
+          "prompt": "Which direction clearly gives the turn?",
+          "options": [
+            "Turn right at the fruit shop.",
+            "Turn near a place.",
+            "The park has trees."
+          ],
+          "accepted_answers": [
+            "Turn right at the fruit shop.",
+            "turn right by the fruit shop"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Check each instruction for order, location, and safety. The correct set must not reverse the turn.",
+          "passage": "Start at the post office. Walk past the bank. Use the crossing, then turn left for the school.",
+          "prompt": "Which direction keeps the route correct?",
+          "options": [
+            "Pass the bank, cross safely, and turn left for the school.",
+            "Turn right before the bank and run across.",
+            "Begin at the school and walk to the post office."
+          ],
+          "accepted_answers": [
+            "Pass the bank, cross safely, and turn left for the school.",
+            "walk past the bank, use the crossing, and turn left to school"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write directions from the facts. Include the starting place, landmark, turn, and destination; wording may vary.",
+          "passage": "Start: dairy booth | walk to neem tree | turn right | destination: playground.",
+          "prompt": "Give one or two clear directions.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "start",
+              "description": "Begins at the dairy booth.",
+              "any_of": [
+                "dairy booth",
+                "start at the dairy booth",
+                "from the dairy booth"
+              ]
+            },
+            {
+              "id": "landmark",
+              "description": "Uses the neem tree as the landmark.",
+              "any_of": [
+                "neem tree",
+                "walk to the neem tree"
+              ]
+            },
+            {
+              "id": "turn",
+              "description": "Gives a right turn.",
+              "any_of": [
+                "turn right",
+                "take a right"
+              ]
+            },
+            {
+              "id": "destination",
+              "description": "Ends at the playground.",
+              "any_of": [
+                "playground",
+                "reach the playground"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer direction writing to finding a stall at a fair. Include each useful step and do not invent a road crossing.",
+          "passage": "Fair map: entrance -> walk past puppet stage -> turn left at water stand -> seed stall.",
+          "prompt": "Tell a visitor how to reach the seed stall.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "start",
+              "description": "Starts at the fair entrance.",
+              "any_of": [
+                "fair entrance",
+                "entrance",
+                "from the entrance"
+              ]
+            },
+            {
+              "id": "stage",
+              "description": "Says to pass the puppet stage.",
+              "any_of": [
+                "pass the puppet stage",
+                "walk past the puppet stage"
+              ]
+            },
+            {
+              "id": "turn",
+              "description": "Says to turn left at the water stand.",
+              "any_of": [
+                "turn left at the water stand",
+                "take a left by the water stand"
+              ]
+            },
+            {
+              "id": "destination",
+              "description": "Ends at the seed stall.",
+              "any_of": [
+                "seed stall",
+                "reach the seed stall"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 10,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "eng_c2_ch06_assess_01",
+        "passage": "Anu passes a milk shop, waits beside the signal, and then walks into school.",
+        "prompt": "Where does Anu wait?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "beside the signal",
+          "at the milk shop",
+          "inside school"
+        ],
+        "accepted_answers": [
+          "beside the signal",
+          "the signal",
+          "signal"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_02",
+        "passage": "Jay and Noor use different lanes, but both cross the wooden footbridge before class.",
+        "prompt": "Which landmark is on both routes?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "a footbridge",
+          "a lane",
+          "a classroom"
+        ],
+        "accepted_answers": [
+          "a footbridge",
+          "the wooden footbridge",
+          "footbridge"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_03",
+        "passage": "Pema turns away from the market and enters the lane beside the fire station.",
+        "prompt": "Which place is beside the lane?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the fire station",
+          "fire station"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_04",
+        "passage": "The children pass a pond and a field before reaching the red gate.",
+        "prompt": "What is their destination?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the red gate",
+          "red gate",
+          "the gate"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_05",
+        "passage": "Steps: reach the corner / leave home / turn toward the school",
+        "prompt": "Choose the sensible order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "leave home, reach the corner, turn toward the school",
+          "reach the corner, turn toward the school, leave home",
+          "turn toward the school, leave home, reach the corner"
+        ],
+        "accepted_answers": [
+          "leave home, reach the corner, turn toward the school"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_06",
+        "passage": "First Kavya closes her gate. Next she follows the lane. Finally she enters the art room.",
+        "prompt": "What happens next after she closes the gate?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "she follows the lane",
+          "she enters the art room",
+          "she opens the gate"
+        ],
+        "accepted_answers": [
+          "she follows the lane",
+          "follows the lane"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_07",
+        "passage": "Steps: cross with the guard / walk to the crossing / continue to the library",
+        "prompt": "Write the safe order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "walk to the crossing, cross with the guard, continue to the library",
+          "walk to the crossing; cross with the guard; continue to the library"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_08",
+        "passage": "Words: past / walks / the temple / farah",
+        "prompt": "Put the words in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "farah walks past the temple",
+          "farah walks past the temple."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_09",
+        "passage": "A cluster is a group of houses built close together.",
+        "prompt": "What does cluster mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "a group close together",
+          "a single tall house",
+          "a road between fields"
+        ],
+        "accepted_answers": [
+          "a group close together",
+          "a group of houses",
+          "group"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_10",
+        "passage": "The path curves around the lake instead of staying straight.",
+        "prompt": "What does curves mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "bends",
+          "ends",
+          "climbs"
+        ],
+        "accepted_answers": [
+          "bends",
+          "turns"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_11",
+        "passage": "The lane is narrow, so only one bicycle can pass at a time.",
+        "prompt": "What does narrow mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "not wide",
+          "small in width",
+          "thin",
+          "only a little wide"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_12",
+        "passage": "A footpath is a small track made for people walking, not for cars.",
+        "prompt": "What is a footpath?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "a track for people walking",
+          "a walking path",
+          "a path for walkers",
+          "small path"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_13",
+        "passage": "Sahil starts at the orchard, follows the river path, crosses a bamboo bridge, and reaches the village school.",
+        "prompt": "Which sentence gives the main route?",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Sahil goes from the orchard along the river and over the bridge to school.",
+          "Sahil likes bamboo and fruit.",
+          "The school is inside the river."
+        ],
+        "accepted_answers": [
+          "Sahil goes from the orchard along the river and over the bridge to school."
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_14",
+        "passage": "Rain closes the low bridge, so Uma follows the hill road to reach class.",
+        "prompt": "What is the main change?",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Uma uses the hill road because the bridge is closed.",
+          "Uma does not go to class.",
+          "The hill road is under the bridge."
+        ],
+        "accepted_answers": [
+          "Uma uses the hill road because the bridge is closed.",
+          "uma takes the hill road because rain closed the bridge"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_15",
+        "passage": "Mohan leaves the temple square, passes a hand pump, turns at the tailor shop, and reaches the community hall.",
+        "prompt": "Summarize Mohan's route in one sentence.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "start",
+            "description": "Includes the temple square.",
+            "any_of": [
+              "temple square",
+              "starts at the temple square",
+              "leaves the temple square"
+            ]
+          },
+          {
+            "id": "middle",
+            "description": "Includes the hand pump and tailor shop.",
+            "any_of": [
+              "hand pump",
+              "tailor shop",
+              "passes the hand pump",
+              "turns at the tailor shop"
+            ]
+          },
+          {
+            "id": "end",
+            "description": "Includes the community hall.",
+            "any_of": [
+              "community hall",
+              "reaches the community hall"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_16",
+        "passage": "The garden walk starts at the shed, circles the lily pond, passes the compost pit, and ends at the greenhouse.",
+        "prompt": "Retell the main route without copying every word.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "start",
+            "description": "Includes the shed.",
+            "any_of": [
+              "shed",
+              "starts at the shed",
+              "begins at the shed"
+            ]
+          },
+          {
+            "id": "middle",
+            "description": "Includes the lily pond and compost pit.",
+            "any_of": [
+              "lily pond",
+              "compost pit",
+              "around the lily pond",
+              "past the compost pit"
+            ]
+          },
+          {
+            "id": "end",
+            "description": "Includes the greenhouse.",
+            "any_of": [
+              "greenhouse",
+              "ends at the greenhouse"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_17",
+        "passage": "Map facts: start at the library; walk past the bus shelter; turn right at the pharmacy; stop at the clinic.",
+        "prompt": "Which turn is needed?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "right at the pharmacy",
+          "left at the library",
+          "right at the clinic"
+        ],
+        "accepted_answers": [
+          "right at the pharmacy",
+          "turn right at the pharmacy"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_18",
+        "passage": "Safe route facts: use the zebra crossing; wait for the guard; walk to the sports gate.",
+        "prompt": "Which advice is safest?",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [
+          "Wait for the guard and use the zebra crossing.",
+          "Run across before the guard arrives.",
+          "Cross between parked buses."
+        ],
+        "accepted_answers": [
+          "Wait for the guard and use the zebra crossing.",
+          "wait for the guard and cross at the zebra crossing"
+        ]
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_19",
+        "passage": "Directions facts: start at the yellow kiosk; pass the fountain; turn left at the flag; reach the craft tent.",
+        "prompt": "Give the directions in one or two sentences.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "start",
+            "description": "Starts at the yellow kiosk.",
+            "any_of": [
+              "yellow kiosk",
+              "from the yellow kiosk",
+              "start at the yellow kiosk"
+            ]
+          },
+          {
+            "id": "fountain",
+            "description": "Says to pass the fountain.",
+            "any_of": [
+              "pass the fountain",
+              "walk past the fountain"
+            ]
+          },
+          {
+            "id": "turn",
+            "description": "Gives a left turn at the flag.",
+            "any_of": [
+              "turn left at the flag",
+              "take a left by the flag"
+            ]
+          },
+          {
+            "id": "end",
+            "description": "Ends at the craft tent.",
+            "any_of": [
+              "craft tent",
+              "reach the craft tent"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "eng_c2_ch06_assess_20",
+        "passage": "Route facts: begin at the grain shop; follow the wall; turn right at the peepal tree; arrive at the health centre.",
+        "prompt": "Write clear directions for a visitor.",
+        "skill_ids": [
+          "writing.complete_sentence",
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "start",
+            "description": "Begins at the grain shop.",
+            "any_of": [
+              "grain shop",
+              "begin at the grain shop",
+              "from the grain shop"
+            ]
+          },
+          {
+            "id": "wall",
+            "description": "Says to follow the wall.",
+            "any_of": [
+              "follow the wall",
+              "walk along the wall"
+            ]
+          },
+          {
+            "id": "turn",
+            "description": "Gives a right turn at the peepal tree.",
+            "any_of": [
+              "turn right at the peepal tree",
+              "take a right by the peepal tree"
+            ]
+          },
+          {
+            "id": "end",
+            "description": "Ends at the health centre.",
+            "any_of": [
+              "health centre",
+              "health center",
+              "reach the health centre"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      }
+    ]
+  }
+}

@@ -968,8 +968,9 @@ def test_shared_gd_pressure_reconciles_explicit_distinct_implication():
             "blockers": [],
             "active_topic": "Should remote work be the default?",
             "learner_answer": (
-                "Building on the hiring-access point, remote work widens the candidate pool. "
-                "I would add that inclusion still requires structured onboarding and promotion audits."
+                "Building on the Analyst's point that implementation should be measurable, I would add "
+                "a 90-day remote-work pilot with onboarding, decision-latency, engagement, and attrition "
+                "thresholds, plus mentorship and in-person resets when junior employees fall behind."
             ),
         },
         "active_prompt_attempt_type": "pressure",
@@ -991,10 +992,10 @@ def test_shared_gd_pressure_reconciles_explicit_distinct_implication():
         ],
     })
     answer = (
-        "You are right that I used your point that remote work broadens hiring access. The new "
-        "implication I added is that access can still fail to produce inclusion unless distributed "
-        "hires receive structured onboarding, visible decision ownership, and promotion audits; "
-        "those safeguards turn a larger pool into equitable participation."
+        "The exact point I used was the Analyst's claim that implementation should be measurable. "
+        "My added implication was a 90-day remote-work pilot with onboarding, decision-latency, "
+        "engagement, and attrition thresholds, plus automatic mentorship and in-person resets "
+        "when junior employees fall behind."
     )
     packet = build_evaluation_packet(state, svc.get_node("gd_04_build_on_others"), answer)
     raw = PrepRubricEval(
@@ -1149,6 +1150,67 @@ def test_shared_gd_pressure_consistency_uses_qualified_answer_not_latest_user_tu
 
     assert result.pass_eligible is True
     assert result.required_missing == []
+
+
+def test_shared_gd_pressure_does_not_credit_an_exclusive_opposite_position():
+    state = svc._new_state(
+        "user-1",
+        "session-pressure-opposite-position",
+        "gd_04_build_on_others",
+        [],
+        task_type="gd_prep",
+        career_context={"gd_topics": ["Should remote work be the default?"]},
+    )
+    parent_id = "session-pressure-opposite-position:core"
+    qualified_answer = (
+        "Building on the hiring-access point, remote work widens the candidate pool. "
+        "I would add structured onboarding and promotion audits."
+    )
+    state.update({
+        "core_qualified": True,
+        "core_qualification_turn_id": parent_id,
+        "core_qualification_evidence": {
+            "evaluation_id": parent_id,
+            "user_id": "user-1",
+            "node_id": "gd_04_build_on_others",
+            "attempt_type": "independent",
+            "pass_eligible": True,
+            "blockers": [],
+            "active_topic": "Should remote work be the default?",
+            "learner_answer": qualified_answer,
+        },
+        "active_prompt_attempt_type": "pressure",
+        "messages": [{
+            "role": "assistant",
+            "content": (
+                "You merely repeated the hiring-access point. What distinct inclusion "
+                "safeguard did you add?"
+            ),
+        }],
+    })
+    answer = (
+        "You are right that remote work can widen hiring access, but office work is the "
+        "only viable model because onboarding, mentorship, and decision ownership need "
+        "in-person teams. The implication is a 90-day office-first pilot with engagement "
+        "and attrition thresholds, not a remote default."
+    )
+    packet = build_evaluation_packet(state, svc.get_node("gd_04_build_on_others"), answer)
+    raw = PrepRubricEval(
+        raw_score=0.6,
+        criteria=[
+            CriterionEval(id="pressure_response", met=False, quality=0.2),
+            CriterionEval(id="evidence_defense", met=False, quality=0.2),
+            CriterionEval(id="core_consistency", met=False, quality=0.2),
+        ],
+        required_missing=["pressure_response", "evidence_defense", "core_consistency"],
+        next_focus="Defend the qualified answer.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, raw)
+
+    assert result.pass_eligible is False
+    assert "core_consistency" in result.required_missing
 
 
 def test_shared_gd_pressure_legacy_evidence_fails_closed_on_core_consistency():
@@ -3789,11 +3851,14 @@ def test_interview_pitch_future_goal_evidence_is_reconciled_before_caps():
 
 def test_interview_weakness_shape_evidence_is_reconciled_before_caps():
     answer = (
-        "Earlier, I tended to explain technical implementation before business impact. "
-        "I now start with the decision criteria, explain the tradeoff in plain language, "
-        "and prove the outcome. In a payment rollout, that meant catching two retry edge "
-        "cases early, avoiding a full rollback, and giving product a clear revenue-protection "
-        "reason to expand gradually."
+        "A weakness I have been working on is holding onto incident ownership too long "
+        "before escalating, not ignoring protocol or avoiding shared ownership. During a "
+        "payment-retry outage, I spent about 40 minutes "
+        "debugging alone because I wanted to solve it myself. In the retrospective I "
+        "proposed a 15-minute escalation rule and paired incident roles, and I started "
+        "explicitly naming when I needed another perspective. Across the next three "
+        "incidents, median escalation time fell from 35 minutes to 11. I still own incidents "
+        "safely, but I now escalate within 15 minutes when a failure crosses team boundaries."
     )
     state = svc._new_state(
         "user-1",
@@ -3807,13 +3872,20 @@ def test_interview_weakness_shape_evidence_is_reconciled_before_caps():
     model_eval = PrepRubricEval(
         raw_score=0.78,
         criteria=[
-            CriterionEval(id="real_weakness", met=True, quality=0.6, evidence_quote="technical implementation"),
+            CriterionEval(id="real_weakness", met=True, quality=0.6, evidence_quote="holding onto incident ownership"),
             CriterionEval(id="mitigation_habit", met=False, quality=0.2, reason="habit is too implicit"),
             CriterionEval(id="progress_evidence", met=False, quality=0.2, reason="progress evidence is not explicit"),
-            CriterionEval(id="non_self_sabotage", met=True, quality=0.8, evidence_quote="I now start"),
+            CriterionEval(
+                id="non_self_sabotage",
+                met=False,
+                quality=0.2,
+                reason="The weakness affects a core role requirement for incident ownership.",
+            ),
         ],
-        required_missing=["mitigation_habit", "progress_evidence"],
-        errors=["missing required rubric proof: mitigation_habit, progress_evidence"],
+        required_missing=["mitigation_habit", "progress_evidence", "non_self_sabotage"],
+        errors=[
+            "missing required rubric proof: mitigation_habit, progress_evidence, non_self_sabotage"
+        ],
         next_focus="Add the corrective habit and concrete progress evidence.",
         pass_eligible=False,
         mastery_eligible=False,
@@ -3825,6 +3897,9 @@ def test_interview_weakness_shape_evidence_is_reconciled_before_caps():
     assert rows["real_weakness"].met is True
     assert rows["mitigation_habit"].met is True
     assert rows["progress_evidence"].met is True
+    assert rows["non_self_sabotage"].met is True
+    assert "escalation rule" in rows["mitigation_habit"].evidence_quote
+    assert "fell from 35 minutes to 11" in rows["progress_evidence"].evidence_quote
     assert result.required_missing == []
     assert result.effective_score >= packet.pass_score
     assert result.pass_eligible is True
@@ -3832,6 +3907,58 @@ def test_interview_weakness_shape_evidence_is_reconciled_before_caps():
     assert "progress evidence" not in result.next_focus.lower()
     assert "three-part weakness answer" not in result.next_focus.lower()
     assert "pressure-test" in result.next_focus.lower()
+
+
+def test_interview_weakness_progress_accepts_owned_prevention_outcome():
+    from app.services.rubric_engine import (
+        _has_concrete_weakness_progress,
+        _weakness_progress_evidence,
+    )
+
+    answer = (
+        "I used to wait too long before escalating payment incidents. I now use a "
+        "15-minute escalation rule and name the second incident owner immediately. "
+        "During the last two incidents, I escalated within 15 minutes and there was "
+        "no additional customer impact."
+    )
+
+    assert _has_concrete_weakness_progress(answer) is True
+    assert "no additional customer impact" in _weakness_progress_evidence(answer).lower()
+
+
+def test_interview_weakness_progress_accepts_live_restored_service_outcome():
+    from app.services.rubric_engine import (
+        _has_concrete_weakness_progress,
+        _weakness_progress_evidence,
+    )
+
+    answer = (
+        "One weakness I have been working on is escalating production risks too late. "
+        "During a payment-service migration, I spent too long debugging an intermittent "
+        "timeout alone, which delayed rollback by about 40 minutes. Since then I use a "
+        "20-minute escalation rule and ask an owner to challenge my incident hypothesis. "
+        "In the last two incidents, we involved the right database engineer within 15 "
+        "minutes and restored service without extending the customer impact."
+    )
+
+    assert _has_concrete_weakness_progress(answer) is True
+    assert "restored service" in _weakness_progress_evidence(answer).lower()
+
+
+def test_interview_weakness_progress_composes_adjacent_event_sentences():
+    from app.services.rubric_engine import (
+        _has_concrete_weakness_progress,
+        _weakness_progress_evidence,
+    )
+
+    answer = (
+        "I used to wait too long before escalating payment incidents. I now use a "
+        "15-minute escalation rule. During the last two payment incidents, I escalated "
+        "within 15 minutes. There was no additional customer impact."
+    )
+
+    assert _has_concrete_weakness_progress(answer) is True
+    assert "no additional customer impact" in _weakness_progress_evidence(answer).lower()
 
 
 def test_interview_weakness_checklist_result_repairs_contradictory_model_evidence():
@@ -3925,6 +4052,40 @@ def test_interview_weakness_disqualifying_rejection_is_not_overridden():
     assert result.blockers == ["missing_required:non_self_sabotage"]
     assert result.pass_eligible is False
     assert result.next_focus == "Choose a weakness that does not violate a core role requirement."
+
+
+def test_interview_weakness_contradictory_role_failure_admission_stays_rejected():
+    answer = (
+        "A weakness I am managing is that I avoid incident ownership and refuse to "
+        "escalate production risk. I now use a 15-minute escalation rule. Across the last "
+        "three payment incidents, escalation time fell from 40 minutes to 12. This does "
+        "not prevent me from working on incidents, and I still own diagnosis."
+    )
+    state = svc._new_state(
+        "user-1", "session-role-failure", "int_03_weakness_framing", [],
+        task_type="interview_prep",
+    )
+    packet = build_evaluation_packet(state, svc.get_node("int_03_weakness_framing"), answer)
+    reason = "The weakness violates a core role requirement for incident ownership and escalation."
+    model_eval = PrepRubricEval(
+        raw_score=0.79,
+        criteria=[
+            CriterionEval(id="real_weakness", met=True, evidence_quote="avoid incident ownership"),
+            CriterionEval(id="mitigation_habit", met=True, evidence_quote="15-minute escalation rule"),
+            CriterionEval(id="progress_evidence", met=True, evidence_quote="fell from 40 minutes to 12"),
+            CriterionEval(id="non_self_sabotage", met=False, reason=reason),
+        ],
+        required_missing=["non_self_sabotage"],
+        next_focus="Choose a weakness that does not violate a core role requirement.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, model_eval)
+    rows = {row.id: row for row in result.criteria}
+
+    assert rows["non_self_sabotage"].met is False
+    assert result.pass_eligible is False
+    assert result.required_missing == ["non_self_sabotage"]
 
 
 def test_interview_weakness_transfer_context_repairs_false_model_rejection():
@@ -6558,29 +6719,136 @@ def test_manage_dominator_reconciles_grounded_respectful_boundary():
     assert {row.id for row in result.criteria if row.met} >= set(missing)
 
 
-@pytest.mark.parametrize("answer", [
-    (
+def test_manage_dominator_recognizes_dynamic_names_and_natural_boundary():
+    prompt = (
+        'On "Should remote work be the default?", Ravi keeps interrupting while '
+        "Maya has not had a chance to contribute. Set a calm boundary and redistribute the floor."
+    )
+    claims = svc._gd_task_participant_claims("gd_09_manage_dominator", prompt)
+    state = svc._new_state(
+        "user-1",
+        "session-gd09-dynamic-boundary",
+        "gd_09_manage_dominator",
+        [],
+        task_type="gd_prep",
+        career_context={"gd_topics": ["Should remote work be the default?"]},
+    )
+    state["active_task_contract"] = svc._derived_career_task_payload(
+        state,
+        {
+            "node_id": "gd_09_manage_dominator",
+            "content": prompt,
+            "message_kind": "coach_response",
+        },
+    )
+    state["active_task_contract"]["prompt_id"] = "gd09-dynamic-prompt"
+    answer = (
+        "Ravi, please let me finish this point; I will come back to you after Maya "
+        "has had a chance to contribute."
+    )
+    packet = build_evaluation_packet(state, svc.get_node("gd_09_manage_dominator"), answer)
+    raw = PrepRubricEval(
+        raw_score=0.45,
+        criteria=[
+            CriterionEval(id="respectful_boundary", met=False, evidence_quote=""),
+            CriterionEval(id="redistributes_floor", met=False, evidence_quote=""),
+            CriterionEval(id="acknowledges_contribution", met=False, evidence_quote=""),
+            CriterionEval(id="topic_link", met=False, evidence_quote=""),
+        ],
+        required_missing=[
+            "respectful_boundary",
+            "redistributes_floor",
+            "acknowledges_contribution",
+            "topic_link",
+        ],
+        next_focus="Set a respectful boundary.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, raw)
+    rows = {row.id: row for row in result.criteria}
+
+    assert {claim["display_name"] for claim in claims} >= {"Ravi", "Maya"}
+    assert rows["respectful_boundary"].met is True
+    assert rows["redistributes_floor"].met is True
+    assert rows["acknowledges_contribution"].met is False
+    assert rows["topic_link"].met is False
+    assert result.pass_eligible is False
+
+
+def test_manage_dominator_does_not_credit_the_wrong_named_participant():
+    prompt = (
+        'On "Should remote work be the default?", Ravi keeps interrupting while '
+        "Maya has not had a chance to contribute. Set a calm boundary and redistribute the floor."
+    )
+    state = svc._new_state(
+        "user-1",
+        "session-gd09-wrong-participant",
+        "gd_09_manage_dominator",
+        [],
+        task_type="gd_prep",
+        career_context={"gd_topics": ["Should remote work be the default?"]},
+    )
+    state["active_task_contract"] = svc._derived_career_task_payload(
+        state,
+        {
+            "node_id": "gd_09_manage_dominator",
+            "content": prompt,
+            "message_kind": "coach_response",
+        },
+    )
+    state["active_task_contract"]["prompt_id"] = "gd09-wrong-participant-prompt"
+    answer = (
+        "Rohan, your point about remote-work access is useful; please let me finish this "
+        "point. On making remote work the default, give Maya a chance to contribute."
+    )
+    packet = build_evaluation_packet(state, svc.get_node("gd_09_manage_dominator"), answer)
+    missing = [
+        "acknowledges_contribution",
+        "respectful_boundary",
+        "redistributes_floor",
+        "topic_link",
+    ]
+    raw = PrepRubricEval(
+        raw_score=0.3,
+        criteria=[CriterionEval(id=item, met=False, evidence_quote="") for item in missing],
+        required_missing=missing,
+        next_focus="Address the assigned dominant participant.",
+        pass_eligible=False,
+    )
+
+    result = apply_caps(packet, raw)
+    rows = {row.id: row for row in result.criteria}
+
+    assert rows["acknowledges_contribution"].met is False
+    assert rows["respectful_boundary"].met is False
+    assert rows["redistributes_floor"].met is True
+    assert result.pass_eligible is False
+
+
+@pytest.mark.parametrize(("answer", "has_explicit_boundary"), [
+    ((
         "Rohan, your access point is useful and relevant to remote work being the default. "
         "Maya, please take the floor and give us your mentoring perspective."
-    ),
-    (
+    ), False),
+    ((
         "Remote work is important to company policy, so let's pause here. "
         "Let's hear from Maya about the remote-work mentoring risk before we continue."
-    ),
-    (
+    ), False),
+    ((
         "Maya, your mentoring perspective is useful. Rohan, let me pause you there. "
         "On making remote work the default, Maya, please take the floor."
-    ),
-    (
+    ), True),
+    ((
         "Maya, your mentoring perspective is useful, but Rohan, let me pause you there. "
         "On making remote work the default, Maya, please take the floor."
-    ),
-    (
+    ), True),
+    ((
         "Maya, your mentoring perspective is useful but Rohan, let me pause you there. "
         "On making remote work the default, Maya, please take the floor."
-    ),
+    ), True),
 ])
-def test_manage_dominator_does_not_invent_a_missing_boundary(answer):
+def test_manage_dominator_credits_only_an_explicit_boundary(answer, has_explicit_boundary):
     state = svc._new_state(
         "user-1",
         "session-gd09-no-boundary",
@@ -6602,7 +6870,7 @@ def test_manage_dominator_does_not_invent_a_missing_boundary(answer):
 
     assert result.pass_eligible is False
     boundary = next(row for row in result.criteria if row.id == "respectful_boundary")
-    assert boundary.met is False
+    assert boundary.met is has_explicit_boundary
 
 
 @pytest.mark.parametrize(

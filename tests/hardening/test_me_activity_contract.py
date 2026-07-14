@@ -215,7 +215,10 @@ def test_learning_graph_uses_store_aggregate_without_extra_checkouts():
     class AggregateStore:
         async def get_learning_graph(self, _user_id):
             return {
-                "profiles": [],
+                "profiles": [
+                    {"domain": "career", "skill_id": "career-skill"},
+                    {"domain": "school", "skill_id": "school-skill"},
+                ],
                 "reports": [],
                 "events": [],
                 "progression": [{"module_id": "group_discussion"}],
@@ -232,6 +235,7 @@ def test_learning_graph_uses_store_aggregate_without_extra_checkouts():
 
     assert graph["progression"] == [{"module_id": "group_discussion"}]
     assert graph["active_sessions"] == [{"session_id": "session-gd"}]
+    assert [row["skill_id"] for row in graph["profiles"]] == ["career-skill"]
 
 
 def test_learning_graph_projects_only_career_memory_evidence():
@@ -253,8 +257,12 @@ def test_learning_graph_projects_only_career_memory_evidence():
 
     session = RecordingSession()
     graph = _run(repo.get_learning_graph(session, "user-1"))
+    profile_query = next(
+        sql for sql in session.statements if "FROM learner_skill_profiles" in sql
+    )
     event_query = next(sql for sql in session.statements if "FROM learning_events" in sql)
 
+    assert "domain = 'career'" in profile_query
     assert "domain = 'career'" in event_query
     assert "jsonb_strip_nulls(jsonb_build_object" in event_query
     assert "criterion.value->>'evidence_quote'" in event_query

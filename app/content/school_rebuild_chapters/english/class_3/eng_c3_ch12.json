@@ -1,0 +1,1064 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: chapter theme, pedagogy stages, deterministic keys, unseen passages, assessment coverage, age fit, and source independence"
+  ],
+  "runtime_sha256": "b096669f884965a6594309e8fd6fb8d54b636df856c17ca6a33ff0d4c6b37a7e",
+  "chapter_id": "eng_c3_ch12",
+  "chapter_no": 12,
+  "title": "Chandrayaan",
+  "book_title": "Santoor",
+  "unit_title": "The Sky",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa112.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and assessment scenes instead of copying textbook prose.",
+  "levels": [
+    {
+      "level_id": "chandrayaan_news_idea",
+      "title": "Find the big moon-mission news",
+      "focus": "identify main idea and key fact",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Separate supporting details from the main news that an Indian spacecraft completed a journey to the Moon.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The main idea answers what all the important facts are about. A launch, a long space journey, and a safe lunar landing all support one mission story.",
+          "passage": "A rocket lifted an Indian spacecraft into space. After travelling far beyond Earth, the craft reached the Moon and landed safely.",
+          "prompt": "Which sentence gives the main news?",
+          "options": [
+            "An Indian spacecraft completed a journey to the Moon.",
+            "The rocket made a loud sound.",
+            "Earth has roads.",
+            "The Moon appears at night."
+          ],
+          "accepted_answers": [
+            "An Indian spacecraft completed a journey to the Moon.",
+            "an Indian spacecraft completed a journey to the Moon"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Sort headline from detail. 'The craft reached the Moon' is the headline; 'people watched a screen' is a supporting detail.",
+          "passage": "Families watched the mission screen as the landing signal arrived.",
+          "prompt": "What event are the families watching?",
+          "options": [
+            "a Moon landing",
+            "a football match",
+            "a rainstorm",
+            "a train arrival"
+          ],
+          "accepted_answers": [
+            "a Moon landing",
+            "moon landing",
+            "the moon landing"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not choose a broad fact like 'Space is large.' The main idea must name this mission and its achievement.",
+          "passage": "The control room cheers when the lander sends a safe-arrival signal from the lunar surface.",
+          "prompt": "Which answer is specific enough?",
+          "options": [
+            "The Moon mission landed successfully.",
+            "Space contains many objects.",
+            "People can cheer.",
+            "Signals use machines."
+          ],
+          "accepted_answers": [
+            "The Moon mission landed successfully.",
+            "the moon mission landed successfully"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a fresh report and state its main idea.",
+          "passage": "After months of testing, a small research craft crossed a great distance and began sending pictures from the Moon's southern region.",
+          "prompt": "What is the report mainly about?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "craft",
+              "description": "Name a research craft or spacecraft.",
+              "any_of": [
+                "research craft",
+                "spacecraft",
+                "craft"
+              ]
+            },
+            {
+              "id": "achievement",
+              "description": "Mention reaching or sending pictures from the Moon.",
+              "any_of": [
+                "reached the Moon",
+                "moon pictures",
+                "sending pictures",
+                "lunar region"
+              ]
+            },
+            {
+              "id": "main",
+              "description": "State the central mission achievement, not a minor detail.",
+              "any_of": [
+                "mission success",
+                "began lunar work",
+                "completed journey",
+                "moon exploration"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Identify the main idea in an ocean mission.",
+          "passage": "A research boat sailed for ten days, reached a remote coral reef, and lowered cameras to record sea life.",
+          "prompt": "State the main idea and one supporting detail.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "idea",
+              "description": "State that a research boat explored a coral reef.",
+              "any_of": [
+                "boat explored reef",
+                "coral reef research",
+                "ocean mission",
+                "recorded sea life"
+              ]
+            },
+            {
+              "id": "detail",
+              "description": "Use the journey, cameras, or sea-life detail.",
+              "any_of": [
+                "ten days",
+                "lowered cameras",
+                "record sea life",
+                "remote reef"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "chandrayaan_curiosity",
+      "title": "Questions that lead to discovery",
+      "focus": "infer curiosity and give a reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Infer curiosity from purposeful questions and explain how asking experts helps learning.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Curiosity is shown through wanting to know more. Rani asks what a lander does, how it slows down, and why scientists choose a landing place.",
+          "passage": "Rani pauses the news and asks three questions about the spacecraft. She writes the answers in a notebook.",
+          "prompt": "What quality does Rani show?",
+          "options": [
+            "curiosity",
+            "carelessness",
+            "sleepiness",
+            "anger"
+          ],
+          "accepted_answers": [
+            "curiosity",
+            "curious"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find evidence, then name the quality. Repeated useful questions are evidence of curiosity.",
+          "passage": "A child asks the science teacher why the Moon has craters.",
+          "prompt": "Which action is the evidence?",
+          "options": [
+            "asking why the Moon has craters",
+            "sitting on a chair",
+            "closing a notebook",
+            "ringing the bell"
+          ],
+          "accepted_answers": [
+            "asking why the Moon has craters",
+            "asks why the moon has craters"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Curiosity is not the same as already knowing. A curious learner asks because there is more to discover.",
+          "passage": "Rani says, 'I do not understand how the craft lands without a runway. Can you explain?'",
+          "prompt": "Which reason best explains her question?",
+          "options": [
+            "She wants to understand something new.",
+            "She already knows every detail.",
+            "She wants the lesson to stop.",
+            "She dislikes the Moon."
+          ],
+          "accepted_answers": [
+            "She wants to understand something new.",
+            "she wants to understand something new"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer curiosity in an unseen classroom moment.",
+          "passage": "During a model-rocket activity, Faiz asks why fins keep the rocket steady and then tests two fin shapes.",
+          "prompt": "How do Faiz's actions show curiosity?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "question",
+              "description": "Mention his question about fins.",
+              "any_of": [
+                "asks why",
+                "why fins",
+                "keep rocket steady"
+              ]
+            },
+            {
+              "id": "test",
+              "description": "Mention testing two shapes.",
+              "any_of": [
+                "tests shapes",
+                "two fin shapes",
+                "tries both"
+              ]
+            },
+            {
+              "id": "quality",
+              "description": "Connect these actions to learning or curiosity.",
+              "any_of": [
+                "curious",
+                "wants to learn",
+                "investigates",
+                "finds out"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Explain curiosity outside space science.",
+          "passage": "At the garden pond, Kiara notices fewer tadpoles near the sunny edge. She asks the gardener about shade and compares both sides of the pond.",
+          "prompt": "Explain why Kiara's approach is curious.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "notice",
+              "description": "Mention noticing the tadpole difference.",
+              "any_of": [
+                "fewer tadpoles",
+                "sunny edge",
+                "difference"
+              ]
+            },
+            {
+              "id": "question",
+              "description": "Mention asking about shade.",
+              "any_of": [
+                "asks gardener",
+                "asks about shade"
+              ]
+            },
+            {
+              "id": "compare",
+              "description": "Mention comparing both pond sides.",
+              "any_of": [
+                "compares both sides",
+                "checks shade and sun"
+              ]
+            },
+            {
+              "id": "quality",
+              "description": "Name curiosity or investigation.",
+              "any_of": [
+                "curious",
+                "investigates",
+                "wants to understand"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "chandrayaan_space_words",
+      "title": "Unlock mission words",
+      "focus": "infer and use informational vocabulary",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use context to understand launch, orbit, lander, and lunar in simple mission reports.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A launch is the start of a spacecraft's journey from the ground. The clue 'rose from the launch pad' shows upward movement at the beginning.",
+          "passage": "Flames appeared below the rocket as it rose from the pad and began its launch.",
+          "prompt": "What does launch mean here?",
+          "options": [
+            "the start of a space journey",
+            "the end of a school day",
+            "a slow walk home",
+            "a picture of the Moon"
+          ],
+          "accepted_answers": [
+            "the start of a space journey",
+            "start of a space journey",
+            "beginning of the journey"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Lunar means related to the Moon. Link luna or lunar with Moon whenever the sentence describes the Moon's surface.",
+          "passage": "The lander photographed rocks on the lunar ground.",
+          "prompt": "Which place does lunar describe?",
+          "options": [
+            "the Moon",
+            "Earth",
+            "the Sun",
+            "a river"
+          ],
+          "accepted_answers": [
+            "the Moon",
+            "moon"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A lander is not the whole rocket. It is the part designed to come down safely on a surface.",
+          "passage": "The spacecraft releases a smaller machine that lowers its legs and settles on the Moon.",
+          "prompt": "Which word names the smaller machine?",
+          "options": [
+            "lander",
+            "telescope",
+            "satellite dish",
+            "launch pad"
+          ],
+          "accepted_answers": [
+            "lander",
+            "a lander"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the context clue in a fresh sentence.",
+          "passage": "The craft entered orbit and travelled again and again around the Moon.",
+          "prompt": "What does orbit mean here?",
+          "options": [],
+          "accepted_answers": [
+            "path around the moon",
+            "going around the moon",
+            "a path around an object",
+            "circle around the moon"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same word in an Earth-science context.",
+          "passage": "A weather satellite follows an orbit around Earth while collecting cloud pictures.",
+          "prompt": "What does orbit mean in this sentence?",
+          "options": [],
+          "accepted_answers": [
+            "path around earth",
+            "going around earth",
+            "a path around an object",
+            "circle around earth"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "chandrayaan_mission_timeline",
+      "title": "Tell the mission in past time",
+      "focus": "order events and use past tense",
+      "skill_ids": [
+        "grammar.sentence_order",
+        "grammar.tense_usage"
+      ],
+      "teaching_goal": "Arrange launch, travel, and landing events, and use past-tense verbs to report completed mission facts.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A completed mission is reported in past tense: launched, travelled, landed. Time order follows start, journey, arrival.",
+          "passage": "The craft launched from Earth, travelled through space, and landed on the Moon.",
+          "prompt": "Which verb shows the final event?",
+          "options": [
+            "landed",
+            "launched",
+            "travelled",
+            "will travel"
+          ],
+          "accepted_answers": [
+            "landed"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Match base and past forms: launch becomes launched; travel becomes travelled; land becomes landed.",
+          "passage": "Today we launch a model. Yesterday we ___ it.",
+          "prompt": "Which past-tense form completes the sentence?",
+          "options": [
+            "launched",
+            "launch",
+            "launching",
+            "will launch"
+          ],
+          "accepted_answers": [
+            "launched"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not mix future and past in a report about finished events. 'The craft will land yesterday' is incorrect.",
+          "passage": "The landing happened last week.",
+          "prompt": "Which sentence uses the correct tense?",
+          "options": [
+            "The craft landed last week.",
+            "The craft will land last week.",
+            "The craft land last week.",
+            "The craft landing last week."
+          ],
+          "accepted_answers": [
+            "The craft landed last week.",
+            "the craft landed last week"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the completed events and use past-tense verbs.",
+          "passage": "Words: landed on the Moon / launched from Earth / travelled through space",
+          "prompt": "Write the mission events from first to last.",
+          "options": [],
+          "accepted_answers": [
+            "launched from earth, travelled through space, landed on the moon",
+            "launched from earth travelled through space landed on the moon"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Report a completed journey in a different context.",
+          "passage": "Yesterday, a rescue boat left the harbour, crossed rough water, and reached a small island.",
+          "prompt": "Write one complete past-tense sentence that keeps the event order.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "start",
+              "description": "Mention that the boat left the harbour.",
+              "any_of": [
+                "boat left",
+                "left the harbour"
+              ]
+            },
+            {
+              "id": "journey",
+              "description": "Mention crossing rough water.",
+              "any_of": [
+                "crossed rough water",
+                "sailed across rough water"
+              ]
+            },
+            {
+              "id": "arrival",
+              "description": "Mention reaching the island.",
+              "any_of": [
+                "reached the island",
+                "arrived at the island"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "chandrayaan_fact_summary",
+      "title": "Write a clear mission note",
+      "focus": "write complete facts and a short summary",
+      "skill_ids": [
+        "writing.complete_sentence",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Combine a mission's purpose, sequence, and result into two or three accurate sentences in the learner's own words.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A fact note uses complete sentences and keeps only key information. Worked example: 'The mission carried a lander towards the Moon. It landed safely and began studying the surface.'",
+          "passage": "Purpose: study the Moon. Result: the lander reached the surface and sent information.",
+          "prompt": "Which note includes both purpose and result?",
+          "options": [
+            "The mission studied the Moon after its lander reached the surface.",
+            "Mission Moon.",
+            "The lander because.",
+            "Surface and information."
+          ],
+          "accepted_answers": [
+            "The mission studied the Moon after its lander reached the surface.",
+            "the mission studied the Moon after its lander reached the surface"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the summary from three parts: what travelled, where it went, and what it achieved.",
+          "passage": "What: spacecraft. Where: Moon. Achievement: safe landing.",
+          "prompt": "Which sentence contains all three parts?",
+          "options": [
+            "The spacecraft reached the Moon and landed safely.",
+            "The Moon is far.",
+            "A spacecraft travelled.",
+            "Safely because."
+          ],
+          "accepted_answers": [
+            "The spacecraft reached the Moon and landed safely.",
+            "the spacecraft reached the Moon and landed safely"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Avoid copying a list of dates or machine parts. A summary connects the purpose and result in your own words.",
+          "passage": "The craft launched, travelled to the Moon, landed, and sent surface readings.",
+          "prompt": "Which answer is a useful summary?",
+          "options": [
+            "A Moon mission completed its journey and began collecting information from the surface.",
+            "Launch, craft, Moon, readings.",
+            "The craft had legs.",
+            "Space is above us."
+          ],
+          "accepted_answers": [
+            "A Moon mission completed its journey and began collecting information from the surface.",
+            "a moon mission completed its journey and began collecting information from the surface"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Summarize an unseen mission report without a model answer.",
+          "passage": "A small rover rolled away from its lander, photographed nearby rocks, and sent the pictures to scientists on Earth.",
+          "prompt": "Write two sentences explaining what the rover did and why the pictures mattered.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "Mention that the rover moved or photographed rocks.",
+              "any_of": [
+                "rover rolled",
+                "photographed rocks",
+                "took pictures"
+              ]
+            },
+            {
+              "id": "send",
+              "description": "Mention sending pictures to Earth or scientists.",
+              "any_of": [
+                "sent pictures",
+                "scientists on Earth",
+                "sent to Earth"
+              ]
+            },
+            {
+              "id": "purpose",
+              "description": "Explain that scientists could study or learn about the Moon.",
+              "any_of": [
+                "study rocks",
+                "learn about Moon",
+                "understand surface",
+                "examine pictures"
+              ]
+            }
+          ],
+          "min_response_words": 11
+        },
+        "transfer_check": {
+          "teaching_block": "Write a short information note about a different exploration tool.",
+          "passage": "An underwater robot moved along the sea floor, recorded a coral reef, and returned video for marine scientists.",
+          "prompt": "Write two sentences summarizing its journey and result.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "journey",
+              "description": "Mention movement along the sea floor.",
+              "any_of": [
+                "moved along sea floor",
+                "underwater journey",
+                "travelled underwater"
+              ]
+            },
+            {
+              "id": "record",
+              "description": "Mention recording coral or video.",
+              "any_of": [
+                "recorded coral reef",
+                "made video",
+                "reef video"
+              ]
+            },
+            {
+              "id": "result",
+              "description": "Mention scientists receiving or studying the video.",
+              "any_of": [
+                "scientists studied",
+                "returned video",
+                "marine scientists",
+                "learn about reef"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3c12_read01",
+        "passage": "The control screen shows a green signal after the lander touches the lunar ground.",
+        "prompt": "What does the green signal follow?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "the lander touching the ground",
+          "the rocket leaving Earth",
+          "the classroom bell",
+          "a rain shower"
+        ],
+        "accepted_answers": [
+          "the lander touching the ground",
+          "lander touching the ground"
+        ]
+      },
+      {
+        "item_id": "c3c12_read02",
+        "passage": "A rover leaves the lander and takes pictures beside a shallow crater.",
+        "prompt": "What machine takes the pictures?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "rover",
+          "the rover"
+        ]
+      },
+      {
+        "item_id": "c3c12_main01",
+        "passage": "A craft travelled to an asteroid, collected a small sample, and carried it back for study.",
+        "prompt": "Which main idea fits the report?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "A space mission returned an asteroid sample for study.",
+          "Asteroids are all small.",
+          "The craft had a box.",
+          "Scientists like pictures."
+        ],
+        "accepted_answers": [
+          "A space mission returned an asteroid sample for study.",
+          "a space mission returned an asteroid sample for study"
+        ]
+      },
+      {
+        "item_id": "c3c12_main02",
+        "passage": "A balloon rose high above storms and measured temperature, wind, and moisture before returning.",
+        "prompt": "State the main idea of the report.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "tool",
+            "description": "Name the balloon.",
+            "any_of": [
+              "balloon",
+              "weather balloon"
+            ]
+          },
+          {
+            "id": "work",
+            "description": "Mention measuring weather conditions.",
+            "any_of": [
+              "measured temperature",
+              "wind and moisture",
+              "weather measurements",
+              "studied storms"
+            ]
+          },
+          {
+            "id": "idea",
+            "description": "State the purpose of gathering weather information.",
+            "any_of": [
+              "weather study",
+              "learn about weather",
+              "collect data",
+              "research"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c12_infer01",
+        "passage": "Zoya asks the museum guide why a capsule needs a heat shield and sketches the answer.",
+        "prompt": "What quality does Zoya show?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "curiosity",
+          "rudeness",
+          "carelessness",
+          "fear"
+        ],
+        "accepted_answers": [
+          "curiosity",
+          "curious"
+        ]
+      },
+      {
+        "item_id": "c3c12_infer02",
+        "passage": "Naman compares two paper rockets after asking which fin shape flies straighter.",
+        "prompt": "Explain how his actions show investigation.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "question",
+            "description": "Mention his fin-shape question.",
+            "any_of": [
+              "asks which fin",
+              "fin shape"
+            ]
+          },
+          {
+            "id": "test",
+            "description": "Mention comparing two rockets.",
+            "any_of": [
+              "compares rockets",
+              "tests two",
+              "two paper rockets"
+            ]
+          },
+          {
+            "id": "purpose",
+            "description": "Explain that he wants evidence or an answer.",
+            "any_of": [
+              "find out",
+              "learn",
+              "see which flies straighter",
+              "uses evidence"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c12_reason01",
+        "passage": "Scientists test the lander's legs many times before launch.",
+        "prompt": "Which sentence gives the clearest reason?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "They test the legs because the lander must touch down safely.",
+          "They test but launch.",
+          "Because scientists.",
+          "Legs many times."
+        ],
+        "accepted_answers": [
+          "They test the legs because the lander must touch down safely.",
+          "they test the legs because the lander must touch down safely"
+        ]
+      },
+      {
+        "item_id": "c3c12_reason02",
+        "passage": "A rover carries a camera into a place where people cannot walk safely.",
+        "prompt": "Explain why the camera is useful.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "place",
+            "description": "Mention the unsafe or hard-to-reach place.",
+            "any_of": [
+              "cannot walk safely",
+              "unsafe place",
+              "far place"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "Mention the rover taking or sending pictures.",
+            "any_of": [
+              "takes pictures",
+              "sends pictures",
+              "camera records"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "Explain that people can observe or study remotely.",
+            "any_of": [
+              "scientists can study",
+              "people can see",
+              "observe from far away",
+              "learn safely"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c12_word01",
+        "passage": "The rocket began its ascent and climbed away from the ground.",
+        "prompt": "What does ascent mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "upward climb",
+          "safe landing",
+          "trip around",
+          "slow fall"
+        ],
+        "accepted_answers": [
+          "upward climb",
+          "climb upward",
+          "rise"
+        ]
+      },
+      {
+        "item_id": "c3c12_word02",
+        "passage": "The rover transmitted pictures, sending them by signal to Earth.",
+        "prompt": "What does transmitted mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "sent",
+          "sent by signal",
+          "passed on"
+        ]
+      },
+      {
+        "item_id": "c3c12_vocab01",
+        "passage": "A machine is designed to settle safely on another world's surface.",
+        "prompt": "Which mission word names it?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "lander",
+          "orbit",
+          "launch pad",
+          "telescope"
+        ],
+        "accepted_answers": [
+          "lander",
+          "a lander"
+        ]
+      },
+      {
+        "item_id": "c3c12_vocab02",
+        "passage": "A craft follows a repeated path around Mars.",
+        "prompt": "Write the word for this path.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "orbit",
+          "an orbit"
+        ]
+      },
+      {
+        "item_id": "c3c12_order01",
+        "passage": "A probe launched, travelled for months, and entered orbit.",
+        "prompt": "Which event happened first?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "launched",
+          "entered orbit",
+          "travelled for months",
+          "sent final pictures"
+        ],
+        "accepted_answers": [
+          "launched"
+        ]
+      },
+      {
+        "item_id": "c3c12_order02",
+        "passage": "Words: sent pictures / reached the planet / left Earth",
+        "prompt": "Arrange the completed events.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "left earth, reached the planet, sent pictures",
+          "left earth reached the planet sent pictures"
+        ]
+      },
+      {
+        "item_id": "c3c12_tense01",
+        "passage": "The mission ended yesterday.",
+        "prompt": "Which sentence uses the correct past tense?",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [
+          "The craft landed yesterday.",
+          "The craft lands yesterday.",
+          "The craft will land yesterday.",
+          "The craft landing yesterday."
+        ],
+        "accepted_answers": [
+          "The craft landed yesterday.",
+          "the craft landed yesterday"
+        ]
+      },
+      {
+        "item_id": "c3c12_tense02",
+        "passage": "Last month, engineers ___ the rover wheels on rough ground.",
+        "prompt": "Write the past form of test.",
+        "skill_ids": [
+          "grammar.tense_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "tested"
+        ]
+      },
+      {
+        "item_id": "c3c12_sentence01",
+        "passage": "The rover sends rock pictures to Earth.",
+        "prompt": "Which option is a complete factual sentence?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The rover sends pictures of rocks to Earth.",
+          "Pictures because rover.",
+          "Rocks to.",
+          "The rover and."
+        ],
+        "accepted_answers": [
+          "The rover sends pictures of rocks to Earth.",
+          "the rover sends pictures of rocks to earth"
+        ]
+      },
+      {
+        "item_id": "c3c12_sentence02",
+        "passage": "A radio antenna receives the craft's signal.",
+        "prompt": "Write one complete fact about the antenna.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "subject",
+            "description": "Name the antenna.",
+            "any_of": [
+              "antenna",
+              "radio antenna"
+            ]
+          },
+          {
+            "id": "verb",
+            "description": "Use a complete action.",
+            "any_of": [
+              "receives",
+              "collects",
+              "detects",
+              "picks up"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "Mention the craft or signal.",
+            "any_of": [
+              "craft's signal",
+              "space signal",
+              "signal from craft"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c12_summary01",
+        "passage": "A probe flew past a comet, photographed its icy surface, and sent the images home.",
+        "prompt": "Which summary keeps the journey and result?",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "The probe visited a comet and returned useful pictures.",
+          "A comet has ice.",
+          "The probe was fast.",
+          "Images use colour."
+        ],
+        "accepted_answers": [
+          "The probe visited a comet and returned useful pictures.",
+          "the probe visited a comet and returned useful pictures"
+        ]
+      },
+      {
+        "item_id": "c3c12_summary02",
+        "passage": "A solar telescope opened in space, observed the Sun for a month, and sent temperature maps to researchers.",
+        "prompt": "Summarize the tool's work in two sentences.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "tool",
+            "description": "Name the solar telescope.",
+            "any_of": [
+              "solar telescope",
+              "telescope"
+            ]
+          },
+          {
+            "id": "work",
+            "description": "Mention observing the Sun.",
+            "any_of": [
+              "observed the Sun",
+              "watched the Sun",
+              "studied Sun"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "Mention sending maps or helping researchers.",
+            "any_of": [
+              "sent temperature maps",
+              "researchers received maps",
+              "helped researchers",
+              "temperature information"
+            ]
+          }
+        ],
+        "min_response_words": 10
+      }
+    ]
+  }
+}

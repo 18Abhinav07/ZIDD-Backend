@@ -7,6 +7,7 @@ surface to callers instead of silently losing learner state.
 """
 import json
 import time
+from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
@@ -23,6 +24,26 @@ _SCHOOL_MASTERED_THRESHOLD = 0.8
 _SCHOOL_REVIEW_STALE_SECONDS = 5 * 24 * 60 * 60
 _REQUEST_STALE_SECONDS = 120
 CAREER_LEARNING_EVENT_LIMIT = 200
+_SCHOOL_ANSWER_REQUEST_STALE_SECONDS = 120
+_SCHOOL_ACTIVE_SESSION_STATUSES = {"active", "paused_for_masterclass"}
+_SCHOOL_TERMINAL_SESSION_STATUSES = {
+    "complete",
+    "insufficient_evidence",
+    "abandoned",
+    "expired",
+}
+
+
+def _validate_learning_domain_task(domain: str, task_type: str) -> None:
+    normalized_domain = str(domain or "").strip()
+    normalized_task = str(task_type or "").strip()
+    if normalized_domain not in {"career", "school"}:
+        raise ValueError("invalid_learning_domain")
+    is_school_task = normalized_task.startswith("school_")
+    if normalized_domain == "school" and not is_school_task:
+        raise ValueError("school_learning_task_domain_mismatch")
+    if normalized_domain == "career" and is_school_task:
+        raise ValueError("career_learning_task_domain_mismatch")
 
 # ---------- profiles ----------
 
@@ -286,6 +307,872 @@ async def complete_onboarding(
     if row is None:
         raise KeyError(user_id)
     return dict(row)
+
+
+async def get_active_school_profile_version(
+    session: AsyncSession,
+    user_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT *
+            FROM school_profile_versions
+            WHERE user_id = :uid AND status = 'active'
+            ORDER BY activated_at DESC NULLS LAST, updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_school_state_snapshot(
+    session: AsyncSession,
+    user_id: str,
+) -> dict:
+    """Load the common canonical School read model in one database round trip.
+
+    A normal School page previously reopened a Supabase session for every piece
+    of state.  The values below share one active profile and report lineage, so
+    fetching them independently was slower and allowed cross-query drift.
+    Historical compatible-profile recovery remains a route-level fallback.
+    """
+
+    result = await session.execute(
+        text(
+            """
+            WITH active_profile AS (
+                SELECT *
+                FROM school_profile_versions
+                WHERE user_id = :uid AND status = 'active'
+                ORDER BY activated_at DESC NULLS LAST, updated_at DESC
+                LIMIT 1
+            ),
+            latest_placement AS (
+                SELECT s.*
+                FROM school_sessions AS s
+                JOIN active_profile AS p
+                  ON p.user_id = s.user_id
+                 AND p.profile_version_id = s.profile_version_id
+                 AND s.subject_id = p.subject_ids ->> 0
+                 AND s.class_no = p.target_class_no
+                WHERE s.user_id = :uid
+                  AND s.api_version = 'rebuild'
+                  AND s.flow_type = 'placement'
+                ORDER BY
+                    CASE WHEN s.status IN ('active', 'paused_for_masterclass')
+                         THEN 0 ELSE 1 END,
+                    s.updated_at DESC
+                LIMIT 1
+            ),
+            latest_report AS (
+                SELECT r.*
+                FROM school_placement_reports AS r
+                JOIN active_profile AS p
+                  ON p.user_id = r.user_id
+                 AND p.profile_version_id = r.profile_version_id
+                 AND r.subject_id = p.subject_ids ->> 0
+                 AND r.target_class_no = p.target_class_no
+                WHERE r.user_id = :uid
+                ORDER BY
+                    CASE WHEN r.placement_session_id =
+                                   (SELECT session_id FROM latest_placement)
+                         THEN 0 ELSE 1 END,
+                    r.updated_at DESC
+                LIMIT 1
+            ),
+            latest_recap AS (
+                SELECT s.*
+                FROM school_sessions AS s
+                JOIN active_profile AS p
+                  ON p.user_id = s.user_id
+                 AND p.profile_version_id = s.profile_version_id
+                 AND s.subject_id = p.subject_ids ->> 0
+                 AND s.class_no = p.target_class_no
+                JOIN latest_report AS r
+                  ON r.report_id = s.source_placement_report_id
+                WHERE s.user_id = :uid
+                  AND s.api_version = 'rebuild'
+                  AND s.flow_type = 'recap'
+                ORDER BY
+                    CASE WHEN s.status IN ('active', 'paused_for_masterclass')
+                         THEN 0 ELSE 1 END,
+                    s.updated_at DESC
+                LIMIT 1
+            ),
+            latest_curriculum AS (
+                SELECT s.*
+                FROM school_sessions AS s
+                JOIN active_profile AS p
+                  ON p.user_id = s.user_id
+                 AND p.profile_version_id = s.profile_version_id
+                 AND s.subject_id = p.subject_ids ->> 0
+                 AND s.class_no = p.target_class_no
+                JOIN latest_report AS r
+                  ON r.report_id = s.source_placement_report_id
+                WHERE s.user_id = :uid
+                  AND s.api_version = 'rebuild'
+                  AND s.flow_type = 'curriculum'
+                ORDER BY
+                    CASE WHEN s.status IN ('active', 'paused_for_masterclass')
+                         THEN 0 ELSE 1 END,
+                    s.updated_at DESC
+                LIMIT 1
+            ),
+            active_parent AS (
+                SELECT session_id FROM latest_curriculum
+                UNION ALL
+                SELECT session_id FROM latest_recap
+                WHERE NOT EXISTS (SELECT 1 FROM latest_curriculum)
+                LIMIT 1
+            ),
+            relevant_answer_sessions AS (
+                SELECT session_id FROM latest_placement
+                UNION
+                SELECT session_id FROM latest_recap
+                UNION
+                SELECT session_id FROM latest_curriculum
+                UNION
+                SELECT s.session_id
+                FROM school_sessions AS s
+                WHERE s.user_id = :uid
+                  AND s.linked_session_id =
+                      (SELECT session_id FROM active_parent)
+            )
+            SELECT
+                (
+                    SELECT jsonb_build_object(
+                        'user_id', lp.user_id,
+                        'credits', lp.credits,
+                        'demo_unlimited', lp.demo_unlimited,
+                        'name', lp.display_name,
+                        'email', lp.email,
+                        'google_sub', lp.google_sub,
+                        'preferences', lp.preferences,
+                        'primary_motive', lp.primary_motive,
+                        'onboarding_completed_at', lp.onboarding_completed_at,
+                        'school_profile', lp.school_profile,
+                        'career_profile', lp.career_profile,
+                        'onboarding_state', lp.onboarding_state
+                    )
+                    FROM learner_profiles AS lp
+                    WHERE lp.user_id = :uid
+                ) AS learner_profile,
+                (SELECT to_jsonb(p) FROM active_profile AS p) AS school_profile,
+                (SELECT to_jsonb(s) FROM latest_placement AS s) AS placement_session,
+                (SELECT to_jsonb(r) FROM latest_report AS r) AS placement_report,
+                (SELECT to_jsonb(s) FROM latest_recap AS s) AS recap_session,
+                (SELECT to_jsonb(s) FROM latest_curriculum AS s) AS curriculum_session,
+                COALESCE(
+                    (
+                        SELECT jsonb_agg(to_jsonb(s) ORDER BY s.updated_at DESC)
+                        FROM school_sessions AS s
+                        WHERE s.user_id = :uid
+                          AND s.linked_session_id =
+                              (SELECT session_id FROM active_parent)
+                    ),
+                    '[]'::jsonb
+                ) AS linked_sessions,
+                COALESCE(
+                    (
+                        SELECT jsonb_agg(
+                            to_jsonb(a) || jsonb_build_object(
+                                'age_seconds', GREATEST(
+                                    0,
+                                    EXTRACT(EPOCH FROM (now() - a.updated_at))
+                                ),
+                                'stale', EXTRACT(EPOCH FROM (now() - a.updated_at))
+                                    >= :stale_seconds
+                            )
+                            ORDER BY a.updated_at DESC
+                        )
+                        FROM school_answer_requests AS a
+                        WHERE a.user_id = :uid
+                          AND a.session_id IN (
+                              SELECT session_id FROM relevant_answer_sessions
+                          )
+                          AND a.status = 'processing'
+                    ),
+                    '[]'::jsonb
+                ) AS processing_answer_requests,
+                COALESCE(
+                    (
+                        SELECT jsonb_agg(to_jsonb(sp) ORDER BY sp.last_seen_at DESC)
+                        FROM learner_skill_profiles AS sp
+                        WHERE sp.user_id = :uid AND sp.domain = 'school'
+                    ),
+                    '[]'::jsonb
+                ) AS school_skill_profiles
+            """
+        ),
+        {
+            "uid": user_id,
+            "stale_seconds": _SCHOOL_ANSWER_REQUEST_STALE_SECONDS,
+        },
+    )
+    row = result.mappings().first()
+    if row is None:
+        return {
+            "learner_profile": None,
+            "school_profile": None,
+            "placement_session": None,
+            "placement_report": None,
+            "recap_session": None,
+            "curriculum_session": None,
+            "linked_sessions": [],
+            "processing_answer_requests": [],
+            "school_skill_profiles": [],
+        }
+    snapshot = dict(row)
+    raw_report = snapshot.get("placement_report")
+    if isinstance(raw_report, dict):
+        snapshot["placement_report"] = _school_placement_report_from_row(raw_report)
+    for key in (
+        "linked_sessions",
+        "processing_answer_requests",
+        "school_skill_profiles",
+    ):
+        snapshot[key] = list(snapshot.get(key) or [])
+
+    requests_by_session: dict[str, dict] = {}
+    for request in snapshot["processing_answer_requests"]:
+        if not isinstance(request, dict):
+            continue
+        session_id = str(request.get("session_id") or "")
+        if session_id and session_id not in requests_by_session:
+            requests_by_session[session_id] = request
+
+    def attach_processing_request(value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        request = requests_by_session.get(str(value.get("session_id") or ""))
+        return {**value, "processing_answer_request": request} if request else value
+
+    for key in ("placement_session", "recap_session", "curriculum_session"):
+        snapshot[key] = attach_processing_request(snapshot.get(key))
+    snapshot["linked_sessions"] = [
+        attach_processing_request(value) for value in snapshot["linked_sessions"]
+    ]
+    return snapshot
+
+
+async def get_school_profile_draft(
+    session: AsyncSession,
+    user_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT *
+            FROM school_profile_versions
+            WHERE user_id = :uid AND status = 'draft'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_school_profile_version(
+    session: AsyncSession,
+    user_id: str,
+    profile_version_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT *
+            FROM school_profile_versions
+            WHERE user_id = :uid
+              AND profile_version_id = CAST(:profile_version_id AS uuid)
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id, "profile_version_id": profile_version_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def _lock_school_profile_lineage(
+    session: AsyncSession,
+    user_id: str,
+) -> None:
+    result = await session.execute(
+        text(
+            """
+            SELECT user_id
+            FROM learner_profiles
+            WHERE user_id = :uid
+            FOR UPDATE
+            """
+        ),
+        {"uid": user_id},
+    )
+    if result.first() is None:
+        raise KeyError(user_id)
+
+
+def _school_profile_json_value(value):
+    if value is None:
+        return None
+    return json.dumps(value)
+
+
+_SCHOOL_PROFILE_ALL_FIELDS = (
+    "display_name",
+    "school_name",
+    "board_id",
+    "target_class_no",
+    "subject_ids",
+    "preferred_teaching_language",
+    "english_comfort",
+    "learner_goal",
+    "parent_goal",
+    "prior_difficulty_signals",
+)
+_SCHOOL_PROFILE_COMPATIBILITY_FIELDS = (
+    "board_id",
+    "target_class_no",
+    "subject_ids",
+    "preferred_teaching_language",
+    "english_comfort",
+    "prior_difficulty_signals",
+)
+
+
+def _school_profile_values(row: dict, fields: tuple[str, ...]) -> tuple:
+    values = []
+    for field in fields:
+        value = row.get(field)
+        if field in {"subject_ids", "prior_difficulty_signals"} and isinstance(value, str):
+            value = json.loads(value)
+        if isinstance(value, list):
+            value = tuple(sorted(set(value)))
+        values.append(value)
+    return tuple(values)
+
+
+def _school_profile_all_values(row: dict) -> tuple:
+    return _school_profile_values(row, _SCHOOL_PROFILE_ALL_FIELDS)
+
+
+def _school_profile_compatibility_values(row: dict) -> tuple:
+    return _school_profile_values(row, _SCHOOL_PROFILE_COMPATIBILITY_FIELDS)
+
+
+def _school_profile_draft_snapshot(row: dict) -> dict:
+    def list_value(field: str):
+        value = row.get(field)
+        if isinstance(value, str):
+            value = json.loads(value)
+        return list(value) if isinstance(value, (list, tuple)) else value
+
+    target_class_no = row.get("target_class_no")
+    return {
+        "profile_version_id": str(row["profile_version_id"]),
+        "status": "draft",
+        "current_step": int(row.get("current_step") or 0),
+        "draft_revision": int(row.get("draft_revision") or 1),
+        "display_name": row.get("display_name"),
+        "school_name": row.get("school_name"),
+        "board_id": row.get("board_id"),
+        "target_class_no": (
+            int(target_class_no) if target_class_no is not None else None
+        ),
+        "subject_ids": list_value("subject_ids"),
+        "preferred_teaching_language": row.get("preferred_teaching_language"),
+        "english_comfort": row.get("english_comfort"),
+        "learner_goal": row.get("learner_goal"),
+        "parent_goal": row.get("parent_goal"),
+        "prior_difficulty_signals": list_value("prior_difficulty_signals"),
+    }
+
+
+async def save_school_profile_draft(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    profile_version_id: str | None,
+    expected_revision: int | None,
+    current_step: int,
+    request_id: str,
+    payload_hash: str,
+    patch: dict,
+) -> dict:
+    try:
+        await _lock_school_profile_lineage(session, user_id)
+        request_result = await session.execute(
+            text(
+                """
+                SELECT payload_hash, response_json
+                FROM school_profile_draft_requests
+                WHERE user_id = :uid
+                  AND request_id = CAST(:request_id AS uuid)
+                LIMIT 1
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id, "request_id": request_id},
+        )
+        request_row = request_result.mappings().first()
+        if request_row:
+            if request_row.get("payload_hash") != payload_hash:
+                raise ValueError("school_draft_request_conflict")
+            response_json = request_row.get("response_json") or {}
+            if isinstance(response_json, str):
+                response_json = json.loads(response_json)
+            await session.commit()
+            return dict(response_json)
+
+        result = await session.execute(
+            text(
+                """
+                SELECT *
+                FROM school_profile_versions
+                WHERE user_id = :uid AND status = 'draft'
+                LIMIT 1
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id},
+        )
+        existing_row = result.mappings().first()
+        existing = dict(existing_row) if existing_row else None
+
+        if existing:
+            if profile_version_id is None or expected_revision is None:
+                raise ValueError("school_draft_lineage_required")
+            if (
+                str(existing["profile_version_id"]) != str(profile_version_id)
+            ):
+                raise ValueError("school_draft_profile_conflict")
+            if (
+                int(existing.get("draft_revision") or 1) != int(expected_revision)
+            ):
+                raise ValueError("school_draft_revision_conflict")
+            values = {**existing, **patch}
+            next_revision = int(existing.get("draft_revision") or 1) + 1
+            draft_id = str(existing["profile_version_id"])
+            update_result = await session.execute(
+                text(
+                    """
+                    UPDATE school_profile_versions
+                    SET display_name = :display_name,
+                        school_name = :school_name,
+                        board_id = :board_id,
+                        target_class_no = :target_class_no,
+                        subject_ids = CAST(:subject_ids AS jsonb),
+                        preferred_teaching_language = :preferred_teaching_language,
+                        english_comfort = :english_comfort,
+                        learner_goal = :learner_goal,
+                        parent_goal = :parent_goal,
+                        prior_difficulty_signals = CAST(:prior_difficulty_signals AS jsonb),
+                        current_step = :current_step,
+                        draft_revision = :draft_revision,
+                        last_save_request_id = CAST(:request_id AS uuid),
+                        last_save_payload_hash = :payload_hash,
+                        updated_at = now()
+                    WHERE user_id = :uid
+                      AND profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND status = 'draft'
+                    RETURNING *
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "profile_version_id": draft_id,
+                    "display_name": values.get("display_name"),
+                    "school_name": values.get("school_name"),
+                    "board_id": values.get("board_id"),
+                    "target_class_no": values.get("target_class_no"),
+                    "subject_ids": _school_profile_json_value(values.get("subject_ids")),
+                    "preferred_teaching_language": values.get(
+                        "preferred_teaching_language"
+                    ),
+                    "english_comfort": values.get("english_comfort"),
+                    "learner_goal": values.get("learner_goal"),
+                    "parent_goal": values.get("parent_goal"),
+                    "prior_difficulty_signals": _school_profile_json_value(
+                        values.get("prior_difficulty_signals")
+                    ),
+                    "current_step": int(current_step),
+                    "draft_revision": next_revision,
+                    "request_id": request_id,
+                    "payload_hash": payload_hash,
+                },
+            )
+            row = update_result.mappings().first()
+        else:
+            if profile_version_id is not None or expected_revision is not None:
+                raise ValueError("school_draft_not_found")
+            active_result = await session.execute(
+                text(
+                    """
+                    SELECT *
+                    FROM school_profile_versions
+                    WHERE user_id = :uid AND status = 'active'
+                    LIMIT 1
+                    FOR UPDATE
+                    """
+                ),
+                {"uid": user_id},
+            )
+            active_row = active_result.mappings().first()
+            active = dict(active_row) if active_row else {}
+            values = {**active, **patch}
+            draft_id = str(uuid4())
+            insert_result = await session.execute(
+                text(
+                    """
+                    INSERT INTO school_profile_versions
+                        (profile_version_id, user_id, status, display_name, school_name,
+                         board_id, target_class_no, subject_ids,
+                         preferred_teaching_language, english_comfort, learner_goal,
+                         parent_goal, prior_difficulty_signals, current_step,
+                         draft_revision, last_save_request_id, last_save_payload_hash,
+                         source_profile_version_id)
+                    VALUES
+                        (CAST(:profile_version_id AS uuid), :uid, 'draft', :display_name,
+                         :school_name, :board_id, :target_class_no,
+                         CAST(:subject_ids AS jsonb), :preferred_teaching_language,
+                         :english_comfort, :learner_goal, :parent_goal,
+                         CAST(:prior_difficulty_signals AS jsonb), :current_step, 1,
+                         CAST(:request_id AS uuid), :payload_hash,
+                         CAST(:source_profile_version_id AS uuid))
+                    RETURNING *
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "profile_version_id": draft_id,
+                    "display_name": values.get("display_name"),
+                    "school_name": values.get("school_name"),
+                    "board_id": values.get("board_id"),
+                    "target_class_no": values.get("target_class_no"),
+                    "subject_ids": _school_profile_json_value(values.get("subject_ids")),
+                    "preferred_teaching_language": values.get(
+                        "preferred_teaching_language"
+                    ),
+                    "english_comfort": values.get("english_comfort"),
+                    "learner_goal": values.get("learner_goal"),
+                    "parent_goal": values.get("parent_goal"),
+                    "prior_difficulty_signals": _school_profile_json_value(
+                        values.get("prior_difficulty_signals")
+                    ),
+                    "current_step": int(current_step),
+                    "request_id": request_id,
+                    "payload_hash": payload_hash,
+                    "source_profile_version_id": (
+                        str(active["profile_version_id"]) if active else None
+                    ),
+                },
+            )
+            row = insert_result.mappings().first()
+
+        if row is None:
+            raise KeyError(user_id)
+        snapshot = _school_profile_draft_snapshot(dict(row))
+        await session.execute(
+            text(
+                """
+                INSERT INTO school_profile_draft_requests
+                    (user_id, request_id, profile_version_id, payload_hash, response_json)
+                VALUES
+                    (:uid, CAST(:request_id AS uuid),
+                     CAST(:profile_version_id AS uuid), :payload_hash,
+                     CAST(:response_json AS jsonb))
+                """
+            ),
+            {
+                "uid": user_id,
+                "request_id": request_id,
+                "profile_version_id": snapshot["profile_version_id"],
+                "payload_hash": payload_hash,
+                "response_json": json.dumps(snapshot),
+            },
+        )
+        await session.commit()
+        return snapshot
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def activate_school_profile_draft(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    profile_version_id: str,
+    expected_revision: int,
+    request_id: str,
+    payload_hash: str,
+) -> dict:
+    try:
+        await _lock_school_profile_lineage(session, user_id)
+        replay_result = await session.execute(
+            text(
+                """
+                SELECT *
+                FROM school_profile_versions
+                WHERE user_id = :uid
+                  AND activation_request_id = CAST(:request_id AS uuid)
+                LIMIT 1
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id, "request_id": request_id},
+        )
+        replay_row = replay_result.mappings().first()
+        if replay_row:
+            replay = dict(replay_row)
+            if replay.get("activation_payload_hash") != payload_hash:
+                raise ValueError("school_activation_request_conflict")
+            result_profile_id = (
+                replay.get("activation_result_profile_version_id")
+                or replay.get("profile_version_id")
+            )
+            profile_result = await session.execute(
+                text(
+                    """
+                    SELECT *
+                    FROM school_profile_versions
+                    WHERE user_id = :uid
+                      AND profile_version_id = CAST(:profile_version_id AS uuid)
+                    LIMIT 1
+                    """
+                ),
+                {"uid": user_id, "profile_version_id": str(result_profile_id)},
+            )
+            profile_row = profile_result.mappings().first()
+            if profile_row is None:
+                raise ValueError("school_activation_result_missing")
+            await session.commit()
+            return dict(profile_row)
+
+        target_result = await session.execute(
+            text(
+                """
+                SELECT *
+                FROM school_profile_versions
+                WHERE user_id = :uid
+                  AND profile_version_id = CAST(:profile_version_id AS uuid)
+                LIMIT 1
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id, "profile_version_id": profile_version_id},
+        )
+        target_row = target_result.mappings().first()
+        if target_row is None:
+            raise ValueError("school_profile_not_found")
+        target = dict(target_row)
+        if int(target.get("draft_revision") or 1) != int(expected_revision):
+            raise ValueError("school_profile_revision_conflict")
+        if target.get("status") == "active":
+            raise ValueError("school_profile_already_active")
+        if target.get("status") != "draft":
+            raise ValueError("school_profile_not_draft")
+
+        from app.services.school_rebuild_profile import (
+            CANONICAL_SCHOOL_COACH_IDS,
+            choose_school_coach_identity,
+            school_catalog_selection_available,
+        )
+
+        if not school_catalog_selection_available(target):
+            raise ValueError("school_catalog_selection_unavailable")
+
+        source = None
+        source_profile_version_id = target.get("source_profile_version_id")
+        if source_profile_version_id is not None:
+            source_result = await session.execute(
+                text(
+                    """
+                    SELECT *
+                    FROM school_profile_versions
+                    WHERE user_id = :uid
+                      AND profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND status = 'active'
+                    LIMIT 1
+                    FOR UPDATE
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "profile_version_id": str(source_profile_version_id),
+                },
+            )
+            source_row = source_result.mappings().first()
+            source = dict(source_row) if source_row else None
+
+        if source and _school_profile_all_values(source) == _school_profile_all_values(target):
+            await session.execute(
+                text(
+                    """
+                    UPDATE school_profile_versions
+                    SET status = 'archived',
+                        archived_at = now(),
+                        activation_request_id = CAST(:request_id AS uuid),
+                        activation_payload_hash = :payload_hash,
+                        activation_result_profile_version_id = CAST(:result_profile_id AS uuid),
+                        updated_at = now()
+                    WHERE user_id = :uid
+                      AND profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND status = 'draft'
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "profile_version_id": profile_version_id,
+                    "request_id": request_id,
+                    "payload_hash": payload_hash,
+                    "result_profile_id": str(source["profile_version_id"]),
+                },
+            )
+            await session.commit()
+            return source
+
+        existing_avatar_id = target.get("coach_avatar_id")
+        existing_palette_id = target.get("coach_palette_id")
+        if (
+            existing_avatar_id in CANONICAL_SCHOOL_COACH_IDS
+            and existing_palette_id == existing_avatar_id
+        ):
+            coach_identity = {
+                "coach_avatar_id": existing_avatar_id,
+                "coach_palette_id": existing_palette_id,
+            }
+        else:
+            coach_identity = choose_school_coach_identity()
+
+        await session.execute(
+            text(
+                """
+                UPDATE school_profile_versions
+                SET status = 'archived', archived_at = now(), updated_at = now()
+                WHERE user_id = :uid AND status = 'active'
+                """
+            ),
+            {"uid": user_id},
+        )
+        activated_result = await session.execute(
+            text(
+                """
+                UPDATE school_profile_versions
+                SET status = 'active',
+                    activated_at = now(),
+                    archived_at = NULL,
+                    coach_avatar_id = :coach_avatar_id,
+                    coach_palette_id = :coach_palette_id,
+                    activation_request_id = CAST(:request_id AS uuid),
+                    activation_payload_hash = :payload_hash,
+                    activation_result_profile_version_id = profile_version_id,
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND profile_version_id = CAST(:profile_version_id AS uuid)
+                  AND status = 'draft'
+                RETURNING *
+                """
+            ),
+            {
+                "uid": user_id,
+                "profile_version_id": profile_version_id,
+                "request_id": request_id,
+                "payload_hash": payload_hash,
+                **coach_identity,
+            },
+        )
+        activated_row = activated_result.mappings().first()
+        if activated_row is None:
+            raise ValueError("school_profile_not_draft")
+        activated = dict(activated_row)
+        compatible_edit = bool(
+            source
+            and _school_profile_compatibility_values(source)
+            == _school_profile_compatibility_values(target)
+        )
+        if compatible_edit:
+            await session.execute(
+                text(
+                    """
+                    UPDATE school_sessions
+                    SET profile_version_id = CAST(:profile_version_id AS uuid),
+                        state_json = jsonb_set(
+                            state_json,
+                            '{profile_version_id}',
+                            to_jsonb(CAST(:profile_version_id AS text)),
+                            true
+                        ),
+                        updated_at = now()
+                    WHERE user_id = :uid
+                      AND profile_version_id = CAST(:source_profile_version_id AS uuid)
+                      AND status IN ('active', 'paused_for_masterclass')
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "profile_version_id": profile_version_id,
+                    "source_profile_version_id": str(source["profile_version_id"]),
+                },
+            )
+        await session.execute(
+            text(
+                """
+                UPDATE school_sessions
+                SET status = 'expired', updated_at = now(),
+                    completed_at = COALESCE(completed_at, now())
+                WHERE user_id = :uid
+                  AND status IN ('active', 'paused_for_masterclass')
+                  AND profile_version_id IS DISTINCT FROM CAST(:profile_version_id AS uuid)
+                """
+            ),
+            {"uid": user_id, "profile_version_id": profile_version_id},
+        )
+        await session.execute(
+            text(
+                """
+                UPDATE learner_profiles
+                SET display_name = :display_name,
+                    primary_motive = 'school',
+                    school_profile = CAST(:school_profile AS jsonb),
+                    onboarding_completed_at = now(),
+                    onboarding_state = '{}'::jsonb
+                WHERE user_id = :uid
+                """
+            ),
+            {
+                "uid": user_id,
+                "display_name": activated["display_name"],
+                "school_profile": json.dumps(
+                    {
+                        field: activated.get(field)
+                        for field in (
+                            "school_name",
+                            "board_id",
+                            "target_class_no",
+                            "subject_ids",
+                            "preferred_teaching_language",
+                            "english_comfort",
+                            "learner_goal",
+                            "parent_goal",
+                            "prior_difficulty_signals",
+                        )
+                    }
+                ),
+            },
+        )
+        await session.commit()
+        return activated
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def deduct_credit(
@@ -1476,6 +2363,7 @@ async def record_learning_event(
     model_name: str | None = None,
     prompt_version: str | None = None,
 ) -> bool:
+    _validate_learning_domain_task(domain, task_type)
     result = await session.execute(
         text(
             """
@@ -1614,6 +2502,7 @@ async def upsert_learner_skill_profile(
     recommended_next_action: str,
     source_summary: str,
 ) -> None:
+    _validate_learning_domain_task(domain, task_type)
     await session.execute(
         text(
             """
@@ -1792,6 +2681,8 @@ async def replace_learner_skill_profiles_for_task(
 
 
 async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
+    """Return the Career learning graph; School has an explicit separate reader."""
+
     profiles = await session.execute(
         text(
             """
@@ -1799,8 +2690,8 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
                    readiness, confidence, attempts, last_seen_at, strengths_json,
                    gaps_json, evidence_json, recommended_next_action, source_summary
             FROM learner_skill_profiles
-            WHERE user_id = :uid
-            ORDER BY domain, readiness ASC, last_seen_at DESC
+            WHERE user_id = :uid AND domain = 'career'
+            ORDER BY readiness ASC, last_seen_at DESC
             """
         ),
         {"uid": user_id},
@@ -1903,6 +2794,44 @@ async def get_learning_graph(session: AsyncSession, user_id: str) -> dict:
         "events": [dict(row) for row in events.mappings().all()],
         "progression": progression,
         "active_sessions": active_sessions,
+    }
+
+
+async def get_school_learning_graph(session: AsyncSession, user_id: str) -> dict:
+    """Return unredacted School evidence without crossing into Career memory."""
+
+    profiles = await session.execute(
+        text(
+            """
+            SELECT user_id, domain, skill_id, module_id, task_type, mastery,
+                   readiness, confidence, attempts, last_seen_at, strengths_json,
+                   gaps_json, evidence_json, recommended_next_action, source_summary
+            FROM learner_skill_profiles
+            WHERE user_id = :uid AND domain = 'school'
+            ORDER BY readiness ASC, last_seen_at DESC
+            """
+        ),
+        {"uid": user_id},
+    )
+    events = await session.execute(
+        text(
+            """
+            SELECT source_event_key, domain, task_type, module_id, session_id,
+                   node_id, skill_id, source, attempt_type, score, confidence,
+                   criteria_json, evidence_json, blockers, gap, scenario_json,
+                   caveats, model_name, prompt_version, occurred_at
+            FROM learning_events
+            WHERE user_id = :uid AND domain = 'school'
+            ORDER BY occurred_at DESC
+            LIMIT 200
+            """
+        ),
+        {"uid": user_id},
+    )
+    return {
+        "profiles": [dict(row) for row in profiles.mappings().all()],
+        "reports": [],
+        "events": [dict(row) for row in events.mappings().all()],
     }
 
 
@@ -3073,6 +4002,1609 @@ async def get_school_results(
         item["weak_skills"] = item.get("weak_skills") or []
         out.append(item)
     return out
+
+
+async def upsert_school_session(
+    session: AsyncSession,
+    *,
+    session_id: str,
+    user_id: str,
+    api_version: str,
+    flow_type: str,
+    subject_id: str,
+    class_no: int,
+    status: str,
+    state_json: dict,
+    current_stage: str = "",
+    linked_session_id: str | None = None,
+    profile_version_id: str | None = None,
+    source_placement_report_id: str | None = None,
+    _commit: bool = True,
+) -> None:
+    if api_version != "rebuild" and status in _SCHOOL_ACTIVE_SESSION_STATUSES:
+        raise ValueError("archived_school_api_version")
+    if api_version == "rebuild":
+        await _lock_school_profile_lineage(session, user_id)
+        existing_result = await session.execute(
+            text(
+                """
+                SELECT status,
+                       profile_version_id::text AS profile_version_id,
+                       source_placement_report_id::text AS source_placement_report_id
+                FROM school_sessions
+                WHERE session_id = CAST(:session_id AS uuid)
+                  AND user_id = :uid
+                LIMIT 1
+                FOR UPDATE
+                """
+            ),
+            {"session_id": session_id, "uid": user_id},
+        )
+        existing_row = existing_result.mappings().first()
+        existing = dict(existing_row) if existing_row else None
+        effective_profile_version_id = profile_version_id
+        if existing:
+            existing_profile_version_id = existing.get("profile_version_id")
+            if (
+                effective_profile_version_id is not None
+                and existing_profile_version_id is not None
+                and str(effective_profile_version_id)
+                != str(existing_profile_version_id)
+            ):
+                raise ValueError("school_session_lineage_conflict")
+            effective_profile_version_id = (
+                effective_profile_version_id or existing_profile_version_id
+            )
+
+        same_terminal_replay = bool(
+            existing
+            and status in _SCHOOL_TERMINAL_SESSION_STATUSES
+            and existing.get("status") == status
+        )
+        requires_active_profile = False
+        if status in _SCHOOL_ACTIVE_SESSION_STATUSES:
+            if existing and existing.get("status") not in _SCHOOL_ACTIVE_SESSION_STATUSES:
+                raise ValueError("stale_school_session_transition")
+            requires_active_profile = True
+        elif status in _SCHOOL_TERMINAL_SESSION_STATUSES:
+            if not existing:
+                raise ValueError("school_session_transition_requires_active")
+            if not same_terminal_replay:
+                if existing.get("status") not in _SCHOOL_ACTIVE_SESSION_STATUSES:
+                    raise ValueError("stale_school_session_transition")
+                requires_active_profile = True
+
+        if requires_active_profile:
+            if effective_profile_version_id is None:
+                raise ValueError("active_school_session_profile_lineage_required")
+            profile_result = await session.execute(
+                text(
+                    """
+                    SELECT profile_version_id
+                    FROM school_profile_versions
+                    WHERE profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND user_id = :uid
+                      AND status = 'active'
+                    LIMIT 1
+                    FOR SHARE
+                    """
+                ),
+                {
+                    "profile_version_id": str(effective_profile_version_id),
+                    "uid": user_id,
+                },
+            )
+            if profile_result.first() is None:
+                raise ValueError("stale_school_profile_lineage")
+        if effective_profile_version_id is not None:
+            profile_version_id = str(effective_profile_version_id)
+            embedded_profile_version_id = (state_json or {}).get(
+                "profile_version_id"
+            )
+            if (
+                embedded_profile_version_id not in (None, "")
+                and str(embedded_profile_version_id) != profile_version_id
+            ):
+                raise ValueError("school_session_lineage_conflict")
+        if linked_session_id is not None:
+            linked_result = await session.execute(
+                text(
+                    """
+                    SELECT session_id
+                    FROM school_sessions
+                    WHERE session_id = CAST(:linked_session_id AS uuid)
+                      AND user_id = :uid
+                    LIMIT 1
+                    FOR SHARE
+                    """
+                ),
+                {"linked_session_id": linked_session_id, "uid": user_id},
+            )
+            if linked_result.first() is None:
+                raise ValueError("linked_school_session_not_found")
+
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_sessions
+                (session_id, user_id, api_version, flow_type, subject_id, class_no,
+                 status, current_stage, linked_session_id, profile_version_id,
+                 source_placement_report_id, state_json)
+            VALUES
+                (CAST(:session_id AS uuid), :uid, :api_version, :flow_type,
+                 :subject_id, :class_no, :status, :current_stage,
+                 CAST(:linked_session_id AS uuid), CAST(:profile_version_id AS uuid),
+                 CAST(:source_placement_report_id AS uuid), CAST(:state_json AS jsonb))
+            ON CONFLICT (session_id) DO UPDATE SET
+                api_version = EXCLUDED.api_version,
+                flow_type = EXCLUDED.flow_type,
+                subject_id = EXCLUDED.subject_id,
+                class_no = EXCLUDED.class_no,
+                status = EXCLUDED.status,
+                current_stage = EXCLUDED.current_stage,
+                linked_session_id = EXCLUDED.linked_session_id,
+                profile_version_id = COALESCE(EXCLUDED.profile_version_id, school_sessions.profile_version_id),
+                source_placement_report_id = COALESCE(EXCLUDED.source_placement_report_id, school_sessions.source_placement_report_id),
+                state_json = EXCLUDED.state_json,
+                updated_at = now(),
+                completed_at = CASE
+                    WHEN EXCLUDED.status IN ('complete', 'abandoned', 'expired', 'insufficient_evidence')
+                    THEN COALESCE(school_sessions.completed_at, now())
+                    ELSE school_sessions.completed_at
+                END
+            """
+        ),
+        {
+            "session_id": session_id,
+            "uid": user_id,
+            "api_version": api_version,
+            "flow_type": flow_type,
+            "subject_id": subject_id,
+            "class_no": int(class_no),
+            "status": status,
+            "current_stage": current_stage or "",
+            "linked_session_id": linked_session_id,
+            "profile_version_id": profile_version_id,
+            "source_placement_report_id": source_placement_report_id,
+            "state_json": json.dumps(state_json or {}),
+        },
+    )
+    if _commit:
+        await session.commit()
+
+
+async def get_or_create_school_session(
+    session: AsyncSession,
+    **school_session,
+) -> dict:
+    user_id = str(school_session["user_id"])
+    try:
+        if school_session.get("api_version") == "rebuild":
+            await _lock_school_profile_lineage(session, user_id)
+        winner = await get_active_school_session(
+            session,
+            user_id,
+            str(school_session["api_version"]),
+            str(school_session["flow_type"]),
+            str(school_session["subject_id"]),
+            int(school_session["class_no"]),
+            profile_version_id=school_session.get("profile_version_id"),
+            source_placement_report_id=school_session.get(
+                "source_placement_report_id"
+            ),
+        )
+        if winner:
+            await session.commit()
+            return winner
+        await upsert_school_session(session, **school_session, _commit=False)
+        created = await get_school_session(
+            session,
+            user_id,
+            str(school_session["session_id"]),
+        )
+        if created is None:
+            raise RuntimeError("school_session_create_failed")
+        await session.commit()
+        return created
+    except IntegrityError as exc:
+        constraint_name = getattr(getattr(exc, "orig", None), "constraint_name", None)
+        if constraint_name is None:
+            constraint_name = getattr(
+                getattr(getattr(exc, "orig", None), "diag", None),
+                "constraint_name",
+                None,
+            )
+        await session.rollback()
+        if constraint_name != "idx_school_sessions_one_active_flow":
+            raise
+        await _lock_school_profile_lineage(session, user_id)
+        winner = await get_active_school_session(
+            session,
+            user_id,
+            str(school_session["api_version"]),
+            str(school_session["flow_type"]),
+            str(school_session["subject_id"]),
+            int(school_session["class_no"]),
+            profile_version_id=school_session.get("profile_version_id"),
+            source_placement_report_id=school_session.get(
+                "source_placement_report_id"
+            ),
+        )
+        if winner:
+            await session.commit()
+            return winner
+        await session.rollback()
+        raise ValueError("school_session_start_conflict") from exc
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def get_or_create_active_school_placement_session(
+    session: AsyncSession,
+    *,
+    session_id: str,
+    user_id: str,
+    profile_version_id: str,
+    subject_id: str,
+    class_no: int,
+    current_stage: str,
+    state_json: dict,
+) -> dict:
+    async def authorize_expected_profile() -> None:
+        active_result = await session.execute(
+            text(
+                """
+                SELECT profile_version_id::text AS profile_version_id
+                FROM school_profile_versions
+                WHERE user_id = :uid AND status = 'active'
+                ORDER BY activated_at DESC NULLS LAST, updated_at DESC
+                LIMIT 1
+                FOR SHARE
+                """
+            ),
+            {"uid": user_id},
+        )
+        active_row = active_result.mappings().first()
+        if (
+            active_row is None
+            or str(active_row["profile_version_id"]) != str(profile_version_id)
+        ):
+            raise ValueError("stale_school_profile_lineage")
+
+    try:
+        await _lock_school_profile_lineage(session, user_id)
+        await authorize_expected_profile()
+
+        winner = await get_active_school_session(
+            session,
+            user_id,
+            "rebuild",
+            "placement",
+            subject_id,
+            class_no,
+            profile_version_id=profile_version_id,
+        )
+        if winner:
+            await session.commit()
+            return winner
+
+        await upsert_school_session(
+            session,
+            session_id=session_id,
+            user_id=user_id,
+            api_version="rebuild",
+            flow_type="placement",
+            subject_id=subject_id,
+            class_no=class_no,
+            status="active",
+            current_stage=current_stage,
+            profile_version_id=profile_version_id,
+            source_placement_report_id=None,
+            state_json=state_json,
+            _commit=False,
+        )
+        winner = await get_school_session(session, user_id, session_id)
+        if winner is None:
+            raise RuntimeError("school_placement_session_create_failed")
+        await session.commit()
+        return winner
+    except IntegrityError as exc:
+        await session.rollback()
+        try:
+            await _lock_school_profile_lineage(session, user_id)
+            await authorize_expected_profile()
+        except Exception:
+            await session.rollback()
+            raise
+        winner = await get_active_school_session(
+            session,
+            user_id,
+            "rebuild",
+            "placement",
+            subject_id,
+            class_no,
+            profile_version_id=profile_version_id,
+        )
+        if winner:
+            await session.commit()
+            return winner
+        await session.rollback()
+        raise ValueError("school_session_start_conflict") from exc
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def persist_school_answer_attempt(
+    session: AsyncSession,
+    *,
+    learning_event: dict,
+    school_session: dict,
+    expected_state_json: dict,
+    request_activity_id: str | None = None,
+    request_answer_hash: str | None = None,
+    request_claim_token: str | None = None,
+    response_json: dict | None = None,
+    placement_report: dict | None = None,
+    projection_evidence: dict | None = None,
+    language_evaluation: dict | None = None,
+) -> None:
+    """Commit one canonical School answer transition and its evidence atomically."""
+    try:
+        user_id = str(school_session["user_id"])
+        await session.execute(
+            text(
+                "SELECT pg_advisory_xact_lock("
+                "hashtext('zidd_school_answer:' || :uid))"
+            ),
+            {"uid": user_id},
+        )
+        if school_session.get("api_version") == "rebuild":
+            await _lock_school_profile_lineage(session, user_id)
+        if request_activity_id is not None:
+            if (
+                request_answer_hash is None
+                or request_claim_token is None
+                or response_json is None
+            ):
+                raise ValueError("invalid_school_answer_request_completion")
+            request_row = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT status, answer_hash, claim_token, response_json
+                        FROM school_answer_requests
+                        WHERE session_id = CAST(:session_id AS uuid)
+                          AND activity_id = :activity_id
+                          AND user_id = :uid
+                        FOR UPDATE
+                        """
+                    ),
+                    {
+                        "session_id": school_session["session_id"],
+                        "activity_id": request_activity_id,
+                        "uid": user_id,
+                    },
+                )
+            ).mappings().first()
+            if (
+                request_row is None
+                or request_row["status"] != "processing"
+                or request_row["answer_hash"] != request_answer_hash
+                or str(request_row["claim_token"] or "") != request_claim_token
+            ):
+                raise ValueError("stale_school_answer_request")
+        result = await session.execute(
+            text(
+                """
+                SELECT state_json
+                FROM school_sessions
+                WHERE session_id = CAST(:session_id AS uuid) AND user_id = :uid
+                FOR UPDATE
+                """
+            ),
+            {
+                "session_id": school_session["session_id"],
+                "uid": user_id,
+            },
+        )
+        current_state = result.scalar_one_or_none()
+        if isinstance(current_state, str):
+            current_state = json.loads(current_state)
+        if current_state is None or dict(current_state) != dict(expected_state_json):
+            raise ValueError("stale_school_answer_session")
+
+        profile_upserts: list[dict] = []
+        if projection_evidence is not None:
+            from app.services.school.projection import (
+                SchoolAttemptEvidence,
+                derive_school_projection_delta,
+            )
+
+            existing_profiles = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT user_id, domain, skill_id, module_id, task_type,
+                               mastery, readiness, confidence, attempts,
+                               strengths_json, gaps_json, evidence_json,
+                               recommended_next_action, source_summary
+                        FROM learner_skill_profiles
+                        WHERE user_id = :uid AND domain = 'school'
+                        FOR UPDATE
+                        """
+                    ),
+                    {"uid": user_id},
+                )
+            ).mappings().all()
+            projection = SchoolAttemptEvidence.from_dict(projection_evidence)
+            profile_upserts = derive_school_projection_delta(
+                projection,
+                [dict(row) for row in existing_profiles],
+            )
+            for profile in profile_upserts:
+                profile["user_id"] = user_id
+
+        session_to_write = dict(school_session)
+        if language_evaluation is not None:
+            from app.services.school.language_confidence import (
+                LanguageConfidenceState,
+                apply_curriculum_language_signal,
+            )
+
+            language_row = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT en_production_confidence, total_signals
+                        FROM school_language_confidence
+                        WHERE user_id = :uid
+                        FOR UPDATE
+                        """
+                    ),
+                    {"uid": user_id},
+                )
+            ).mappings().first()
+            language_state = apply_curriculum_language_signal(
+                LanguageConfidenceState(
+                    user_id=user_id,
+                    en_production_confidence=float(
+                        (language_row or {}).get("en_production_confidence") or 0.0
+                    ),
+                    total_signals=int((language_row or {}).get("total_signals") or 0),
+                ),
+                language_evaluation,
+            )
+            state_json = dict(session_to_write.get("state_json") or {})
+            state_json.update(
+                en_production_confidence=language_state.en_production_confidence,
+                language_signal_count=language_state.total_signals,
+            )
+            session_to_write["state_json"] = state_json
+            await upsert_school_language_confidence(
+                session,
+                user_id=user_id,
+                en_production_confidence=language_state.en_production_confidence,
+                total_signals=language_state.total_signals,
+                commit=False,
+            )
+
+        inserted = await record_learning_event(
+            session,
+            **learning_event,
+            commit=False,
+        )
+        if not inserted:
+            raise ValueError("duplicate_evidence_conflict")
+        for profile in profile_upserts:
+            await upsert_learner_skill_profile(session, **profile, commit=False)
+        await upsert_school_session(session, **session_to_write, _commit=False)
+        if placement_report is not None:
+            await upsert_school_placement_report(
+                session,
+                **placement_report,
+                _commit=False,
+            )
+        if request_activity_id is not None:
+            completed = await session.execute(
+                text(
+                    """
+                    UPDATE school_answer_requests
+                    SET status = 'completed',
+                        response_json = CAST(:response_json AS jsonb),
+                        updated_at = now()
+                    WHERE session_id = CAST(:session_id AS uuid)
+                      AND activity_id = :activity_id
+                      AND user_id = :uid
+                      AND answer_hash = :answer_hash
+                      AND claim_token = :claim_token
+                      AND status = 'processing'
+                    RETURNING activity_id
+                    """
+                ),
+                {
+                    "session_id": school_session["session_id"],
+                    "activity_id": request_activity_id,
+                    "uid": user_id,
+                    "answer_hash": request_answer_hash,
+                    "claim_token": request_claim_token,
+                    "response_json": json.dumps(response_json),
+                },
+            )
+            if completed.scalar_one_or_none() is None:
+                raise ValueError("stale_school_answer_request")
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def compare_and_set_school_session(
+    session: AsyncSession,
+    *,
+    school_session: dict,
+    expected_state_json: dict,
+) -> bool:
+    """Persist a non-answer School transition only if its parent state is unchanged."""
+    try:
+        if school_session.get("api_version") == "rebuild":
+            await _lock_school_profile_lineage(session, str(school_session["user_id"]))
+        result = await session.execute(
+            text(
+                """
+                SELECT state_json
+                FROM school_sessions
+                WHERE session_id = CAST(:session_id AS uuid) AND user_id = :uid
+                FOR UPDATE
+                """
+            ),
+            {
+                "session_id": school_session["session_id"],
+                "uid": school_session["user_id"],
+            },
+        )
+        current_state = result.scalar_one_or_none()
+        if isinstance(current_state, str):
+            current_state = json.loads(current_state)
+        if current_state is None or dict(current_state) != dict(expected_state_json):
+            await session.rollback()
+            return False
+        await upsert_school_session(session, **school_session, _commit=False)
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def persist_school_curriculum_attempt(
+    session: AsyncSession,
+    *,
+    learning_event: dict,
+    school_session: dict,
+    expected_state_json: dict,
+    request_activity_id: str | None = None,
+    request_answer_hash: str | None = None,
+    request_claim_token: str | None = None,
+    response_json: dict | None = None,
+    projection_evidence: dict | None = None,
+    language_evaluation: dict | None = None,
+) -> None:
+    await persist_school_answer_attempt(
+        session,
+        learning_event=learning_event,
+        school_session=school_session,
+        expected_state_json=expected_state_json,
+        request_activity_id=request_activity_id,
+        request_answer_hash=request_answer_hash,
+        request_claim_token=request_claim_token,
+        response_json=response_json,
+        projection_evidence=projection_evidence,
+        language_evaluation=language_evaluation,
+    )
+
+
+async def get_school_answer_request(
+    session: AsyncSession,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, activity_id, user_id, answer_hash,
+                   claim_token,
+                   status, response_json, created_at, updated_at,
+                   EXTRACT(EPOCH FROM (now() - updated_at)) AS age_seconds
+            FROM school_answer_requests
+            WHERE session_id = CAST(:session_id AS uuid)
+              AND activity_id = :activity_id
+              AND user_id = :uid
+            """
+        ),
+        {"session_id": session_id, "activity_id": activity_id, "uid": user_id},
+    )
+    row = result.mappings().first()
+    if not row:
+        return None
+    data = dict(row)
+    if isinstance(data.get("response_json"), str):
+        data["response_json"] = json.loads(data["response_json"])
+    data["stale"] = bool(
+        data.get("status") == "processing"
+        and float(data.get("age_seconds") or 0.0) >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+    )
+    return data
+
+
+async def claim_school_answer_request(
+    session: AsyncSession,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+    answer_hash: str,
+) -> dict:
+    lock_key = f"school-answer:{session_id}:{activity_id}"
+    claim_token = str(uuid4())
+    try:
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:lock_key)::bigint)"),
+            {"lock_key": lock_key},
+        )
+        existing_result = await session.execute(
+            text(
+                """
+                SELECT user_id, answer_hash, claim_token, status, response_json,
+                       EXTRACT(EPOCH FROM (now() - updated_at)) AS age_seconds
+                FROM school_answer_requests
+                WHERE session_id = CAST(:session_id AS uuid)
+                  AND activity_id = :activity_id
+                FOR UPDATE
+                """
+            ),
+            {"session_id": session_id, "activity_id": activity_id},
+        )
+        existing = existing_result.mappings().first()
+        if existing:
+            row = dict(existing)
+            status = str(row.get("status") or "")
+            if row.get("user_id") != user_id:
+                await session.rollback()
+                return {"outcome": "conflict"}
+            if status != "failed" and row.get("answer_hash") != answer_hash:
+                await session.rollback()
+                return {"outcome": "conflict"}
+            if status == "completed":
+                await session.rollback()
+                response = row.get("response_json")
+                if isinstance(response, str):
+                    response = json.loads(response)
+                return {"outcome": "completed", "response_json": response}
+            stale = (
+                status == "processing"
+                and float(row.get("age_seconds") or 0.0)
+                >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+            )
+            if status == "processing" and not stale:
+                await session.rollback()
+                return {"outcome": "in_progress"}
+            await session.execute(
+                text(
+                    """
+                    UPDATE school_answer_requests
+                    SET status = 'processing', response_json = NULL,
+                        answer_hash = :answer_hash,
+                        claim_token = :claim_token, updated_at = now()
+                    WHERE session_id = CAST(:session_id AS uuid)
+                      AND activity_id = :activity_id
+                    """
+                ),
+                {
+                    "session_id": session_id,
+                    "activity_id": activity_id,
+                    "answer_hash": answer_hash,
+                    "claim_token": claim_token,
+                },
+            )
+            await session.commit()
+            return {"outcome": "claimed", "claim_token": claim_token}
+
+        await session.execute(
+            text(
+                """
+                INSERT INTO school_answer_requests
+                    (session_id, activity_id, user_id, answer_hash, claim_token, status)
+                VALUES
+                    (CAST(:session_id AS uuid), :activity_id, :uid, :answer_hash,
+                     :claim_token, 'processing')
+                """
+            ),
+            {
+                "session_id": session_id,
+                "activity_id": activity_id,
+                "uid": user_id,
+                "answer_hash": answer_hash,
+                "claim_token": claim_token,
+            },
+        )
+        await session.commit()
+        return {"outcome": "claimed", "claim_token": claim_token}
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def fail_school_answer_request(
+    session: AsyncSession,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+    answer_hash: str,
+    claim_token: str,
+) -> None:
+    await session.execute(
+        text(
+            """
+            UPDATE school_answer_requests
+            SET status = 'failed', response_json = NULL, updated_at = now()
+            WHERE session_id = CAST(:session_id AS uuid)
+              AND activity_id = :activity_id
+              AND user_id = :uid
+              AND answer_hash = :answer_hash
+              AND claim_token = :claim_token
+              AND status = 'processing'
+            """
+        ),
+        {
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "uid": user_id,
+            "answer_hash": answer_hash,
+            "claim_token": claim_token,
+        },
+    )
+    await session.commit()
+
+
+async def renew_school_answer_request(
+    session: AsyncSession,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+    answer_hash: str,
+    claim_token: str,
+) -> bool:
+    result = await session.execute(
+        text(
+            """
+            UPDATE school_answer_requests
+            SET updated_at = now()
+            WHERE session_id = CAST(:session_id AS uuid)
+              AND activity_id = :activity_id
+              AND user_id = :uid
+              AND answer_hash = :answer_hash
+              AND claim_token = :claim_token
+              AND status = 'processing'
+            RETURNING activity_id
+            """
+        ),
+        {
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "uid": user_id,
+            "answer_hash": answer_hash,
+            "claim_token": claim_token,
+        },
+    )
+    renewed = result.scalar_one_or_none() is not None
+    await session.commit()
+    return renewed
+
+
+async def get_school_session(
+    session: AsyncSession,
+    user_id: str,
+    session_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, user_id, api_version, flow_type,
+                   subject_id, class_no, status, current_stage,
+                   linked_session_id::text AS linked_session_id, state_json,
+                   profile_version_id::text AS profile_version_id,
+                   source_placement_report_id::text AS source_placement_report_id,
+                   started_at, updated_at, completed_at
+            FROM school_sessions
+            WHERE user_id = :uid AND session_id = CAST(:session_id AS uuid)
+            """
+        ),
+        {"uid": user_id, "session_id": session_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_active_school_session(
+    session: AsyncSession,
+    user_id: str,
+    api_version: str,
+    flow_type: str,
+    subject_id: str,
+    class_no: int,
+    *,
+    profile_version_id: str | None = None,
+    source_placement_report_id: str | None = None,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, user_id, api_version, flow_type,
+                   subject_id, class_no, status, current_stage,
+                   linked_session_id::text AS linked_session_id, state_json,
+                   profile_version_id::text AS profile_version_id,
+                   source_placement_report_id::text AS source_placement_report_id,
+                   started_at, updated_at, completed_at
+            FROM school_sessions
+            WHERE user_id = :uid
+              AND api_version = :api_version
+              AND flow_type = :flow_type
+              AND subject_id = :subject_id
+              AND class_no = :class_no
+              AND (
+                  CAST(:profile_version_id AS uuid) IS NULL
+                  OR profile_version_id = CAST(:profile_version_id AS uuid)
+              )
+              AND (
+                  CAST(:source_placement_report_id AS uuid) IS NULL
+                  OR source_placement_report_id = CAST(:source_placement_report_id AS uuid)
+              )
+              AND status IN ('active', 'paused_for_masterclass')
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "api_version": api_version,
+            "flow_type": flow_type,
+            "subject_id": subject_id,
+            "class_no": int(class_no),
+            "profile_version_id": profile_version_id,
+            "source_placement_report_id": source_placement_report_id,
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_latest_school_session(
+    session: AsyncSession,
+    user_id: str,
+    api_version: str,
+    flow_type: str,
+    subject_id: str,
+    class_no: int,
+    *,
+    profile_version_id: str | None = None,
+    source_placement_report_id: str | None = None,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, user_id, api_version, flow_type,
+                   subject_id, class_no, status, current_stage,
+                   linked_session_id::text AS linked_session_id, state_json,
+                   profile_version_id::text AS profile_version_id,
+                   source_placement_report_id::text AS source_placement_report_id,
+                   started_at, updated_at, completed_at
+            FROM school_sessions
+            WHERE user_id = :uid
+              AND api_version = :api_version
+              AND flow_type = :flow_type
+              AND subject_id = :subject_id
+              AND class_no = :class_no
+              AND (
+                  CAST(:profile_version_id AS uuid) IS NULL
+                  OR profile_version_id = CAST(:profile_version_id AS uuid)
+              )
+              AND (
+                  CAST(:source_placement_report_id AS uuid) IS NULL
+                  OR source_placement_report_id = CAST(:source_placement_report_id AS uuid)
+              )
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "api_version": api_version,
+            "flow_type": flow_type,
+            "subject_id": subject_id,
+            "class_no": int(class_no),
+            "profile_version_id": profile_version_id,
+            "source_placement_report_id": source_placement_report_id,
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_school_sessions_linked_to(
+    session: AsyncSession,
+    user_id: str,
+    linked_session_id: str,
+) -> list[dict]:
+    result = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, user_id, api_version, flow_type,
+                   subject_id, class_no, status, current_stage,
+                   linked_session_id::text AS linked_session_id, state_json,
+                   profile_version_id::text AS profile_version_id,
+                   source_placement_report_id::text AS source_placement_report_id,
+                   started_at, updated_at, completed_at
+            FROM school_sessions
+            WHERE user_id = :uid
+              AND linked_session_id = CAST(:linked_session_id AS uuid)
+            ORDER BY updated_at DESC
+            """
+        ),
+        {"uid": user_id, "linked_session_id": linked_session_id},
+    )
+    return [dict(row) for row in result.mappings().all()]
+
+
+async def expire_active_school_sessions_from_other_profiles(
+    session: AsyncSession,
+    user_id: str,
+    current_profile_version_id: str,
+) -> int:
+    result = await session.execute(
+        text(
+            """
+            UPDATE school_sessions
+            SET status = 'expired', updated_at = now(),
+                completed_at = COALESCE(completed_at, now())
+            WHERE user_id = :uid
+              AND status IN ('active', 'paused_for_masterclass')
+              AND profile_version_id IS DISTINCT FROM CAST(:profile_version_id AS uuid)
+            """
+        ),
+        {"uid": user_id, "profile_version_id": current_profile_version_id},
+    )
+    await session.commit()
+    return int(result.rowcount or 0)
+
+
+async def upsert_school_placement_report(
+    session: AsyncSession,
+    *,
+    report_id: str,
+    user_id: str,
+    profile_version_id: str,
+    placement_session_id: str,
+    placement_status: str,
+    subject_id: str,
+    target_class_no: int,
+    evaluated_class_no: int,
+    active_learning_class_no: int,
+    unlock_state: str,
+    blocking_skills: list[dict],
+    watchlist_skills: list[dict],
+    evidence_summary: dict,
+    recommended_recap_modules: list[dict],
+    learner_summary: str,
+    parent_summary: str,
+    allowed_next_actions: list[str],
+    _commit: bool = True,
+) -> dict:
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_placement_reports
+                (report_id, user_id, profile_version_id, placement_session_id,
+                 placement_status, subject_id, target_class_no, evaluated_class_no,
+                 active_learning_class_no, unlock_state, blocking_skills_json,
+                 watchlist_skills_json, evidence_summary_json,
+                 recommended_recap_modules_json, learner_summary, parent_summary,
+                 allowed_next_actions_json)
+            VALUES
+                (CAST(:report_id AS uuid), :uid, CAST(:profile_version_id AS uuid),
+                 CAST(:placement_session_id AS uuid), :placement_status, :subject_id,
+                 :target_class_no, :evaluated_class_no, :active_learning_class_no,
+                 :unlock_state, CAST(:blocking_skills AS jsonb),
+                 CAST(:watchlist_skills AS jsonb), CAST(:evidence_summary AS jsonb),
+                 CAST(:recommended_recap_modules AS jsonb), :learner_summary,
+                 :parent_summary, CAST(:allowed_next_actions AS jsonb))
+            ON CONFLICT (user_id, placement_session_id) DO UPDATE SET
+                placement_status = EXCLUDED.placement_status,
+                subject_id = EXCLUDED.subject_id,
+                target_class_no = EXCLUDED.target_class_no,
+                evaluated_class_no = EXCLUDED.evaluated_class_no,
+                active_learning_class_no = EXCLUDED.active_learning_class_no,
+                unlock_state = EXCLUDED.unlock_state,
+                blocking_skills_json = EXCLUDED.blocking_skills_json,
+                watchlist_skills_json = EXCLUDED.watchlist_skills_json,
+                evidence_summary_json = EXCLUDED.evidence_summary_json,
+                recommended_recap_modules_json = EXCLUDED.recommended_recap_modules_json,
+                learner_summary = EXCLUDED.learner_summary,
+                parent_summary = EXCLUDED.parent_summary,
+                allowed_next_actions_json = EXCLUDED.allowed_next_actions_json,
+                updated_at = now()
+            """
+        ),
+        {
+            "report_id": report_id,
+            "uid": user_id,
+            "profile_version_id": profile_version_id,
+            "placement_session_id": placement_session_id,
+            "placement_status": placement_status,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "evaluated_class_no": int(evaluated_class_no),
+            "active_learning_class_no": int(active_learning_class_no),
+            "unlock_state": unlock_state,
+            "blocking_skills": json.dumps(blocking_skills or []),
+            "watchlist_skills": json.dumps(watchlist_skills or []),
+            "evidence_summary": json.dumps(evidence_summary or {}),
+            "recommended_recap_modules": json.dumps(recommended_recap_modules or []),
+            "learner_summary": learner_summary or "",
+            "parent_summary": parent_summary or "",
+            "allowed_next_actions": json.dumps(allowed_next_actions or []),
+        },
+    )
+    if _commit:
+        await session.commit()
+    row = await get_school_placement_report(session, user_id, placement_session_id)
+    if not row:
+        raise RuntimeError("school_placement_report_upsert_failed")
+    return row
+
+
+async def get_school_placement_report(
+    session: AsyncSession,
+    user_id: str,
+    placement_session_id: str,
+    *,
+    profile_version_id: str | None = None,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT report_id::text AS report_id, user_id,
+                   profile_version_id::text AS profile_version_id,
+                   placement_session_id::text AS placement_session_id,
+                   placement_status, subject_id, target_class_no,
+                   evaluated_class_no, active_learning_class_no, unlock_state,
+                   blocking_skills_json, watchlist_skills_json,
+                   evidence_summary_json, recommended_recap_modules_json,
+                   learner_summary, parent_summary, allowed_next_actions_json,
+                   created_at, updated_at
+            FROM school_placement_reports
+            WHERE user_id = :uid
+              AND placement_session_id = CAST(:placement_session_id AS uuid)
+              AND (
+                  CAST(:profile_version_id AS uuid) IS NULL
+                  OR profile_version_id = CAST(:profile_version_id AS uuid)
+              )
+            """
+        ),
+        {
+            "uid": user_id,
+            "placement_session_id": placement_session_id,
+            "profile_version_id": profile_version_id,
+        },
+    )
+    row = result.mappings().first()
+    if not row:
+        return None
+    return _school_placement_report_from_row(dict(row))
+
+
+def _school_placement_report_from_row(row: dict) -> dict:
+    return {
+        "report_id": row["report_id"],
+        "user_id": row["user_id"],
+        "profile_version_id": row["profile_version_id"],
+        "placement_session_id": row["placement_session_id"],
+        "placement_status": row["placement_status"],
+        "subject_id": row["subject_id"],
+        "target_class_no": row["target_class_no"],
+        "evaluated_class_no": row["evaluated_class_no"],
+        "active_learning_class_no": row["active_learning_class_no"],
+        "unlock_state": row["unlock_state"],
+        "blocking_skills": row.get("blocking_skills_json") or [],
+        "watchlist_skills": row.get("watchlist_skills_json") or [],
+        "evidence_summary": row.get("evidence_summary_json") or {},
+        "recommended_recap_modules": row.get("recommended_recap_modules_json") or [],
+        "learner_summary": row.get("learner_summary") or "",
+        "parent_summary": row.get("parent_summary") or "",
+        "allowed_next_actions": row.get("allowed_next_actions_json") or [],
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+async def get_school_placement_report_by_id(
+    session: AsyncSession,
+    user_id: str,
+    report_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT report_id::text AS report_id, user_id,
+                   profile_version_id::text AS profile_version_id,
+                   placement_session_id::text AS placement_session_id,
+                   placement_status, subject_id, target_class_no,
+                   evaluated_class_no, active_learning_class_no, unlock_state,
+                   blocking_skills_json, watchlist_skills_json,
+                   evidence_summary_json, recommended_recap_modules_json,
+                   learner_summary, parent_summary, allowed_next_actions_json,
+                   created_at, updated_at
+            FROM school_placement_reports
+            WHERE user_id = :uid
+              AND report_id = CAST(:report_id AS uuid)
+            """
+        ),
+        {"uid": user_id, "report_id": report_id},
+    )
+    row = result.mappings().first()
+    if not row:
+        return None
+    return _school_placement_report_from_row(dict(row))
+
+
+async def get_latest_compatible_school_placement_report(
+    session: AsyncSession,
+    user_id: str,
+    profile_version_id: str,
+    subject_id: str,
+    target_class_no: int,
+) -> dict | None:
+    lineage_result = await session.execute(
+        text(
+            """
+            WITH RECURSIVE profile_lineage AS (
+                SELECT profile_version_id, source_profile_version_id,
+                       board_id, target_class_no, subject_ids,
+                       preferred_teaching_language, english_comfort,
+                       prior_difficulty_signals, 0 AS depth,
+                       ARRAY[profile_version_id] AS visited
+                FROM school_profile_versions
+                WHERE user_id = :uid
+                  AND profile_version_id = CAST(:profile_version_id AS uuid)
+                  AND status = 'active'
+
+                UNION ALL
+
+                SELECT source.profile_version_id, source.source_profile_version_id,
+                       source.board_id, source.target_class_no, source.subject_ids,
+                       source.preferred_teaching_language, source.english_comfort,
+                       source.prior_difficulty_signals, current.depth + 1,
+                       current.visited || source.profile_version_id
+                FROM profile_lineage AS current
+                JOIN school_profile_versions AS source
+                  ON source.user_id = :uid
+                 AND source.profile_version_id = current.source_profile_version_id
+                WHERE NOT source.profile_version_id = ANY(current.visited)
+            )
+            SELECT profile_version_id::text AS profile_version_id,
+                   source_profile_version_id::text AS source_profile_version_id,
+                   board_id, target_class_no, subject_ids,
+                   preferred_teaching_language, english_comfort,
+                   prior_difficulty_signals, depth
+            FROM profile_lineage
+            ORDER BY depth
+            """
+        ),
+        {"uid": user_id, "profile_version_id": profile_version_id},
+    )
+    lineage = [dict(row) for row in lineage_result.mappings().all()]
+    if not lineage:
+        return None
+
+    compatible_profile_ids = [str(lineage[0]["profile_version_id"])]
+    for current, source in zip(lineage, lineage[1:]):
+        if str(current.get("source_profile_version_id") or "") != str(
+            source["profile_version_id"]
+        ):
+            break
+        if _school_profile_compatibility_values(
+            current
+        ) != _school_profile_compatibility_values(source):
+            break
+        compatible_profile_ids.append(str(source["profile_version_id"]))
+
+    report_result = await session.execute(
+        text(
+            """
+            SELECT report_id::text AS report_id, user_id,
+                   profile_version_id::text AS profile_version_id,
+                   placement_session_id::text AS placement_session_id,
+                   placement_status, subject_id, target_class_no,
+                   evaluated_class_no, active_learning_class_no, unlock_state,
+                   blocking_skills_json, watchlist_skills_json,
+                   evidence_summary_json, recommended_recap_modules_json,
+                   learner_summary, parent_summary, allowed_next_actions_json,
+                   created_at, updated_at
+            FROM school_placement_reports
+            WHERE user_id = :uid
+              AND subject_id = :subject_id
+              AND target_class_no = :target_class_no
+            ORDER BY updated_at DESC
+            """
+        ),
+        {
+            "uid": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+        },
+    )
+    reports_by_profile: dict[str, dict] = {}
+    for row in report_result.mappings().all():
+        report = dict(row)
+        reports_by_profile.setdefault(str(report["profile_version_id"]), report)
+    for compatible_profile_id in compatible_profile_ids:
+        report = reports_by_profile.get(compatible_profile_id)
+        if report:
+            return _school_placement_report_from_row(report)
+    return None
+
+
+async def upsert_school_language_confidence(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    en_production_confidence: float,
+    total_signals: int,
+    commit: bool = True,
+) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_language_confidence
+                (user_id, en_production_confidence, total_signals)
+            VALUES (:uid, :confidence, :signals)
+            ON CONFLICT (user_id) DO UPDATE SET
+                en_production_confidence = EXCLUDED.en_production_confidence,
+                total_signals = EXCLUDED.total_signals,
+                updated_at = now()
+            """
+        ),
+        {
+            "uid": user_id,
+            "confidence": max(0.0, min(1.0, float(en_production_confidence))),
+            "signals": max(0, int(total_signals)),
+        },
+    )
+    if commit:
+        await session.commit()
+
+
+async def get_school_language_confidence(
+    session: AsyncSession,
+    user_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT user_id, en_production_confidence, total_signals, updated_at
+            FROM school_language_confidence
+            WHERE user_id = :uid
+            """
+        ),
+        {"uid": user_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def upsert_school_v2_placement_session(
+    session: AsyncSession,
+    *,
+    placement_session_id: str,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+    preferred_language: str,
+    status: str,
+    state_json: dict,
+) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_v2_placement_sessions
+                (placement_session_id, user_id, subject_id, target_class_no,
+                 preferred_language, status, state_json, updated_at,
+                 completed_at)
+            VALUES
+                (:placement_session_id, :user_id, :subject_id, :target_class_no,
+                 :preferred_language, :status, CAST(:state_json AS jsonb),
+                 now(), CASE WHEN :status IN ('complete', 'insufficient_evidence')
+                            THEN now() ELSE NULL END)
+            ON CONFLICT (placement_session_id) DO UPDATE SET
+                subject_id = EXCLUDED.subject_id,
+                target_class_no = EXCLUDED.target_class_no,
+                preferred_language = EXCLUDED.preferred_language,
+                status = EXCLUDED.status,
+                state_json = EXCLUDED.state_json,
+                updated_at = now(),
+                completed_at = CASE
+                    WHEN EXCLUDED.status IN ('complete', 'insufficient_evidence')
+                    THEN COALESCE(school_v2_placement_sessions.completed_at, now())
+                    ELSE NULL
+                END
+            """
+        ),
+        {
+            "placement_session_id": placement_session_id,
+            "user_id": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "preferred_language": preferred_language or "",
+            "status": status,
+            "state_json": json.dumps(state_json or {}),
+        },
+    )
+    await session.commit()
+
+
+async def get_school_v2_placement_session(
+    session: AsyncSession,
+    user_id: str,
+    placement_session_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT placement_session_id, user_id, subject_id, target_class_no,
+                   preferred_language, status, state_json, started_at,
+                   updated_at, completed_at
+            FROM school_v2_placement_sessions
+            WHERE user_id = :uid AND placement_session_id = :sid
+            """
+        ),
+        {"uid": user_id, "sid": placement_session_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_active_school_v2_placement_session(
+    session: AsyncSession,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT placement_session_id, user_id, subject_id, target_class_no,
+                   preferred_language, status, state_json, started_at,
+                   updated_at, completed_at
+            FROM school_v2_placement_sessions
+            WHERE user_id = :uid
+              AND subject_id = :subject_id
+              AND target_class_no = :target_class_no
+              AND status = 'in_progress'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id, "subject_id": subject_id, "target_class_no": int(target_class_no)},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def upsert_school_v2_practice_session(
+    session: AsyncSession,
+    *,
+    practice_session_id: str,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+    skill_id: str,
+    status: str,
+    state_json: dict,
+) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_v2_practice_sessions
+                (practice_session_id, user_id, subject_id, target_class_no,
+                 skill_id, status, state_json, updated_at, completed_at)
+            VALUES
+                (:practice_session_id, :user_id, :subject_id, :target_class_no,
+                 :skill_id, :status, CAST(:state_json AS jsonb), now(),
+                 CASE WHEN :status = 'complete' THEN now() ELSE NULL END)
+            ON CONFLICT (practice_session_id) DO UPDATE SET
+                subject_id = EXCLUDED.subject_id,
+                target_class_no = EXCLUDED.target_class_no,
+                skill_id = EXCLUDED.skill_id,
+                status = EXCLUDED.status,
+                state_json = EXCLUDED.state_json,
+                updated_at = now(),
+                completed_at = CASE
+                    WHEN EXCLUDED.status = 'complete'
+                    THEN COALESCE(school_v2_practice_sessions.completed_at, now())
+                    ELSE NULL
+                END
+            """
+        ),
+        {
+            "practice_session_id": practice_session_id,
+            "user_id": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "skill_id": skill_id,
+            "status": status,
+            "state_json": json.dumps(state_json or {}),
+        },
+    )
+    await session.commit()
+
+
+async def get_school_v2_practice_session(
+    session: AsyncSession,
+    user_id: str,
+    practice_session_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT practice_session_id, user_id, subject_id, target_class_no,
+                   skill_id, status, state_json, started_at, updated_at,
+                   completed_at
+            FROM school_v2_practice_sessions
+            WHERE user_id = :uid AND practice_session_id = :sid
+            """
+        ),
+        {"uid": user_id, "sid": practice_session_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_active_school_v2_practice_session(
+    session: AsyncSession,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+    skill_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT practice_session_id, user_id, subject_id, target_class_no,
+                   skill_id, status, state_json, started_at, updated_at,
+                   completed_at
+            FROM school_v2_practice_sessions
+            WHERE user_id = :uid
+              AND subject_id = :subject_id
+              AND target_class_no = :target_class_no
+              AND skill_id = :skill_id
+              AND status = 'in_progress'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "skill_id": skill_id,
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def upsert_school_v2_curriculum_session(
+    session: AsyncSession,
+    *,
+    curriculum_session_id: str,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+    chapter_id: str,
+    status: str,
+    state_json: dict,
+) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO school_v2_curriculum_sessions
+                (curriculum_session_id, user_id, subject_id, target_class_no,
+                 chapter_id, status, state_json, updated_at, completed_at)
+            VALUES
+                (:curriculum_session_id, :user_id, :subject_id, :target_class_no,
+                 :chapter_id, :status, CAST(:state_json AS jsonb), now(),
+                 CASE WHEN :status = 'complete' THEN now() ELSE NULL END)
+            ON CONFLICT (curriculum_session_id) DO UPDATE SET
+                subject_id = EXCLUDED.subject_id,
+                target_class_no = EXCLUDED.target_class_no,
+                chapter_id = EXCLUDED.chapter_id,
+                status = EXCLUDED.status,
+                state_json = EXCLUDED.state_json,
+                updated_at = now(),
+                completed_at = CASE
+                    WHEN EXCLUDED.status = 'complete'
+                    THEN COALESCE(school_v2_curriculum_sessions.completed_at, now())
+                    ELSE NULL
+                END
+            """
+        ),
+        {
+            "curriculum_session_id": curriculum_session_id,
+            "user_id": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "chapter_id": chapter_id,
+            "status": status,
+            "state_json": json.dumps(state_json or {}),
+        },
+    )
+    await session.commit()
+
+
+async def get_school_v2_curriculum_session(
+    session: AsyncSession,
+    user_id: str,
+    curriculum_session_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT curriculum_session_id, user_id, subject_id, target_class_no,
+                   chapter_id, status, state_json, started_at, updated_at,
+                   completed_at
+            FROM school_v2_curriculum_sessions
+            WHERE user_id = :uid AND curriculum_session_id = :sid
+            """
+        ),
+        {"uid": user_id, "sid": curriculum_session_id},
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_active_school_v2_curriculum_session(
+    session: AsyncSession,
+    user_id: str,
+    subject_id: str,
+    target_class_no: int,
+    chapter_id: str,
+) -> dict | None:
+    result = await session.execute(
+        text(
+            """
+            SELECT curriculum_session_id, user_id, subject_id, target_class_no,
+                   chapter_id, status, state_json, started_at, updated_at,
+                   completed_at
+            FROM school_v2_curriculum_sessions
+            WHERE user_id = :uid
+              AND subject_id = :subject_id
+              AND target_class_no = :target_class_no
+              AND chapter_id = :chapter_id
+              AND status = 'in_progress'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "uid": user_id,
+            "subject_id": subject_id,
+            "target_class_no": int(target_class_no),
+            "chapter_id": chapter_id,
+        },
+    )
+    row = result.mappings().first()
+    return dict(row) if row else None
 
 
 async def get_activity_snapshot(session: AsyncSession, user_id: str) -> dict:

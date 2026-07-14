@@ -1,0 +1,347 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-school-prep-review",
+  "reviewed_at": "2026-07-11",
+  "review_evidence": [
+    "docs/school-prep-live-browser-qa-2026-07-10.md"
+  ],
+  "runtime_sha256": "d6b2f1f900b167bf50696b265f53b598917b86a838ee24ee32fbf3dc64868253",
+  "chapter_id": "eng_c4_ch09",
+  "chapter_no": 9,
+  "title": "Hekko",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Games",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa109.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "hekko_word_meaning",
+      "title": "Understand Hekko's name",
+      "focus": "use word parts and story context",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use word parts and context to explain the meaning of a cultural game name.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Some words carry meaning through smaller parts. In the Hekko story, the name connects a challenge with a tiger figure from the game tradition.",
+          "passage": "A teacher says that the first part of the name points to a challenge and the second part points to a tiger.",
+          "prompt": "What does Hekko mean?",
+          "options": [
+            "challenging the tiger",
+            "counting the stars",
+            "building a bridge",
+            "singing in rain"
+          ],
+          "accepted_answers": [
+            "challenging the tiger",
+            "challenge the tiger"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: if a word part means challenge, the meaning is about daring someone to try.",
+          "passage": "Mina invited the strongest runner to a race and asked, 'Will you try?'",
+          "prompt": "Which word best matches this action?",
+          "options": [
+            "challenge",
+            "surrender",
+            "whisper",
+            "forget"
+          ],
+          "accepted_answers": [
+            "challenge"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: read both the word meaning and the story setting. A strong answer explains the name, not only the animal.",
+          "passage": "The game name joins the idea of challenge with the tiger side in the game story.",
+          "prompt": "Which answer explains the full name best?",
+          "options": [
+            "a challenge connected with the tiger",
+            "only a tiger",
+            "only a village",
+            "only a toss"
+          ],
+          "accepted_answers": [
+            "a challenge connected with the tiger",
+            "challenge and tiger"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the meaning without hints.",
+          "passage": "A new player asks what the first idea in Hekko tells us. The coach says it is about daring the other side to compete.",
+          "prompt": "Which word means daring someone to compete?",
+          "options": [],
+          "accepted_answers": [
+            "challenge",
+            "challenging"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "hekko_team_rules",
+      "title": "Read team rules",
+      "focus": "identify roles and numbers in a game description",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Find team names, player counts, and role rules in a game explanation.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A rule paragraph often gives exact numbers. When a question asks 'how many', look for the number first.",
+          "passage": "Before a school game begins, each side chooses eleven players and stands in two groups.",
+          "prompt": "How many players are on each team?",
+          "options": [
+            "11",
+            "5",
+            "7",
+            "20"
+          ],
+          "accepted_answers": [
+            "11",
+            "eleven"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: one team stays inside a circle by linking together; that link is called a chain.",
+          "passage": "The inside team joins hands so the group can move and defend together.",
+          "prompt": "What does the inside team make?",
+          "options": [
+            "human chain",
+            "paper boat",
+            "stone pile",
+            "word grid"
+          ],
+          "accepted_answers": [
+            "human chain",
+            "a human chain"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: separate the two team roles. One side protects the circle; the other side enters and tries to push players out.",
+          "passage": "Two outside players step in. The inside group holds together and tries not to cross the line.",
+          "prompt": "Which phrase describes the inside team's job?",
+          "options": [
+            "stay in the circle together",
+            "leave the ground",
+            "count the clouds",
+            "write the scorecard"
+          ],
+          "accepted_answers": [
+            "stay in the circle together",
+            "stay inside the circle"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now identify the rule without hints.",
+          "passage": "The inside team links arms so members can move as one group and avoid being pushed out.",
+          "prompt": "What does the inside team form?",
+          "options": [],
+          "accepted_answers": [
+            "human chain",
+            "a human chain"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "hekko_joko_surrender",
+      "title": "Understand surrender and scoring",
+      "focus": "connect special words to game events",
+      "skill_ids": [
+        "reading.inference_reason",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Explain what a special game word means and when the game ends.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A special word in a game can name an action. If a caught player says the word for giving up, it means surrender.",
+          "passage": "A player is surrounded by the other team and says the word that means giving up the turn.",
+          "prompt": "What does the player show by saying the surrender word?",
+          "options": [
+            "surrender",
+            "beginning",
+            "victory",
+            "practice"
+          ],
+          "accepted_answers": [
+            "surrender",
+            "give up"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: a game can end because players are out, players are caught, or time is over.",
+          "passage": "The clock rang just as both teams were still playing.",
+          "prompt": "Which ending reason is shown?",
+          "options": [
+            "time runs out",
+            "new team joins",
+            "rainbow appears",
+            "teacher reads"
+          ],
+          "accepted_answers": [
+            "time runs out",
+            "time is over"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: do not confuse score with end condition. Points decide who wins; end conditions decide when play stops.",
+          "passage": "One side had more points when the final signal was heard.",
+          "prompt": "What decides the winner?",
+          "options": [
+            "maximum points",
+            "longest name",
+            "new shoes",
+            "nearest tree"
+          ],
+          "accepted_answers": [
+            "maximum points",
+            "most points"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now use the end condition without hints.",
+          "passage": "Every player from the outside team has been caught, so no one from that side can enter again.",
+          "prompt": "What happens after this condition?",
+          "options": [],
+          "accepted_answers": [
+            "the game ends",
+            "game ends",
+            "the game is over"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "hekko_homophones",
+      "title": "Choose sound-alike words",
+      "focus": "their/there and other homophones",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Choose the correct spelling when two words sound alike but mean different things.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "There points to a place or begins a sentence about something existing. Their means belonging to them.",
+          "passage": "___ is a wide playground near the school.",
+          "prompt": "Choose the correct word.",
+          "options": [
+            "There",
+            "Their",
+            "They're",
+            "Threw"
+          ],
+          "accepted_answers": [
+            "There",
+            "there"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: their answers whose thing it is.",
+          "passage": "The players kept ___ water bottles near the bench.",
+          "prompt": "Choose the word that shows belonging.",
+          "options": [
+            "their",
+            "there",
+            "too",
+            "two"
+          ],
+          "accepted_answers": [
+            "their"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: ask the meaning question. If it means the number, use two. If it means also or more than enough, use too.",
+          "passage": "___ players entered the circle together.",
+          "prompt": "Which sound-alike word fits?",
+          "options": [
+            "Two",
+            "Too",
+            "To",
+            "Threw"
+          ],
+          "accepted_answers": [
+            "Two",
+            "two"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now choose the correct sound-alike word without hints.",
+          "passage": "The team raised ___ flag after the game.",
+          "prompt": "Which word completes the sentence?",
+          "options": [],
+          "accepted_answers": [
+            "their"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "hekko_past_tense",
+      "title": "Use simple past verbs",
+      "focus": "add -ed for regular past actions",
+      "skill_ids": [
+        "grammar.tense_usage",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use simple past tense to describe actions that already happened.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "For many regular verbs, add -ed to show the action happened earlier. Visit becomes visited.",
+          "passage": "Last week, we ___ the playground.",
+          "prompt": "Choose the correct past tense verb.",
+          "options": [
+            "visited",
+            "visit",
+            "visiting",
+            "visits"
+          ],
+          "accepted_answers": [
+            "visited"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge support: decide becomes decided when the action happened in the past.",
+          "passage": "Yesterday, the captain ___ the batting order.",
+          "prompt": "Choose the past tense form.",
+          "options": [
+            "decided",
+            "decide",
+            "decides",
+            "deciding"
+          ],
+          "accepted_answers": [
+            "decided"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Masterclass: some words only need -ed, but words ending in e usually take only d. Decide becomes decided.",
+          "passage": "The team ___ to practise one more time.",
+          "prompt": "Which past tense verb fits?",
+          "options": [
+            "decided",
+            "decideed",
+            "deciding",
+            "decides"
+          ],
+          "accepted_answers": [
+            "decided"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now write the past tense verb without hints.",
+          "passage": "Today I choose one game. Yesterday I ___ to watch Hekko.",
+          "prompt": "Write the past tense form of decide.",
+          "options": [],
+          "accepted_answers": [
+            "decided"
+          ]
+        }
+      }
+    }
+  ]
+}

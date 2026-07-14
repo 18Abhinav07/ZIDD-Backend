@@ -1,0 +1,789 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "codex-class2-pedagogy-review",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "codex self-review: pedagogy, grammar, ambiguity, grading, passage independence, and age fit"
+  ],
+  "runtime_sha256": "d823f39cec55316b738a629d75c547891c474e00ac47638a9cc2041470edc37d",
+  "chapter_id": "eng_c2_ch02",
+  "chapter_no": 2,
+  "title": "Picture Reading",
+  "book_title": "Mridang",
+  "unit_title": "Fun with Friends",
+  "source_url": "https://ncert.nic.in/textbook/pdf/bemr102.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "picture_details",
+      "title": "Read a busy play picture",
+      "focus": "notice people, objects, and actions described in a scene",
+      "skill_ids": [
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Use all the details in a picture description to answer who, what, and where questions.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Picture readers scan from one side to the other. Worked example: if the description says “a boy beside the tree,” beside tells where. Count only the people named.",
+          "passage": "On the left, two children roll a hoop. On the right, one child waters a plant.",
+          "prompt": "How many children are described?",
+          "options": [
+            "three",
+            "two",
+            "one",
+            "four"
+          ],
+          "accepted_answers": [
+            "three",
+            "3",
+            "three children"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Separate the action from the object. A kite may be visible, but the question asks what the girl is doing.",
+          "passage": "A red kite rests on a bench. Near it, a girl draws circles with chalk.",
+          "prompt": "What is the girl doing?",
+          "options": [
+            "drawing with chalk",
+            "flying the kite",
+            "sitting on the bench",
+            "watering a plant"
+          ],
+          "accepted_answers": [
+            "drawing with chalk",
+            "she is drawing with chalk",
+            "drawing circles"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Position words help you locate one detail among many. “Behind” is different from “under.”",
+          "passage": "A ball lies under the slide. A puppy waits behind the slide.",
+          "prompt": "Where is the puppy?",
+          "options": [
+            "behind the slide",
+            "under the slide",
+            "on the slide",
+            "beside the ball"
+          ],
+          "accepted_answers": [
+            "behind the slide",
+            "it is behind the slide"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the whole description and answer without choices. Do not add an action that is not stated.",
+          "passage": "At the school fair, Meena holds a paper fan while Jai carries two cups.",
+          "prompt": "What is Jai carrying?",
+          "options": [],
+          "accepted_answers": [
+            "two cups",
+            "cups",
+            "he is carrying two cups"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer picture reading from a playground to a kitchen scene. The scanning skill stays the same.",
+          "passage": "In a kitchen picture, a child washes a tomato. An adult cuts bread at the other counter.",
+          "prompt": "What is the child washing?",
+          "options": [],
+          "accepted_answers": [
+            "a tomato",
+            "tomato",
+            "the tomato"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "picture_action_words",
+      "title": "Actions inside the picture",
+      "focus": "identify action words in picture descriptions",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Find words that show what a person or animal is doing in a pictured scene.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "An action word can be acted out. Worked example: in “The baby waves,” waves is the action. A thing like “flag” cannot be performed.",
+          "passage": "Ritu kicks the blue ball.",
+          "prompt": "Which word is the action?",
+          "options": [
+            "kicks",
+            "Ritu",
+            "blue",
+            "ball"
+          ],
+          "accepted_answers": [
+            "kicks"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Some sentences contain a describing word close to the action. Ask “What does the person do?” to avoid choosing the colour.",
+          "passage": "Aman carries a heavy basket.",
+          "prompt": "Which word tells what Aman does?",
+          "options": [
+            "carries",
+            "heavy",
+            "basket",
+            "Aman"
+          ],
+          "accepted_answers": [
+            "carries"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A picture can show more than one action. Match the named person to the correct verb.",
+          "passage": "Nia claps while her brother jumps.",
+          "prompt": "Which word shows Nia’s action?",
+          "options": [
+            "claps",
+            "jumps",
+            "brother",
+            "while"
+          ],
+          "accepted_answers": [
+            "claps"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Find the action that belongs to the animal named in the question.",
+          "passage": "A squirrel nibbles a seed near the fence.",
+          "prompt": "Write the squirrel’s action word.",
+          "options": [],
+          "accepted_answers": [
+            "nibbles",
+            "nibble"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the action-word test in a street picture rather than a play picture.",
+          "passage": "A cyclist waits while a guard signals.",
+          "prompt": "Write the word that shows what the guard does.",
+          "options": [],
+          "accepted_answers": [
+            "signals",
+            "signal"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "where_in_picture",
+      "title": "Where is it?",
+      "focus": "use position words to locate picture details",
+      "skill_ids": [
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use in, on, under, beside, behind, and between to tell where something appears.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Position words connect two things. Worked example: “The cup is on the tray” means the cup touches the top of the tray.",
+          "passage": "A yellow bucket is under the tap.",
+          "prompt": "Which word tells the bucket’s position?",
+          "options": [
+            "under",
+            "yellow",
+            "bucket",
+            "tap"
+          ],
+          "accepted_answers": [
+            "under"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "“Beside” means next to, not inside. Picture the two objects standing close together.",
+          "passage": "The bat is beside the green bag.",
+          "prompt": "Where is the bat?",
+          "options": [
+            "beside the bag",
+            "inside the bag",
+            "behind the wall",
+            "under the bat"
+          ],
+          "accepted_answers": [
+            "beside the bag",
+            "beside the green bag",
+            "next to the bag"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "“Between” needs something on both sides. Check that the middle object has two neighbours.",
+          "passage": "A cone stands between the skipping rope and the ball.",
+          "prompt": "Which item is in the middle?",
+          "options": [
+            "cone",
+            "rope",
+            "ball",
+            "bench"
+          ],
+          "accepted_answers": [
+            "cone",
+            "the cone"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the position clue without choices.",
+          "passage": "A lunch box is inside the open basket.",
+          "prompt": "Where is the lunch box?",
+          "options": [],
+          "accepted_answers": [
+            "inside the basket",
+            "in the basket",
+            "inside the open basket"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer position words to a bedroom picture. Locate the object in relation to the bed.",
+          "passage": "A pair of slippers rests beneath the bed.",
+          "prompt": "Where are the slippers?",
+          "options": [],
+          "accepted_answers": [
+            "under the bed",
+            "beneath the bed"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "one_clear_detail",
+      "title": "Describe one clear detail",
+      "focus": "write a complete sentence about a pictured action",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Write one sentence that names a person or animal and accurately tells what is happening.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A picture sentence needs who and what is happening. Worked example: “The dog chases a leaf.” is complete; “Chases a leaf” is missing who.",
+          "passage": "A boy is pushing a toy cart.",
+          "prompt": "Which sentence describes the picture completely?",
+          "options": [
+            "The boy pushes a toy cart.",
+            "Pushes a cart.",
+            "The toy boy.",
+            "A cart."
+          ],
+          "accepted_answers": [
+            "The boy pushes a toy cart.",
+            "the boy pushes a toy cart"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Choose only details present in the description. A complete sentence can still be wrong if it invents something.",
+          "passage": "Two girls are sharing an umbrella.",
+          "prompt": "Which sentence matches the detail?",
+          "options": [
+            "The girls share an umbrella.",
+            "The girls fly a plane.",
+            "Share an.",
+            "The umbrella girls."
+          ],
+          "accepted_answers": [
+            "The girls share an umbrella.",
+            "the girls share an umbrella"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Include the place when it helps identify the action. Do not copy an option that changes the location.",
+          "passage": "A cat is sleeping on the wall.",
+          "prompt": "Which is the clearest picture sentence?",
+          "options": [
+            "The cat sleeps on the wall.",
+            "The cat sleeps under a boat.",
+            "Sleeping wall.",
+            "The wall cat."
+          ],
+          "accepted_answers": [
+            "The cat sleeps on the wall.",
+            "the cat sleeps on the wall"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write in your own words. Include the person and the visible action; colour is optional.",
+          "passage": "A picture shows Rohan lifting a fallen book from the floor.",
+          "prompt": "Write one complete sentence about Rohan.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "person",
+              "description": "Names Rohan or the boy.",
+              "any_of": [
+                "rohan",
+                "boy"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "Says that he lifts or picks up the book.",
+              "any_of": [
+                "lifts the book",
+                "picks up the book",
+                "lifting the book",
+                "picking up the book"
+              ]
+            }
+          ],
+          "min_response_words": 4
+        },
+        "transfer_check": {
+          "teaching_block": "Use the describing skill in a new setting: a bus-stop picture. Include who and the action shown.",
+          "passage": "At a bus stop, an older child holds the door for a passenger.",
+          "prompt": "Write one complete sentence describing the helpful action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "person",
+              "description": "Names the child.",
+              "any_of": [
+                "child",
+                "older child"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "Says the child holds or keeps the door open.",
+              "any_of": [
+                "holds the door",
+                "keeps the door open",
+                "holding the door"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "picture_event_order",
+      "title": "Tell what happens first",
+      "focus": "arrange pictured events into a sensible order",
+      "skill_ids": [
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Order short event sentences by using what must happen first, next, and last.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use cause and result. Worked example: a seed is planted before it grows. Look for the action that makes the next action possible.",
+          "passage": "Cards: Mina throws the ball. Ravi catches the ball.",
+          "prompt": "Which event comes first?",
+          "options": [
+            "Mina throws the ball.",
+            "Ravi catches the ball."
+          ],
+          "accepted_answers": [
+            "Mina throws the ball.",
+            "mina throws the ball"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Preparation usually comes before play. A tied shoe allows the child to run safely.",
+          "passage": "Cards: The race begins. Zoya ties her shoe.",
+          "prompt": "Which event should be first?",
+          "options": [
+            "Zoya ties her shoe.",
+            "The race begins."
+          ],
+          "accepted_answers": [
+            "Zoya ties her shoe.",
+            "zoya ties her shoe"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "For three events, find the start and finish before placing the middle. The empty page must come before drawing.",
+          "passage": "Cards: The page is blank. Iqbal draws a house. He colours the roof.",
+          "prompt": "Choose the correct order.",
+          "options": [
+            "blank page, draw house, colour roof",
+            "colour roof, blank page, draw house",
+            "draw house, colour roof, blank page"
+          ],
+          "accepted_answers": [
+            "blank page, draw house, colour roof"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write the two events in a sensible order without choices.",
+          "passage": "Events: Neel opens the paint box. Neel paints a sun.",
+          "prompt": "Write what happens first, then next.",
+          "options": [],
+          "accepted_answers": [
+            "Neel opens the paint box, then he paints a sun.",
+            "neel opens the paint box then he paints a sun",
+            "Neel opens the paint box. Then he paints a sun."
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer sequencing from play to packing a school bag. Use the same before-and-after thinking.",
+          "passage": "Events: Tara closes her school bag. Tara puts the books inside.",
+          "prompt": "Write the events in the sensible order.",
+          "options": [],
+          "accepted_answers": [
+            "Tara puts the books inside, then she closes her school bag.",
+            "tara puts the books inside then she closes her school bag",
+            "Tara puts the books inside. Then she closes her school bag."
+          ]
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c2_detail_01",
+        "passage": "In a park picture, Ali feeds two ducks while Sara watches.",
+        "prompt": "Who feeds the ducks?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "Ali",
+          "Sara",
+          "two ducks",
+          "nobody"
+        ],
+        "accepted_answers": [
+          "Ali",
+          "ali"
+        ]
+      },
+      {
+        "item_id": "c2_detail_02",
+        "passage": "A red cap hangs from the fence. A blue scarf lies on the bench.",
+        "prompt": "What is on the bench?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "blue scarf",
+          "red cap",
+          "fence",
+          "ball"
+        ],
+        "accepted_answers": [
+          "blue scarf",
+          "a blue scarf",
+          "the blue scarf"
+        ]
+      },
+      {
+        "item_id": "c2_detail_03",
+        "passage": "Three children stand near a puppet stall. One adult sells tickets.",
+        "prompt": "How many children are near the stall?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "three",
+          "one",
+          "four",
+          "two"
+        ],
+        "accepted_answers": [
+          "three",
+          "3",
+          "three children"
+        ]
+      },
+      {
+        "item_id": "c2_detail_04",
+        "passage": "A child carries a watering can. A gardener holds a spade.",
+        "prompt": "What does the gardener hold?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "a spade",
+          "spade",
+          "the spade"
+        ]
+      },
+      {
+        "item_id": "c2_action_01",
+        "passage": "The drummer taps a small drum.",
+        "prompt": "Which word is the action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "taps",
+          "drummer",
+          "small",
+          "drum"
+        ],
+        "accepted_answers": [
+          "taps"
+        ]
+      },
+      {
+        "item_id": "c2_action_02",
+        "passage": "A cheerful child waves from the stage.",
+        "prompt": "Which word tells what the child does?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "waves",
+          "cheerful",
+          "child",
+          "stage"
+        ],
+        "accepted_answers": [
+          "waves"
+        ]
+      },
+      {
+        "item_id": "c2_action_03",
+        "passage": "The puppy follows the rolling hoop.",
+        "prompt": "Which word shows the puppy’s action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "follows",
+          "rolling",
+          "hoop",
+          "puppy"
+        ],
+        "accepted_answers": [
+          "follows"
+        ]
+      },
+      {
+        "item_id": "c2_action_04",
+        "passage": "Kavya folds a paper boat.",
+        "prompt": "Write Kavya’s action word.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "folds",
+          "fold"
+        ]
+      },
+      {
+        "item_id": "c2_place_01",
+        "passage": "The kite is above the tree.",
+        "prompt": "Which word tells where the kite is?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "above",
+          "kite",
+          "tree",
+          "is"
+        ],
+        "accepted_answers": [
+          "above"
+        ]
+      },
+      {
+        "item_id": "c2_place_02",
+        "passage": "A marble rests between two boxes.",
+        "prompt": "Where is the marble?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "between the boxes",
+          "inside one box",
+          "above the roof",
+          "behind a child"
+        ],
+        "accepted_answers": [
+          "between the boxes",
+          "between two boxes"
+        ]
+      },
+      {
+        "item_id": "c2_place_03",
+        "passage": "The paintbrush lies next to the water cup.",
+        "prompt": "Which position word could replace “next to”?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "beside",
+          "inside",
+          "above",
+          "between"
+        ],
+        "accepted_answers": [
+          "beside"
+        ]
+      },
+      {
+        "item_id": "c2_place_04",
+        "passage": "A bird sits on top of the gate.",
+        "prompt": "Write a position word that tells where the bird is.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "on",
+          "above",
+          "on top",
+          "on the gate",
+          "above the gate"
+        ]
+      },
+      {
+        "item_id": "c2_write_01",
+        "passage": "A picture shows a woman carrying vegetables.",
+        "prompt": "Which sentence gives the full detail?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The woman carries vegetables.",
+          "Carries vegetables.",
+          "The woman.",
+          "Vegetables carrying."
+        ],
+        "accepted_answers": [
+          "The woman carries vegetables.",
+          "the woman carries vegetables"
+        ]
+      },
+      {
+        "item_id": "c2_write_02",
+        "passage": "A boy is mending a torn kite.",
+        "prompt": "Choose the matching complete sentence.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The boy mends the torn kite.",
+          "The boy throws a ball.",
+          "Mending torn.",
+          "A kite boy."
+        ],
+        "accepted_answers": [
+          "The boy mends the torn kite.",
+          "the boy mends the torn kite"
+        ]
+      },
+      {
+        "item_id": "c2_write_03",
+        "passage": "Two children plant a small tree.",
+        "prompt": "Which sentence describes the action?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The children plant a tree.",
+          "The children climb a bus.",
+          "Plant a.",
+          "Small tree children."
+        ],
+        "accepted_answers": [
+          "The children plant a tree.",
+          "the children plant a tree"
+        ]
+      },
+      {
+        "item_id": "c2_write_04",
+        "passage": "A picture shows a nurse giving water to a tired runner.",
+        "prompt": "Write one complete sentence about the picture.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "helper",
+            "description": "Names the nurse.",
+            "any_of": [
+              "nurse"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "Says that the nurse gives water.",
+            "any_of": [
+              "gives water",
+              "offers water",
+              "giving water"
+            ]
+          }
+        ],
+        "min_response_words": 5
+      },
+      {
+        "item_id": "c2_order_01",
+        "passage": "Cards: The child blows a bubble. The bubble floats away.",
+        "prompt": "Which event happens first?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "the child blows a bubble",
+          "the bubble floats away"
+        ],
+        "accepted_answers": [
+          "the child blows a bubble"
+        ]
+      },
+      {
+        "item_id": "c2_order_02",
+        "passage": "Cards: Rina opens the tap. Rina fills the bottle.",
+        "prompt": "Choose the sensible order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "open tap, fill bottle",
+          "fill bottle, open tap"
+        ],
+        "accepted_answers": [
+          "open tap, fill bottle"
+        ]
+      },
+      {
+        "item_id": "c2_order_03",
+        "passage": "Cards: The tower falls. Dev stacks three blocks.",
+        "prompt": "Which event belongs first?",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Dev stacks three blocks.",
+          "The tower falls."
+        ],
+        "accepted_answers": [
+          "Dev stacks three blocks.",
+          "dev stacks three blocks"
+        ]
+      },
+      {
+        "item_id": "c2_order_04",
+        "passage": "Events: Pavi picks up a crayon. Pavi colours the star.",
+        "prompt": "Write the events in order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "Pavi picks up a crayon, then she colours the star.",
+          "pavi picks up a crayon then she colours the star",
+          "Pavi picks up a crayon. Then she colours the star."
+        ]
+      }
+    ]
+  }
+}

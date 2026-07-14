@@ -1,0 +1,971 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 4 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: title-theme alignment, original honesty narrative, Class 4 evidence and grammar depth, and unseen assessment forms",
+    "Focused checks: canonical hash, key-option consistency, passage freshness, assessment coverage, and chapter/corpus quality"
+  ],
+  "runtime_sha256": "c435a0b220aeeb6b445c429fd062e8c1fee2f8769a0022f8d6401dc031f6c765",
+  "chapter_id": "eng_c4_ch02",
+  "chapter_no": 2,
+  "title": "The Tinkling Bells",
+  "book_title": "Santoor",
+  "unit_title": "My Land",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa102.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "tinkling_bells_main_idea",
+      "title": "Read the choice behind the bell",
+      "focus": "identify the main idea and evidence in an honesty narrative",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "State the moral focus of a paragraph and cite the choice that reveals it.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A moral story's main idea comes from the important choice, not from the object in the story. Returning money shows honesty.",
+          "passage": "Naman had saved for a tinkling bicycle bell. At the market, a seller returned fifty rupees too much. Naman noticed the error and gave the note back before buying the bell.",
+          "prompt": "Which sentence captures the moral focus of Naman's choice?",
+          "options": [
+            "Naman acts honestly when he returns extra change.",
+            "Naman likes the sound of bells.",
+            "The market sells bicycles.",
+            "Fifty rupees can buy fruit."
+          ],
+          "accepted_answers": [
+            "Naman acts honestly when he returns extra change."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Separate the situation, choice, and result. The choice is the strongest evidence for the character's value.",
+          "passage": "Lina found a silver anklet with tiny bells near the well. She carried it to the village office, where its owner later collected it.",
+          "prompt": "Which action is evidence of Lina's honesty?",
+          "options": [
+            "She took the anklet to the village office.",
+            "The anklet had tiny bells.",
+            "The owner lived nearby.",
+            "Lina walked past the well."
+          ],
+          "accepted_answers": [
+            "She took the anklet to the village office."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is calling a character honest only because the ending is happy. Honesty is shown by a truthful action even when no reward follows.",
+          "passage": "A shop assistant forgot to charge Yusuf for a packet of bells. Yusuf checked the bill and pointed out the missing item.",
+          "prompt": "Why is Yusuf's action honest?",
+          "options": [
+            "He reports a mistake that benefits him.",
+            "He chooses the cheapest packet.",
+            "He likes the packet's sound.",
+            "He reads every shop sign."
+          ],
+          "accepted_answers": [
+            "He reports a mistake that benefits him."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Find the moral focus and evidence in this unseen event.",
+          "passage": "Mira borrowed a costume belt for the school play. One bell came loose during rehearsal. She told the teacher immediately and offered to help repair it.",
+          "prompt": "State the main idea and support it with Mira's action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "main_idea",
+              "description": "states that Mira is honest or responsible about damage",
+              "any_of": [
+                "honest",
+                "responsible",
+                "truthful",
+                "admits",
+                "damage"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "mentions that she told the teacher and/or offered repair",
+              "any_of": [
+                "told",
+                "teacher",
+                "immediately",
+                "repair",
+                "help"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same evidence method in a digital setting.",
+          "passage": "Aarush saw that an online quiz had shown him the answer to the next question by mistake. He closed the page and informed his teacher before continuing.",
+          "prompt": "Explain what Aarush's choice shows and cite the clue.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "trait",
+              "description": "identifies honesty, fairness, or integrity",
+              "any_of": [
+                "honest",
+                "fair",
+                "integrity",
+                "right thing"
+              ]
+            },
+            {
+              "id": "clue",
+              "description": "mentions closing the page or telling the teacher",
+              "any_of": [
+                "closed",
+                "page",
+                "informed",
+                "teacher",
+                "before continuing"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "tinkling_bells_sequence",
+      "title": "Track problem, choice, and result",
+      "focus": "sequence events and explain how one event causes the next",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "grammar.sentence_order"
+      ],
+      "teaching_goal": "Use time and cause clues to place narrative events in a logical order.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Sequence a story by asking what must happen first. A child must notice a lost object before deciding to return it.",
+          "passage": "First, Asha heard a bell under a bench. Next, she found a pet's collar. Then she read the address tag and returned the collar.",
+          "prompt": "What happened directly after Asha heard the bell?",
+          "options": [
+            "She found the collar.",
+            "She read the tag.",
+            "She returned the collar.",
+            "She went home."
+          ],
+          "accepted_answers": [
+            "She found the collar."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Time words are useful, but logic also matters. Finding an owner must come before handing the object back.",
+          "passage": "Events: (1) Ketu gave the pouch to its owner. (2) Ketu saw a name inside the pouch. (3) Ketu picked up the pouch.",
+          "prompt": "Which event belongs first?",
+          "options": [
+            "Ketu picked up the pouch.",
+            "Ketu gave the pouch to its owner.",
+            "Ketu saw a name inside the pouch.",
+            "All happen together."
+          ],
+          "accepted_answers": [
+            "Ketu picked up the pouch."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not assume the order in which choices are listed is the story order. Use cause: checking the receipt must happen before correcting the bill.",
+          "passage": "Ravi paid for a bell, checked his receipt, noticed an unpaid string, and returned to the counter.",
+          "prompt": "Which event made Ravi return to the counter?",
+          "options": [
+            "He noticed the unpaid string.",
+            "He chose a bell.",
+            "He entered the shop.",
+            "He heard music outside."
+          ],
+          "accepted_answers": [
+            "He noticed the unpaid string."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Arrange the fresh events without time-word support.",
+          "passage": "Events: the librarian thanked Pooja; Pooja noticed an extra book in her bag; Pooja returned the book.",
+          "prompt": "Put the three events in story order.",
+          "options": [],
+          "accepted_answers": [
+            "Pooja noticed an extra book in her bag, Pooja returned the book, the librarian thanked Pooja",
+            "Pooja noticed an extra book in her bag; Pooja returned the book; the librarian thanked Pooja",
+            "noticed extra book, returned book, librarian thanked Pooja"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Sequence a cause-and-result chain in sport.",
+          "passage": "Events: the referee corrected the score; Iqbal admitted the ball touched his hand; the other team questioned the point.",
+          "prompt": "Put the events in the most logical order.",
+          "options": [],
+          "accepted_answers": [
+            "the other team questioned the point, Iqbal admitted the ball touched his hand, the referee corrected the score",
+            "the other team questioned the point; Iqbal admitted the ball touched his hand; the referee corrected the score",
+            "team questioned, Iqbal admitted, referee corrected"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "tinkling_bells_opposites",
+      "title": "Use contrast to unlock words",
+      "focus": "infer meanings and opposites from sentence context",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use contrast markers and outcomes to identify a word's meaning and a legitimate opposite.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "But often signals a contrast. If the bell was faint before but loud after repair, faint means quiet or hard to hear.",
+          "passage": "The old bell sounded faint, but after cleaning it rang loudly.",
+          "prompt": "Which word is opposite in meaning to faint here?",
+          "options": [
+            "loud",
+            "old",
+            "clean",
+            "rang"
+          ],
+          "accepted_answers": [
+            "loud"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the two ideas placed against each other. Reluctant contrasts with eager in the next sentence.",
+          "passage": "Sumi was reluctant to admit the mistake at first, but soon she was eager to tell the truth.",
+          "prompt": "What does reluctant most nearly mean?",
+          "options": [
+            "unwilling",
+            "excited",
+            "noisy",
+            "careful"
+          ],
+          "accepted_answers": [
+            "unwilling"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "An opposite must fit the sentence's meaning and grammar. The opposite of honest is dishonest, not honesty, because the sentence needs a describing word.",
+          "passage": "The honest customer corrected the bill; a _____ customer might hide the error.",
+          "prompt": "Which word completes the contrast?",
+          "options": [
+            "dishonest",
+            "honesty",
+            "truth",
+            "carefully"
+          ],
+          "accepted_answers": [
+            "dishonest"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer the opposite from the new context.",
+          "passage": "The crowded lane became deserted after the shops closed.",
+          "prompt": "Write the opposite of crowded as used here.",
+          "options": [],
+          "accepted_answers": [
+            "deserted",
+            "empty",
+            "uncrowded"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a contrast clue in a weather report.",
+          "passage": "The morning was gloomy, yet by afternoon the sky looked bright and cheerful.",
+          "prompt": "Which word in the sentence is the best opposite of gloomy?",
+          "options": [],
+          "accepted_answers": [
+            "bright",
+            "cheerful",
+            "bright and cheerful"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "tinkling_bells_comparisons",
+      "title": "Compare sounds and choices accurately",
+      "focus": "use comparative and superlative adjectives in context",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use comparative forms for two and superlative forms for three or more while preserving sentence meaning.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Use -er or more when comparing two. The brass bell is louder than the clay bell.",
+          "passage": "A brass bell rings loudly. A clay bell makes a soft sound.",
+          "prompt": "Which sentence compares the two correctly?",
+          "options": [
+            "The brass bell is louder than the clay bell.",
+            "The brass bell is loudest than the clay bell.",
+            "The clay bell is more softest.",
+            "Both bells is loud."
+          ],
+          "accepted_answers": [
+            "The brass bell is louder than the clay bell."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Count the things being compared. Three or more usually call for a superlative such as smallest.",
+          "passage": "Three bells weigh 80 g, 110 g, and 140 g.",
+          "prompt": "Which phrase describes the 80 g bell?",
+          "options": [
+            "the lightest bell",
+            "the lighter bell than all",
+            "the most light bell",
+            "the light bellest"
+          ],
+          "accepted_answers": [
+            "the lightest bell"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common error is using both more and -er. Say kinder, not more kinder; say more careful, not carefuller.",
+          "passage": "Rina returned a lost purse, while another child ignored it.",
+          "prompt": "Which comparison is grammatically correct?",
+          "options": [
+            "Rina made the kinder choice.",
+            "Rina made the more kinder choice.",
+            "Rina made the kindest of two choice.",
+            "Rina choice was kinderest."
+          ],
+          "accepted_answers": [
+            "Rina made the kinder choice."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Complete the comparison without options.",
+          "passage": "The large temple bell is heavy, but the handbell is _____.",
+          "prompt": "Write the correct comparative form of light.",
+          "options": [],
+          "accepted_answers": [
+            "lighter"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a superlative in a setting without bells.",
+          "passage": "Of the four routes, the riverside path has the least traffic.",
+          "prompt": "Write one complete sentence saying it is the safest route.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "superlative",
+              "description": "uses the word safest",
+              "any_of": [
+                "safest"
+              ]
+            },
+            {
+              "id": "complete_route_idea",
+              "description": "states that the riverside path or route is safest",
+              "any_of": [
+                "riverside",
+                "path",
+                "route",
+                "is",
+                "because",
+                "traffic"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    },
+    {
+      "level_id": "tinkling_bells_own_words",
+      "title": "Explain an honest decision",
+      "focus": "summarise a moral problem and justify a response in own words",
+      "skill_ids": [
+        "writing.reason_answer",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Write a concise response that identifies the conflict, chooses an honest action, and supports it with evidence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A strong moral response names the action and why it is right. Worked example: 'She should return the key because it belongs to another family.'",
+          "passage": "Tara finds a house key labelled with her neighbour's flat number.",
+          "prompt": "Which response includes both an action and a reason?",
+          "options": [
+            "Tara should return the key because her neighbour owns it.",
+            "Tara sees a shiny key.",
+            "The key has a number.",
+            "Keys can open doors."
+          ],
+          "accepted_answers": [
+            "Tara should return the key because her neighbour owns it."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the response from three parts: what happened, what should be done, why that action is fair.",
+          "passage": "A cashier forgets to include a notebook on Hari's bill.",
+          "prompt": "Which action belongs in the middle of the response?",
+          "options": [
+            "Hari should point out the missing notebook.",
+            "Hari entered a shop.",
+            "The notebook has ruled pages.",
+            "The cashier uses a pen."
+          ],
+          "accepted_answers": [
+            "Hari should point out the missing notebook."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Honesty is not the same as avoiding punishment. A sound reason focuses on truth, ownership, or fairness, even when nobody is watching.",
+          "passage": "No one sees Anvi find a classmate's badge.",
+          "prompt": "Which reason best supports returning it?",
+          "options": [
+            "The badge belongs to someone else.",
+            "Anvi may receive a prize.",
+            "The badge matches her bag.",
+            "The corridor is empty."
+          ],
+          "accepted_answers": [
+            "The badge belongs to someone else."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Respond in your own words to this unseen dilemma.",
+          "passage": "A delivery rider gives Kabir two parcels, but one has another family's name and address.",
+          "prompt": "Summarise the problem and explain what Kabir should do.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "problem",
+              "description": "states that one parcel belongs to another family",
+              "any_of": [
+                "two parcels",
+                "another family",
+                "wrong",
+                "name",
+                "address",
+                "not his"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "says to return, refuse, or alert the rider",
+              "any_of": [
+                "return",
+                "give back",
+                "tell",
+                "rider",
+                "refuse",
+                "contact"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "links the action to honesty or ownership",
+              "any_of": [
+                "belongs",
+                "owner",
+                "honest",
+                "right",
+                "because"
+              ]
+            }
+          ],
+          "min_response_words": 14
+        },
+        "transfer_check": {
+          "teaching_block": "Apply honest reasoning to shared information.",
+          "passage": "Niya is accidentally added to a private class chat meant for another section. She can read messages that were not sent to her.",
+          "prompt": "In your own words, explain the responsible action and why it matters.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action",
+              "description": "suggests leaving, not reading, and/or informing a teacher",
+              "any_of": [
+                "leave",
+                "exit",
+                "not read",
+                "tell",
+                "inform",
+                "teacher"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "explains privacy, trust, or wrong audience",
+              "any_of": [
+                "private",
+                "privacy",
+                "trust",
+                "not meant",
+                "another section",
+                "responsible"
+              ]
+            }
+          ],
+          "min_response_words": 12
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c4c2_main_01",
+        "passage": "At a bakery, Om noticed the cashier had returned an extra note. He gave it back before leaving.",
+        "prompt": "Which main idea fits best?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Om chooses honesty over keeping extra money.",
+          "Om dislikes bread.",
+          "Cashiers never make mistakes.",
+          "The bakery closes early."
+        ],
+        "accepted_answers": [
+          "Om chooses honesty over keeping extra money."
+        ]
+      },
+      {
+        "item_id": "c4c2_main_02",
+        "passage": "Sana cracked a borrowed plant pot while moving it. She told the owner and offered a replacement.",
+        "prompt": "State what Sana's actions show and cite one action.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "trait",
+            "description": "identifies honesty or responsibility",
+            "any_of": [
+              "honest",
+              "responsible",
+              "truthful",
+              "admits"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "mentions telling the owner or replacing the pot",
+            "any_of": [
+              "told",
+              "owner",
+              "offered",
+              "replace",
+              "replacement"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c4c2_main_03",
+        "passage": "A boy found a wallet, checked the identity card, and handed it to a police officer.",
+        "prompt": "Which detail most strongly supports an inference of honesty?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "He handed the wallet to a police officer.",
+          "The wallet had an identity card.",
+          "The boy walked outside.",
+          "The officer wore shoes."
+        ],
+        "accepted_answers": [
+          "He handed the wallet to a police officer."
+        ]
+      },
+      {
+        "item_id": "c4c2_main_04",
+        "passage": "A student sees her score was added incorrectly in her favour and asks the teacher to check it.",
+        "prompt": "Explain the main message of this event.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "message",
+            "description": "states that honesty means correcting a helpful mistake",
+            "any_of": [
+              "honesty",
+              "honest",
+              "correct",
+              "mistake",
+              "truth"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "refers to reporting or checking the score",
+            "any_of": [
+              "score",
+              "teacher",
+              "check",
+              "asks",
+              "favour",
+              "favor"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c2_seq_01",
+        "passage": "Events: Reva returned a scarf; Reva saw a name tag; Reva found the scarf.",
+        "prompt": "Which happened first?",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "grammar.sentence_order"
+        ],
+        "options": [
+          "Reva found the scarf.",
+          "Reva saw a name tag.",
+          "Reva returned the scarf.",
+          "All happened together."
+        ],
+        "accepted_answers": [
+          "Reva found the scarf."
+        ]
+      },
+      {
+        "item_id": "c4c2_seq_02",
+        "passage": "Events: the coach corrected the result; Tenzin admitted crossing the line early; the race ended.",
+        "prompt": "Put the events in logical order.",
+        "skill_ids": [
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the race ended, Tenzin admitted crossing the line early, the coach corrected the result",
+          "the race ended; Tenzin admitted crossing the line early; the coach corrected the result",
+          "race ended, Tenzin admitted, coach corrected"
+        ]
+      },
+      {
+        "item_id": "c4c2_seq_03",
+        "passage": "First Ira counted the change. Next she noticed an extra coin. Finally she returned it.",
+        "prompt": "What happened immediately before Ira returned the coin?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "She noticed the extra coin.",
+          "She entered a bus.",
+          "She bought a bell.",
+          "She lost her purse."
+        ],
+        "accepted_answers": [
+          "She noticed the extra coin."
+        ]
+      },
+      {
+        "item_id": "c4c2_seq_04",
+        "passage": "Events: Jay informed the librarian; Jay discovered a torn page; Jay opened the borrowed book.",
+        "prompt": "Arrange the events from first to last.",
+        "skill_ids": [
+          "reading.sentence_comprehension",
+          "grammar.sentence_order"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "Jay opened the borrowed book, Jay discovered a torn page, Jay informed the librarian",
+          "Jay opened the borrowed book; Jay discovered a torn page; Jay informed the librarian",
+          "opened book, discovered torn page, informed librarian"
+        ]
+      },
+      {
+        "item_id": "c4c2_vocab_01",
+        "passage": "The guard was vigilant, but the sleepy visitor noticed nothing.",
+        "prompt": "What does vigilant mean?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "watchful",
+          "sleepy",
+          "careless",
+          "silent"
+        ],
+        "accepted_answers": [
+          "watchful"
+        ]
+      },
+      {
+        "item_id": "c4c2_vocab_02",
+        "passage": "The room was chaotic before the shelves were arranged; afterwards it was orderly.",
+        "prompt": "Write the opposite of chaotic from the sentence.",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "orderly"
+        ]
+      },
+      {
+        "item_id": "c4c2_vocab_03",
+        "passage": "Rafi gave a sincere apology: he named his mistake and did not make excuses.",
+        "prompt": "Which meaning fits sincere?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "genuine and honest",
+          "carelessly copied",
+          "very loud",
+          "secretly angry"
+        ],
+        "accepted_answers": [
+          "genuine and honest"
+        ]
+      },
+      {
+        "item_id": "c4c2_vocab_04",
+        "passage": "The brittle string snapped, while the flexible cord bent without breaking.",
+        "prompt": "Use the contrast to explain brittle.",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "easily broken",
+          "breaks easily",
+          "not flexible",
+          "likely to snap"
+        ]
+      },
+      {
+        "item_id": "c4c2_cmp_01",
+        "passage": "Two bells weigh 60 g and 95 g.",
+        "prompt": "Which sentence is correct?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The 60 g bell is lighter.",
+          "The 60 g bell is lightest of two.",
+          "The 60 g bell is more lighter.",
+          "The 60 g bell are light."
+        ],
+        "accepted_answers": [
+          "The 60 g bell is lighter."
+        ]
+      },
+      {
+        "item_id": "c4c2_cmp_02",
+        "passage": "A copper bell is bright, but a polished silver bell reflects more light.",
+        "prompt": "Complete the comparison: The silver bell is _____.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "brighter"
+        ]
+      },
+      {
+        "item_id": "c4c2_cmp_03",
+        "passage": "Four ribbons are 10 cm, 14 cm, 18 cm, and 22 cm long.",
+        "prompt": "How should the 22 cm ribbon be described?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "It is the longest ribbon.",
+          "It is the longer ribbon of four.",
+          "It is the most long ribbon.",
+          "It are longest."
+        ],
+        "accepted_answers": [
+          "It is the longest ribbon."
+        ]
+      },
+      {
+        "item_id": "c4c2_cmp_04",
+        "passage": "Three routes take 8, 11, and 15 minutes.",
+        "prompt": "Write one complete sentence about the 8-minute route using quickest.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "superlative",
+            "description": "uses quickest",
+            "any_of": [
+              "quickest"
+            ]
+          },
+          {
+            "id": "route_statement",
+            "description": "states that the 8-minute route is quickest",
+            "any_of": [
+              "8-minute",
+              "eight-minute",
+              "route",
+              "is"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "c4c2_write_01",
+        "passage": "A waiter gives Pia another table's change.",
+        "prompt": "Which response is most honest?",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "Pia should return it because it belongs to another customer.",
+          "Pia should spend it quickly.",
+          "Pia should hide it under a plate.",
+          "Pia should leave without speaking."
+        ],
+        "accepted_answers": [
+          "Pia should return it because it belongs to another customer."
+        ]
+      },
+      {
+        "item_id": "c4c2_write_02",
+        "passage": "Nakul notices that a library book was already torn when he borrowed it.",
+        "prompt": "Summarise the problem and explain a responsible action.",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "problem",
+            "description": "states that the borrowed book has damage",
+            "any_of": [
+              "library",
+              "book",
+              "torn",
+              "damage",
+              "already"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "suggests promptly telling or showing the librarian",
+            "any_of": [
+              "tell",
+              "show",
+              "inform",
+              "librarian",
+              "promptly"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "connects the action to honesty or avoiding blame",
+            "any_of": [
+              "honest",
+              "truth",
+              "responsible",
+              "not blamed",
+              "record"
+            ]
+          }
+        ],
+        "min_response_words": 13
+      },
+      {
+        "item_id": "c4c2_write_03",
+        "passage": "A game awards Leena a point that she knows she did not earn.",
+        "prompt": "Which reason best supports speaking up?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "A fair score must record what really happened.",
+          "She may lose the game.",
+          "Her friends might cheer.",
+          "The scoreboard is electronic."
+        ],
+        "accepted_answers": [
+          "A fair score must record what really happened."
+        ]
+      },
+      {
+        "item_id": "c4c2_write_04",
+        "passage": "A child receives a message containing another pupil's test answers by mistake.",
+        "prompt": "In your own words, explain what the child should do and why.",
+        "skill_ids": [
+          "writing.reason_answer",
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "suggests not using or sharing the answers and informing an adult",
+            "any_of": [
+              "not use",
+              "delete",
+              "not share",
+              "tell",
+              "teacher",
+              "inform"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "explains fairness, privacy, or cheating",
+            "any_of": [
+              "fair",
+              "private",
+              "privacy",
+              "cheating",
+              "wrong",
+              "trust"
+            ]
+          }
+        ],
+        "min_response_words": 12
+      }
+    ]
+  }
+}

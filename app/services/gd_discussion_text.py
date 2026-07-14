@@ -31,6 +31,14 @@ def _is_remote_work_topic(topic: str) -> bool:
     )
 
 
+def _is_four_day_workweek_topic(topic: str) -> bool:
+    lower = topic.lower()
+    return bool(re.search(
+        r"\b(?:four|4)[-\s]?day\s+(?:work\s*)?week\b|\bcompressed\s+work\s*week\b",
+        lower,
+    ))
+
+
 def _is_ai_topic(topic: str) -> bool:
     lower = topic.lower()
     return any(marker in lower for marker in (" ai ", "artificial intelligence", "automation", "generative ai"))
@@ -136,6 +144,32 @@ def gd_persona_fallback_text(topic: str, speaker_id: str, role_type: str = "") -
         return (
             f"The group should treat {topic_phrase} as conditional: prove access improves while mentoring, "
             "trust, decision latency, and delivery quality do not degrade."
+        )
+
+    if _is_four_day_workweek_topic(topic):
+        if speaker_id == "data_driven_analyst":
+            return (
+                f"For {topic_phrase}, the evidence has to separate real productivity gains from work compression: "
+                "track overtime, service response, defects and rework, sick leave, and attrition by role."
+            )
+        if speaker_id == "consensus_builder":
+            return (
+                f"A workable path for {topic_phrase} is a role-specific pilot with staggered coverage, an hour cap, "
+                "and a pause trigger if service levels or employee recovery worsen."
+            )
+        if speaker_id in {"devils_advocate", "aggressive_challenger"}:
+            return (
+                f"The strongest risk in {topic_phrase} is compressed work rather than reduced work: longer days, "
+                "service gaps, and rushed handovers can move burnout instead of removing it."
+            )
+        if speaker_id == "quiet_expert":
+            return (
+                f"The implementation detail for {topic_phrase} is coverage: staffing ratios, cross-time-zone handoffs, "
+                "labor constraints, and escalation ownership determine whether the policy is viable."
+            )
+        return (
+            f"Support for {topic_phrase} should depend on a reversible pilot that protects coverage and shows lower "
+            "overtime without worse quality, service, or employee health."
         )
 
     if _is_ai_audit_topic(topic):

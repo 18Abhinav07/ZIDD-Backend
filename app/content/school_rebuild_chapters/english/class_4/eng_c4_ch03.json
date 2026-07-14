@@ -1,0 +1,1104 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 4 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: safety-theme fidelity, original scenarios, evidence-backed reasoning, contextual grammar, and age-appropriate own-words tasks",
+    "Focused checks: canonical hash, key-option consistency, stage and assessment freshness, skill coverage, and chapter/corpus quality"
+  ],
+  "runtime_sha256": "b0b379a0e083fa375cbfb4fd49ad780904834c5c88605e3174d657bbac5cbe17",
+  "chapter_id": "eng_c4_ch03",
+  "chapter_no": 3,
+  "title": "Be Smart, Be Safe",
+  "book_title": "Santoor",
+  "unit_title": "My Land",
+  "source_url": "https://ncert.nic.in/textbook/pdf/desa103.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "be_safe_main_idea",
+      "title": "Find the safety message and proof",
+      "focus": "identify a safety paragraph's main idea and supporting evidence",
+      "skill_ids": [
+        "reading.paragraph_main_idea",
+        "reading.inference_reason"
+      ],
+      "teaching_goal": "State the broad safety message and use an action or consequence as evidence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The main idea joins all details. Stopping, checking traffic, and crossing at the marked place all support one message: plan before crossing.",
+          "passage": "At the corner, Veer stopped behind the kerb. He looked right, left, and right again, waited for the road to clear, and crossed at the zebra crossing.",
+          "prompt": "What is the paragraph mainly teaching?",
+          "options": [
+            "Check carefully before crossing a road.",
+            "Walk as fast as possible.",
+            "Count every white stripe.",
+            "Travel only in the morning."
+          ],
+          "accepted_answers": [
+            "Check carefully before crossing a road."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "List the action and its purpose. Holding the rail and keeping the aisle clear both reduce danger on a bus.",
+          "passage": "Mitali held the bus rail and kept her bag away from the aisle while the vehicle moved.",
+          "prompt": "Which result do both actions support?",
+          "options": [
+            "a safer bus journey",
+            "a heavier school bag",
+            "a shorter bus route",
+            "a louder conversation"
+          ],
+          "accepted_answers": [
+            "a safer bus journey"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A striking detail is not always the main idea. The red light is one clue; the paragraph is broadly about obeying signals before moving.",
+          "passage": "The signal turned red. Cyclists stopped behind the line, pedestrians waited on the pavement, and traffic from the other road moved.",
+          "prompt": "Which answer includes all the details?",
+          "options": [
+            "Road users follow signals to move safely.",
+            "The signal has a red lamp.",
+            "Cyclists own helmets.",
+            "The pavement is beside a road."
+          ],
+          "accepted_answers": [
+            "Road users follow signals to move safely."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the unseen paragraph and select evidence yourself.",
+          "passage": "Before skating, Arjun checked the straps, tightened his helmet, and moved stones away from the practice area. He began only when the path was clear.",
+          "prompt": "State the main safety idea and support it with one action.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "main_idea",
+              "description": "states that preparation or checks make skating safer",
+              "any_of": [
+                "prepare",
+                "check",
+                "before",
+                "skating",
+                "safe",
+                "safety"
+              ]
+            },
+            {
+              "id": "evidence",
+              "description": "mentions straps, helmet, stones, or clear path",
+              "any_of": [
+                "straps",
+                "helmet",
+                "stones",
+                "path",
+                "clear",
+                "tightened"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Apply main-idea reading to safety at home.",
+          "passage": "Before using a mixer, Auntie unplugged it, dried her hands, fitted the jar, and called an adult to check the lid. Only then did she connect the plug.",
+          "prompt": "Explain the main safety message in your own words and cite one detail.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "message",
+              "description": "states that electrical appliances require careful preparation and adult checking",
+              "any_of": [
+                "mixer",
+                "appliance",
+                "careful",
+                "before",
+                "adult",
+                "check",
+                "safe"
+              ]
+            },
+            {
+              "id": "detail",
+              "description": "uses one action from the passage",
+              "any_of": [
+                "unplugged",
+                "dried",
+                "hands",
+                "fitted",
+                "jar",
+                "lid"
+              ]
+            }
+          ],
+          "min_response_words": 10
+        }
+      }
+    },
+    {
+      "level_id": "be_safe_signs_context",
+      "title": "Read signs through words and setting",
+      "focus": "infer public sign meanings from context",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.word_meaning_context"
+      ],
+      "teaching_goal": "Use a sign's wording, location, and nearby action to infer what it requires.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A sign's location is a context clue. 'No entry' beside a repair gate means people must not use that route.",
+          "passage": "Workers have opened a drain beyond a gate marked NO ENTRY.",
+          "prompt": "What does the sign require?",
+          "options": [
+            "Use another route.",
+            "Walk through the work area.",
+            "Move the gate.",
+            "Ignore the workers."
+          ],
+          "accepted_answers": [
+            "Use another route."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Connect the command word to the danger. Caution asks people to be alert because a hazard is nearby.",
+          "passage": "A yellow board says CAUTION: WET FLOOR beside a freshly mopped corridor.",
+          "prompt": "What does caution tell walkers to do?",
+          "options": [
+            "move carefully",
+            "start running",
+            "pour more water",
+            "remove their shoes"
+          ],
+          "accepted_answers": [
+            "move carefully"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not interpret a symbol without its setting. A crossed-out horn outside a hospital means do not sound the horn, not that vehicles are banned.",
+          "passage": "A sign outside a clinic shows a horn with a red line through it.",
+          "prompt": "Which instruction matches the sign?",
+          "options": [
+            "Do not honk here.",
+            "Do not park here.",
+            "Only buses may enter.",
+            "Wear a helmet indoors."
+          ],
+          "accepted_answers": [
+            "Do not honk here."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the wording and place in this fresh sign.",
+          "passage": "A board beside a steep staircase reads USE HANDRAIL.",
+          "prompt": "What does handrail mean in this instruction?",
+          "options": [],
+          "accepted_answers": [
+            "the rail to hold while using the stairs",
+            "a rail you hold",
+            "a support rail beside the stairs",
+            "support to hold on the stairs"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Interpret a warning in a park rather than on a road.",
+          "passage": "A rope surrounds a young tree, and a sign says FRAGILE ROOTS: KEEP OFF THE SOIL.",
+          "prompt": "Explain what fragile means and what visitors should do.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "meaning",
+              "description": "explains that the roots are delicate or easily damaged",
+              "any_of": [
+                "delicate",
+                "easily damaged",
+                "weak",
+                "break",
+                "harm"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "says to stay off or not step inside the roped area",
+              "any_of": [
+                "keep off",
+                "do not step",
+                "stay outside",
+                "rope",
+                "soil"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "be_safe_action_reason",
+      "title": "Judge actions by their consequences",
+      "focus": "infer why an action is safe or unsafe and explain the likely result",
+      "skill_ids": [
+        "grammar.connectors_because_and_but",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Use because, but, or so to connect a safety choice with evidence and consequence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A safety reason links action to consequence. 'Do not chase the ball because a driver may not see you' explains the danger.",
+          "passage": "A ball rolls towards the street while traffic is moving.",
+          "prompt": "Which reason best explains why a child should stop at the gate?",
+          "options": [
+            "A driver may not see a child running out.",
+            "The ball is round.",
+            "The gate has hinges.",
+            "Traffic makes engine sounds."
+          ],
+          "accepted_answers": [
+            "A driver may not see a child running out."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Use because before a cause and so before a result.",
+          "passage": "Rohan wore reflective strips _____ drivers could see him in the evening.",
+          "prompt": "Which connector completes the visibility result?",
+          "options": [
+            "so",
+            "because",
+            "but",
+            "although"
+          ],
+          "accepted_answers": [
+            "so"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common error is calling an action safe only because no accident happened. Judge the risk: looking at a phone while cycling is unsafe even if the road seems empty.",
+          "passage": "The lane looked empty, but Isha kept reading a message while cycling.",
+          "prompt": "Which evaluation is sound?",
+          "options": [
+            "It is unsafe because she is distracted.",
+            "It is safe because no car is visible.",
+            "It is safe because the message is short.",
+            "It is unsafe because bicycles are blue."
+          ],
+          "accepted_answers": [
+            "It is unsafe because she is distracted."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Explain the consequence in this new case without choices.",
+          "passage": "Nakul waits for the bus on the pavement instead of standing on the road.",
+          "prompt": "Why is Nakul's position safer?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "safe_position",
+              "description": "states that he is on the pavement or away from traffic",
+              "any_of": [
+                "pavement",
+                "away",
+                "road",
+                "traffic",
+                "vehicles"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "explains that vehicles are less likely to hit or endanger him",
+              "any_of": [
+                "hit",
+                "danger",
+                "safer",
+                "moving",
+                "because",
+                "less likely"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Judge risk during a storm rather than near traffic.",
+          "passage": "Lightning begins while children are playing in an open field, so their coach leads them into a solid building.",
+          "prompt": "Explain why the coach's action is safer.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "hazard",
+              "description": "identifies lightning or exposure in the open field",
+              "any_of": [
+                "lightning",
+                "open field",
+                "storm",
+                "exposed"
+              ]
+            },
+            {
+              "id": "protection",
+              "description": "explains that the building provides shelter or reduces risk",
+              "any_of": [
+                "building",
+                "shelter",
+                "inside",
+                "protect",
+                "safer",
+                "because"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        }
+      }
+    },
+    {
+      "level_id": "be_safe_context_grammar",
+      "title": "Use nouns and verbs in safety instructions",
+      "focus": "identify word jobs and countable nouns in contextual instructions",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Use sentence meaning to distinguish objects, actions, and countable safety equipment.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In an instruction, the action word tells what to do. 'Fasten the strap' uses fasten as the verb.",
+          "passage": "Fasten the helmet strap before the ride.",
+          "prompt": "Which word gives the action?",
+          "options": [
+            "Fasten",
+            "helmet",
+            "strap",
+            "ride"
+          ],
+          "accepted_answers": [
+            "Fasten"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A countable noun can be counted separately. You can count cones: one cone, three cones.",
+          "passage": "The instructor placed four cones around the wet patch.",
+          "prompt": "Which noun is directly counted?",
+          "options": [
+            "cones",
+            "instructor",
+            "wet",
+            "around"
+          ],
+          "accepted_answers": [
+            "cones"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Some words change jobs with context. 'Signal' is a naming word in 'the signal changed' but an action in 'signal before turning.'",
+          "passage": "Cyclists signal before turning left.",
+          "prompt": "What job does signal do here?",
+          "options": [
+            "It is an action word.",
+            "It names a traffic light.",
+            "It describes the cyclists.",
+            "It tells how many cyclists."
+          ],
+          "accepted_answers": [
+            "It is an action word."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the whole instruction before naming the word job.",
+          "passage": "Carry two bottles of water on the hike.",
+          "prompt": "Write the action word and the counted noun.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "action_word",
+              "description": "identifies carry as the action",
+              "any_of": [
+                "carry"
+              ]
+            },
+            {
+              "id": "counted_noun",
+              "description": "identifies bottles as the counted noun",
+              "any_of": [
+                "bottles",
+                "bottle"
+              ]
+            }
+          ],
+          "min_response_words": 4
+        },
+        "transfer_check": {
+          "teaching_block": "Use grammar clues in a laboratory instruction.",
+          "passage": "Place three goggles beside the sink and wipe each lens.",
+          "prompt": "Write the two action words.",
+          "options": [],
+          "accepted_answers": [
+            "place and wipe",
+            "place, wipe",
+            "place wipe"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "be_safe_own_words",
+      "title": "Write practical safety advice",
+      "focus": "summarise a hazard and write complete safety guidance in own words",
+      "skill_ids": [
+        "writing.summary_own_words",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Describe a hazard, give a specific action, and explain the protection it provides.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Useful advice names a hazard and a protective action. Worked example: 'The floor is slippery, so walk slowly and use the rail.'",
+          "passage": "Rainwater has gathered on the school steps.",
+          "prompt": "Which message gives specific safety advice?",
+          "options": [
+            "The steps are wet, so hold the rail and walk slowly.",
+            "The steps are made of stone.",
+            "Rain fell before school.",
+            "Shoes come in many sizes."
+          ],
+          "accepted_answers": [
+            "The steps are wet, so hold the rail and walk slowly."
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build advice in three parts: hazard, action, benefit. Start by identifying what could cause harm.",
+          "passage": "A charging cable lies across a doorway.",
+          "prompt": "What hazard should the advice mention?",
+          "options": [
+            "Someone could trip over the cable.",
+            "The doorway needs paint.",
+            "The charger has a label.",
+            "The room has a window."
+          ],
+          "accepted_answers": [
+            "Someone could trip over the cable."
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Vague advice such as 'be careful' does not tell the reader what to do. Choose an observable action matched to the hazard.",
+          "passage": "A cupboard door is open above a busy passage.",
+          "prompt": "Which advice is precise?",
+          "options": [
+            "Close the cupboard door before someone walks into it.",
+            "Be good near the cupboard.",
+            "Think about safety later.",
+            "Use cupboards carefully."
+          ],
+          "accepted_answers": [
+            "Close the cupboard door before someone walks into it."
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Create the message without borrowing a model sentence.",
+          "passage": "A cyclist's backpack strap hangs close to the rear wheel.",
+          "prompt": "In two complete sentences, describe the hazard and give protective advice.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "hazard",
+              "description": "states that the loose strap may catch in the wheel",
+              "any_of": [
+                "strap",
+                "loose",
+                "hanging",
+                "catch",
+                "wheel"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "says to secure, tie, shorten, or tuck the strap before riding",
+              "any_of": [
+                "secure",
+                "tie",
+                "shorten",
+                "tuck",
+                "before riding"
+              ]
+            },
+            {
+              "id": "complete_advice",
+              "description": "expresses hazard and action as complete ideas",
+              "any_of": [
+                "could",
+                "may",
+                "should",
+                "so",
+                "because"
+              ]
+            }
+          ],
+          "min_response_words": 13
+        },
+        "transfer_check": {
+          "teaching_block": "Write advice for handling information safely.",
+          "passage": "A game asks a child to post a home address in a public chat to claim a prize.",
+          "prompt": "Summarise the risk and give safe advice in your own words.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "risk",
+              "description": "states that sharing a home address publicly exposes private information",
+              "any_of": [
+                "address",
+                "public",
+                "private",
+                "personal",
+                "strangers",
+                "risk"
+              ]
+            },
+            {
+              "id": "action",
+              "description": "says not to post it and to ask a trusted adult",
+              "any_of": [
+                "do not",
+                "not post",
+                "leave",
+                "report",
+                "trusted adult",
+                "parent",
+                "teacher"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "connects the action to privacy or protection",
+              "any_of": [
+                "privacy",
+                "safe",
+                "protect",
+                "information"
+              ]
+            }
+          ],
+          "min_response_words": 14
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c4c3_main_01",
+        "passage": "Before the boat trip, Zoya checked her life jacket, tightened its straps, and listened to the guide.",
+        "prompt": "Which main idea covers all actions?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "Preparation makes the boat trip safer.",
+          "Zoya likes orange jackets.",
+          "The guide owns a boat.",
+          "Straps are made of cloth."
+        ],
+        "accepted_answers": [
+          "Preparation makes the boat trip safer."
+        ]
+      },
+      {
+        "item_id": "c4c3_main_02",
+        "passage": "At a campsite, children cleared dry leaves from the cooking area, kept water nearby, and asked an adult to light the stove.",
+        "prompt": "State the safety message and one supporting action.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "message",
+            "description": "states that careful preparation prevents fire danger",
+            "any_of": [
+              "prepare",
+              "careful",
+              "fire",
+              "safe",
+              "cooking"
+            ]
+          },
+          {
+            "id": "evidence",
+            "description": "mentions one campsite action",
+            "any_of": [
+              "cleared",
+              "dry leaves",
+              "water",
+              "adult",
+              "stove"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c3_main_03",
+        "passage": "Mehul tests the bicycle brakes before riding downhill.",
+        "prompt": "What can a reader reasonably infer?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "He wants to know the bicycle can stop safely.",
+          "He plans to carry the bicycle.",
+          "He dislikes downhill roads.",
+          "He is counting the wheels."
+        ],
+        "accepted_answers": [
+          "He wants to know the bicycle can stop safely."
+        ]
+      },
+      {
+        "item_id": "c4c3_main_04",
+        "passage": "A family stores medicines in a high locked cabinet and keeps the key with an adult.",
+        "prompt": "Explain why these details support one safety idea.",
+        "skill_ids": [
+          "reading.paragraph_main_idea",
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "idea",
+            "description": "states that medicines should be kept away from children or used with adults",
+            "any_of": [
+              "medicine",
+              "away",
+              "children",
+              "adult",
+              "locked",
+              "safe"
+            ]
+          },
+          {
+            "id": "details",
+            "description": "uses high cabinet, lock, or adult-held key as evidence",
+            "any_of": [
+              "high",
+              "locked",
+              "cabinet",
+              "key",
+              "adult"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c3_sign_01",
+        "passage": "A board beside a loose bridge plank reads DANGER: DO NOT CROSS.",
+        "prompt": "What does danger signal?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "serious risk nearby",
+          "a picnic area",
+          "a short route",
+          "a place to play"
+        ],
+        "accepted_answers": [
+          "serious risk nearby"
+        ]
+      },
+      {
+        "item_id": "c4c3_sign_02",
+        "passage": "A bottle label says DILUTE WITH WATER BEFORE USE.",
+        "prompt": "Use the instruction to explain dilute.",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "mix with water",
+          "make weaker by adding water",
+          "add water before using",
+          "water it down"
+        ]
+      },
+      {
+        "item_id": "c4c3_sign_03",
+        "passage": "A trail marker says STEEP DESCENT for the next kilometre.",
+        "prompt": "Which meaning fits descent?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "a path going downward",
+          "a flat resting place",
+          "a path climbing upward",
+          "a river crossing"
+        ],
+        "accepted_answers": [
+          "a path going downward"
+        ]
+      },
+      {
+        "item_id": "c4c3_sign_04",
+        "passage": "A packet says PERISHABLE: KEEP REFRIGERATED.",
+        "prompt": "What clue suggests perishable food can spoil?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "keep refrigerated",
+          "it must be kept refrigerated",
+          "refrigerated",
+          "keep it cold"
+        ]
+      },
+      {
+        "item_id": "c4c3_reason_01",
+        "passage": "The path was icy, _____ the walkers shortened their steps.",
+        "prompt": "Choose the result connector.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "so",
+          "because",
+          "but",
+          "although"
+        ],
+        "accepted_answers": [
+          "so"
+        ]
+      },
+      {
+        "item_id": "c4c3_reason_02",
+        "passage": "Asha switches off the fan before cleaning its blades.",
+        "prompt": "Explain why this choice lowers risk.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "mentions switching off the fan before cleaning",
+            "any_of": [
+              "switches off",
+              "off",
+              "before",
+              "cleaning"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "explains that moving blades could injure her",
+            "any_of": [
+              "blades",
+              "moving",
+              "hurt",
+              "injure",
+              "safe",
+              "because"
+            ]
+          }
+        ],
+        "min_response_words": 8
+      },
+      {
+        "item_id": "c4c3_reason_03",
+        "passage": "The crossing guard raised a stop sign _____ children were entering the road.",
+        "prompt": "Which connector introduces the cause?",
+        "skill_ids": [
+          "grammar.connectors_because_and_but"
+        ],
+        "options": [
+          "because",
+          "so",
+          "but",
+          "yet"
+        ],
+        "accepted_answers": [
+          "because"
+        ]
+      },
+      {
+        "item_id": "c4c3_reason_04",
+        "passage": "The sun was strong, so the hikers wore hats and carried water.",
+        "prompt": "Give the hazard and the protective response.",
+        "skill_ids": [
+          "grammar.connectors_because_and_but",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "hazard",
+            "description": "identifies strong sun or heat",
+            "any_of": [
+              "sun",
+              "strong",
+              "heat",
+              "hot"
+            ]
+          },
+          {
+            "id": "response",
+            "description": "mentions hats and/or water",
+            "any_of": [
+              "hats",
+              "water",
+              "wore",
+              "carried"
+            ]
+          },
+          {
+            "id": "link",
+            "description": "connects response to protection",
+            "any_of": [
+              "so",
+              "because",
+              "protect",
+              "cool",
+              "hydrated"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      },
+      {
+        "item_id": "c4c3_grammar_01",
+        "passage": "Secure the two buckles before climbing.",
+        "prompt": "Which word is the action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "Secure",
+          "two",
+          "buckles",
+          "climbing"
+        ],
+        "accepted_answers": [
+          "Secure"
+        ]
+      },
+      {
+        "item_id": "c4c3_grammar_02",
+        "passage": "The guide packed three torches and extra food.",
+        "prompt": "Write the noun directly counted by three.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "torches"
+        ]
+      },
+      {
+        "item_id": "c4c3_grammar_03",
+        "passage": "Drivers signal before changing lanes.",
+        "prompt": "What job does signal do?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "It tells an action.",
+          "It names a driver.",
+          "It describes a lane.",
+          "It gives a number."
+        ],
+        "accepted_answers": [
+          "It tells an action."
+        ]
+      },
+      {
+        "item_id": "c4c3_grammar_04",
+        "passage": "Lift four boxes and stack them by the wall.",
+        "prompt": "Write both action words.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective",
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "lift and stack",
+          "lift, stack",
+          "lift stack"
+        ]
+      },
+      {
+        "item_id": "c4c3_write_01",
+        "passage": "A saucepan handle points beyond the edge of a stove.",
+        "prompt": "Which advice is specific and useful?",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "Turn the handle inward so nobody knocks it.",
+          "Be careful in kitchens.",
+          "Saucepans hold food.",
+          "The stove may be warm."
+        ],
+        "accepted_answers": [
+          "Turn the handle inward so nobody knocks it."
+        ]
+      },
+      {
+        "item_id": "c4c3_write_02",
+        "passage": "A child is about to open a link sent by an unknown account.",
+        "prompt": "Describe the risk and give safe advice.",
+        "skill_ids": [
+          "writing.summary_own_words",
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "risk",
+            "description": "states that an unknown link may be harmful or deceptive",
+            "any_of": [
+              "unknown",
+              "link",
+              "harmful",
+              "scam",
+              "virus",
+              "trick"
+            ]
+          },
+          {
+            "id": "action",
+            "description": "says not to open it and to ask or report",
+            "any_of": [
+              "do not open",
+              "not click",
+              "delete",
+              "report",
+              "ask",
+              "adult"
+            ]
+          },
+          {
+            "id": "complete_response",
+            "description": "expresses both ideas clearly",
+            "any_of": [
+              "could",
+              "may",
+              "should",
+              "because"
+            ]
+          }
+        ],
+        "min_response_words": 12
+      },
+      {
+        "item_id": "c4c3_write_03",
+        "passage": "A loose tile sticks up in a busy corridor.",
+        "prompt": "What should a pupil do first?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "warn others and tell an adult",
+          "cover it with a bag",
+          "jump over it repeatedly",
+          "say nothing"
+        ],
+        "accepted_answers": [
+          "warn others and tell an adult"
+        ]
+      },
+      {
+        "item_id": "c4c3_write_04",
+        "passage": "Smoke enters a room from an unknown source.",
+        "prompt": "In your own words, state the hazard and a safe response.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "hazard",
+            "description": "identifies smoke, fire, or breathing danger",
+            "any_of": [
+              "smoke",
+              "fire",
+              "breathing",
+              "danger"
+            ]
+          },
+          {
+            "id": "response",
+            "description": "says to leave safely and alert an adult or emergency help",
+            "any_of": [
+              "leave",
+              "exit",
+              "alert",
+              "tell",
+              "adult",
+              "help",
+              "emergency"
+            ]
+          },
+          {
+            "id": "avoidance",
+            "description": "does not suggest investigating alone",
+            "any_of": [
+              "outside",
+              "safe place",
+              "do not investigate",
+              "not alone"
+            ]
+          }
+        ],
+        "min_response_words": 12
+      }
+    ]
+  }
+}

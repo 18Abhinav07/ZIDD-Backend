@@ -1,7 +1,9 @@
 """Centralized settings loaded from .env. Single source of config truth."""
 import os
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,8 +22,15 @@ class Settings(BaseSettings):
 
     # AI backend switch: "local" (Ollama, no quota — dev/build) | "cloud"
     # (Gemini + Groq — XPRIZE submission). Flip via AI_BACKEND in .env.
-    ai_backend: str = "local"
+    ai_backend: Literal["local", "cloud"] = "local"
     ollama_model: str = "qwen2.5:14b"
+
+    @field_validator("ai_backend", mode="before")
+    @classmethod
+    def normalize_ai_backend(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
     # Product data source. Supabase/Postgres is the only runtime store.
     # qwen/Ollama may be local, but product data must not use local files.
@@ -50,6 +59,10 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     log_level: str = "info"
     zidd_jwt_secret: str = ""
+    school_enabled: bool = True
+    # Pinned by deployment configuration after human review. Production School
+    # remains unavailable unless this matches the exact 47-chapter release.
+    school_release_attestation_sha256: str = ""
 
     # Product data is cloud-only. SessionStore is a live-process cache; durable
     # session metadata belongs in Supabase, never a local JSON snapshot.

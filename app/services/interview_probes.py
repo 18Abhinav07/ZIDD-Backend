@@ -173,6 +173,14 @@ SCENARIO_INITIAL_PROBE_TEMPLATES: dict[str, dict[str, Any]] = {
     },
 }
 
+_SCENARIO_DEFERRED_DEFAULT_PROBES: dict[str, set[str]] = {
+    "scenario_star_story": {"project_ownership_tradeoff"},
+    "scenario_quantify_impact": {"measurable_impact"},
+    "scenario_own_a_failure": {"failure_learning"},
+    "scenario_close_strong": {"candidate_questions"},
+    "scenario_why_this_role": {"role_readiness"},
+}
+
 
 def _prompt_id(text: str, fallback: str) -> str:
     clean = " ".join((text or fallback).split())
@@ -292,6 +300,7 @@ def build_interview_probe_plan(state: dict[str, Any]) -> list[dict[str, Any]]:
         or "the target role"
     )
     probes: list[dict[str, Any]] = []
+    deferred_probes: list[dict[str, Any]] = []
     seen_prompts: set[str] = set()
     if _should_prepend_scenario_initial_probe(state):
         scenario_probe = _scenario_initial_probe(state, role)
@@ -300,6 +309,10 @@ def build_interview_probe_plan(state: dict[str, Any]) -> list[dict[str, Any]]:
     if scenario_probe:
         probes.append(scenario_probe)
         seen_prompts.add(" ".join(scenario_probe["prompt"].lower().split()))
+    deferred_probe_ids = _SCENARIO_DEFERRED_DEFAULT_PROBES.get(
+        str((scenario_probe or {}).get("probe_id") or ""),
+        set(),
+    )
     for index, raw in enumerate(list(state.get("probe_items") or []) + default_interview_probes_for_role(role)):
         if not isinstance(raw, dict):
             continue
@@ -310,5 +323,9 @@ def build_interview_probe_plan(state: dict[str, Any]) -> list[dict[str, Any]]:
         if key in seen_prompts:
             continue
         seen_prompts.add(key)
-        probes.append(probe)
+        if probe["probe_id"] in deferred_probe_ids:
+            deferred_probes.append(probe)
+        else:
+            probes.append(probe)
+    probes.extend(deferred_probes)
     return probes

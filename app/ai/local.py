@@ -23,7 +23,7 @@ from pydantic import BaseModel, ValidationError
 from app.config import get_settings
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
-_STRUCTURED_TIMEOUT = 180.0  # local 14B JSON/scoring can cross 60s under load
+_STRUCTURED_TIMEOUT = 180.0
 _STREAM_TIMEOUT = 300.0
 _NUM_CTX = 8192              # history + node prompt; default 4096 risks truncation
 _KEEP_ALIVE = "30m"         # keep model resident; default 5m evicts mid-session
@@ -49,6 +49,7 @@ async def ollama_structured(
     max_retries: int = 2,
     server_retries: int = 3,
     base_delay: float = 0.25,
+    timeout: float | None = _STRUCTURED_TIMEOUT,
 ) -> BaseModel:
     """Structured JSON from local model, validated against `schema_cls`.
 
@@ -64,7 +65,7 @@ async def ollama_structured(
         "options": {"temperature": 0.0, "num_ctx": _NUM_CTX},
     }
     last_err: Exception | None = None
-    async with httpx.AsyncClient(timeout=_STRUCTURED_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         for attempt in range(max_retries + 1):
             # temp 0 is deterministic, so a retry of the SAME body reproduces the
             # same bad parse. Nudge temperature up on each retry to vary output.
@@ -85,6 +86,26 @@ async def ollama_structured(
                 last_err = err
                 if attempt == max_retries:
                     raise
+                validation_errors = json.dumps(
+                    err.errors(include_url=False, include_input=False),
+                    ensure_ascii=False,
+                    default=str,
+                )
+                body["messages"] = [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": content},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your JSON failed schema validation. Correct only the "
+                            "invalid fields and return the complete JSON object again. "
+                            "All score, confidence, and quality values must be decimals "
+                            "from 0.0 to 1.0, never counts, percentages, or 1-to-5 "
+                            "ratings. Return JSON only. Validation errors: "
+                            f"{validation_errors}"
+                        ),
+                    },
+                ]
     raise last_err  # unreachable; satisfies type checker
 
 
@@ -93,6 +114,7 @@ async def ollama_stream(
     temperature: float = 0.6,
     server_retries: int = 3,
     base_delay: float = 0.25,
+    timeout: float | None = _STREAM_TIMEOUT,
 ):
     """Stream pedagogy text token-by-token from the local model."""
     body = {
@@ -109,7 +131,7 @@ async def ollama_stream(
             "stop": ["\nuser:", "\nUser:", "\nassistant:", "\nAssistant:"],
         },
     }
-    async with httpx.AsyncClient(timeout=_STREAM_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         for server_attempt in range(server_retries + 1):
             try:
                 async with client.stream("POST", OLLAMA_CHAT_URL, json=body) as resp:
@@ -130,7 +152,11 @@ async def ollama_stream(
                 await asyncio.sleep(base_delay * (2 ** server_attempt))
 
 
-async def ollama_complete(prompt: str, temperature: float = 0.3) -> str:
+async def ollama_complete(
+    prompt: str,
+    temperature: float = 0.3,
+    timeout: float | None = _STRUCTURED_TIMEOUT,
+) -> str:
     """Full (non-streamed) completion — used for the end-of-session summary."""
     body = {
         "model": _model(),
@@ -139,7 +165,7 @@ async def ollama_complete(prompt: str, temperature: float = 0.3) -> str:
         "keep_alive": _KEEP_ALIVE,
         "options": {"temperature": temperature, "num_ctx": _NUM_CTX},
     }
-    async with httpx.AsyncClient(timeout=_STRUCTURED_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(OLLAMA_CHAT_URL, json=body)
         resp.raise_for_status()
         return resp.json()["message"]["content"] or ""

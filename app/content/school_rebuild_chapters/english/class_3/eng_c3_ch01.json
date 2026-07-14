@@ -1,0 +1,848 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: pedagogy, answer keys, concept slots, unseen passages, age fit, and source independence"
+  ],
+  "runtime_sha256": "9ec2f61dbc77ddbf4a33d89410bb229aed66b20c65cbb23a057bb602ffc5605a",
+  "chapter_id": "eng_c3_ch01",
+  "chapter_no": 1,
+  "title": "Colours",
+  "book_title": "Santoor",
+  "unit_title": "Fun with Friends",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa101.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and feedback instead of copying the textbook body.",
+  "levels": [
+    {
+      "level_id": "colour_sharing_reason",
+      "title": "Share the colour, explain the help",
+      "focus": "infer why sharing helps and give a reason",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Use what each child has and needs to explain how sharing helps both children.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "To answer a why question, join two clues. Leena has blue, Omar needs blue, so sharing lets Omar finish his sea.",
+          "passage": "Leena has a blue crayon. Omar has a yellow crayon. Omar needs blue for the sea, and Leena needs yellow for the sun.",
+          "prompt": "Why will sharing help both children?",
+          "options": [
+            "Each child can use the colour they need.",
+            "Both children will lose a crayon.",
+            "Their paper will become smaller.",
+            "The crayons will change names."
+          ],
+          "accepted_answers": [
+            "Each child can use the colour they need.",
+            "each child can use the colour they need"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge steps: name the need, name the helpful action, then name the result. Here both painters need the colour held by the other painter.",
+          "passage": "Pia has green paint for leaves. Zoya has red paint for apples. Pia also needs red, and Zoya also needs green.",
+          "prompt": "Which action should come before both paintings are complete?",
+          "options": [
+            "swap some paint",
+            "close the paint boxes",
+            "hide the brushes",
+            "tear the paper"
+          ],
+          "accepted_answers": [
+            "swap some paint",
+            "share paint",
+            "share the paint"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A common mistake is to think sharing means giving everything away. Sharing can mean taking turns or lending a little, so both people can continue.",
+          "passage": "There is one silver crayon. Jai uses it for a moon, then passes it to Noor for a star.",
+          "prompt": "What shows that Jai and Noor shared fairly?",
+          "options": [
+            "They took turns with the crayon.",
+            "Jai kept the crayon all day.",
+            "Noor broke the crayon.",
+            "They stopped drawing."
+          ],
+          "accepted_answers": [
+            "They took turns with the crayon.",
+            "they took turns",
+            "took turns"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Now connect the need, action, and result on your own.",
+          "passage": "Ritu has orange and white clay. Manav has purple and black clay. Their model needs all four colours.",
+          "prompt": "Explain how the two children can finish the model together.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "helpful_action",
+              "description": "says that they share or exchange clay",
+              "any_of": [
+                "share",
+                "exchange",
+                "swap",
+                "lend"
+              ]
+            },
+            {
+              "id": "shared_result",
+              "description": "says that both can use all four colours or finish the model",
+              "any_of": [
+                "all four",
+                "four colours",
+                "finish",
+                "complete",
+                "both"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same reason pattern in a new kind of classroom task.",
+          "passage": "For a nature chart, Isha has leaf stamps and Tanu has flower stamps. Both charts need leaves and flowers.",
+          "prompt": "What should Isha and Tanu do, and why?",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "transfer_action",
+              "description": "suggests sharing, swapping, or taking turns with the stamps",
+              "any_of": [
+                "share",
+                "swap",
+                "exchange",
+                "take turns",
+                "lend"
+              ]
+            },
+            {
+              "id": "transfer_reason",
+              "description": "explains that both charts can include leaves and flowers",
+              "any_of": [
+                "both charts",
+                "leaves and flowers",
+                "finish",
+                "complete",
+                "need"
+              ]
+            }
+          ],
+          "min_response_words": 7
+        }
+      }
+    },
+    {
+      "level_id": "colour_context_clues",
+      "title": "Match colour words to their clues",
+      "focus": "use sentence context to connect a colour with the right object",
+      "skill_ids": [
+        "vocab.chapter_word_usage",
+        "reading.sentence_comprehension"
+      ],
+      "teaching_goal": "Read nearby words to decide which object a colour describes and what an unfamiliar shade means.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A describing word often sits near the naming word it belongs to. Read the whole sentence before choosing.",
+          "passage": "A bright red ladybird rested on a pale green leaf.",
+          "prompt": "Which colour describes the ladybird?",
+          "options": [
+            "red",
+            "green",
+            "pale",
+            "leaf"
+          ],
+          "accepted_answers": [
+            "red"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge steps: first circle the object in your mind, then look beside it for its colour word.",
+          "passage": "The child tied a pink ribbon around the parcel.",
+          "prompt": "What does the word pink describe?",
+          "options": [
+            "the ribbon",
+            "the child",
+            "the parcel",
+            "the tying"
+          ],
+          "accepted_answers": [
+            "the ribbon",
+            "ribbon"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not choose the nearest colour automatically when two objects appear. Match each colour to the noun it directly describes.",
+          "passage": "A white shell lay beside a golden coin.",
+          "prompt": "Which object is golden?",
+          "options": [
+            "the coin",
+            "the shell",
+            "the sand",
+            "the wave"
+          ],
+          "accepted_answers": [
+            "the coin",
+            "coin"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read the new sentence without a clue step.",
+          "passage": "Mili placed a violet cup on a grey tray.",
+          "prompt": "Write the colour of the tray.",
+          "options": [],
+          "accepted_answers": [
+            "grey",
+            "gray"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer the context strategy to a less familiar colour word.",
+          "passage": "At sunset, the clouds looked crimson, a deep red colour above the hills.",
+          "prompt": "What colour does crimson mean here?",
+          "options": [],
+          "accepted_answers": [
+            "deep red",
+            "red",
+            "a deep red colour"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "colour_word_jobs",
+      "title": "Find who, what, and how",
+      "focus": "separate naming, action, and describing words",
+      "skill_ids": [
+        "grammar.noun_verb_adjective"
+      ],
+      "teaching_goal": "Use a word's job in a sentence to distinguish nouns, verbs, and colour adjectives.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A naming word names a person, place, animal, or thing. An action word tells what happens. A describing word adds a detail such as colour.",
+          "passage": "The cheerful children paint a blue wall.",
+          "prompt": "Which word tells the action?",
+          "options": [
+            "paint",
+            "children",
+            "blue",
+            "wall"
+          ],
+          "accepted_answers": [
+            "paint"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge test: ask, 'Can someone do it?' A person can splash, so splash is an action word.",
+          "passage": "Two artists splash yellow paint on the paper.",
+          "prompt": "Which word can someone do?",
+          "options": [
+            "splash",
+            "artists",
+            "yellow",
+            "paper"
+          ],
+          "accepted_answers": [
+            "splash"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Colour words are usually describing words, not actions. In 'She colours the card,' colours is an action because it tells what she does.",
+          "passage": "Aarav colours the round mask with purple ink.",
+          "prompt": "Which word is the action in this sentence?",
+          "options": [
+            "colours",
+            "round",
+            "purple",
+            "mask"
+          ],
+          "accepted_answers": [
+            "colours",
+            "colors"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Decide the word job without the test being shown.",
+          "passage": "The tiny brush spreads silver paint.",
+          "prompt": "Write the describing word that tells size.",
+          "options": [],
+          "accepted_answers": [
+            "tiny"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use word jobs in a new setting away from an art table.",
+          "passage": "The cook slices a green cucumber.",
+          "prompt": "Write the action word.",
+          "options": [],
+          "accepted_answers": [
+            "slices"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "alphabetical_colour_order",
+      "title": "Build a colour-word index",
+      "focus": "order words by first and second letters",
+      "skill_ids": [
+        "writing.short_answer"
+      ],
+      "teaching_goal": "Arrange colour words alphabetically, using the next letter when first letters match.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "Alphabetical order follows A to Z. Compare the first letters: b in blue comes before g in green and r in red.",
+          "passage": "Colour cards: red, blue, green.",
+          "prompt": "Which order would place these cards in a word index?",
+          "options": [
+            "blue, green, red",
+            "green, red, blue",
+            "red, blue, green",
+            "blue, red, green"
+          ],
+          "accepted_answers": [
+            "blue, green, red",
+            "blue green red"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge steps: write only the first letters, order those letters, then put each full word back.",
+          "passage": "First letters for violet, amber, and teal are v, a, and t.",
+          "prompt": "Which letter comes first?",
+          "options": [
+            "a",
+            "t",
+            "v"
+          ],
+          "accepted_answers": [
+            "a"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "When two words begin with the same letter, the first letter cannot decide. Compare the second letters: l in black comes before r in brown.",
+          "passage": "Two colour labels begin with b: black and brown.",
+          "prompt": "Which label belongs first?",
+          "options": [
+            "black",
+            "brown",
+            "both at once",
+            "neither label"
+          ],
+          "accepted_answers": [
+            "black"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Order all the words without letter hints.",
+          "passage": "Colour list: white, orange, pink, grey.",
+          "prompt": "Put the four colour words in alphabetical order.",
+          "options": [],
+          "accepted_answers": [
+            "grey, orange, pink, white",
+            "grey orange pink white",
+            "gray, orange, pink, white",
+            "gray orange pink white"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Transfer alphabetising to a classroom list that is not about colours.",
+          "passage": "Art-box list: ruler, eraser, brush, pencil.",
+          "prompt": "Arrange the four words in alphabetical order.",
+          "options": [],
+          "accepted_answers": [
+            "brush, eraser, pencil, ruler",
+            "brush eraser pencil ruler"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "colour_compound_writing",
+      "title": "Join word friends and use them",
+      "focus": "form compound words and write a complete idea",
+      "skill_ids": [
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Join two words in the correct order to make a compound word, then use that word in a meaningful sentence.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A compound word joins two smaller words to make one new meaning. Rain plus bow makes rainbow.",
+          "passage": "After the shower, seven colours curved across the sky: rain + bow.",
+          "prompt": "Which compound word names the coloured arc?",
+          "options": [
+            "rainbow",
+            "bowrain",
+            "rain rain",
+            "bow sky"
+          ],
+          "accepted_answers": [
+            "rainbow"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Bridge steps: read the first part, read the second part, then say them without a pause.",
+          "passage": "The warm light comes from sun + light.",
+          "prompt": "Write the joined word.",
+          "options": [
+            "sunlight",
+            "lightsun",
+            "sunlit",
+            "light sky"
+          ],
+          "accepted_answers": [
+            "sunlight"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "The order of the parts matters. A sunflower is a kind of flower; flowersun is not an English word.",
+          "passage": "A tall yellow bloom turns towards the sun.",
+          "prompt": "Which word correctly names the bloom?",
+          "options": [
+            "sunflower",
+            "flowersun",
+            "sunblooming",
+            "yellowturn"
+          ],
+          "accepted_answers": [
+            "sunflower"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Make the compound word without choices.",
+          "passage": "A small bird sits near the water + fall.",
+          "prompt": "Join the two words to name the place.",
+          "options": [],
+          "accepted_answers": [
+            "waterfall"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use a compound word to create a new complete message.",
+          "passage": "A class display shows a bright rainbow above paper houses.",
+          "prompt": "Write one complete sentence about the display using the word rainbow.",
+          "options": [],
+          "accepted_answers": [],
+          "response_mode": "short",
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "compound_word",
+              "description": "uses the compound word rainbow",
+              "any_of": [
+                "rainbow"
+              ]
+            },
+            {
+              "id": "complete_display_idea",
+              "description": "states a complete idea about what the rainbow does or looks like",
+              "any_of": [
+                "display",
+                "shows",
+                "bright",
+                "above",
+                "colour",
+                "color",
+                "paper houses",
+                "houses"
+              ]
+            }
+          ],
+          "min_response_words": 6
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3c1_reason_01",
+        "passage": "Vani has blue chalk. Ekam has yellow chalk. Each needs the other's colour for a flag.",
+        "prompt": "Which action will help both children?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "share the chalk",
+          "erase the board",
+          "hide the chalk",
+          "leave the room"
+        ],
+        "accepted_answers": [
+          "share the chalk",
+          "share",
+          "share chalk"
+        ]
+      },
+      {
+        "item_id": "c3c1_reason_02",
+        "passage": "One group has red paper and another has white paper. Both groups are making red-and-white badges.",
+        "prompt": "Explain why the groups should work together.",
+        "skill_ids": [
+          "reading.inference_reason",
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "cooperation",
+            "description": "suggests sharing or exchanging paper",
+            "any_of": [
+              "share",
+              "exchange",
+              "swap",
+              "work together"
+            ]
+          },
+          {
+            "id": "benefit",
+            "description": "explains that both groups can make or finish the badges",
+            "any_of": [
+              "both groups",
+              "badges",
+              "finish",
+              "make",
+              "complete"
+            ]
+          }
+        ],
+        "min_response_words": 6
+      },
+      {
+        "item_id": "c3c1_reason_03",
+        "passage": "Naman lends his gold pen after finishing his border. Alia can now finish her stars.",
+        "prompt": "Why was Naman's choice helpful?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "Alia could finish her stars.",
+          "The pen became blue.",
+          "Naman lost his page.",
+          "The border disappeared."
+        ],
+        "accepted_answers": [
+          "Alia could finish her stars.",
+          "alia could finish her stars",
+          "it helped alia finish her stars"
+        ]
+      },
+      {
+        "item_id": "c3c1_reason_04",
+        "passage": "Sara has sponge stamps. Vihaan has paint rollers. Their poster needs both textures.",
+        "prompt": "Tell what they can do and how it will improve the poster.",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "suggests sharing, swapping, or taking turns with tools",
+            "any_of": [
+              "share",
+              "swap",
+              "exchange",
+              "take turns",
+              "lend"
+            ]
+          },
+          {
+            "id": "result",
+            "description": "connects the action to using both textures or finishing the poster",
+            "any_of": [
+              "both textures",
+              "poster",
+              "finish",
+              "complete",
+              "improve"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c1_context_01",
+        "passage": "A turquoise boat crossed the dark lake. Turquoise is a blue-green shade.",
+        "prompt": "What does turquoise mean in this sentence?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "blue-green",
+          "bright red",
+          "deep black",
+          "pale yellow"
+        ],
+        "accepted_answers": [
+          "blue-green",
+          "a blue-green shade",
+          "blue green"
+        ]
+      },
+      {
+        "item_id": "c3c1_context_02",
+        "passage": "A black ant crawled across a cream plate.",
+        "prompt": "Write the colour of the plate.",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "cream"
+        ]
+      },
+      {
+        "item_id": "c3c1_context_03",
+        "passage": "The maroon bag looked dark red beside the door.",
+        "prompt": "Which clue explains maroon?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "dark red",
+          "beside",
+          "door",
+          "looked"
+        ],
+        "accepted_answers": [
+          "dark red"
+        ]
+      },
+      {
+        "item_id": "c3c1_context_04",
+        "passage": "A copper bell shone with a reddish-brown colour in the light.",
+        "prompt": "What colour is copper here?",
+        "skill_ids": [
+          "vocab.chapter_word_usage",
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "reddish-brown",
+          "reddish brown",
+          "a reddish-brown colour",
+          "red brown"
+        ]
+      },
+      {
+        "item_id": "c3c1_jobs_01",
+        "passage": "The careful artist mixes pale paint.",
+        "prompt": "Which word is the action?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "mixes",
+          "artist",
+          "careful",
+          "pale"
+        ],
+        "accepted_answers": [
+          "mixes"
+        ]
+      },
+      {
+        "item_id": "c3c1_jobs_02",
+        "passage": "A golden lamp glows near the window.",
+        "prompt": "Write the naming word for the object that glows.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "lamp",
+          "the lamp"
+        ]
+      },
+      {
+        "item_id": "c3c1_jobs_03",
+        "passage": "The noisy children carry orange flags.",
+        "prompt": "Which word describes the flags?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "orange",
+          "carry",
+          "children",
+          "noisy"
+        ],
+        "accepted_answers": [
+          "orange"
+        ]
+      },
+      {
+        "item_id": "c3c1_jobs_04",
+        "passage": "Mina folds the wide purple sheet.",
+        "prompt": "Which verb tells what Mina does?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "folds"
+        ]
+      },
+      {
+        "item_id": "c3c1_alpha_01",
+        "passage": "Index words: cyan, amber, blue.",
+        "prompt": "Which word comes first alphabetically?",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [
+          "amber",
+          "blue",
+          "cyan"
+        ],
+        "accepted_answers": [
+          "amber"
+        ]
+      },
+      {
+        "item_id": "c3c1_alpha_02",
+        "passage": "Index words: bronze, beige, black.",
+        "prompt": "Put the three words in alphabetical order.",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "beige, black, bronze",
+          "beige black bronze"
+        ]
+      },
+      {
+        "item_id": "c3c1_alpha_03",
+        "passage": "Supply list: crayon, chalk, card.",
+        "prompt": "Which order is alphabetical?",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [
+          "card, chalk, crayon",
+          "chalk, card, crayon",
+          "crayon, chalk, card",
+          "card, crayon, chalk"
+        ],
+        "accepted_answers": [
+          "card, chalk, crayon",
+          "card chalk crayon"
+        ]
+      },
+      {
+        "item_id": "c3c1_alpha_04",
+        "passage": "Words: indigo, ivory, ink.",
+        "prompt": "Arrange the words alphabetically.",
+        "skill_ids": [
+          "writing.short_answer"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "indigo, ink, ivory",
+          "indigo ink ivory"
+        ]
+      },
+      {
+        "item_id": "c3c1_compound_01",
+        "passage": "The room is bright because sun + light enters the window.",
+        "prompt": "Write the compound word.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "sunlight",
+          "lightsun",
+          "sunshiney",
+          "lightroom"
+        ],
+        "accepted_answers": [
+          "sunlight"
+        ]
+      },
+      {
+        "item_id": "c3c1_compound_02",
+        "passage": "Rainwater drops from the roof: rain + water.",
+        "prompt": "Join the two smaller words.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "rainwater"
+        ]
+      },
+      {
+        "item_id": "c3c1_compound_03",
+        "passage": "A child paints the falling water beside a cliff.",
+        "prompt": "Which compound word names it?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "waterfall",
+          "fallwater",
+          "waterdropper",
+          "cliffwater"
+        ],
+        "accepted_answers": [
+          "waterfall"
+        ]
+      },
+      {
+        "item_id": "c3c1_compound_04",
+        "passage": "A sunflower grows beside the class window.",
+        "prompt": "Write one complete sentence about the plant using sunflower.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "response_mode": "short",
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "target_word",
+            "description": "uses the word sunflower",
+            "any_of": [
+              "sunflower"
+            ]
+          },
+          {
+            "id": "complete_idea",
+            "description": "says what the sunflower does, has, or looks like",
+            "any_of": [
+              "grows",
+              "yellow",
+              "tall",
+              "petals",
+              "window",
+              "plant",
+              "blooms",
+              "stands"
+            ]
+          }
+        ],
+        "min_response_words": 5
+      }
+    ]
+  }
+}

@@ -33,6 +33,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
+            if request.method == "GET" and request.url.path == "/school/state":
+                request.state.user_id = None
+                return await call_next(request)
             # Allow fallback ONLY in pytest environment if no header is provided (for legacy tests)
             if test_auth_allowed:
                 request.state.user_id = "test_user_from_middleware_fallback"

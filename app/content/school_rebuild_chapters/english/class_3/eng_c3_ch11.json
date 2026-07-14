@@ -1,0 +1,1127 @@
+{
+  "approval_status": "qa_approved",
+  "reviewed_by": "Codex QA - Class 3 School Prep",
+  "reviewed_at": "2026-07-12",
+  "review_evidence": [
+    "Codex self-review: chapter theme, pedagogy stages, deterministic keys, unseen passages, assessment coverage, age fit, and source independence"
+  ],
+  "runtime_sha256": "4983b3249edb141560233b13018b605871d0c260ebc89f33480e450713d8a7de",
+  "chapter_id": "eng_c3_ch11",
+  "chapter_no": 11,
+  "title": "Chanda Mama Counts the Stars",
+  "book_title": "Santoor",
+  "unit_title": "The Sky",
+  "source_url": "https://ncert.nic.in/textbook/pdf/cesa111.pdf",
+  "source_note": "NCERT structural alignment only. Zidd uses original teaching passages, checks, and assessment scenes instead of copying textbook prose.",
+  "levels": [
+    {
+      "level_id": "chanda_counting_problem",
+      "title": "A sky too full to count",
+      "focus": "identify the poem's central problem",
+      "skill_ids": [
+        "reading.sentence_comprehension",
+        "reading.paragraph_main_idea"
+      ],
+      "teaching_goal": "Connect repeated counting, changing stars, and Chanda Mama's frustration to the poem's central problem.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A central problem is larger than one detail. Chanda Mama starts counting, loses his place, and begins again because the sky seems endlessly full.",
+          "passage": "Chanda Mama points from one bright speck to the next. A cloud passes, more stars appear, and he forgets his number.",
+          "prompt": "What is his main problem?",
+          "options": [
+            "He cannot finish counting the stars.",
+            "He cannot see the moon.",
+            "He has lost a pencil.",
+            "The Sun is too cold."
+          ],
+          "accepted_answers": [
+            "He cannot finish counting the stars.",
+            "he cannot finish counting the stars"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Break the problem into goal and obstacle. Goal: count every star. Obstacle: there are too many and the view keeps changing.",
+          "passage": "He reaches ninety, a cloud moves away, and a new patch of stars appears.",
+          "prompt": "Which detail makes the count difficult?",
+          "options": [
+            "a new patch of stars appears",
+            "he reaches ninety",
+            "he points upward",
+            "the cloud is white"
+          ],
+          "accepted_answers": [
+            "a new patch of stars appears",
+            "new stars appear"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Do not confuse Chanda Mama's feeling with his problem. Sadness is a result; the unfinished star count is the problem.",
+          "passage": "He sighs and lowers his counting beads after losing his place again.",
+          "prompt": "Which answer names the problem, not only the feeling?",
+          "options": [
+            "He repeatedly loses track of the countless stars.",
+            "He feels sad.",
+            "His beads are round.",
+            "The sky is dark."
+          ],
+          "accepted_answers": [
+            "He repeatedly loses track of the countless stars.",
+            "he repeatedly loses track of the countless stars"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Read a fresh sky scene and explain its central problem.",
+          "passage": "Mira marks each star she sees on a slate. Mist covers one side of the sky, then clears to reveal many more lights than before.",
+          "prompt": "What prevents Mira from completing an accurate count?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "goal",
+              "description": "Mention counting or marking the stars.",
+              "any_of": [
+                "count stars",
+                "mark each star",
+                "star count"
+              ]
+            },
+            {
+              "id": "obstacle",
+              "description": "Mention the changing view or newly visible stars.",
+              "any_of": [
+                "mist clears",
+                "more stars appear",
+                "view changes",
+                "hidden stars"
+              ]
+            },
+            {
+              "id": "result",
+              "description": "State that the count cannot be completed or trusted.",
+              "any_of": [
+                "cannot finish",
+                "count changes",
+                "not accurate",
+                "loses count"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        },
+        "transfer_check": {
+          "teaching_block": "Apply the idea of a changing count to a busy ground scene.",
+          "passage": "At a fair gate, Arjun counts visitors. People enter through one side while others leave through another.",
+          "prompt": "Explain why Arjun's total keeps changing.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "enter",
+              "description": "Mention people entering.",
+              "any_of": [
+                "people enter",
+                "visitors come in"
+              ]
+            },
+            {
+              "id": "leave",
+              "description": "Mention people leaving.",
+              "any_of": [
+                "people leave",
+                "visitors go out"
+              ]
+            },
+            {
+              "id": "change",
+              "description": "Explain that the group is not staying the same.",
+              "any_of": [
+                "total changes",
+                "number changes",
+                "group keeps changing",
+                "cannot keep one total"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "chanda_sun_reassurance",
+      "title": "Understand the Sun's kind answer",
+      "focus": "infer a reason and message",
+      "skill_ids": [
+        "reading.inference_reason",
+        "writing.reason_answer"
+      ],
+      "teaching_goal": "Infer how the Sun comforts Chanda Mama by changing the task from exact counting to appreciating many bright children.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A comforting answer may not solve the exact task. The Sun helps Chanda Mama stop worrying by comparing the many stars to the many children below.",
+          "passage": "Chanda Mama says, 'I can never finish.' The Sun replies, 'Think of every star as one smiling child. You do not need one final number to value them.'",
+          "prompt": "Why does the Sun make this comparison?",
+          "options": [
+            "to help Chanda Mama feel better",
+            "to hide the stars",
+            "to make the night colder",
+            "to teach subtraction"
+          ],
+          "accepted_answers": [
+            "to help Chanda Mama feel better",
+            "help Chanda Mama feel better"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find feeling, action, result. Chanda Mama is upset; the Sun offers a warm idea; he smiles again.",
+          "passage": "The Sun reminds him that some wonderful things can be enjoyed without an exact total.",
+          "prompt": "What result does the Sun want?",
+          "options": [
+            "Chanda Mama stops worrying",
+            "all stars disappear",
+            "children stop smiling",
+            "night ends at once"
+          ],
+          "accepted_answers": [
+            "Chanda Mama stops worrying",
+            "he stops worrying"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A misconception is that help must finish the counting. The Sun's help is emotional: it gives a kinder way to think about the stars.",
+          "passage": "The count is still unfinished, but Chanda Mama lifts his face and smiles.",
+          "prompt": "Which reason explains his smile?",
+          "options": [
+            "The Sun's words comfort him.",
+            "He secretly finished the count.",
+            "The stars formed a number.",
+            "His beads became gold."
+          ],
+          "accepted_answers": [
+            "The Sun's words comfort him.",
+            "the sun's words comfort him"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Infer the reason in a new conversation.",
+          "passage": "Noor is upset because she cannot name every bird in a huge flock. Her grandfather says, 'You noticed how beautifully they move together. That matters too.'",
+          "prompt": "Why do the grandfather's words help Noor?",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "problem",
+              "description": "Mention that Noor cannot name every bird.",
+              "any_of": [
+                "cannot name every bird",
+                "too many birds",
+                "does not know all names"
+              ]
+            },
+            {
+              "id": "new_view",
+              "description": "Mention noticing or enjoying the flock.",
+              "any_of": [
+                "beautiful movement",
+                "move together",
+                "noticed the flock",
+                "enjoy the birds"
+              ]
+            },
+            {
+              "id": "comfort",
+              "description": "Explain that exact naming is not required.",
+              "any_of": [
+                "does not need every name",
+                "can still appreciate them",
+                "feels better",
+                "not a failure"
+              ]
+            }
+          ],
+          "min_response_words": 9
+        },
+        "transfer_check": {
+          "teaching_block": "Give a kind reason in a school context.",
+          "passage": "Veer cannot colour every leaf on a large class mural before the bell. His team has already completed a bright forest together.",
+          "prompt": "Write one sentence that could reassure Veer and explain why.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "reassurance",
+              "description": "Say the shared mural or effort already matters.",
+              "any_of": [
+                "mural looks good",
+                "team worked together",
+                "forest is bright",
+                "effort matters"
+              ]
+            },
+            {
+              "id": "reason",
+              "description": "Mention that every leaf need not be finished by Veer alone.",
+              "any_of": [
+                "not every leaf",
+                "team can help",
+                "does not need to do all",
+                "work is shared"
+              ]
+            },
+            {
+              "id": "kindness",
+              "description": "Use a supportive tone.",
+              "any_of": [
+                "you",
+                "we",
+                "can",
+                "already"
+              ]
+            }
+          ],
+          "min_response_words": 8
+        }
+      }
+    },
+    {
+      "level_id": "chanda_star_words",
+      "title": "Words for an endless sky",
+      "focus": "infer and use poem vocabulary",
+      "skill_ids": [
+        "reading.word_meaning_context",
+        "vocab.chapter_word_usage"
+      ],
+      "teaching_goal": "Use context to understand countless, glimmer, and weary in moon-and-star scenes.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "The suffix -less can mean without. Countless stars are so many that they seem without a count.",
+          "passage": "Countless lights cover the sky; Chanda Mama cannot reach a final number.",
+          "prompt": "What does countless mean?",
+          "options": [
+            "too many to count",
+            "having no light",
+            "easy to count",
+            "shaped like a circle"
+          ],
+          "accepted_answers": [
+            "too many to count",
+            "many",
+            "too many"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "A glimmer is a small or faint light. Use the clue 'tiny light' to find the meaning.",
+          "passage": "One glimmer appears between two dark clouds.",
+          "prompt": "Which phrase explains glimmer?",
+          "options": [
+            "a tiny light",
+            "a loud sound",
+            "a wide road",
+            "a deep sleep"
+          ],
+          "accepted_answers": [
+            "a tiny light",
+            "tiny light",
+            "faint light"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Weary means tired, not sad. A person may feel both, but the clue repeated work points to tiredness.",
+          "passage": "After counting for hours, Chanda Mama's eyes droop and his hand feels heavy.",
+          "prompt": "What does weary mean here?",
+          "options": [
+            "very tired",
+            "very angry",
+            "fully awake",
+            "easy to count"
+          ],
+          "accepted_answers": [
+            "very tired",
+            "tired"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Use the clue in the unseen sentence.",
+          "passage": "A faint star was barely visible through the thin cloud.",
+          "prompt": "What does faint mean?",
+          "options": [],
+          "accepted_answers": [
+            "not bright",
+            "dim",
+            "weak",
+            "hard to see"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Use the word in a different setting.",
+          "passage": "Countless ants streamed around the fallen sugar cube.",
+          "prompt": "What does countless mean here?",
+          "options": [],
+          "accepted_answers": [
+            "too many to count",
+            "many",
+            "a very large number"
+          ]
+        }
+      }
+    },
+    {
+      "level_id": "chanda_word_roles",
+      "title": "Name, action, and description",
+      "focus": "identify nouns, verbs, and adjectives",
+      "skill_ids": [
+        "grammar.noun_verb_adjective",
+        "writing.complete_sentence"
+      ],
+      "teaching_goal": "Use noun, verb, and adjective roles to build clear moon-and-star sentences.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "In 'The round moon glows,' moon is a noun, glows is a verb, and round is an adjective.",
+          "passage": "The silver stars sparkle.",
+          "prompt": "Which word tells what the silver stars do?",
+          "options": [
+            "sparkle",
+            "silver",
+            "stars",
+            "the"
+          ],
+          "accepted_answers": [
+            "sparkle"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Find the thing first, then its describing word.",
+          "passage": "A curved moon hangs above the roof.",
+          "prompt": "Which word describes the moon?",
+          "options": [
+            "curved",
+            "moon",
+            "hangs",
+            "roof"
+          ],
+          "accepted_answers": [
+            "curved"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "Position does not decide word type. In 'Stars twinkle brightly,' stars name things and twinkle shows action.",
+          "passage": "Bright stars twinkle overhead.",
+          "prompt": "Which pair is noun then verb?",
+          "options": [
+            "stars twinkle",
+            "bright stars",
+            "twinkle overhead",
+            "bright overhead"
+          ],
+          "accepted_answers": [
+            "stars twinkle"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Identify the noun without choices.",
+          "passage": "A gentle cloud drifts east.",
+          "prompt": "Write the naming word for the sky object.",
+          "options": [],
+          "accepted_answers": [
+            "cloud",
+            "a cloud"
+          ]
+        },
+        "transfer_check": {
+          "teaching_block": "Build a sentence in an ocean setting.",
+          "passage": "A white sail moves across calm water.",
+          "prompt": "Write one complete sentence with a noun, an action verb, and an adjective.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "noun",
+              "description": "Name a sail, boat, or water.",
+              "any_of": [
+                "sail",
+                "boat",
+                "water"
+              ]
+            },
+            {
+              "id": "verb",
+              "description": "Use an action or state verb.",
+              "any_of": [
+                "moves",
+                "glides",
+                "floats",
+                "crosses",
+                "is"
+              ]
+            },
+            {
+              "id": "adjective",
+              "description": "Use a fitting describing word.",
+              "any_of": [
+                "white",
+                "calm",
+                "small",
+                "blue",
+                "quiet"
+              ]
+            }
+          ],
+          "min_response_words": 5
+        }
+      }
+    },
+    {
+      "level_id": "chanda_kind_message",
+      "title": "Send Chanda Mama courage",
+      "focus": "write a friendly message and summary",
+      "skill_ids": [
+        "writing.friendly_message",
+        "writing.summary_own_words"
+      ],
+      "teaching_goal": "Write a short supportive message that recognizes Chanda Mama's problem and offers a helpful thought.",
+      "checks": {
+        "guided_check": {
+          "teaching_block": "A friendly message has a greeting, a clear supportive thought, and a sign-off. Example: 'Dear Chanda Mama, do not worry about one final count. Your careful effort helps us notice the beautiful sky. From, Ria.'",
+          "passage": "Chanda Mama has lost count again and feels discouraged.",
+          "prompt": "Which message opening is warm and specific?",
+          "options": [
+            "Dear Chanda Mama, your patient counting helps everyone notice the stars.",
+            "Stars many.",
+            "Count faster.",
+            "No number."
+          ],
+          "accepted_answers": [
+            "Dear Chanda Mama, your patient counting helps everyone notice the stars.",
+            "dear Chanda Mama, your patient counting helps everyone notice the stars"
+          ]
+        },
+        "bridge": {
+          "teaching_block": "Build the middle from two parts: notice the difficulty + offer encouragement.",
+          "passage": "Difficulty: the stars are too many. Encouragement: enjoy their light without worrying about a final number.",
+          "prompt": "Which sentence combines both parts?",
+          "options": [
+            "Even if the stars are too many to count, you can enjoy their light.",
+            "Stars because.",
+            "You failed the number.",
+            "The light is."
+          ],
+          "accepted_answers": [
+            "Even if the stars are too many to count, you can enjoy their light.",
+            "even if the stars are too many to count, you can enjoy their light"
+          ]
+        },
+        "masterclass": {
+          "teaching_block": "A friendly message is not a command with no care. It should show understanding before giving advice.",
+          "passage": "Chanda Mama is weary after another unfinished count.",
+          "prompt": "Which message is supportive rather than bossy?",
+          "options": [
+            "You worked hard; rest now and try again only if you wish.",
+            "Count every star now.",
+            "Do not be slow.",
+            "Numbers are easy."
+          ],
+          "accepted_answers": [
+            "You worked hard; rest now and try again only if you wish.",
+            "you worked hard; rest now and try again only if you wish"
+          ]
+        },
+        "independent_check": {
+          "teaching_block": "Write a complete friendly message for the chapter character.",
+          "passage": "Chanda Mama worries that an unfinished count means his work has no value.",
+          "prompt": "Write a two- or three-sentence message that comforts him.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "address",
+              "description": "Address Chanda Mama.",
+              "any_of": [
+                "dear Chanda Mama",
+                "Chanda Mama"
+              ]
+            },
+            {
+              "id": "problem",
+              "description": "Recognize the hard or unfinished count.",
+              "any_of": [
+                "too many stars",
+                "hard to count",
+                "unfinished count",
+                "lost count"
+              ]
+            },
+            {
+              "id": "support",
+              "description": "Offer a kind helpful thought.",
+              "any_of": [
+                "effort matters",
+                "enjoy the stars",
+                "rest",
+                "try again",
+                "not a failure"
+              ]
+            },
+            {
+              "id": "closing",
+              "description": "Include a friendly closing or sender.",
+              "any_of": [
+                "from",
+                "your friend",
+                "with care",
+                "love"
+              ]
+            }
+          ],
+          "min_response_words": 12
+        },
+        "transfer_check": {
+          "teaching_block": "Use the same supportive structure for a classmate.",
+          "passage": "Anaya practised a poem but forgot one line during the class reading. She completed the rest clearly.",
+          "prompt": "Write a short friendly message that recognizes her effort and encourages her.",
+          "options": [],
+          "accepted_answers": [],
+          "answer_rule": "concept_slots",
+          "concept_slots": [
+            {
+              "id": "address",
+              "description": "Address Anaya.",
+              "any_of": [
+                "dear Anaya",
+                "Anaya"
+              ]
+            },
+            {
+              "id": "effort",
+              "description": "Mention her practice or clear reading.",
+              "any_of": [
+                "practised",
+                "practiced",
+                "read clearly",
+                "completed the rest"
+              ]
+            },
+            {
+              "id": "encouragement",
+              "description": "Offer a kind next step or reassurance.",
+              "any_of": [
+                "one line is okay",
+                "try again",
+                "you did well",
+                "keep practising",
+                "be proud"
+              ]
+            },
+            {
+              "id": "closing",
+              "description": "Include a friendly closing.",
+              "any_of": [
+                "from",
+                "your friend",
+                "with care"
+              ]
+            }
+          ],
+          "min_response_words": 12
+        }
+      }
+    }
+  ],
+  "chapter_assessment": {
+    "items_per_attempt": 12,
+    "pass_score": 0.8,
+    "max_attempts": 2,
+    "items": [
+      {
+        "item_id": "c3c11_read01",
+        "passage": "Ravi counts seven stars before a cloud covers the northern sky.",
+        "prompt": "How many stars does Ravi count?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [
+          "seven",
+          "five",
+          "nine",
+          "twelve"
+        ],
+        "accepted_answers": [
+          "seven",
+          "7"
+        ]
+      },
+      {
+        "item_id": "c3c11_read02",
+        "passage": "The Moon checks one row of stars while the Sun waits near the horizon.",
+        "prompt": "Who checks the row?",
+        "skill_ids": [
+          "reading.sentence_comprehension"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "the moon",
+          "moon"
+        ]
+      },
+      {
+        "item_id": "c3c11_main01",
+        "passage": "Lata counts fireflies, but new ones keep arriving and others fly away.",
+        "prompt": "Which idea best fits her problem?",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [
+          "A changing group is difficult to count exactly.",
+          "Fireflies are silent.",
+          "Lata dislikes numbers.",
+          "Every light is a star."
+        ],
+        "accepted_answers": [
+          "A changing group is difficult to count exactly.",
+          "a changing group is difficult to count exactly"
+        ]
+      },
+      {
+        "item_id": "c3c11_main02",
+        "passage": "A boy tries to count every raindrop on a window. Drops join, slide down, and are replaced by new ones.",
+        "prompt": "State the main idea of the scene.",
+        "skill_ids": [
+          "reading.paragraph_main_idea"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "goal",
+            "description": "Mention counting raindrops.",
+            "any_of": [
+              "count raindrops",
+              "every drop"
+            ]
+          },
+          {
+            "id": "change",
+            "description": "Mention drops joining, moving, or being replaced.",
+            "any_of": [
+              "drops join",
+              "slide down",
+              "new drops",
+              "keep changing"
+            ]
+          },
+          {
+            "id": "idea",
+            "description": "State that the changing group cannot be counted exactly.",
+            "any_of": [
+              "hard to count",
+              "cannot finish",
+              "count changes",
+              "not exact"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c11_infer01",
+        "passage": "The Sun sees Chanda Mama's drooping eyes and tells him that his careful effort already matters.",
+        "prompt": "Why does the Sun speak gently?",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [
+          "Chanda Mama is tired and discouraged.",
+          "The Sun wants the stars hidden.",
+          "Morning needs a number.",
+          "The beads are noisy."
+        ],
+        "accepted_answers": [
+          "Chanda Mama is tired and discouraged.",
+          "he is tired and discouraged"
+        ]
+      },
+      {
+        "item_id": "c3c11_infer02",
+        "passage": "Ira cannot finish a huge puzzle. Her sister points to the large section Ira has already completed.",
+        "prompt": "Explain how the sister helps Ira.",
+        "skill_ids": [
+          "reading.inference_reason"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "problem",
+            "description": "Mention the unfinished puzzle.",
+            "any_of": [
+              "cannot finish",
+              "unfinished puzzle",
+              "huge puzzle"
+            ]
+          },
+          {
+            "id": "help",
+            "description": "Mention noticing completed work.",
+            "any_of": [
+              "completed section",
+              "work already done",
+              "points to progress"
+            ]
+          },
+          {
+            "id": "effect",
+            "description": "Explain that this encourages Ira.",
+            "any_of": [
+              "encourages",
+              "feels better",
+              "keeps trying",
+              "shows effort matters"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c11_reason01",
+        "passage": "Chanda Mama rests after hours of counting.",
+        "prompt": "Which answer gives a clear reason?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [
+          "He rests because he is weary.",
+          "He rests but stars.",
+          "Because the moon.",
+          "Rest counting."
+        ],
+        "accepted_answers": [
+          "He rests because he is weary.",
+          "he rests because he is weary"
+        ]
+      },
+      {
+        "item_id": "c3c11_reason02",
+        "passage": "A child stops counting shells when the rising tide carries some away.",
+        "prompt": "Why does the child stop?",
+        "skill_ids": [
+          "writing.reason_answer"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "action",
+            "description": "State that the child stops counting.",
+            "any_of": [
+              "stops counting",
+              "cannot continue"
+            ]
+          },
+          {
+            "id": "reason",
+            "description": "Mention shells moving away with the tide.",
+            "any_of": [
+              "tide carries shells",
+              "shells wash away",
+              "shells move"
+            ]
+          },
+          {
+            "id": "link",
+            "description": "Use a reason link.",
+            "any_of": [
+              "because",
+              "since"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c11_word01",
+        "passage": "Countless lamps shone across the festival ground.",
+        "prompt": "Choose the meaning of countless in this festival scene.",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [
+          "too many to count",
+          "having no colour",
+          "easy to count",
+          "turned off"
+        ],
+        "accepted_answers": [
+          "too many to count",
+          "many"
+        ]
+      },
+      {
+        "item_id": "c3c11_word02",
+        "passage": "After climbing the steep steps, the weary guide sat down.",
+        "prompt": "What does weary mean?",
+        "skill_ids": [
+          "reading.word_meaning_context"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "tired",
+          "very tired"
+        ]
+      },
+      {
+        "item_id": "c3c11_vocab01",
+        "passage": "A tiny light appears far away across the dark field.",
+        "prompt": "Which word names that faint light?",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [
+          "glimmer",
+          "roar",
+          "blanket",
+          "shadow"
+        ],
+        "accepted_answers": [
+          "glimmer",
+          "a glimmer"
+        ]
+      },
+      {
+        "item_id": "c3c11_vocab02",
+        "passage": "The lake holds so many floating lamps that no quick total is possible.",
+        "prompt": "Write the word that means too many to count.",
+        "skill_ids": [
+          "vocab.chapter_word_usage"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "countless"
+        ]
+      },
+      {
+        "item_id": "c3c11_grammar01",
+        "passage": "The golden moon rises.",
+        "prompt": "Which word describes the golden moon?",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [
+          "golden",
+          "moon",
+          "rises",
+          "the"
+        ],
+        "accepted_answers": [
+          "golden"
+        ]
+      },
+      {
+        "item_id": "c3c11_grammar02",
+        "passage": "Small stars sparkle above us.",
+        "prompt": "Write the verb for the stars' light action.",
+        "skill_ids": [
+          "grammar.noun_verb_adjective"
+        ],
+        "options": [],
+        "accepted_answers": [
+          "sparkle"
+        ]
+      },
+      {
+        "item_id": "c3c11_sentence01",
+        "passage": "A curved moon hangs above the quiet village.",
+        "prompt": "Which option is a complete sentence?",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [
+          "The curved moon hangs above the village.",
+          "Above quiet village.",
+          "Moon and curved.",
+          "Because it hangs."
+        ],
+        "accepted_answers": [
+          "The curved moon hangs above the village.",
+          "the curved moon hangs above the village"
+        ]
+      },
+      {
+        "item_id": "c3c11_sentence02",
+        "passage": "A bright planet appears beside the moon.",
+        "prompt": "Write one complete sentence about the sight.",
+        "skill_ids": [
+          "writing.complete_sentence"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "subject",
+            "description": "Name the planet or moon.",
+            "any_of": [
+              "planet",
+              "moon"
+            ]
+          },
+          {
+            "id": "verb",
+            "description": "Use an action or state.",
+            "any_of": [
+              "appears",
+              "shines",
+              "glows",
+              "is"
+            ]
+          },
+          {
+            "id": "detail",
+            "description": "Add a place or quality.",
+            "any_of": [
+              "bright",
+              "beside the moon",
+              "in the sky",
+              "near the moon"
+            ]
+          }
+        ],
+        "min_response_words": 7
+      },
+      {
+        "item_id": "c3c11_message01",
+        "passage": "Rohit loses his place while reading aloud but begins the sentence again.",
+        "prompt": "Which message is friendly and helpful?",
+        "skill_ids": [
+          "writing.friendly_message"
+        ],
+        "options": [
+          "Dear Rohit, starting again calmly was a strong choice. From, Dev.",
+          "Read better.",
+          "Wrong line.",
+          "Rohit sentence."
+        ],
+        "accepted_answers": [
+          "Dear Rohit, starting again calmly was a strong choice. From, Dev.",
+          "dear Rohit, starting again calmly was a strong choice. from, Dev"
+        ]
+      },
+      {
+        "item_id": "c3c11_message02",
+        "passage": "Maya cannot finish counting all the seedlings before home time, but she labels every tray carefully.",
+        "prompt": "Write a short supportive message to Maya.",
+        "skill_ids": [
+          "writing.friendly_message"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "address",
+            "description": "Address Maya.",
+            "any_of": [
+              "dear Maya",
+              "Maya"
+            ]
+          },
+          {
+            "id": "effort",
+            "description": "Mention careful labels or her work.",
+            "any_of": [
+              "labels every tray",
+              "careful work",
+              "worked carefully"
+            ]
+          },
+          {
+            "id": "support",
+            "description": "Offer reassurance or encouragement.",
+            "any_of": [
+              "count can wait",
+              "effort matters",
+              "continue tomorrow",
+              "well done"
+            ]
+          },
+          {
+            "id": "closing",
+            "description": "Include a closing.",
+            "any_of": [
+              "from",
+              "your friend",
+              "with care"
+            ]
+          }
+        ],
+        "min_response_words": 11
+      },
+      {
+        "item_id": "c3c11_summary01",
+        "passage": "A moon character repeatedly counts stars, grows tired, and feels better when a friend values his effort.",
+        "prompt": "Which summary keeps the full change?",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [
+          "A difficult count discourages the Moon until a friend's kind idea comforts him.",
+          "The Moon owns beads.",
+          "Stars are lights.",
+          "A friend speaks."
+        ],
+        "accepted_answers": [
+          "A difficult count discourages the Moon until a friend's kind idea comforts him.",
+          "a difficult count discourages the moon until a friend's kind idea comforts him"
+        ]
+      },
+      {
+        "item_id": "c3c11_summary02",
+        "passage": "Jaya tries to list every book in a crowded donation box. Her teacher says the important thing is that many children will now have stories to read.",
+        "prompt": "Summarize what Jaya learns.",
+        "skill_ids": [
+          "writing.summary_own_words"
+        ],
+        "options": [],
+        "accepted_answers": [],
+        "answer_rule": "concept_slots",
+        "concept_slots": [
+          {
+            "id": "task",
+            "description": "Mention the unfinished book list.",
+            "any_of": [
+              "list every book",
+              "cannot list all",
+              "crowded box"
+            ]
+          },
+          {
+            "id": "new_view",
+            "description": "Mention children receiving stories.",
+            "any_of": [
+              "children get books",
+              "stories to read",
+              "books will be shared"
+            ]
+          },
+          {
+            "id": "lesson",
+            "description": "State that the benefit matters more than a perfect count.",
+            "any_of": [
+              "help matters",
+              "exact count is less important",
+              "sharing matters",
+              "not need perfect count"
+            ]
+          }
+        ],
+        "min_response_words": 9
+      }
+    ]
+  }
+}
