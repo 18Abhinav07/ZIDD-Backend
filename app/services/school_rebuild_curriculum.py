@@ -98,6 +98,19 @@ _PUBLIC_FEEDBACK_ACTIONS = frozenset(
         "view_support_plan",
     }
 )
+_FEEDBACK_V2_PUBLIC_KEYS = (
+    "outcome",
+    "feedback_type",
+    "correct",
+    "scored",
+    "response_excerpt",
+    "what_worked",
+    "criterion_gap",
+    "misconception_tag",
+    "next_support",
+    "retry_policy",
+    "allowed_next_actions",
+)
 _PRIVATE_FEEDBACK_VALUE_KEYS = frozenset(
     {
         "accepted_answers",
@@ -114,6 +127,13 @@ _PRIVATE_FEEDBACK_VALUE_KEYS = frozenset(
         "rubric_criteria",
     }
 )
+_PRIVATE_FEEDBACK_SECRET_VALUE_KEYS = frozenset(
+    {
+        "accepted_answers",
+        "answer_key",
+        "model_answer",
+    }
+)
 _PRIVATE_FEEDBACK_MARKERS = (
     "accepted_answer",
     "answer_key",
@@ -121,6 +141,12 @@ _PRIVATE_FEEDBACK_MARKERS = (
     "criterion:",
     "model_answer",
     "private_rubric",
+)
+_PRIVATE_FEEDBACK_IDENTIFIER_PATTERN = re.compile(
+    r"\b(?:[a-z][a-z0-9]*(?::[a-z0-9]+)+|"
+    r"(?:accepted|answer|authored|blocker|criterion|model|private|rubric)"
+    r"(?:_[a-z0-9]+)+)\b",
+    re.IGNORECASE,
 )
 _LEARNER_SKILL_LABELS = {
     entry.skill_id: entry.name for entry in locked_english_taxonomy().entries
@@ -657,10 +683,11 @@ def new_curriculum_state(
 def public_curriculum_response(session_row: dict[str, Any]) -> dict[str, Any]:
     state = normalize_curriculum_state(dict(session_row.get("state_json") or {}))
     private_feedback_tokens = _private_feedback_tokens(state)
+    private_feedback_secret_tokens = _private_feedback_secret_tokens(state)
     public_feedback = _public_feedback_v2(
         state.get("feedback_v2"),
         public_digest=state.get("feedback_v2_public_digest"),
-        private_tokens=private_feedback_tokens,
+        private_tokens=private_feedback_secret_tokens,
     )
     status = state.get("status") or session_row.get("status")
     subject_id = state.get("subject_id") or session_row.get("subject_id")
@@ -753,7 +780,83 @@ def _set_feedback_v2(state: dict[str, Any], value: dict[str, Any]) -> None:
     state["feedback_v2_public_digest"] = _feedback_v2_public_digest(value)
 
 
+def _feedback_v2_has_public_shape(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != set(_FEEDBACK_V2_PUBLIC_KEYS):
+        return False
+    if not isinstance(value["outcome"], str) or value["outcome"] not in (
+        _PUBLIC_FEEDBACK_OUTCOMES
+    ):
+        return False
+    if not isinstance(value["feedback_type"], str) or value["feedback_type"] not in (
+        _PUBLIC_FEEDBACK_TYPES
+    ):
+        return False
+    if value["correct"] is not None and not isinstance(value["correct"], bool):
+        return False
+    if not isinstance(value["scored"], bool) or value["response_excerpt"] != "":
+        return False
+    if not isinstance(value["what_worked"], str):
+        return False
+    if value["criterion_gap"] is not None and not isinstance(
+        value["criterion_gap"], str
+    ):
+        return False
+    if value["misconception_tag"] is not None and not isinstance(
+        value["misconception_tag"], str
+    ):
+        return False
+    if not isinstance(value["next_support"], str):
+        return False
+    if not isinstance(value["retry_policy"], str) or value["retry_policy"] not in (
+        _PUBLIC_RETRY_POLICIES
+    ):
+        return False
+    return isinstance(value["allowed_next_actions"], list) and all(
+        isinstance(action, str) and action in _PUBLIC_FEEDBACK_ACTIONS
+        for action in value["allowed_next_actions"]
+    )
+
+
+def _feedback_v2_is_trusted(value: Any, *, public_digest: Any) -> bool:
+    return (
+        _feedback_v2_has_public_shape(value)
+        and _feedback_v2_has_safe_text(value)
+        and str(public_digest or "") == _feedback_v2_public_digest(value)
+    )
+
+
+def _safe_feedback_v2_fallback() -> dict[str, Any]:
+    return {
+        "outcome": None,
+        "feedback_type": None,
+        "correct": None,
+        "scored": False,
+        "response_excerpt": "",
+        "what_worked": "This learning step needs another visible clue.",
+        "criterion_gap": "Use the visible prompt to choose one next move.",
+        "misconception_tag": None,
+        "next_support": "Continue with the next visible learning step.",
+        "retry_policy": None,
+        "allowed_next_actions": [],
+    }
+
+
 def _private_feedback_tokens(state: dict[str, Any]) -> set[str]:
+    return _feedback_tokens_for_keys(state, value_keys=_PRIVATE_FEEDBACK_VALUE_KEYS)
+
+
+def _private_feedback_secret_tokens(state: dict[str, Any]) -> set[str]:
+    return _feedback_tokens_for_keys(
+        state,
+        value_keys=_PRIVATE_FEEDBACK_SECRET_VALUE_KEYS,
+    )
+
+
+def _feedback_tokens_for_keys(
+    state: dict[str, Any],
+    *,
+    value_keys: frozenset[str],
+) -> set[str]:
     tokens: set[str] = set()
 
     def collect(value: Any) -> None:
@@ -776,7 +879,7 @@ def _private_feedback_tokens(state: dict[str, Any]) -> set[str]:
     def visit(value: Any) -> None:
         if isinstance(value, dict):
             for key, item in value.items():
-                if str(key) in _PRIVATE_FEEDBACK_VALUE_KEYS:
+                if str(key) in value_keys:
                     collect(item)
                 if isinstance(item, str) and item.casefold().startswith("criterion:"):
                     collect(item)
@@ -802,6 +905,22 @@ def _contains_private_feedback_detail(
     )
 
 
+def _feedback_v2_has_safe_text(
+    value: dict[str, Any],
+    *,
+    private_tokens: set[str] | None = None,
+) -> bool:
+    private_tokens = private_tokens or set()
+    for field in ("what_worked", "criterion_gap", "next_support"):
+        text = str(value.get(field) or "")
+        if _contains_private_feedback_detail(
+            text,
+            private_tokens=private_tokens,
+        ) or _PRIVATE_FEEDBACK_IDENTIFIER_PATTERN.search(text):
+            return False
+    return True
+
+
 def _public_feedback_v2(
     value: Any,
     *,
@@ -810,68 +929,26 @@ def _public_feedback_v2(
 ) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    trusted = str(public_digest or "") == _feedback_v2_public_digest(value)
-    private_tokens = private_tokens or set()
-    correct = value.get("correct")
-    scored = bool(value.get("scored", True))
-    if trusted:
-        response_excerpt = ""
-        what_worked = str(value.get("what_worked") or "")
-        criterion_gap = value.get("criterion_gap")
-        next_support = str(value.get("next_support") or "")
-    else:
-        response_excerpt = ""
-        what_worked = (
-            "You reviewed this teaching step before moving on."
-            if not scored
-            else "Your answer was checked against the visible task."
-            if correct
-            else "Your attempt is saved."
-        )
-        criterion_gap = (
-            None
-            if not scored or correct
-            else "Review the visible prompt and focus before trying again."
-        )
-        next_support = "Continue with the next visible learning step."
-    if not trusted and _contains_private_feedback_detail(
-        what_worked,
+    if not _feedback_v2_is_trusted(
+        value,
+        public_digest=public_digest,
+    ) or not _feedback_v2_has_safe_text(
+        value,
         private_tokens=private_tokens,
     ):
-        what_worked = "Your latest learning step is saved."
-    if not trusted and _contains_private_feedback_detail(
-        criterion_gap,
-        private_tokens=private_tokens,
-    ):
-        criterion_gap = "Review the visible prompt and focus before trying again."
-    if not trusted and _contains_private_feedback_detail(
-        next_support,
-        private_tokens=private_tokens,
-    ):
-        next_support = "Continue with the next visible learning step."
-    outcome = value.get("outcome")
-    feedback_type = value.get("feedback_type")
-    retry_policy = value.get("retry_policy")
+        return _safe_feedback_v2_fallback()
     return {
-        "outcome": outcome if outcome in _PUBLIC_FEEDBACK_OUTCOMES else None,
-        "feedback_type": (
-            feedback_type if feedback_type in _PUBLIC_FEEDBACK_TYPES else None
-        ),
-        "correct": correct,
-        "scored": scored,
-        "response_excerpt": response_excerpt,
-        "what_worked": what_worked,
-        "criterion_gap": criterion_gap,
+        "outcome": value["outcome"],
+        "feedback_type": value["feedback_type"],
+        "correct": value["correct"],
+        "scored": value["scored"],
+        "response_excerpt": "",
+        "what_worked": value["what_worked"],
+        "criterion_gap": value["criterion_gap"],
         "misconception_tag": None,
-        "next_support": next_support,
-        "retry_policy": (
-            retry_policy if retry_policy in _PUBLIC_RETRY_POLICIES else None
-        ),
-        "allowed_next_actions": [
-            str(action)
-            for action in value.get("allowed_next_actions") or []
-            if str(action) in _PUBLIC_FEEDBACK_ACTIONS
-        ],
+        "next_support": value["next_support"],
+        "retry_policy": value["retry_policy"],
+        "allowed_next_actions": list(value["allowed_next_actions"]),
     }
 
 
@@ -1452,6 +1529,12 @@ def normalize_curriculum_state(state: dict[str, Any]) -> dict[str, Any]:
     if status == "complete":
         phase = "complete"
     current_index = min(int(state.get("current_level_index") or 0), max(0, len(levels) - 1))
+    feedback_v2 = state.get("feedback_v2")
+    feedback_v2_public_digest = state.get("feedback_v2_public_digest")
+    feedback_v2_is_trusted = _feedback_v2_is_trusted(
+        feedback_v2,
+        public_digest=feedback_v2_public_digest,
+    )
     normalized_state = {
         **state,
         "engine_version": state.get("engine_version") or ENGINE_VERSION,
@@ -1460,7 +1543,13 @@ def normalize_curriculum_state(state: dict[str, Any]) -> dict[str, Any]:
         "current_level_index": current_index,
         "levels": levels,
         "last_feedback": state.get("last_feedback"),
-        "feedback_v2": _sanitize_feedback_v2(state.get("feedback_v2")),
+        "feedback_v2": _sanitize_feedback_v2(
+            feedback_v2,
+            public_digest=feedback_v2_public_digest,
+        ),
+        "feedback_v2_public_digest": (
+            feedback_v2_public_digest if feedback_v2_is_trusted else None
+        ),
         "chapter_assessment": _sanitize_chapter_assessment(
             state.get("chapter_assessment")
         ),
@@ -2707,13 +2796,13 @@ def _v2_feedback_action(
         what_worked = "You reviewed this teaching step before moving on."
         criterion_gap = None
     elif correct:
-        what_worked = "Your response met the visible task criteria."
+        what_worked = _learner_visible_success_move(activity)
         criterion_gap = None
     else:
         what_worked = (
             "That choice does not fit the visible clue yet."
             if activity.get("grading_mode") == "selected_option"
-            else "Your attempt was checked against the visible task."
+            else "Start with one visible clue before you try again."
         )
         criterion_gap = _learner_visible_criterion_gap(
             activity,
@@ -2783,35 +2872,21 @@ def _v2_feedback_action(
     }
 
 
-def _feedback_evidence_sentence(prefix: str, evidence: str) -> str:
-    terminal = "" if evidence.rstrip().endswith((".", "!", "?")) else "."
-    return f'{prefix}: "{evidence}"{terminal}'
+def _learner_visible_success_move(activity: dict[str, Any]) -> str:
+    """Describe a public learning move without repeating the learner's answer."""
 
-
-def _humanize_criterion(value: str) -> str:
-    cleaned = value.removeprefix("criterion:").replace("_", " ").strip()
-    return cleaned or "the required idea"
-
-
-def _validated_feedback_evidence(
-    answer: str,
-    evaluation: dict[str, Any],
-) -> str:
-    """Return only evaluator evidence traceable to the learner's own answer."""
-
-    answer_text = str(answer or "")
-    folded_answer = answer_text.casefold()
-    for criterion in evaluation.get("criteria") or []:
-        if not isinstance(criterion, dict) or not bool(criterion.get("met")):
-            continue
-        evidence = " ".join(str(criterion.get("evidence_quote") or "").split())
-        if not evidence:
-            continue
-        start = folded_answer.find(evidence.casefold())
-        if start < 0:
-            continue
-        return answer_text[start : start + len(evidence)].strip()[:240]
-    return ""
+    prompt = " ".join(str(activity.get("prompt") or "").split()).casefold()
+    if "own words" in prompt:
+        return "You put the idea into your own words."
+    if "sentence" in prompt:
+        return "You completed the sentence so it makes sense."
+    if any(marker in prompt for marker in ("why", "because", "reason")):
+        return "You gave a reason linked to a visible clue."
+    if any(marker in prompt for marker in ("source clue", "passage", "evidence")):
+        return "You used a source clue from the passage."
+    if activity.get("grading_mode") == "selected_option":
+        return "You matched your choice to a visible clue."
+    return "You used a visible clue to complete this task."
 
 
 def _learner_visible_criterion_gap(
@@ -2973,26 +3048,16 @@ def _sanitize_last_feedback(value: Any) -> dict[str, Any] | None:
     return sanitized
 
 
-def _sanitize_feedback_v2(value: Any) -> dict[str, Any] | None:
+def _sanitize_feedback_v2(
+    value: Any,
+    *,
+    public_digest: Any = None,
+) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    sanitized = dict(value)
-    scored = bool(sanitized.get("scored", True))
-    correct = bool(sanitized.get("correct"))
-    sanitized["response_excerpt"] = ""
-    sanitized["what_worked"] = (
-        "You reviewed this teaching step before moving on."
-        if not scored
-        else "Your response met the visible task criteria."
-        if correct
-        else "Your attempt was checked against the visible task."
-    )
-    sanitized["criterion_gap"] = (
-        None
-        if not scored or correct
-        else "Review the visible prompt and focus before trying again."
-    )
-    return sanitized
+    if not _feedback_v2_is_trusted(value, public_digest=public_digest):
+        return _safe_feedback_v2_fallback()
+    return {key: value[key] for key in _FEEDBACK_V2_PUBLIC_KEYS}
 
 
 def _activity_content_is_fresh(value: Any, activity: dict[str, Any]) -> bool:
