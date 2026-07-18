@@ -34,19 +34,24 @@ def notify_school_evaluation_job_enqueued() -> None:
     _wake_event.set()
 
 
-def _identity(job: SchoolEvaluationJob) -> dict[str, str]:
+def _identity(job: SchoolEvaluationJob) -> dict[str, str | int]:
     fields = (
         "user_id",
         "session_id",
         "activity_id",
         "answer_hash",
         "answer_claim_token",
+        "lease_owner",
         "lease_token",
     )
     identity = {field: str(job.get(field) or "") for field in fields}
-    if not all(identity.values()):
+    try:
+        lease_version = int(job.get("lease_version"))
+    except (TypeError, ValueError):
+        lease_version = 0
+    if not all(identity.values()) or lease_version <= 0:
         raise ValueError("invalid_school_evaluation_job_identity")
-    return identity
+    return {**identity, "lease_version": lease_version}
 
 
 async def _retry_or_fail(
@@ -58,19 +63,35 @@ async def _retry_or_fail(
 ) -> None:
     identity = _identity(job)
     attempts = max(0, int(job.get("attempts") or 0))
-    if attempts < max_attempts:
-        await store.retry_school_evaluation_job(
+    configured_attempts = max(1, int(max_attempts))
+    persisted_attempts = max(1, int(job.get("max_attempts") or configured_attempts))
+    effective_max_attempts = min(configured_attempts, persisted_attempts)
+    if attempts < effective_max_attempts:
+        retried = await store.retry_school_evaluation_job(
             **identity,
             last_error_code=error_code,
         )
+        if retried is None:
+            logger.warning(
+                "School evaluation retry lost lease for session=%s activity=%s",
+                job.get("session_id"),
+                job.get("activity_id"),
+            )
         return
 
-    await store.fail_school_evaluation_job(
+    failed = await store.fail_school_evaluation_job(
         **identity,
         last_error_code=error_code,
         response_json=None,
         result_data=None,
     )
+    if failed is None:
+        logger.warning(
+            "School evaluation terminal failure lost lease for session=%s activity=%s",
+            job.get("session_id"),
+            job.get("activity_id"),
+        )
+        return
     # The finalizer never ran, so no evidence or session transition exists.
     # Releasing this claim lets the learner deliberately retry the same item.
     await store.fail_school_answer_request(

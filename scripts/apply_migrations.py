@@ -59,6 +59,7 @@ DEFAULT_MIGRATIONS = [
     ROOT / "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql",
     ROOT / "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
     ROOT / "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
+    ROOT / "app/db/migrations/2026-07-18-school-evaluation-jobs.sql",
 ]
 
 SCHOOL_ADDITIVE_RECONCILIATION_MIGRATION = (

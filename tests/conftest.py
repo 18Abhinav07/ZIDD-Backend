@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import importlib
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -44,6 +46,7 @@ class InMemoryStore:
         self.school_mastery: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_sessions: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_answer_requests: dict[tuple[str, str], dict[str, Any]] = {}
+        self.school_evaluation_jobs: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_placement_reports: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_language_confidence: dict[str, dict[str, Any]] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
@@ -2023,6 +2026,7 @@ class InMemoryStore:
         response_json: dict | None = None,
         projection_evidence: dict | None = None,
         language_evaluation: dict | None = None,
+        evaluation_job_completion: dict | None = None,
     ) -> None:
         await self.persist_school_answer_attempt(
             learning_event=learning_event,
@@ -2034,6 +2038,7 @@ class InMemoryStore:
             response_json=response_json,
             projection_evidence=projection_evidence,
             language_evaluation=language_evaluation,
+            evaluation_job_completion=evaluation_job_completion,
         )
 
     async def compare_and_set_school_session(
@@ -2065,6 +2070,7 @@ class InMemoryStore:
         placement_report: dict | None = None,
         projection_evidence: dict | None = None,
         language_evaluation: dict | None = None,
+        evaluation_job_completion: dict | None = None,
     ) -> None:
         kwargs = {
             "learning_event": learning_event,
@@ -2077,6 +2083,7 @@ class InMemoryStore:
             "placement_report": placement_report,
             "projection_evidence": projection_evidence,
             "language_evaluation": language_evaluation,
+            "evaluation_job_completion": evaluation_job_completion,
         }
         if school_session.get("api_version") == "rebuild":
             async with self._school_lineage_lock(str(school_session["user_id"])):
@@ -2097,6 +2104,7 @@ class InMemoryStore:
         placement_report: dict | None = None,
         projection_evidence: dict | None = None,
         language_evaluation: dict | None = None,
+        evaluation_job_completion: dict | None = None,
     ) -> None:
         async with self._school_curriculum_attempt_lock:
             key = (str(school_session["user_id"]), str(school_session["session_id"]))
@@ -2106,6 +2114,14 @@ class InMemoryStore:
             previous_session = copy.deepcopy(current)
             request_key = (str(school_session["session_id"]), str(request_activity_id))
             previous_request = copy.deepcopy(self.school_answer_requests.get(request_key))
+            evaluation_job_key = (
+                request_key if evaluation_job_completion is not None else None
+            )
+            previous_evaluation_job = (
+                copy.deepcopy(self.school_evaluation_jobs.get(evaluation_job_key))
+                if evaluation_job_key is not None
+                else None
+            )
             report_key = None
             previous_report = None
             if placement_report is not None:
@@ -2194,6 +2210,60 @@ class InMemoryStore:
                 )
                 if placement_report is not None:
                     await self.upsert_school_placement_report(**placement_report)
+                if evaluation_job_completion is not None:
+                    if not isinstance(evaluation_job_completion, dict):
+                        raise ValueError("invalid_school_evaluation_job_completion")
+                    job = self.school_evaluation_jobs.get(request_key)
+                    completion_response = evaluation_job_completion.get("response_json")
+                    completion_result = evaluation_job_completion.get("result_data")
+                    try:
+                        completion_lease_version = int(
+                            evaluation_job_completion.get("lease_version")
+                        )
+                    except (TypeError, ValueError):
+                        completion_lease_version = 0
+                    if (
+                        request_activity_id is None
+                        or request_answer_hash is None
+                        or request_claim_token is None
+                        or response_json is None
+                        or not isinstance(completion_response, dict)
+                        or not isinstance(completion_result, dict)
+                        or completion_response != response_json
+                        or not job
+                        or job.get("user_id") != school_session["user_id"]
+                        or str(job.get("session_id") or "")
+                        != str(school_session["session_id"])
+                        or str(job.get("activity_id") or "")
+                        != str(request_activity_id)
+                        or job.get("answer_hash") != request_answer_hash
+                        or job.get("answer_claim_token") != request_claim_token
+                        or job.get("lease_owner")
+                        != evaluation_job_completion.get("lease_owner")
+                        or job.get("lease_token")
+                        != evaluation_job_completion.get("lease_token")
+                        or int(job.get("lease_version") or 0)
+                        != completion_lease_version
+                        or job.get("status") != "running"
+                        or float(job.get("lease_expires_at") or 0) <= time.time()
+                        or not self._school_evaluation_job_current_claim(
+                            job, self.school_answer_requests.get(request_key)
+                        )
+                    ):
+                        raise ValueError("stale_school_evaluation_job")
+                    now = time.time()
+                    job.update(
+                        status="completed",
+                        response_json=copy.deepcopy(completion_response),
+                        result_data=copy.deepcopy(completion_result),
+                        last_error_code=None,
+                        error_json=None,
+                        lease_owner=None,
+                        lease_token=None,
+                        lease_expires_at=None,
+                        completed_at=now,
+                        updated_at=now,
+                    )
                 if request_activity_id is not None:
                     request_row = self.school_answer_requests.get(request_key)
                     if (
@@ -2216,6 +2286,13 @@ class InMemoryStore:
                 self.school_sessions[key] = previous_session
                 self.learner_skill_profiles = previous_profiles
                 self.school_language_confidence = previous_language
+                if evaluation_job_key is not None:
+                    if previous_evaluation_job is None:
+                        self.school_evaluation_jobs.pop(evaluation_job_key, None)
+                    else:
+                        self.school_evaluation_jobs[evaluation_job_key] = (
+                            previous_evaluation_job
+                        )
                 if request_activity_id is not None:
                     if previous_request is None:
                         self.school_answer_requests.pop(request_key, None)
@@ -2361,6 +2438,459 @@ class InMemoryStore:
                 return False
             row["updated_at"] = time.time()
             return True
+
+    @staticmethod
+    def _school_evaluation_job_digest(expected_state_json: dict[str, Any]) -> str:
+        encoded = json.dumps(
+            expected_state_json,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @staticmethod
+    def _school_evaluation_job_current_claim(
+        job: dict[str, Any],
+        request: dict[str, Any] | None,
+    ) -> bool:
+        return bool(
+            request
+            and request.get("status") == "processing"
+            and request.get("user_id") == job.get("user_id")
+            and request.get("answer_hash") == job.get("answer_hash")
+            and request.get("claim_token") == job.get("answer_claim_token")
+        )
+
+    async def get_school_evaluation_job(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict[str, Any] | None:
+        job = self.school_evaluation_jobs.get((str(session_id), str(activity_id)))
+        if not job or job.get("user_id") != user_id:
+            return None
+        return copy.deepcopy(job)
+
+    async def get_school_evaluation_job_status(
+        self,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict[str, Any] | None:
+        job = self.school_evaluation_jobs.get((str(session_id), str(activity_id)))
+        if not job or job.get("user_id") != user_id:
+            return None
+        return {
+            key: copy.deepcopy(job.get(key))
+            for key in (
+                "session_id",
+                "activity_id",
+                "status",
+                "attempts",
+                "max_attempts",
+                "last_error_code",
+                "created_at",
+                "updated_at",
+                "started_at",
+                "completed_at",
+                "failed_at",
+                "cancelled_at",
+            )
+        }
+
+    async def enqueue_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        raw_answer: str,
+        expected_state_json: dict[str, Any],
+        answer_hash: str,
+        answer_claim_token: str,
+        flow_type: str,
+        evaluation_mode: str,
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        if not isinstance(raw_answer, str):
+            raise ValueError("invalid_school_evaluation_job_answer")
+        if not isinstance(expected_state_json, dict):
+            raise ValueError("invalid_school_evaluation_job_expected_state")
+        normalized_flow_type = str(flow_type or "").strip()
+        normalized_evaluation_mode = str(evaluation_mode or "").strip()
+        if not normalized_flow_type or not normalized_evaluation_mode:
+            raise ValueError("invalid_school_evaluation_job_mode")
+        normalized_max_attempts = int(max_attempts)
+        if normalized_max_attempts <= 0:
+            raise ValueError("invalid_school_evaluation_job_max_attempts")
+
+        key = (str(session_id), str(activity_id))
+        expected_state_digest = self._school_evaluation_job_digest(expected_state_json)
+        async with self._school_curriculum_attempt_lock:
+            request = self.school_answer_requests.get(key)
+            claim_is_current = bool(
+                request
+                and request.get("user_id") == user_id
+                and request.get("answer_hash") == answer_hash
+                and request.get("claim_token") == answer_claim_token
+                and request.get("status") == "processing"
+            )
+            if not claim_is_current:
+                return {"outcome": "conflict"}
+
+            existing = self.school_evaluation_jobs.get(key)
+            if existing:
+                same_claim = (
+                    existing.get("user_id") == user_id
+                    and existing.get("answer_hash") == answer_hash
+                    and existing.get("answer_claim_token") == answer_claim_token
+                )
+                same_payload = (
+                    existing.get("raw_answer") == raw_answer
+                    and existing.get("expected_state_digest") == expected_state_digest
+                    and existing.get("flow_type") == normalized_flow_type
+                    and existing.get("evaluation_mode") == normalized_evaluation_mode
+                    and existing.get("max_attempts") == normalized_max_attempts
+                )
+                if same_claim and same_payload:
+                    return {"outcome": "existing", "job": copy.deepcopy(existing)}
+                if existing.get("status") in {"failed", "cancelled"}:
+                    now = time.time()
+                    existing.update(
+                        user_id=user_id,
+                        raw_answer=raw_answer,
+                        expected_state_json=copy.deepcopy(expected_state_json),
+                        expected_state_digest=expected_state_digest,
+                        answer_hash=answer_hash,
+                        answer_claim_token=answer_claim_token,
+                        flow_type=normalized_flow_type,
+                        evaluation_mode=normalized_evaluation_mode,
+                        status="queued",
+                        attempts=0,
+                        max_attempts=normalized_max_attempts,
+                        lease_owner=None,
+                        lease_token=None,
+                        lease_expires_at=None,
+                        last_error_code=None,
+                        error_json=None,
+                        response_json=None,
+                        result_data=None,
+                        created_at=now,
+                        updated_at=now,
+                        started_at=None,
+                        completed_at=None,
+                        failed_at=None,
+                        cancelled_at=None,
+                    )
+                    return {"outcome": "queued", "job": copy.deepcopy(existing)}
+                return {"outcome": "conflict"}
+
+            now = time.time()
+            job = {
+                "session_id": str(session_id),
+                "activity_id": str(activity_id),
+                "user_id": user_id,
+                "raw_answer": raw_answer,
+                "expected_state_json": copy.deepcopy(expected_state_json),
+                "expected_state_digest": expected_state_digest,
+                "answer_hash": answer_hash,
+                "answer_claim_token": answer_claim_token,
+                "flow_type": normalized_flow_type,
+                "evaluation_mode": normalized_evaluation_mode,
+                "status": "queued",
+                "attempts": 0,
+                "max_attempts": normalized_max_attempts,
+                "lease_owner": None,
+                "lease_token": None,
+                "lease_version": 0,
+                "lease_expires_at": None,
+                "last_error_code": None,
+                "error_json": None,
+                "response_json": None,
+                "result_data": None,
+                "created_at": now,
+                "updated_at": now,
+                "started_at": None,
+                "completed_at": None,
+                "failed_at": None,
+                "cancelled_at": None,
+            }
+            self.school_evaluation_jobs[key] = job
+            return {"outcome": "queued", "job": copy.deepcopy(job)}
+
+    async def claim_school_evaluation_job(
+        self,
+        lease_owner: str = "school-evaluation-worker",
+        lease_seconds: int = 120,
+    ) -> dict[str, Any] | None:
+        normalized_owner = str(lease_owner or "").strip()
+        if not normalized_owner:
+            raise ValueError("invalid_school_evaluation_job_lease_owner")
+        normalized_lease_seconds = int(lease_seconds)
+        if normalized_lease_seconds <= 0:
+            raise ValueError("invalid_school_evaluation_job_lease_seconds")
+
+        async with self._school_curriculum_attempt_lock:
+            now = time.time()
+            for key in sorted(self.school_evaluation_jobs):
+                job = self.school_evaluation_jobs[key]
+                request = self.school_answer_requests.get(key)
+                stale_lease = bool(
+                    job.get("status") == "running"
+                    and job.get("lease_expires_at") is not None
+                    and float(job["lease_expires_at"]) <= now
+                )
+                if (
+                    not self._school_evaluation_job_current_claim(job, request)
+                    or job.get("attempts", 0) >= job.get("max_attempts", 0)
+                    or (job.get("status") != "queued" and not stale_lease)
+                ):
+                    continue
+                job.update(
+                    status="running",
+                    attempts=int(job.get("attempts") or 0) + 1,
+                    lease_owner=normalized_owner,
+                    lease_token=str(uuid4()),
+                    lease_version=int(job.get("lease_version") or 0) + 1,
+                    lease_expires_at=now + normalized_lease_seconds,
+                    started_at=job.get("started_at") or now,
+                    updated_at=now,
+                )
+                return copy.deepcopy(job)
+        return None
+
+    async def heartbeat_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        answer_claim_token: str,
+        lease_owner: str,
+        lease_token: str,
+        lease_version: int,
+        lease_seconds: int = 120,
+    ) -> bool:
+        normalized_lease_seconds = int(lease_seconds)
+        if normalized_lease_seconds <= 0:
+            raise ValueError("invalid_school_evaluation_job_lease_seconds")
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            job = self.school_evaluation_jobs.get(key)
+            now = time.time()
+            if not (
+                job
+                and job.get("user_id") == user_id
+                and job.get("answer_hash") == answer_hash
+                and job.get("answer_claim_token") == answer_claim_token
+                and job.get("lease_owner") == lease_owner
+                and job.get("lease_token") == lease_token
+                and job.get("lease_version") == int(lease_version)
+                and job.get("status") == "running"
+                and float(job.get("lease_expires_at") or 0) > now
+                and self._school_evaluation_job_current_claim(
+                    job, self.school_answer_requests.get(key)
+                )
+            ):
+                return False
+            job["lease_expires_at"] = now + normalized_lease_seconds
+            job["updated_at"] = now
+            return True
+
+    async def complete_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        answer_claim_token: str,
+        lease_owner: str,
+        lease_token: str,
+        lease_version: int,
+        response_json: dict,
+        result_data: dict,
+    ) -> dict[str, Any] | None:
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            job = self.school_evaluation_jobs.get(key)
+            now = time.time()
+            if not (
+                job
+                and job.get("user_id") == user_id
+                and job.get("answer_hash") == answer_hash
+                and job.get("answer_claim_token") == answer_claim_token
+                and job.get("lease_owner") == lease_owner
+                and job.get("lease_token") == lease_token
+                and job.get("lease_version") == int(lease_version)
+                and job.get("status") == "running"
+                and float(job.get("lease_expires_at") or 0) > now
+                and self._school_evaluation_job_current_claim(
+                    job, self.school_answer_requests.get(key)
+                )
+            ):
+                return None
+            job.update(
+                status="completed",
+                response_json=copy.deepcopy(response_json),
+                result_data=copy.deepcopy(result_data),
+                last_error_code=None,
+                error_json=None,
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+                completed_at=now,
+                updated_at=now,
+            )
+            return copy.deepcopy(job)
+
+    async def fail_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        answer_claim_token: str,
+        lease_owner: str,
+        lease_token: str,
+        lease_version: int,
+        last_error_code: str,
+        error_json: dict | None = None,
+        response_json: dict | None = None,
+        result_data: dict | None = None,
+    ) -> dict[str, Any] | None:
+        normalized_error_code = str(last_error_code or "").strip()
+        if not normalized_error_code:
+            raise ValueError("invalid_school_evaluation_job_error_code")
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            job = self.school_evaluation_jobs.get(key)
+            now = time.time()
+            if not (
+                job
+                and job.get("user_id") == user_id
+                and job.get("answer_hash") == answer_hash
+                and job.get("answer_claim_token") == answer_claim_token
+                and job.get("lease_owner") == lease_owner
+                and job.get("lease_token") == lease_token
+                and job.get("lease_version") == int(lease_version)
+                and job.get("status") == "running"
+                and float(job.get("lease_expires_at") or 0) > now
+                and self._school_evaluation_job_current_claim(
+                    job, self.school_answer_requests.get(key)
+                )
+            ):
+                return None
+            job.update(
+                status="failed",
+                last_error_code=normalized_error_code,
+                error_json=copy.deepcopy(error_json),
+                response_json=copy.deepcopy(response_json),
+                result_data=copy.deepcopy(result_data),
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+                failed_at=now,
+                updated_at=now,
+            )
+            return copy.deepcopy(job)
+
+    async def retry_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        answer_claim_token: str,
+        lease_owner: str,
+        lease_token: str,
+        lease_version: int,
+        last_error_code: str,
+        error_json: dict | None = None,
+    ) -> dict[str, Any] | None:
+        normalized_error_code = str(last_error_code or "").strip()
+        if not normalized_error_code:
+            raise ValueError("invalid_school_evaluation_job_error_code")
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            job = self.school_evaluation_jobs.get(key)
+            now = time.time()
+            if not (
+                job
+                and job.get("user_id") == user_id
+                and job.get("answer_hash") == answer_hash
+                and job.get("answer_claim_token") == answer_claim_token
+                and job.get("lease_owner") == lease_owner
+                and job.get("lease_token") == lease_token
+                and int(job.get("lease_version") or 0) == int(lease_version)
+                and job.get("status") == "running"
+                and float(job.get("lease_expires_at") or 0) > now
+                and int(job.get("attempts") or 0) < int(job.get("max_attempts") or 0)
+                and self._school_evaluation_job_current_claim(
+                    job, self.school_answer_requests.get(key)
+                )
+            ):
+                return None
+            job.update(
+                status="queued",
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+                last_error_code=normalized_error_code,
+                error_json=copy.deepcopy(error_json),
+                response_json=None,
+                result_data=None,
+                failed_at=None,
+                updated_at=now,
+            )
+            return copy.deepcopy(job)
+
+    async def cancel_school_evaluation_job(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+        answer_hash: str,
+        answer_claim_token: str,
+        last_error_code: str = "evaluation_cancelled",
+        error_json: dict | None = None,
+    ) -> dict[str, Any] | None:
+        normalized_error_code = str(last_error_code or "").strip()
+        if not normalized_error_code:
+            raise ValueError("invalid_school_evaluation_job_error_code")
+        async with self._school_curriculum_attempt_lock:
+            key = (str(session_id), str(activity_id))
+            job = self.school_evaluation_jobs.get(key)
+            if not (
+                job
+                and job.get("user_id") == user_id
+                and job.get("answer_hash") == answer_hash
+                and job.get("answer_claim_token") == answer_claim_token
+                and job.get("status") in {"queued", "running"}
+                and self._school_evaluation_job_current_claim(
+                    job, self.school_answer_requests.get(key)
+                )
+            ):
+                return None
+            now = time.time()
+            job.update(
+                status="cancelled",
+                last_error_code=normalized_error_code,
+                error_json=copy.deepcopy(error_json),
+                response_json=None,
+                result_data=None,
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+                cancelled_at=now,
+                updated_at=now,
+            )
+            return copy.deepcopy(job)
 
     async def get_school_session(
         self,

@@ -751,11 +751,16 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     flow_type             TEXT NOT NULL,
     evaluation_mode       TEXT NOT NULL,
     status                TEXT NOT NULL DEFAULT 'queued'
-        CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+        CONSTRAINT school_evaluation_jobs_status_check
+        CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
     attempts              INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    max_attempts          INTEGER NOT NULL DEFAULT 3 CHECK (max_attempts > 0),
+    lease_owner           TEXT,
     lease_token           TEXT,
+    lease_version         INTEGER NOT NULL DEFAULT 0 CHECK (lease_version >= 0),
     lease_expires_at      TIMESTAMPTZ,
     last_error_code       TEXT,
+    error_json            JSONB,
     response_json         JSONB,
     result_data           JSONB,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -763,12 +768,19 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     started_at            TIMESTAMPTZ,
     completed_at          TIMESTAMPTZ,
     failed_at             TIMESTAMPTZ,
+    cancelled_at          TIMESTAMPTZ,
     PRIMARY KEY (session_id, activity_id),
     FOREIGN KEY (session_id, activity_id)
         REFERENCES school_answer_requests(session_id, activity_id) ON DELETE CASCADE,
     CONSTRAINT school_evaluation_jobs_running_lease CHECK (
-        (status = 'running' AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
-        OR (status <> 'running' AND lease_token IS NULL AND lease_expires_at IS NULL)
+        (status = 'running'
+            AND lease_owner IS NOT NULL
+            AND lease_token IS NOT NULL
+            AND lease_expires_at IS NOT NULL)
+        OR (status <> 'running'
+            AND lease_owner IS NULL
+            AND lease_token IS NULL
+            AND lease_expires_at IS NULL)
     )
 );
 CREATE INDEX IF NOT EXISTS idx_school_evaluation_jobs_claimable

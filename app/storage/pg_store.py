@@ -853,6 +853,7 @@ class PgStore:
         response_json: dict | None = None,
         projection_evidence: dict | None = None,
         language_evaluation: dict | None = None,
+        evaluation_job_completion: dict | None = None,
     ) -> None:
         from app.db import repo
 
@@ -868,6 +869,7 @@ class PgStore:
                 response_json=response_json,
                 projection_evidence=projection_evidence,
                 language_evaluation=language_evaluation,
+                evaluation_job_completion=evaluation_job_completion,
             )
 
     async def persist_school_answer_attempt(self, **kwargs) -> None:
@@ -950,6 +952,76 @@ class PgStore:
                 answer_hash,
                 claim_token,
             )
+
+    async def get_school_evaluation_job(
+        self, user_id: str, session_id: str, activity_id: str
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_evaluation_job(
+                s, user_id, session_id, activity_id
+            )
+
+    async def get_school_evaluation_job_status(
+        self, user_id: str, session_id: str, activity_id: str
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_evaluation_job_status(
+                s, user_id, session_id, activity_id
+            )
+
+    async def enqueue_school_evaluation_job(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.enqueue_school_evaluation_job(s, **kwargs)
+
+    async def claim_school_evaluation_job(
+        self,
+        lease_owner: str = "school-evaluation-worker",
+        lease_seconds: int = 120,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.claim_school_evaluation_job(
+                s,
+                lease_owner=lease_owner,
+                lease_seconds=lease_seconds,
+            )
+
+    async def heartbeat_school_evaluation_job(self, **kwargs) -> bool:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.heartbeat_school_evaluation_job(s, **kwargs)
+
+    async def complete_school_evaluation_job(self, **kwargs) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.complete_school_evaluation_job(s, **kwargs)
+
+    async def fail_school_evaluation_job(self, **kwargs) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.fail_school_evaluation_job(s, **kwargs)
+
+    async def retry_school_evaluation_job(self, **kwargs) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.retry_school_evaluation_job(s, **kwargs)
+
+    async def cancel_school_evaluation_job(self, **kwargs) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.cancel_school_evaluation_job(s, **kwargs)
 
     async def get_school_session(
         self,

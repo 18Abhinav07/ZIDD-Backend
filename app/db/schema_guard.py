@@ -331,6 +331,35 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "created_at",
         "updated_at",
     },
+    "school_evaluation_jobs": {
+        "session_id",
+        "activity_id",
+        "user_id",
+        "raw_answer",
+        "expected_state_json",
+        "expected_state_digest",
+        "answer_hash",
+        "answer_claim_token",
+        "flow_type",
+        "evaluation_mode",
+        "status",
+        "attempts",
+        "max_attempts",
+        "lease_owner",
+        "lease_token",
+        "lease_version",
+        "lease_expires_at",
+        "last_error_code",
+        "error_json",
+        "response_json",
+        "result_data",
+        "created_at",
+        "updated_at",
+        "started_at",
+        "completed_at",
+        "failed_at",
+        "cancelled_at",
+    },
     "school_placement_reports": {
         "report_id",
         "user_id",
@@ -440,6 +469,12 @@ REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS: tuple[
         ("user_id", "linked_session_id"),
         "school_sessions",
         ("user_id", "session_id"),
+    ),
+    (
+        "school_evaluation_jobs",
+        ("session_id", "activity_id"),
+        "school_answer_requests",
+        ("session_id", "activity_id"),
     ),
 )
 
@@ -763,6 +798,13 @@ REQUIRED_RUNTIME_INDEXES: dict[str, tuple[str, ...]] = {
         "user_id",
         "updated_at",
     ),
+    "idx_school_evaluation_jobs_claimable": (
+        "CREATE INDEX",
+        "school_evaluation_jobs",
+        "status",
+        "lease_expires_at",
+        "created_at",
+    ),
 }
 
 REQUIRED_EXACT_RUNTIME_INDEXES: frozenset[str] = frozenset(
@@ -823,6 +865,7 @@ REQUIRED_MIGRATION_FILES: tuple[str, ...] = (
     "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql",
     "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
     "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
+    "app/db/migrations/2026-07-18-school-evaluation-jobs.sql",
 )
 
 
