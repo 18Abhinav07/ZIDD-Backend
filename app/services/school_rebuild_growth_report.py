@@ -15,8 +15,15 @@ from typing import Any, Literal, TypedDict
 
 SCHOOL_DOMAIN = "school"
 SCHOOL_REBUILD_API_VERSION = "rebuild"
-MAX_EVIDENCE_EXCERPT_LENGTH = 320
-MAX_FOCUS_LENGTH = 160
+SCHOOL_REBUILD_TASK_TYPES = frozenset(
+    {
+        "school_rebuild_curriculum",
+        "school_rebuild_masterclass",
+        "school_rebuild_placement",
+        "school_rebuild_recap",
+    }
+)
+SAFE_EVIDENCE_LABEL = "recorded_learning_activity"
 
 SchoolGrowthReportAudience = Literal["learner", "parent"]
 SchoolGrowthClaimScope = Literal["current_chapter", "historical_context"]
@@ -35,9 +42,10 @@ class SchoolGrowthClaim(TypedDict):
     session_id: str
     chapter_id: str
     activity_id: str
-    skill_id: str
+    skill_ids: list[str]
     occurred_at: str
-    learner_safe_evidence_excerpt: str
+    evidence_label: str
+    evidence_count: int
 
 
 class SchoolGrowthInsufficientEvidence(TypedDict):
@@ -73,18 +81,11 @@ def build_school_growth_report(
         raise ValueError("unsupported_school_growth_report_audience")
 
     session_id = _text(current_scope.get("session_id"))
-    chapter_id = _text(current_scope.get("chapter_id"))
-    normalized_scope: SchoolGrowthReportScope = {
-        "session_id": session_id,
-        "chapter_id": chapter_id,
-    }
-    if not session_id or not chapter_id or not _has_school_scope_session(
-        school_sessions,
-        session_id,
-    ):
+    normalized_scope = _canonical_current_scope(school_sessions, session_id)
+    if normalized_scope is None:
         return _insufficient_report(
             audience=audience,
-            current_scope=normalized_scope,
+            current_scope={"session_id": session_id, "chapter_id": ""},
             reason="invalid_current_scope",
         )
 
@@ -95,23 +96,28 @@ def build_school_growth_report(
 
     current_claims: list[SchoolGrowthClaim] = []
     historical_claims: list[SchoolGrowthClaim] = []
-    seen_claims: set[tuple[str, str]] = set()
+    valid_session_ids = _valid_school_session_ids(school_sessions)
+    seen_event_ids: set[str] = set()
     for raw_event in learning_events:
-        if not _is_school_row(raw_event):
+        if not _is_school_rebuild_event(raw_event):
             continue
-        for claim in _claims_from_event(
+        if _text(raw_event.get("session_id")) not in valid_session_ids:
+            continue
+        claim = _claim_from_event(
             raw_event,
             audience=audience,
             current_scope=normalized_scope,
-        ):
-            identity = (claim["source_event_ids"][0], claim["skill_id"])
-            if identity in seen_claims:
-                continue
-            seen_claims.add(identity)
-            if claim["scope"] == "current_chapter":
-                current_claims.append(claim)
-            else:
-                historical_claims.append(claim)
+        )
+        if claim is None:
+            continue
+        event_id = claim["source_event_ids"][0]
+        if event_id in seen_event_ids:
+            continue
+        seen_event_ids.add(event_id)
+        if claim["scope"] == "current_chapter":
+            current_claims.append(claim)
+        else:
+            historical_claims.append(claim)
 
     current_claims.sort(key=_claim_sort_key, reverse=True)
     historical_claims.sort(key=_claim_sort_key, reverse=True)
@@ -150,34 +156,56 @@ def _insufficient_report(
     }
 
 
-def _has_school_scope_session(
+def _canonical_current_scope(
     school_sessions: Sequence[Mapping[str, Any]],
     session_id: str,
-) -> bool:
-    return any(
-        _is_school_session(session)
-        and _text(session.get("session_id")) == session_id
+) -> SchoolGrowthReportScope | None:
+    for session in school_sessions:
+        if (
+            not _is_school_session(session)
+            or _text(session.get("session_id")) != session_id
+            or _text(session.get("flow_type")) != "curriculum"
+        ):
+            continue
+        state = _mapping(session.get("state_json"))
+        chapter = _mapping(state.get("chapter"))
+        chapter_id = _text(chapter.get("chapter_id"))
+        if chapter_id:
+            return {"session_id": session_id, "chapter_id": chapter_id}
+    return None
+
+
+def _valid_school_session_ids(
+    school_sessions: Sequence[Mapping[str, Any]],
+) -> set[str]:
+    return {
+        session_id
         for session in school_sessions
-    )
+        if _is_school_session(session)
+        if (session_id := _text(session.get("session_id")))
+    }
 
 
 def _is_school_session(session: Mapping[str, Any]) -> bool:
-    if _text(session.get("domain")) not in {"", SCHOOL_DOMAIN}:
+    session_domain = _text(session.get("domain"))
+    if session_domain and session_domain != SCHOOL_DOMAIN:
         return False
-    api_version = _text(session.get("api_version"))
-    return api_version in {"", SCHOOL_REBUILD_API_VERSION}
+    return _text(session.get("api_version")) == SCHOOL_REBUILD_API_VERSION
 
 
-def _is_school_row(row: Mapping[str, Any]) -> bool:
-    return _text(row.get("domain")) == SCHOOL_DOMAIN
+def _is_school_rebuild_event(event: Mapping[str, Any]) -> bool:
+    return (
+        _text(event.get("domain")) == SCHOOL_DOMAIN
+        and _text(event.get("task_type")) in SCHOOL_REBUILD_TASK_TYPES
+    )
 
 
-def _claims_from_event(
+def _claim_from_event(
     event: Mapping[str, Any],
     *,
     audience: SchoolGrowthReportAudience,
     current_scope: SchoolGrowthReportScope,
-) -> list[SchoolGrowthClaim]:
+) -> SchoolGrowthClaim | None:
     evidence = _mapping(event.get("evidence_json"))
     event_id = _text(event.get("source_event_key") or event.get("event_id"))
     session_id = _text(event.get("session_id"))
@@ -188,35 +216,26 @@ def _claims_from_event(
         or event.get("node_id")
     )
     occurred_at = _occurred_at(event.get("occurred_at"))
-    excerpt = _learner_safe_excerpt(event, evidence)
-    if not all((event_id, session_id, chapter_id, activity_id, occurred_at, excerpt)):
-        return []
+    skill_ids = _skill_ids(event, evidence)
+    if not all((event_id, session_id, chapter_id, activity_id, occurred_at, skill_ids)):
+        return None
 
-    focus = _focus(evidence, event)
     is_current = (
         session_id == current_scope["session_id"]
         and chapter_id == current_scope["chapter_id"]
     )
-    claims: list[SchoolGrowthClaim] = []
-    for skill_id in _skill_ids(event, evidence):
-        claims.append(
-            {
-                "scope": "current_chapter" if is_current else "historical_context",
-                "message": _message(
-                    audience=audience,
-                    focus=focus,
-                    historical=not is_current,
-                ),
-                "source_event_ids": [event_id],
-                "session_id": session_id,
-                "chapter_id": chapter_id,
-                "activity_id": activity_id,
-                "skill_id": skill_id,
-                "occurred_at": occurred_at,
-                "learner_safe_evidence_excerpt": excerpt,
-            }
-        )
-    return claims
+    return {
+        "scope": "current_chapter" if is_current else "historical_context",
+        "message": _message(audience=audience, historical=not is_current),
+        "source_event_ids": [event_id],
+        "session_id": session_id,
+        "chapter_id": chapter_id,
+        "activity_id": activity_id,
+        "skill_ids": skill_ids,
+        "occurred_at": occurred_at,
+        "evidence_label": SAFE_EVIDENCE_LABEL,
+        "evidence_count": 1,
+    }
 
 
 def _skill_ids(
@@ -235,56 +254,24 @@ def _skill_ids(
     )
 
 
-def _learner_safe_excerpt(
-    event: Mapping[str, Any],
-    evidence: Mapping[str, Any],
-) -> str:
-    candidates: list[Any] = [
-        evidence.get("learner_response_excerpt"),
-        evidence.get("answer_excerpt"),
-        event.get("answer_excerpt"),
-    ]
-    criteria = event.get("criteria_json")
-    if isinstance(criteria, list):
-        candidates.extend(
-            criterion.get("evidence_quote")
-            for criterion in criteria
-            if isinstance(criterion, Mapping)
-        )
-    for candidate in candidates:
-        excerpt = _text(candidate)
-        if excerpt and excerpt.lower() not in {"(empty answer)", "empty answer"}:
-            return excerpt[:MAX_EVIDENCE_EXCERPT_LENGTH]
-    return ""
-
-
-def _focus(evidence: Mapping[str, Any], event: Mapping[str, Any]) -> str:
-    return (
-        _text(evidence.get("focus") or event.get("focus"))[:MAX_FOCUS_LENGTH]
-        or "the recorded skill"
-    )
-
-
 def _message(
     *,
     audience: SchoolGrowthReportAudience,
-    focus: str,
     historical: bool,
 ) -> str:
     if historical:
         if audience == "parent":
-            return f"Earlier evidence records work on {focus}."
-        return f"Earlier, you worked on {focus}."
+            return "Earlier evidence records one learning activity."
+        return "Earlier, you completed one learning activity."
     if audience == "parent":
-        return f"Current chapter evidence records work on {focus}."
-    return f"You worked on {focus} in this chapter."
+        return "Current chapter evidence records one learning activity."
+    return "You completed one learning activity in this chapter."
 
 
-def _claim_sort_key(claim: SchoolGrowthClaim) -> tuple[str, str, str]:
+def _claim_sort_key(claim: SchoolGrowthClaim) -> tuple[str, str]:
     return (
         claim["occurred_at"],
         claim["source_event_ids"][0],
-        claim["skill_id"],
     )
 
 
