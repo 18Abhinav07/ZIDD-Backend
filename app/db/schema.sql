@@ -739,6 +739,41 @@ CREATE TABLE IF NOT EXISTS school_answer_requests (
     PRIMARY KEY (session_id, activity_id)
 );
 
+CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
+    session_id            UUID NOT NULL,
+    activity_id           TEXT NOT NULL,
+    user_id               TEXT NOT NULL REFERENCES learner_profiles(user_id),
+    raw_answer            TEXT NOT NULL,
+    expected_state_json   JSONB NOT NULL,
+    expected_state_digest TEXT NOT NULL,
+    answer_hash           TEXT NOT NULL,
+    answer_claim_token    TEXT NOT NULL,
+    flow_type             TEXT NOT NULL,
+    evaluation_mode       TEXT NOT NULL,
+    status                TEXT NOT NULL DEFAULT 'queued'
+        CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    attempts              INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    lease_token           TEXT,
+    lease_expires_at      TIMESTAMPTZ,
+    last_error_code       TEXT,
+    response_json         JSONB,
+    result_data           JSONB,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at            TIMESTAMPTZ,
+    completed_at          TIMESTAMPTZ,
+    failed_at             TIMESTAMPTZ,
+    PRIMARY KEY (session_id, activity_id),
+    FOREIGN KEY (session_id, activity_id)
+        REFERENCES school_answer_requests(session_id, activity_id) ON DELETE CASCADE,
+    CONSTRAINT school_evaluation_jobs_running_lease CHECK (
+        (status = 'running' AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
+        OR (status <> 'running' AND lease_token IS NULL AND lease_expires_at IS NULL)
+    )
+);
+CREATE INDEX IF NOT EXISTS idx_school_evaluation_jobs_claimable
+    ON school_evaluation_jobs(status, lease_expires_at, created_at);
+
 CREATE TABLE IF NOT EXISTS school_placement_reports (
     report_id                      UUID PRIMARY KEY,
     user_id                        TEXT NOT NULL REFERENCES learner_profiles(user_id),
@@ -920,6 +955,7 @@ ALTER TABLE school_skill_mastery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_results      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_sessions     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_answer_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE school_evaluation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_placement_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_language_confidence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_v2_placement_sessions ENABLE ROW LEVEL SECURITY;
@@ -979,6 +1015,9 @@ REVOKE ALL ON TABLE public.school_sessions FROM PUBLIC;
 REVOKE ALL ON TABLE public.school_answer_requests FROM anon;
 REVOKE ALL ON TABLE public.school_answer_requests FROM authenticated;
 REVOKE ALL ON TABLE public.school_answer_requests FROM PUBLIC;
+REVOKE ALL ON TABLE public.school_evaluation_jobs FROM anon;
+REVOKE ALL ON TABLE public.school_evaluation_jobs FROM authenticated;
+REVOKE ALL ON TABLE public.school_evaluation_jobs FROM PUBLIC;
 REVOKE ALL ON TABLE public.school_placement_reports FROM anon;
 REVOKE ALL ON TABLE public.school_placement_reports FROM authenticated;
 REVOKE ALL ON TABLE public.school_placement_reports FROM PUBLIC;
