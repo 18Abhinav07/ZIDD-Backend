@@ -163,12 +163,28 @@ def _school_open_answer_timeout_seconds() -> float | None:
 async def _evaluate_school_open_answer_with_runtime_policy(
     activity: dict,
     answer: str,
+    *,
+    timeout_seconds: float | None = None,
 ):
-    timeout_seconds = _school_open_answer_timeout_seconds()
-    if timeout_seconds is None:
+    effective_timeout_seconds = (
+        timeout_seconds
+        if timeout_seconds is not None
+        else _school_open_answer_timeout_seconds()
+    )
+    if effective_timeout_seconds is None:
         return await evaluate_school_open_answer(activity, answer)
-    async with asyncio.timeout(timeout_seconds):
-        return await evaluate_school_open_answer(activity, answer)
+
+    async def evaluate() -> object:
+        if timeout_seconds is None:
+            return await evaluate_school_open_answer(activity, answer)
+        return await evaluate_school_open_answer(
+            activity,
+            answer,
+            timeout_seconds=effective_timeout_seconds,
+        )
+
+    async with asyncio.timeout(effective_timeout_seconds):
+        return await evaluate()
 
 
 async def _renew_school_answer_claim(
