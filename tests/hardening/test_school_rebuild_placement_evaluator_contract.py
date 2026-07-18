@@ -17,6 +17,7 @@ from app.services.school_rebuild_placement_evaluator import (
     evaluate_school_placement_item,
     grade_deterministic_placement_item,
 )
+from app.services import school_rebuild_placement as placement
 
 
 def _item(mode: str):
@@ -78,6 +79,39 @@ def test_deterministic_items_match_every_accepted_alternative_after_normalizatio
     assert evaluation.score == 1.0
     assert evaluation.criteria[0].met is True
     assert evaluation.needs_human_review is False
+
+
+def test_authored_snapshot_paraphrase_keeps_the_eight_item_target_unlock():
+    envelope = placement.new_placement_envelope(
+        {
+            "profile_version_id": "snapshot-paraphrase-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+            "prior_difficulty_signals": [],
+        }
+    )
+    paraphrase = (
+        "The storm blocked the lane, residents cut up the branches, and reopened a path."
+    )
+    paraphrase_used = False
+
+    for _ in range(8):
+        item = placement.next_item(envelope)
+        assert item is not None
+        answer = item.accepted_answers[0]
+        if item.track_id == "english.c5.summary":
+            assert paraphrase not in item.accepted_answers
+            evaluation = grade_deterministic_placement_item(item, paraphrase)
+            assert evaluation.score == 1.0
+            assert evaluation.criteria[0].met is True
+            answer = paraphrase
+            paraphrase_used = True
+        envelope = placement.apply_answer(envelope, item, answer)
+
+    assert paraphrase_used is True
+    assert placement.placement_status(envelope) == "target_ready"
+    assert envelope.state.terminal_reason == "all_required_tracks_ready"
 
 
 @pytest.mark.parametrize(

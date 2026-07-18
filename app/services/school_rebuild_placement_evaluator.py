@@ -9,6 +9,7 @@ from typing import Any, Literal
 from app.content.school_rebuild_placement_bank import (
     PlacementSemanticClaimSlot,
     SchoolPlacementBankItem,
+    placement_bank_for,
 )
 from app.content.school_rebuild_placement_validation import (
     RUBRIC_REMEDIATION_BY_CRITERION,
@@ -154,16 +155,13 @@ class SchoolPlacementEvaluatorUnavailableError(RuntimeError):
     """Raised when placement evaluation cannot produce trusted evidence."""
 
 
-def grade_deterministic_placement_item(
+def deterministic_placement_answer_matches(
     item: SchoolPlacementBankItem,
     answer: str,
     *,
     language_detected: str = "en",
-) -> SchoolRubricEvaluation:
-    """Grade one deterministic item against every authored alternative."""
-
-    if item.evaluation_mode != "deterministic" or not item.accepted_answers:
-        raise ValueError("deterministic_placement_item_requires_accepted_answers")
+) -> bool:
+    """Match exact answers or a uniquely authored snapshot rubric sibling."""
 
     normalized_answer = normalize_placement_answer(answer)
     normalized_accepted = {
@@ -175,10 +173,72 @@ def grade_deterministic_placement_item(
         for slot in item.semantic_claim_slots
         for alias in slot.aliases
     )
-    # Deterministic grading is intentionally closed-world. Natural-language
-    # equivalence belongs to strict rubric items; inferring it here can turn a
-    # contradiction or role reversal into false placement evidence.
-    met = normalized_answer in normalized_accepted
+    if normalized_answer in normalized_accepted:
+        return True
+
+    rubric_item = _authored_snapshot_rubric_item(item)
+    if rubric_item is None:
+        return False
+    if rubric_item.rubric_ref == "school.strict.inference.v1":
+        return (
+            _authored_inference_fallback(
+                rubric_item,
+                answer,
+                language_detected=language_detected,
+            )
+            is not None
+        )
+    if rubric_item.rubric_ref == "school.strict.summary.v1":
+        return _authored_summary_response_verdict(rubric_item, answer) == "proven_true"
+    return authored_claim_response_verdict(rubric_item, answer) == "proven_true"
+
+
+def _authored_snapshot_rubric_item(
+    item: SchoolPlacementBankItem,
+) -> SchoolPlacementBankItem | None:
+    """Return the sole private rubric source for a generated quick-check."""
+
+    if (
+        item.stage != "snapshot"
+        or item.evaluation_mode != "deterministic"
+        or not item.passage.startswith("Quick check: ")
+        or not item.prompt.startswith("Quick check: ")
+    ):
+        return None
+
+    source_passage = item.passage.removeprefix("Quick check: ")
+    source_prompt = item.prompt.removeprefix("Quick check: ")
+    matches = tuple(
+        candidate
+        for candidate in placement_bank_for(item.subject_id, item.target_class_no)
+        if (
+            candidate.track_id == item.track_id
+            and candidate.source_class_no == item.source_class_no
+            and candidate.primary_skill_id == item.primary_skill_id
+            and candidate.rubric_ref is not None
+            and candidate.passage == source_passage
+            and candidate.prompt == source_prompt
+        )
+    )
+    return matches[0] if len(matches) == 1 else None
+
+
+def grade_deterministic_placement_item(
+    item: SchoolPlacementBankItem,
+    answer: str,
+    *,
+    language_detected: str = "en",
+) -> SchoolRubricEvaluation:
+    """Grade one deterministic item against every authored alternative."""
+
+    if item.evaluation_mode != "deterministic" or not item.accepted_answers:
+        raise ValueError("deterministic_placement_item_requires_accepted_answers")
+
+    met = deterministic_placement_answer_matches(
+        item,
+        answer,
+        language_detected=language_detected,
+    )
     score = 1.0 if met else 0.0
     return SchoolRubricEvaluation(
         schema_version=RUBRIC_SCHEMA_VERSION,

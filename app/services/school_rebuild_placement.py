@@ -19,7 +19,9 @@ from app.content.school_rebuild_placement_bank import (
     placement_tracks_for,
     public_placement_item,
 )
-from app.content.school_rebuild_placement_validation import normalize_placement_answer
+from app.services.school_rebuild_placement_evaluator import (
+    deterministic_placement_answer_matches,
+)
 from app.services.school_core.readiness import (
     AttemptEvidence,
     SkillReadinessState,
@@ -753,10 +755,7 @@ def find_item(envelope: PlacementEnvelope, item_id: str) -> SchoolPlacementBankI
 
 
 def answer_matches(item: SchoolPlacementBankItem, answer: str) -> bool:
-    normalized = normalize_placement_answer(answer)
-    return normalized in {
-        normalize_placement_answer(value) for value in item.accepted_answers
-    }
+    return deterministic_placement_answer_matches(item, answer)
 
 
 def readiness_summary(
@@ -959,7 +958,7 @@ def _finish_targeted_on_budget(
                 resolved,
                 reason=(
                     confirmation_reason
-                    or "stage_two_question_limit"
+                    or budget_reason
                 ),
             )
         track_states[track_id] = resolved

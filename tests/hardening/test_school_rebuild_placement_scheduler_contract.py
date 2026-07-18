@@ -231,6 +231,26 @@ def test_targeted_learner_budget_finalizes_nonblocking_evidence_to_a_watchlist()
     assert envelope.state.track_states[inference.track_id].status == "unresolved"
 
 
+def test_targeted_learner_budget_reason_is_preserved_on_the_watchlist_track():
+    inference = _class_five_inference_track()
+    envelope = _finish_snapshots(
+        placement.new_placement_envelope(_profile()),
+        exceptional_track_id=inference.track_id,
+        exceptional_score=0.70,
+    )
+
+    envelope = _answer(
+        envelope,
+        0.0,
+        learner_seconds=placement.TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS,
+    )
+
+    assert (
+        envelope.state.track_states[inference.track_id].unresolved_reason
+        == "targeted_diagnostic_learner_time_budget_exhausted"
+    )
+
+
 def test_targeted_resolving_answer_at_exact_stage_boundary_is_honored():
     inference = _class_five_inference_track()
     envelope = _finish_snapshots(
