@@ -307,6 +307,8 @@ def _traceable_passage_evidence(activity: dict, answer: str) -> str | None:
 async def evaluate_school_open_answer(
     activity: dict,
     answer: str,
+    *,
+    timeout_seconds: float | None = None,
 ) -> SchoolRubricEvaluation:
     """Evaluate one School long-writing answer with one provider call."""
 
@@ -351,11 +353,19 @@ async def evaluate_school_open_answer(
                     timeout=None,
                 )
             else:
-                evaluation = await structured_generate(
-                    "school_open_answer",
-                    prompt,
-                    response_schema,
-                )
+                if timeout_seconds is None:
+                    evaluation = await structured_generate(
+                        "school_open_answer",
+                        prompt,
+                        response_schema,
+                    )
+                else:
+                    evaluation = await structured_generate(
+                        "school_open_answer",
+                        prompt,
+                        response_schema,
+                        timeout=timeout_seconds,
+                    )
     except SchoolOpenAnswerRetryableError:
         raise
     except ValidationError as exc:

@@ -1047,6 +1047,27 @@ async def test_school_open_answer_uses_selected_nonlocal_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_school_open_answer_forwards_an_explicit_worker_timeout(monkeypatch):
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    captured: list[float | None] = []
+
+    async def fake_structured(operation, prompt, schema, *, timeout=None):
+        del operation, prompt
+        captured.append(timeout)
+        return schema.model_validate(_evaluation().model_dump(mode="python"))
+
+    monkeypatch.setattr(open_answer_ai, "structured_generate", fake_structured)
+
+    await open_answer_ai.evaluate_school_open_answer(
+        ACTIVITY,
+        LEARNER_ANSWER,
+        timeout_seconds=17.5,
+    )
+
+    assert captured == [17.5]
+
+
+@pytest.mark.asyncio
 async def test_school_open_answer_requires_a_local_qwen_model(monkeypatch):
     class NonQwenSettings:
         ai_backend = "local"
