@@ -979,6 +979,12 @@ class PgStore:
         async with _session() as s:
             return await repo.enqueue_school_evaluation_job(s, **kwargs)
 
+    async def claim_and_enqueue_school_evaluation_job(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.claim_and_enqueue_school_evaluation_job(s, **kwargs)
+
     async def claim_school_evaluation_job(
         self,
         lease_owner: str = "school-evaluation-worker",
@@ -998,6 +1004,12 @@ class PgStore:
 
         async with _session() as s:
             return await repo.heartbeat_school_evaluation_job(s, **kwargs)
+
+    async def terminalize_school_evaluation_job(self, **kwargs) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.terminalize_school_evaluation_job(s, **kwargs)
 
     async def complete_school_evaluation_job(self, **kwargs) -> dict | None:
         from app.db import repo

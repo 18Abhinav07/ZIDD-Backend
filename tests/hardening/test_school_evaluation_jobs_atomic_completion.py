@@ -186,6 +186,9 @@ def test_new_claim_resets_only_a_terminal_job(terminal_status: str):
                 activity_id=job["activity_id"],
                 answer_hash=job["answer_hash"],
                 answer_claim_token=job["answer_claim_token"],
+                lease_owner=job["lease_owner"],
+                lease_token=job["lease_token"],
+                lease_version=job["lease_version"],
             )
         )
     assert terminal is not None

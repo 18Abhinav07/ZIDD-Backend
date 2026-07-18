@@ -4,8 +4,11 @@ import asyncio
 import copy
 import hashlib
 import json
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+import pytest
 
 from app.db import repo
 from app.db import schema_guard
@@ -58,12 +61,23 @@ class _EvaluationJobSession:
                 "answer_hash": ANSWER_HASH,
                 "claim_token": ANSWER_CLAIM_TOKEN,
                 "status": "processing",
+                "response_json": None,
+                "updated_at": "created",
             }
         }
         self.jobs: dict[tuple[str, str], dict] = {}
         self.calls: list[tuple[str, dict]] = []
         self.commits = 0
         self.rollbacks = 0
+        self.fail_next_job_insert = False
+        self._transaction_snapshot: tuple[dict, dict] | None = None
+
+    def _begin_transaction(self) -> None:
+        if self._transaction_snapshot is None:
+            self._transaction_snapshot = (
+                copy.deepcopy(self.answer_requests),
+                copy.deepcopy(self.jobs),
+            )
 
     async def execute(self, statement, params=None):
         sql = _normalized(str(statement))
@@ -72,7 +86,11 @@ class _EvaluationJobSession:
         key = (str(params.get("session_id") or ""), str(params.get("activity_id") or ""))
 
         if "pg_advisory_xact_lock" in sql:
+            self._begin_transaction()
             return _Result()
+
+        if sql.startswith("SELECT user_id, answer_hash, claim_token, status, response_json"):
+            return _Result(self.answer_requests.get(key))
 
         if sql.startswith("SELECT") and "FROM school_answer_requests" in sql:
             request = self.answer_requests.get(key)
@@ -85,13 +103,92 @@ class _EvaluationJobSession:
             )
             return _Result(request if matches else None)
 
+        if sql.startswith("INSERT INTO school_answer_requests"):
+            self.answer_requests[key] = {
+                "session_id": params["session_id"],
+                "activity_id": params["activity_id"],
+                "user_id": params["uid"],
+                "answer_hash": params["answer_hash"],
+                "claim_token": params["claim_token"],
+                "status": "processing",
+                "response_json": None,
+                "updated_at": "created",
+            }
+            return _Result()
+
+        if sql.startswith("UPDATE school_answer_requests"):
+            request = self.answer_requests.get(key)
+            if request is not None and request.get("user_id") == params.get("uid"):
+                request.update(
+                    answer_hash=params["answer_hash"],
+                    claim_token=params["claim_token"],
+                    status="processing",
+                    response_json=None,
+                    updated_at="claimed",
+                )
+            return _Result()
+
+        if sql.startswith("WITH terminal_candidates"):
+            for job_key, job in self.jobs.items():
+                deadline_expired = job.get("created_at") == "deadline-expired"
+                recovery_expired = bool(
+                    job.get("status") == "running"
+                    and job.get("lease_expires_at") == "expired"
+                    and job.get("attempts", 0) > job.get("max_attempts", 0)
+                )
+                if not (deadline_expired or recovery_expired):
+                    continue
+                error_code = (
+                    "evaluation_deadline_exceeded"
+                    if deadline_expired
+                    else "evaluation_recovery_lease_expired"
+                )
+                job.update(
+                    status="failed",
+                    last_error_code=error_code,
+                    error_json={"reason": error_code},
+                    response_json=None,
+                    result_data=None,
+                    lease_owner=None,
+                    lease_token=None,
+                    lease_expires_at=None,
+                    failed_at="failed",
+                    updated_at="failed",
+                )
+                request = self.answer_requests.get(job_key)
+                if (
+                    request
+                    and request.get("user_id") == job.get("user_id")
+                    and request.get("answer_hash") == job.get("answer_hash")
+                    and request.get("claim_token") == job.get("answer_claim_token")
+                    and request.get("status") == "processing"
+                ):
+                    request.update(
+                        status="failed",
+                        response_json=None,
+                        updated_at="failed",
+                    )
+            return _Result(scalar=0)
+
         if sql.startswith("WITH candidate") and "UPDATE school_evaluation_jobs AS job" in sql:
-            for job in self.jobs.values():
-                claimable = job["status"] == "queued" or (
+            for job_key, job in self.jobs.items():
+                request = self.answer_requests.get(job_key)
+                current_claim = bool(
+                    request
+                    and request.get("status") == "processing"
+                    and request.get("user_id") == job.get("user_id")
+                    and request.get("answer_hash") == job.get("answer_hash")
+                    and request.get("claim_token") == job.get("answer_claim_token")
+                )
+                claimable = (
+                    job["status"] == "queued"
+                    and job["attempts"] < job["max_attempts"]
+                ) or (
                     job["status"] == "running"
                     and job.get("lease_expires_at") == "expired"
+                    and job["attempts"] <= job["max_attempts"]
                 )
-                if not claimable or job["attempts"] >= job["max_attempts"]:
+                if not current_claim or not claimable:
                     continue
                 job["status"] = "running"
                 job["attempts"] += 1
@@ -131,6 +228,9 @@ class _EvaluationJobSession:
             return _Result(job)
 
         if sql.startswith("INSERT INTO school_evaluation_jobs"):
+            if self.fail_next_job_insert:
+                self.fail_next_job_insert = False
+                raise RuntimeError("injected_school_evaluation_job_insert")
             job = {
                 "session_id": params["session_id"],
                 "activity_id": params["activity_id"],
@@ -179,6 +279,14 @@ class _EvaluationJobSession:
             and job.get("lease_token") == params.get("lease_token")
             and job.get("lease_version") == params.get("lease_version")
             and job.get("lease_expires_at") == "active"
+        )
+        request = self.answer_requests.get(key)
+        matches_current_request = bool(
+            request
+            and request.get("user_id") == params.get("uid")
+            and request.get("answer_hash") == params.get("answer_hash")
+            and request.get("claim_token") == params.get("answer_claim_token")
+            and request.get("status") == "processing"
         )
         if "SET user_id = :uid" in sql:
             if job is None or job.get("status") not in {"failed", "cancelled"}:
@@ -232,8 +340,45 @@ class _EvaluationJobSession:
                 updated_at="retried",
             )
             return _Result(job)
+        if "released_request AS" in sql:
+            if (
+                not matches_identity
+                or job["status"] != "running"
+                or not matches_current_request
+            ):
+                return _Result()
+            job.update(
+                status="failed",
+                last_error_code=params["last_error_code"],
+                error_json=json.loads(params["error_json"])
+                if params.get("error_json")
+                else None,
+                response_json=None,
+                result_data=None,
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+                failed_at="failed",
+                updated_at="failed",
+            )
+            request.update(
+                status="failed",
+                response_json=None,
+                updated_at="failed",
+            )
+            return _Result(job)
         if "SET status = 'cancelled'" in sql:
-            if not matches_job_identity or job["status"] not in {"queued", "running"}:
+            queued = bool(
+                matches_job_identity
+                and job["status"] == "queued"
+                and matches_current_request
+            )
+            fenced_running = bool(
+                matches_identity
+                and job["status"] == "running"
+                and matches_current_request
+            )
+            if not (queued or fenced_running):
                 return _Result()
             job.update(
                 status="cancelled",
@@ -286,20 +431,29 @@ class _EvaluationJobSession:
             )
             return _Result(job)
 
-        if "SET lease_expires_at" in sql:
-            if not matches_identity or job["status"] != "running":
+        if "renewed_request AS" in sql:
+            if (
+                not matches_identity
+                or job["status"] != "running"
+                or not matches_current_request
+            ):
                 return _Result(scalar=None)
             job["lease_expires_at"] = "active"
             job["updated_at"] = "heartbeated"
+            request["updated_at"] = "heartbeated"
             return _Result(scalar=job["activity_id"])
 
         return _Result()
 
     async def commit(self):
         self.commits += 1
+        self._transaction_snapshot = None
 
     async def rollback(self):
         self.rollbacks += 1
+        if self._transaction_snapshot is not None:
+            self.answer_requests, self.jobs = self._transaction_snapshot
+        self._transaction_snapshot = None
 
 
 def _enqueue(session: _EvaluationJobSession, **overrides):
@@ -351,6 +505,137 @@ def _complete(
         response_json={"visible_feedback": "Good evidence."},
         result_data={"score": 0.8, "passed": True},
     ))
+
+
+def _claim_and_enqueue_payload(**overrides) -> dict:
+    payload = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+        "activity_id": ACTIVITY_ID,
+        "raw_answer": "Because the character used evidence from the chapter.",
+        "expected_state_json": {
+            "chapter_id": "eng_c3_ch01",
+            "current_activity_id": ACTIVITY_ID,
+        },
+        "answer_hash": ANSWER_HASH,
+        "flow_type": "curriculum",
+        "evaluation_mode": "open_answer",
+        "max_attempts": 2,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_claim_and_enqueue_recovers_a_no_job_claim_and_preserves_outcomes():
+    claim_and_enqueue = getattr(repo, "claim_and_enqueue_school_evaluation_job", None)
+    assert callable(claim_and_enqueue)
+
+    crashed_claim = _EvaluationJobSession()
+    queued = _run(claim_and_enqueue(
+        crashed_claim,
+        **_claim_and_enqueue_payload(),
+    ))
+    assert queued["outcome"] == "queued"
+    assert queued["claim_token"] == ANSWER_CLAIM_TOKEN
+    assert queued["job"]["status"] == "queued"
+    assert "raw_answer" not in queued["job"]
+    assert crashed_claim.jobs[(SESSION_ID, ACTIVITY_ID)]["answer_claim_token"] == (
+        ANSWER_CLAIM_TOKEN
+    )
+    lock_keys = [
+        params["lock_key"]
+        for sql, params in crashed_claim.calls
+        if "pg_advisory_xact_lock" in sql
+    ]
+    assert f"school-answer:{SESSION_ID}:{ACTIVITY_ID}" in lock_keys
+    assert f"school-evaluation-job:{SESSION_ID}:{ACTIVITY_ID}" in lock_keys
+    assert crashed_claim.commits == 1
+
+    existing = _run(claim_and_enqueue(
+        crashed_claim,
+        **_claim_and_enqueue_payload(),
+    ))
+    assert existing["outcome"] == "in_progress"
+    assert existing["claim_token"] == ANSWER_CLAIM_TOKEN
+    assert existing["job"]["status"] == "queued"
+    assert "raw_answer" not in existing["job"]
+
+    completed = _EvaluationJobSession()
+    completed.answer_requests[(SESSION_ID, ACTIVITY_ID)].update(
+        status="completed",
+        response_json={"feedback": "Already recorded."},
+    )
+    replay = _run(claim_and_enqueue(
+        completed,
+        **_claim_and_enqueue_payload(),
+    ))
+    assert replay == {
+        "outcome": "completed",
+        "response_json": {"feedback": "Already recorded."},
+    }
+
+    conflict = _run(claim_and_enqueue(
+        _EvaluationJobSession(),
+        **_claim_and_enqueue_payload(answer_hash="different-answer-sha"),
+    ))
+    assert conflict == {"outcome": "conflict"}
+
+
+def test_claim_and_enqueue_rolls_back_a_reclaimed_request_when_job_write_fails():
+    claim_and_enqueue = getattr(repo, "claim_and_enqueue_school_evaluation_job", None)
+    assert callable(claim_and_enqueue)
+
+    session = _EvaluationJobSession()
+    session.answer_requests[(SESSION_ID, ACTIVITY_ID)].update(status="failed")
+    session.fail_next_job_insert = True
+
+    with pytest.raises(RuntimeError, match="injected_school_evaluation_job_insert"):
+        _run(claim_and_enqueue(session, **_claim_and_enqueue_payload()))
+
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+    assert session.jobs == {}
+    assert session.rollbacks == 1
+
+
+def test_in_memory_claim_and_enqueue_matches_atomic_claim_outcomes():
+    store = InMemoryStore()
+    store.school_sessions[(USER_ID, SESSION_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+    }
+    crashed_claim = _run(store.claim_school_answer_request(
+        USER_ID,
+        SESSION_ID,
+        ACTIVITY_ID,
+        ANSWER_HASH,
+    ))
+    claim_and_enqueue = getattr(store, "claim_and_enqueue_school_evaluation_job", None)
+    assert callable(claim_and_enqueue)
+
+    queued = _run(claim_and_enqueue(**_claim_and_enqueue_payload()))
+    assert queued["outcome"] == "queued"
+    assert queued["claim_token"] == crashed_claim["claim_token"]
+    assert "raw_answer" not in queued["job"]
+    assert store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)][
+        "answer_claim_token"
+    ] == crashed_claim["claim_token"]
+
+    existing = _run(claim_and_enqueue(**_claim_and_enqueue_payload()))
+    assert existing["outcome"] == "in_progress"
+    assert existing["job"]["status"] == "queued"
+
+    store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)].update(
+        status="completed",
+        response_json={"feedback": "Already recorded."},
+    )
+    replay = _run(claim_and_enqueue(**_claim_and_enqueue_payload()))
+    assert replay == {
+        "outcome": "completed",
+        "response_json": {"feedback": "Already recorded."},
+    }
+    assert _run(claim_and_enqueue(
+        **_claim_and_enqueue_payload(answer_hash="different-answer-sha")
+    )) == {"outcome": "conflict"}
 
 
 def test_schema_and_migration_define_one_to_one_server_only_evaluation_jobs():
@@ -785,10 +1070,12 @@ def test_in_memory_store_matches_job_claim_fencing_and_safe_status_contract():
 def test_pg_store_exposes_and_delegates_the_safe_job_status_read():
     for method_name in (
         "enqueue_school_evaluation_job",
+        "claim_and_enqueue_school_evaluation_job",
         "get_school_evaluation_job",
         "get_school_evaluation_job_status",
         "claim_school_evaluation_job",
         "heartbeat_school_evaluation_job",
+        "terminalize_school_evaluation_job",
         "complete_school_evaluation_job",
         "fail_school_evaluation_job",
         "retry_school_evaluation_job",
@@ -864,7 +1151,9 @@ def test_stale_lease_reclaim_fences_old_worker_completion():
     ) is None
 
     claim_sql = next(
-        sql for sql, _ in session.calls if "UPDATE school_evaluation_jobs AS job" in sql
+        sql
+        for sql, _ in session.calls
+        if sql.startswith("WITH candidate AS")
     )
     assert "FOR UPDATE SKIP LOCKED" in claim_sql
     assert "status = 'queued'" in claim_sql
@@ -935,7 +1224,10 @@ def test_heartbeat_fail_and_completion_reject_mismatched_identity_or_lease():
         sql for sql, _ in session.calls if "SET lease_expires_at" in sql
     )
     failure_sql = next(
-        sql for sql, _ in session.calls if "SET status = 'failed'" in sql
+        sql
+        for sql, _ in session.calls
+        if sql.startswith("UPDATE school_evaluation_jobs")
+        and "SET status = 'failed'" in sql
     )
     for sql in (heartbeat_sql, failure_sql):
         for predicate in (
@@ -948,3 +1240,352 @@ def test_heartbeat_fail_and_completion_reject_mismatched_identity_or_lease():
             "lease_expires_at > now()",
         ):
             assert predicate in sql
+
+
+def test_fenced_heartbeat_renews_only_its_matching_processing_request():
+    session = _EvaluationJobSession()
+    _enqueue(session)
+    claimed = _claim(session)
+    assert claimed is not None
+
+    request = session.answer_requests[(SESSION_ID, ACTIVITY_ID)]
+    request["updated_at"] = "stale-before-heartbeat"
+    assert _run(repo.heartbeat_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        lease_seconds=45,
+    )) is True
+    assert request["updated_at"] == "heartbeated"
+
+    session.jobs[(SESSION_ID, ACTIVITY_ID)]["lease_expires_at"] = "expired"
+    request["updated_at"] = "stale-after-lost-lease"
+    assert _run(repo.heartbeat_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        lease_seconds=45,
+    )) is False
+    assert request["updated_at"] == "stale-after-lost-lease"
+
+    heartbeat_sql = [
+        sql for sql, _ in session.calls if "SET lease_expires_at" in sql
+    ][-1]
+    assert "FOR UPDATE" in heartbeat_sql
+    assert "UPDATE school_answer_requests AS request" in heartbeat_sql
+    assert "SET updated_at = now()" in heartbeat_sql
+    assert "raw_answer" not in heartbeat_sql
+
+
+def test_in_memory_heartbeat_keeps_processing_request_non_stale_and_rejects_lost_lease():
+    store = InMemoryStore()
+    store.school_sessions[(USER_ID, SESSION_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+    }
+    answer_claim = _run(store.claim_school_answer_request(
+        USER_ID,
+        SESSION_ID,
+        ACTIVITY_ID,
+        ANSWER_HASH,
+    ))
+    _run(store.enqueue_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        raw_answer="The learner's private answer.",
+        expected_state_json={"current_activity_id": ACTIVITY_ID},
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        flow_type="curriculum",
+        evaluation_mode="open_answer",
+    ))
+    claimed = _run(store.claim_school_evaluation_job("in-memory-worker", lease_seconds=45))
+    assert claimed is not None
+
+    request = store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]
+    request["updated_at"] = time.time() - store.SCHOOL_ANSWER_REQUEST_STALE_SECONDS - 1
+    assert _run(store.get_school_answer_request(
+        USER_ID, SESSION_ID, ACTIVITY_ID
+    ))["stale"] is True
+    assert _run(store.heartbeat_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        lease_seconds=45,
+    )) is True
+    assert _run(store.get_school_answer_request(
+        USER_ID, SESSION_ID, ACTIVITY_ID
+    ))["stale"] is False
+
+    request["updated_at"] = time.time() - store.SCHOOL_ANSWER_REQUEST_STALE_SECONDS - 1
+    store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["lease_expires_at"] = (
+        time.time() - 1
+    )
+    assert _run(store.heartbeat_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        lease_seconds=45,
+    )) is False
+    assert _run(store.get_school_answer_request(
+        USER_ID, SESSION_ID, ACTIVITY_ID
+    ))["stale"] is True
+
+
+def test_in_memory_school_state_snapshot_matches_processing_request_staleness():
+    store = InMemoryStore()
+    now = time.time()
+    profile_version_id = "profile-v1"
+    report_id = "report-v1"
+    store.school_profile_versions[(USER_ID, profile_version_id)] = {
+        "user_id": USER_ID,
+        "profile_version_id": profile_version_id,
+        "status": "active",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "updated_at": now,
+    }
+    store.school_placement_reports[(USER_ID, report_id)] = {
+        "user_id": USER_ID,
+        "report_id": report_id,
+        "profile_version_id": profile_version_id,
+        "subject_id": "english",
+        "target_class_no": 5,
+        "updated_at": now,
+    }
+    store.school_sessions[(USER_ID, SESSION_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+        "api_version": "rebuild",
+        "profile_version_id": profile_version_id,
+        "subject_id": "english",
+        "class_no": 5,
+        "flow_type": "curriculum",
+        "status": "active",
+        "source_placement_report_id": report_id,
+        "updated_at": now,
+    }
+    store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+        "activity_id": ACTIVITY_ID,
+        "answer_hash": ANSWER_HASH,
+        "claim_token": ANSWER_CLAIM_TOKEN,
+        "status": "processing",
+        "response_json": None,
+        "updated_at": now - store.SCHOOL_ANSWER_REQUEST_STALE_SECONDS - 1,
+    }
+
+    stale_snapshot = _run(store.get_school_state_snapshot(USER_ID))
+    stale_request = stale_snapshot["processing_answer_requests"][0]
+    assert stale_request["age_seconds"] >= store.SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+    assert stale_request["stale"] is True
+
+    store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]["updated_at"] = time.time()
+    fresh_snapshot = _run(store.get_school_state_snapshot(USER_ID))
+    fresh_request = fresh_snapshot["processing_answer_requests"][0]
+    assert fresh_request["age_seconds"] < store.SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+    assert fresh_request["stale"] is False
+
+
+def test_expired_final_attempt_gets_one_fenced_recovery_then_releases_request():
+    session = _EvaluationJobSession()
+    _enqueue(session, max_attempts=1)
+    final_attempt = _claim(session)
+    assert final_attempt is not None
+    session.jobs[(SESSION_ID, ACTIVITY_ID)]["lease_expires_at"] = "expired"
+
+    recovery = _claim(session, lease_owner="worker-recovery")
+    assert recovery is not None
+    assert recovery["attempts"] == 2
+    assert recovery["lease_version"] == final_attempt["lease_version"] + 1
+    assert recovery["lease_token"] != final_attempt["lease_token"]
+    assert _complete(
+        session,
+        lease_owner=final_attempt["lease_owner"],
+        lease_token=final_attempt["lease_token"],
+        lease_version=final_attempt["lease_version"],
+    ) is None
+
+    session.jobs[(SESSION_ID, ACTIVITY_ID)]["lease_expires_at"] = "expired"
+    assert _claim(session, lease_owner="worker-after-recovery") is None
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["lease_owner"] is None
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["lease_token"] is None
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+
+    claim_sql = next(
+        sql
+        for sql, _ in session.calls
+        if sql.startswith("WITH candidate AS")
+    )
+    assert "job.attempts <= job.max_attempts" in claim_sql
+    terminal_sql = next(
+        sql for sql, _ in session.calls if "evaluation_recovery_lease_expired" in sql
+    )
+    assert "UPDATE school_answer_requests AS request" in terminal_sql
+
+
+def test_evaluation_job_deadline_terminalizes_and_releases_the_processing_request():
+    session = _EvaluationJobSession()
+    _enqueue(session)
+    session.jobs[(SESSION_ID, ACTIVITY_ID)]["created_at"] = "deadline-expired"
+
+    assert _claim(session) is None
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["last_error_code"] == (
+        "evaluation_deadline_exceeded"
+    )
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+
+    deadline_sql = next(
+        sql for sql, _ in session.calls if "evaluation_deadline_exceeded" in sql
+    )
+    assert "job.created_at <= now()" in deadline_sql
+    assert "deadline_seconds" in deadline_sql
+
+
+def test_terminalize_fenced_job_releases_the_exact_processing_request_atomically():
+    terminalize = getattr(repo, "terminalize_school_evaluation_job", None)
+    assert callable(terminalize)
+
+    session = _EvaluationJobSession()
+    _enqueue(session)
+    claimed = _claim(session)
+    assert claimed is not None
+
+    assert _run(terminalize(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token="lost-lease-token",
+        lease_version=claimed["lease_version"],
+        last_error_code="evaluation_runner_stopped",
+    )) is None
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
+
+    terminalized = _run(terminalize(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        last_error_code="evaluation_runner_stopped",
+        error_json={"reason": "runner_stopped"},
+    ))
+    assert terminalized is not None
+    assert terminalized["status"] == "failed"
+    assert terminalized["lease_owner"] is None
+    assert terminalized["lease_token"] is None
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["response_json"] is None
+    assert _complete(
+        session,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+    ) is None
+
+    terminal_sql = [
+        sql
+        for sql, _ in session.calls
+        if "terminalized_job AS" in sql and "released_request AS" in sql
+    ][-1]
+    assert "FOR UPDATE" in terminal_sql
+    assert "UPDATE school_evaluation_jobs AS job" in terminal_sql
+    assert "UPDATE school_answer_requests AS request" in terminal_sql
+    assert "raw_answer" not in terminal_sql
+
+    terminalized_job_cte = terminal_sql.split("terminalized_job AS (", 1)[1].split(
+        "), released_request AS", 1
+    )[0]
+    returned_job_fields = terminalized_job_cte.split("RETURNING", 1)[1]
+    assert "job.user_id" in returned_job_fields
+    assert "job.answer_hash" in returned_job_fields
+    assert "job.answer_claim_token" in returned_job_fields
+
+
+def test_running_cancellation_requires_the_current_lease_fence():
+    session = _EvaluationJobSession()
+    _enqueue(session)
+    claimed = _claim(session)
+    assert claimed is not None
+
+    assert _run(repo.cancel_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+    )) is None
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
+
+    assert _run(repo.cancel_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token="lost-lease-token",
+        lease_version=claimed["lease_version"],
+    )) is None
+
+    cancelled = _run(repo.cancel_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+    ))
+    assert cancelled is not None
+    assert cancelled["status"] == "cancelled"
+
+    cancellation_sql = [
+        sql for sql, _ in session.calls if "SET status = 'cancelled'" in sql
+    ][-1]
+    for predicate in (
+        "lease_owner = :lease_owner",
+        "lease_token = :lease_token",
+        "lease_version = :lease_version",
+        "lease_expires_at > now()",
+    ):
+        assert predicate in cancellation_sql
