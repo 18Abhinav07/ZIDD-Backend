@@ -201,11 +201,12 @@ def test_class_map_orders_chapters_and_exposes_progression_safe_summaries(store)
     )
     assert body["chapters"][0] == {
         "chapter_id": "eng_c3_ch01",
-        "chapter_no": 1,
-        "title": "Colours",
-        "status": "ready",
-        "completed_levels": 0,
-        "total_levels": 5,
+            "chapter_no": 1,
+            "title": "Colours",
+            "status": "ready",
+            "review_due": False,
+            "completed_levels": 0,
+        "total_levels": 6,
         "active_session_id": None,
     }
     assert {chapter["status"] for chapter in body["chapters"][1:]} == {"locked"}
@@ -244,8 +245,8 @@ def test_class_map_summarizes_real_school_growth_without_skill_ids(store):
     assert response.status_code == 200
     assert response.json()["recent_growth"] == {
         "improving_count": 1,
-        "strong_count": 1,
-        "active_focus_count": 1,
+        "strong_count": 0,
+        "active_focus_count": 2,
     }
     assert "reading.inference_reason" not in response.text
 
@@ -276,11 +277,13 @@ def test_chapter_map_returns_ordered_learner_stages_without_hidden_keys(store):
         "Discover",
         "Practise Together",
         "Practise Together",
+        "Practise Together",
         "Try It Yourself",
         "Use It Somewhere New",
     ]
     assert [level["status"] for level in body["levels"]] == [
         "ready",
+        "locked",
         "locked",
         "locked",
         "locked",
@@ -424,6 +427,138 @@ def test_catalog_expires_active_session_when_authored_content_version_changed(st
     expired = store.school_sessions[("test_user", session_id)]
     assert expired["status"] == "expired"
     assert expired["state_json"]["phase"] == "content_refresh_required"
+
+
+def test_school_state_recovers_to_start_curriculum_after_content_refresh(store):
+    _unlock_target_curriculum(store)
+    client = TestClient(app)
+    started = _start(client, "eng_c3_ch01", "stale-state-start")
+    assert started.status_code == 200
+    session_id = started.json()["session_id"]
+    row = store.school_sessions[("test_user", session_id)]
+    row["state_json"]["chapter"]["content_version"] = "obsolete-content-version"
+
+    class_map = client.get("/school/catalog/english/classes/3", headers=AUTH)
+    state = client.get("/school/state", headers=AUTH)
+
+    assert class_map.status_code == 200
+    assert state.status_code == 200
+    assert state.json()["status"] == "ready"
+    assert state.json()["next_action"] == "start_curriculum"
+    assert state.json()["unlock_state"] == "target_unlocked"
+    assert state.json()["blocked_reason"] is None
+
+
+def test_content_refresh_restart_preserves_completed_chapter_progression(store):
+    _unlock_target_curriculum(store)
+    client = TestClient(app)
+
+    first = _start(client, "eng_c3_ch01", "completed-first-chapter")
+    assert first.status_code == 200
+    first_session_id = first.json()["session_id"]
+    first_row = store.school_sessions[("test_user", first_session_id)]
+    first_state = copy.deepcopy(first_row["state_json"])
+    first_chapter = dict(first_state["chapter"])
+    first_state.update(
+        {
+            "status": "complete",
+            "phase": "complete",
+            "completed_chapter_ids": ["eng_c3_ch01"],
+            "completed_chapter_versions": {
+                "eng_c3_ch01": first_chapter["content_version"],
+            },
+            "completed_chapter_certification_versions": {
+                "eng_c3_ch01": first_chapter.get("certification_version")
+                or first_chapter["content_version"],
+            },
+        }
+    )
+    _run(
+        store.upsert_school_session(
+            session_id=first_session_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="complete",
+            current_stage=str(first_row.get("current_stage") or ""),
+            linked_session_id=first_row.get("linked_session_id"),
+            profile_version_id=first_row["profile_version_id"],
+            source_placement_report_id=first_row["source_placement_report_id"],
+            state_json=first_state,
+        )
+    )
+
+    second = _start(client, "eng_c3_ch02", "stale-second-chapter")
+    assert second.status_code == 200
+    second_session_id = second.json()["session_id"]
+    second_row = store.school_sessions[("test_user", second_session_id)]
+    second_row["state_json"]["chapter"]["content_version"] = (
+        "obsolete-content-version"
+    )
+
+    class_map = client.get("/school/catalog/english/classes/3", headers=AUTH)
+    restarted = _start(client, "eng_c3_ch02", "restart-second-chapter")
+
+    assert class_map.status_code == 200
+    assert class_map.json()["chapters"][0]["status"] == "complete"
+    assert class_map.json()["chapters"][1]["status"] == "ready"
+    assert restarted.status_code == 200
+    assert restarted.json()["session_id"] != second_session_id
+
+
+def test_completed_certification_update_preserves_progress_and_marks_review_due(store):
+    _unlock_target_curriculum(store)
+    client = TestClient(app)
+
+    first = _start(client, "eng_c3_ch01", "completed-before-certification-update")
+    assert first.status_code == 200
+    first_session_id = first.json()["session_id"]
+    first_row = store.school_sessions[("test_user", first_session_id)]
+    first_state = copy.deepcopy(first_row["state_json"])
+    first_chapter = dict(first_state["chapter"])
+    first_state.update(
+        {
+            "status": "complete",
+            "phase": "complete",
+            "completed_chapter_ids": ["eng_c3_ch01"],
+            "completed_chapter_versions": {
+                "eng_c3_ch01": first_chapter["content_version"],
+            },
+            "completed_chapter_certification_versions": {
+                "eng_c3_ch01": "superseded-certification-version",
+            },
+        }
+    )
+    _run(
+        store.upsert_school_session(
+            session_id=first_session_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="complete",
+            current_stage=str(first_row.get("current_stage") or ""),
+            linked_session_id=first_row.get("linked_session_id"),
+            profile_version_id=first_row["profile_version_id"],
+            source_placement_report_id=first_row["source_placement_report_id"],
+            state_json=first_state,
+        )
+    )
+
+    class_map = client.get("/school/catalog/english/classes/3", headers=AUTH)
+    second = _start(client, "eng_c3_ch02", "start-after-certification-update")
+
+    assert class_map.status_code == 200
+    assert class_map.json()["active_chapter_id"] == "eng_c3_ch02"
+    assert class_map.json()["chapters"][0]["status"] == "complete"
+    assert class_map.json()["chapters"][0]["review_due"] is True
+    assert class_map.json()["chapters"][1]["status"] == "ready"
+    assert second.status_code == 200
+    assert second.json()["chapter"]["chapter_id"] == "eng_c3_ch02"
+    assert second.json()["review_due_chapter_ids"] == ["eng_c3_ch01"]
 
 
 def test_expired_curriculum_session_is_not_returned_as_current(monkeypatch):

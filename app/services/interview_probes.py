@@ -309,12 +309,16 @@ def build_interview_probe_plan(state: dict[str, Any]) -> list[dict[str, Any]]:
     if scenario_probe:
         probes.append(scenario_probe)
         seen_prompts.add(" ".join(scenario_probe["prompt"].lower().split()))
+    scenario_node_id = str(state.get("competency_node") or "").strip()
     deferred_probe_ids = _SCENARIO_DEFERRED_DEFAULT_PROBES.get(
         str((scenario_probe or {}).get("probe_id") or ""),
         set(),
     )
     for index, raw in enumerate(list(state.get("probe_items") or []) + default_interview_probes_for_role(role)):
         if not isinstance(raw, dict):
+            continue
+        raw_skill_id = str(raw.get("skill_id") or raw.get("skill") or "").strip()
+        if scenario_probe and raw_skill_id == scenario_node_id:
             continue
         probe = _normalise_probe(raw, index=index, role=role)
         if not probe:

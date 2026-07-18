@@ -5,6 +5,7 @@ rows. Every function takes an AsyncSession so the caller controls the txn
 boundary. Product runtime must use Supabase/Postgres; storage failures should
 surface to callers instead of silently losing learner state.
 """
+import asyncio
 import json
 import time
 from uuid import uuid4
@@ -14,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.skills import coerce_skill_id
+from app.db.cancellation import finish_cleanup
 
 _WEAKNESS_RECENCY_SECONDS = 30 * 24 * 60 * 60
 _WEAKNESS_SURFACE_CAP = 5
@@ -284,8 +286,16 @@ async def complete_onboarding(
                 END,
                 primary_motive = :primary_motive,
                 onboarding_completed_at = now(),
-                school_profile = CAST(:school_profile AS jsonb),
-                career_profile = CAST(:career_profile AS jsonb),
+                school_profile = CASE
+                    WHEN :primary_motive = 'school'
+                        THEN CAST(:school_profile AS jsonb)
+                    ELSE learner_profiles.school_profile
+                END,
+                career_profile = CASE
+                    WHEN :primary_motive = 'career'
+                        THEN CAST(:career_profile AS jsonb)
+                    ELSE learner_profiles.career_profile
+                END,
                 onboarding_state = '{}'::jsonb
             WHERE user_id = :uid
             RETURNING user_id, credits, demo_unlimited, display_name as name,
@@ -692,6 +702,8 @@ def _school_profile_draft_snapshot(row: dict) -> dict:
         "learner_goal": row.get("learner_goal"),
         "parent_goal": row.get("parent_goal"),
         "prior_difficulty_signals": list_value("prior_difficulty_signals"),
+        "coach_avatar_id": row.get("coach_avatar_id"),
+        "coach_palette_id": row.get("coach_palette_id"),
     }
 
 
@@ -774,6 +786,8 @@ async def save_school_profile_draft(
                         learner_goal = :learner_goal,
                         parent_goal = :parent_goal,
                         prior_difficulty_signals = CAST(:prior_difficulty_signals AS jsonb),
+                        coach_avatar_id = :coach_avatar_id,
+                        coach_palette_id = :coach_palette_id,
                         current_step = :current_step,
                         draft_revision = :draft_revision,
                         last_save_request_id = CAST(:request_id AS uuid),
@@ -802,6 +816,8 @@ async def save_school_profile_draft(
                     "prior_difficulty_signals": _school_profile_json_value(
                         values.get("prior_difficulty_signals")
                     ),
+                    "coach_avatar_id": values.get("coach_avatar_id"),
+                    "coach_palette_id": values.get("coach_palette_id"),
                     "current_step": int(current_step),
                     "draft_revision": next_revision,
                     "request_id": request_id,
@@ -836,6 +852,7 @@ async def save_school_profile_draft(
                          board_id, target_class_no, subject_ids,
                          preferred_teaching_language, english_comfort, learner_goal,
                          parent_goal, prior_difficulty_signals, current_step,
+                         coach_avatar_id, coach_palette_id,
                          draft_revision, last_save_request_id, last_save_payload_hash,
                          source_profile_version_id)
                     VALUES
@@ -843,7 +860,8 @@ async def save_school_profile_draft(
                          :school_name, :board_id, :target_class_no,
                          CAST(:subject_ids AS jsonb), :preferred_teaching_language,
                          :english_comfort, :learner_goal, :parent_goal,
-                         CAST(:prior_difficulty_signals AS jsonb), :current_step, 1,
+                         CAST(:prior_difficulty_signals AS jsonb), :current_step,
+                         :coach_avatar_id, :coach_palette_id, 1,
                          CAST(:request_id AS uuid), :payload_hash,
                          CAST(:source_profile_version_id AS uuid))
                     RETURNING *
@@ -866,6 +884,8 @@ async def save_school_profile_draft(
                     "prior_difficulty_signals": _school_profile_json_value(
                         values.get("prior_difficulty_signals")
                     ),
+                    "coach_avatar_id": values.get("coach_avatar_id"),
+                    "coach_palette_id": values.get("coach_palette_id"),
                     "current_step": int(current_step),
                     "request_id": request_id,
                     "payload_hash": payload_hash,
@@ -2556,6 +2576,60 @@ async def upsert_learner_skill_profile(
         await session.commit()
 
 
+async def reconcile_school_chapter_certification_projection(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    projection_evidence: dict,
+) -> list[dict]:
+    """Atomically backfill reconciled chapter certifications for School profiles."""
+
+    try:
+        await session.execute(
+            text(
+                "SELECT pg_advisory_xact_lock("
+                "hashtext('zidd_school_answer:' || :uid))"
+            ),
+            {"uid": user_id},
+        )
+        existing_profiles = (
+            await session.execute(
+                text(
+                    """
+                    SELECT user_id, domain, skill_id, module_id, task_type,
+                           mastery, readiness, confidence, attempts,
+                           strengths_json, gaps_json, evidence_json,
+                           recommended_next_action, source_summary
+                    FROM learner_skill_profiles
+                    WHERE user_id = :uid AND domain = 'school'
+                    FOR UPDATE
+                    """
+                ),
+                {"uid": user_id},
+            )
+        ).mappings().all()
+        from app.services.school.projection import (
+            SchoolAttemptEvidence,
+            derive_school_projection_delta,
+        )
+
+        profile_upserts = derive_school_projection_delta(
+            SchoolAttemptEvidence.from_dict(projection_evidence),
+            [dict(profile) for profile in existing_profiles],
+        )
+        for profile in profile_upserts:
+            profile["user_id"] = user_id
+            await upsert_learner_skill_profile(session, **profile, commit=False)
+        await session.commit()
+        return profile_upserts
+    except asyncio.CancelledError:
+        await finish_cleanup(session.rollback())
+        raise
+    except Exception:
+        await session.rollback()
+        raise
+
+
 async def record_learning_event_and_update_profile(
     session: AsyncSession,
     *,
@@ -2831,10 +2905,57 @@ async def get_school_learning_graph(session: AsyncSession, user_id: str) -> dict
         ),
         {"uid": user_id},
     )
+    school_sessions = await session.execute(
+        text(
+            """
+            SELECT session_id::text AS session_id, user_id, api_version,
+                   flow_type, subject_id, class_no, status, current_stage,
+                   linked_session_id::text AS linked_session_id,
+                   source_placement_report_id::text AS source_placement_report_id,
+                   started_at, updated_at, completed_at
+            FROM school_sessions
+            WHERE user_id = :uid AND api_version = 'rebuild'
+            ORDER BY updated_at DESC
+            LIMIT 200
+            """
+        ),
+        {"uid": user_id},
+    )
+    placement_reports = await session.execute(
+        text(
+            """
+            SELECT report.report_id::text AS report_id, report.user_id,
+                   report.profile_version_id::text AS profile_version_id,
+                   report.placement_session_id::text AS placement_session_id,
+                   report.placement_status, report.subject_id,
+                   report.target_class_no, report.evaluated_class_no,
+                   report.active_learning_class_no, report.unlock_state,
+                   report.blocking_skills_json, report.watchlist_skills_json,
+                   report.evidence_summary_json,
+                   report.recommended_recap_modules_json,
+                   report.learner_summary, report.parent_summary,
+                   report.allowed_next_actions_json,
+                   report.created_at, report.updated_at
+            FROM school_placement_reports AS report
+            JOIN school_sessions AS school_session
+              ON school_session.session_id = report.placement_session_id
+             AND school_session.user_id = report.user_id
+            WHERE report.user_id = :uid
+              AND school_session.api_version = 'rebuild'
+            ORDER BY report.updated_at DESC
+            LIMIT 50
+            """
+        ),
+        {"uid": user_id},
+    )
     return {
         "profiles": [dict(row) for row in profiles.mappings().all()],
-        "reports": [],
+        "reports": [
+            _school_placement_report_from_row(dict(row))
+            for row in placement_reports.mappings().all()
+        ],
         "events": [dict(row) for row in events.mappings().all()],
+        "sessions": [dict(row) for row in school_sessions.mappings().all()],
     }
 
 
@@ -4275,9 +4396,18 @@ async def get_or_create_active_school_placement_session(
         ):
             raise ValueError("stale_school_profile_lineage")
 
+    async def retire_legacy_conflicts() -> None:
+        await _retire_conflicting_legacy_school_placement_sessions(
+            session,
+            user_id=user_id,
+            subject_id=subject_id,
+            class_no=class_no,
+        )
+
     try:
         await _lock_school_profile_lineage(session, user_id)
         await authorize_expected_profile()
+        await retire_legacy_conflicts()
 
         winner = await get_active_school_session(
             session,
@@ -4317,6 +4447,7 @@ async def get_or_create_active_school_placement_session(
         try:
             await _lock_school_profile_lineage(session, user_id)
             await authorize_expected_profile()
+            await retire_legacy_conflicts()
         except Exception:
             await session.rollback()
             raise
@@ -4334,6 +4465,292 @@ async def get_or_create_active_school_placement_session(
             return winner
         await session.rollback()
         raise ValueError("school_session_start_conflict") from exc
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def present_school_placement_item(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    item_id: str,
+    force: bool = False,
+) -> dict:
+    """Stamp an item only after its placement row lock has been acquired."""
+
+    try:
+        from app.services.school_rebuild_placement import (
+            PRIVATE_PLACEMENT_TIMING_KEY,
+            envelope_from_json,
+            next_item,
+        )
+
+        await _lock_school_profile_lineage(session, user_id)
+        result = await session.execute(
+            text(
+                """
+                SELECT session_id::text AS session_id, user_id, api_version,
+                       flow_type, subject_id, class_no, status, current_stage,
+                       linked_session_id::text AS linked_session_id, state_json,
+                       profile_version_id::text AS profile_version_id,
+                       source_placement_report_id::text AS source_placement_report_id,
+                       started_at, updated_at, completed_at
+                FROM school_sessions
+                WHERE user_id = :uid
+                  AND session_id = CAST(:session_id AS uuid)
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id, "session_id": session_id},
+        )
+        selected = result.mappings().first()
+        if selected is None:
+            raise ValueError("placement_session_not_found")
+        row = dict(selected)
+        if (
+            row.get("api_version") != "rebuild"
+            or row.get("flow_type") != "placement"
+            or row.get("status") != "active"
+        ):
+            raise ValueError("placement_not_active")
+
+        state_json = dict(row.get("state_json") or {})
+        expected = next_item(envelope_from_json(state_json))
+        if expected is None or expected.item_id != item_id:
+            raise ValueError("unexpected_placement_item")
+        current = state_json.get(PRIVATE_PLACEMENT_TIMING_KEY)
+        if (
+            not force
+            and isinstance(current, dict)
+            and str(current.get("item_id") or "") == item_id
+            and current.get("presented_at")
+        ):
+            await session.commit()
+            return row
+
+        updated = await session.execute(
+            text(
+                """
+                UPDATE school_sessions
+                SET state_json = CAST(:state_json AS jsonb)
+                        || jsonb_build_object(
+                            CAST(:timing_key AS text),
+                            jsonb_build_object(
+                                'item_id', CAST(:item_id AS text),
+                                'presented_at', clock_timestamp()
+                            )
+                        ),
+                    updated_at = clock_timestamp()
+                WHERE user_id = :uid
+                  AND session_id = CAST(:session_id AS uuid)
+                  AND status = 'active'
+                RETURNING session_id::text AS session_id, user_id, api_version,
+                          flow_type, subject_id, class_no, status, current_stage,
+                          linked_session_id::text AS linked_session_id, state_json,
+                          profile_version_id::text AS profile_version_id,
+                          source_placement_report_id::text AS source_placement_report_id,
+                          started_at, updated_at, completed_at
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "state_json": json.dumps(state_json),
+                "timing_key": PRIVATE_PLACEMENT_TIMING_KEY,
+                "item_id": item_id,
+            },
+        )
+        presented = updated.mappings().first()
+        if presented is None:
+            raise ValueError("placement_presentation_conflict")
+        await session.commit()
+        return dict(presented)
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def _retire_conflicting_legacy_school_placement_sessions(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    subject_id: str,
+    class_no: int,
+) -> int:
+    """Terminalize an archived runtime that occupies the canonical flow slot."""
+
+    result = await session.execute(
+        text(
+            """
+            UPDATE school_sessions
+            SET status = 'abandoned',
+                completed_at = COALESCE(completed_at, now()),
+                updated_at = now(),
+                state_json = COALESCE(state_json, '{}'::jsonb)
+                    || jsonb_build_object(
+                        '_canonical_retirement',
+                        jsonb_build_object(
+                            'reason',
+                            'legacy_runtime_retired_for_canonical_placement',
+                            'retired_at',
+                            now()
+                        )
+                    )
+            WHERE user_id = :uid
+              AND flow_type = 'placement'
+              AND subject_id = :subject_id
+              AND class_no = :class_no
+              AND api_version <> 'rebuild'
+              AND status IN ('active', 'paused_for_masterclass')
+            """
+        ),
+        {
+            "uid": user_id,
+            "subject_id": subject_id,
+            "class_no": int(class_no),
+        },
+    )
+    return int(result.rowcount or 0)
+
+
+async def resume_school_placement_session(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    profile_version_id: str,
+    current_stage: str,
+    state_json: dict,
+) -> dict:
+    """Reopen one insufficient placement row without changing its lineage."""
+
+    try:
+        from app.services.school_rebuild_placement import (
+            validate_placement_resume_state_json,
+        )
+
+        await _lock_school_profile_lineage(session, user_id)
+        result = await session.execute(
+            text(
+                """
+                SELECT session_id::text AS session_id, user_id, api_version,
+                       flow_type, subject_id, class_no, status, current_stage,
+                       linked_session_id::text AS linked_session_id, state_json,
+                       profile_version_id::text AS profile_version_id,
+                       source_placement_report_id::text AS source_placement_report_id,
+                       started_at, updated_at, completed_at
+                FROM school_sessions
+                WHERE user_id = :uid
+                  AND session_id = CAST(:session_id AS uuid)
+                FOR UPDATE
+                """
+            ),
+            {"uid": user_id, "session_id": session_id},
+        )
+        row = result.mappings().first()
+        if row is None:
+            raise ValueError("placement_session_not_found")
+        current = dict(row)
+        if (
+            current.get("api_version") != "rebuild"
+            or current.get("flow_type") != "placement"
+            or str(current.get("profile_version_id") or "")
+            != str(profile_version_id)
+        ):
+            raise ValueError("placement_session_not_resumable")
+        if current.get("status") == "active":
+            await session.commit()
+            return current
+        if current.get("status") != "insufficient_evidence":
+            raise ValueError("placement_session_not_resumable")
+
+        profile_result = await session.execute(
+            text(
+                """
+                SELECT profile_version_id
+                FROM school_profile_versions
+                WHERE user_id = :uid
+                  AND profile_version_id = CAST(:profile_version_id AS uuid)
+                  AND status = 'active'
+                LIMIT 1
+                FOR SHARE
+                """
+            ),
+            {"uid": user_id, "profile_version_id": profile_version_id},
+        )
+        if profile_result.first() is None:
+            raise ValueError("stale_school_profile_lineage")
+        embedded_profile_version_id = (state_json or {}).get("profile_version_id")
+        if (
+            embedded_profile_version_id not in (None, "")
+            and str(embedded_profile_version_id) != str(profile_version_id)
+        ):
+            raise ValueError("school_session_lineage_conflict")
+        if str((state_json or {}).get("placement_state", {}).get("stage") or "") != str(
+            current_stage
+        ):
+            raise ValueError("placement_session_resume_conflict")
+        validate_placement_resume_state_json(
+            current.get("state_json") or {},
+            state_json or {},
+            profile_version_id=profile_version_id,
+        )
+
+        await session.execute(
+            text(
+                """
+                UPDATE school_sessions
+                SET status = 'active',
+                    current_stage = :current_stage,
+                    state_json = CAST(:state_json AS jsonb),
+                    completed_at = NULL,
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND session_id = CAST(:session_id AS uuid)
+                  AND status = 'insufficient_evidence'
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "current_stage": current_stage,
+                "state_json": json.dumps(state_json or {}),
+            },
+        )
+        await session.execute(
+            text(
+                """
+                UPDATE school_placement_reports
+                SET evidence_summary_json = COALESCE(
+                        evidence_summary_json,
+                        '{}'::jsonb
+                    ) || jsonb_build_object(
+                        'superseded_by_resume',
+                        jsonb_build_object(
+                            'placement_session_id', :session_id,
+                            'resumed_at', now()
+                        )
+                    ),
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND placement_session_id = CAST(:session_id AS uuid)
+                  AND profile_version_id = CAST(:profile_version_id AS uuid)
+                  AND placement_status = 'insufficient_evidence'
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "profile_version_id": profile_version_id,
+            },
+        )
+        resumed = await get_school_session(session, user_id, session_id)
+        if resumed is None or resumed.get("status") != "active":
+            raise ValueError("placement_session_resume_conflict")
+        await session.commit()
+        return resumed
     except Exception:
         await session.rollback()
         raise
@@ -4423,6 +4840,7 @@ async def persist_school_answer_attempt(
             from app.services.school.projection import (
                 SchoolAttemptEvidence,
                 derive_school_projection_delta,
+                enrich_school_projection_evidence,
             )
 
             existing_profiles = (
@@ -4441,7 +4859,16 @@ async def persist_school_answer_attempt(
                     {"uid": user_id},
                 )
             ).mappings().all()
-            projection = SchoolAttemptEvidence.from_dict(projection_evidence)
+            projection = SchoolAttemptEvidence.from_dict(
+                enrich_school_projection_evidence(
+                    projection_evidence,
+                    learning_event=learning_event,
+                    user_id=user_id,
+                    session_id=str(school_session["session_id"]),
+                    activity_id=request_activity_id,
+                    answer_hash=request_answer_hash,
+                )
+            )
             profile_upserts = derive_school_projection_delta(
                 projection,
                 [dict(row) for row in existing_profiles],
@@ -4538,6 +4965,9 @@ async def persist_school_answer_attempt(
             if completed.scalar_one_or_none() is None:
                 raise ValueError("stale_school_answer_request")
         await session.commit()
+    except asyncio.CancelledError:
+        await finish_cleanup(session.rollback())
+        raise
     except Exception:
         await session.rollback()
         raise
@@ -4746,7 +5176,48 @@ async def fail_school_answer_request(
     activity_id: str,
     answer_hash: str,
     claim_token: str,
+    *,
+    placement_retry_timing: dict | None = None,
 ) -> None:
+    if placement_retry_timing is not None:
+        await session.execute(
+            text(
+                """
+                UPDATE school_sessions
+                SET state_json = jsonb_set(
+                        state_json,
+                        '{_placement_item_timing}',
+                        CAST(:placement_retry_timing AS jsonb),
+                        true
+                    ),
+                    updated_at = now()
+                WHERE user_id = :uid
+                  AND session_id = CAST(:session_id AS uuid)
+                  AND api_version = 'rebuild'
+                  AND flow_type = 'placement'
+                  AND status = 'active'
+                  AND state_json #>> '{_placement_item_timing,item_id}' = :activity_id
+                  AND EXISTS (
+                      SELECT 1
+                      FROM school_answer_requests request
+                      WHERE request.session_id = school_sessions.session_id
+                        AND request.activity_id = :activity_id
+                        AND request.user_id = :uid
+                        AND request.answer_hash = :answer_hash
+                        AND request.claim_token = :claim_token
+                        AND request.status = 'processing'
+                  )
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "activity_id": activity_id,
+                "answer_hash": answer_hash,
+                "claim_token": claim_token,
+                "placement_retry_timing": json.dumps(placement_retry_timing),
+            },
+        )
     await session.execute(
         text(
             """
@@ -4992,8 +5463,8 @@ async def upsert_school_placement_report(
     placement_status: str,
     subject_id: str,
     target_class_no: int,
-    evaluated_class_no: int,
-    active_learning_class_no: int,
+    evaluated_class_no: int | None,
+    active_learning_class_no: int | None,
     unlock_state: str,
     blocking_skills: list[dict],
     watchlist_skills: list[dict],
@@ -5047,8 +5518,16 @@ async def upsert_school_placement_report(
             "placement_status": placement_status,
             "subject_id": subject_id,
             "target_class_no": int(target_class_no),
-            "evaluated_class_no": int(evaluated_class_no),
-            "active_learning_class_no": int(active_learning_class_no),
+            "evaluated_class_no": (
+                int(evaluated_class_no)
+                if evaluated_class_no is not None
+                else None
+            ),
+            "active_learning_class_no": (
+                int(active_learning_class_no)
+                if active_learning_class_no is not None
+                else None
+            ),
             "unlock_state": unlock_state,
             "blocking_skills": json.dumps(blocking_skills or []),
             "watchlist_skills": json.dumps(watchlist_skills or []),

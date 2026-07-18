@@ -14,11 +14,10 @@ import asyncio
 
 from app.ai.behaviors import behavior_for
 from app.ai.calls import _local
-from app.ai.clients import get_gemini_client
 from app.ai.local import ollama_structured
+from app.ai.provider import structured_generate
 from app.ai.prompts import build_test_gen_prompt
 from app.ai.schemas import ProbeItem, ProbeSet
-from app.ai.structured import call_with_structured_output
 from app.content.skills import SkillID
 from app.content.task_types import TaskType, prep_counterpart
 from app.storage import get_storage
@@ -242,8 +241,10 @@ async def generate_test_items(
                 timeout=PROBE_GENERATION_TIMEOUT_SECONDS,
             )
         else:
-            result = await asyncio.wait_for(
-                call_with_structured_output(get_gemini_client(), prompt, ProbeSet),
+            result = await structured_generate(
+                "test_probe_generation",
+                prompt,
+                ProbeSet,
                 timeout=PROBE_GENERATION_TIMEOUT_SECONDS,
             )
         items = list(result.items)

@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -55,6 +56,33 @@ def test_incomplete_career_activity_recommends_personalization(store):
     assert "Complete career personalization" in titles
 
 
+@pytest.mark.parametrize(
+    ("primary_motive", "expects_career_personalization"),
+    [("school", False), ("career", True), (None, True)],
+    ids=["school", "career", "unset"],
+)
+def test_incomplete_career_personalization_is_isolated_by_motive(
+    store, primary_motive, expects_career_personalization
+):
+    _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
+    profile = store._profile("test_user")
+    profile["primary_motive"] = primary_motive
+    profile["onboarding_completed_at"] = 1.0
+    profile["career_profile"] = {}
+
+    response = TestClient(app).get("/me/activity", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["career"]["profile_complete"] is False
+    has_career_personalization = any(
+        item["kind"] == "career"
+        and item["title"] == "Complete career personalization"
+        for item in body["recommendations"]
+    )
+    assert has_career_personalization is expects_career_personalization
+
+
 def test_career_activity_counts_durable_node_attempts_not_mastery_updates(store):
     _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
     _run(
@@ -94,6 +122,189 @@ def test_career_activity_counts_durable_node_attempts_not_mastery_updates(store)
     body = response.json()
     assert body["career"]["completed_nodes"] == 1
     assert body["career"]["attempts"] == 1
+
+
+def test_school_activity_uses_only_canonical_school_projection(store):
+    _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
+    profile = store._profile("test_user")
+    profile["primary_motive"] = "school"
+    profile["onboarding_completed_at"] = 1.0
+
+    _run(
+        store.record_assessment_result(
+            user_id="test_user",
+            test_id="legacy-class-9",
+            class_no=9,
+            kind="chapter",
+            score=0.99,
+            passed=True,
+            by_skill=[{"skill": "legacy_only", "correct": 1, "total": 1}],
+        )
+    )
+    _run(
+        store.upsert_learner_skill_profile(
+            user_id="test_user",
+            domain="school",
+            skill_id="reading_inference",
+            module_id="eng_c5_ch01",
+            task_type="school_rebuild_curriculum",
+            mastery=0.25,
+            readiness=0.35,
+            confidence=0.8,
+            attempts=2,
+            strengths_json=[],
+            gaps_json=["Use passage evidence."],
+            evidence_json={},
+            recommended_next_action="Retry without support.",
+            source_summary="Needs passage evidence.",
+        )
+    )
+    _run(
+        store.upsert_learner_skill_profile(
+            user_id="test_user",
+            domain="career",
+            skill_id="career_row_must_not_leak",
+            module_id="interview",
+            task_type="interview_prep",
+            mastery=0.01,
+            readiness=0.01,
+            confidence=1.0,
+            attempts=99,
+            strengths_json=[],
+            gaps_json=["Career-only gap."],
+            evidence_json={},
+            recommended_next_action="Career only.",
+            source_summary="Career only.",
+        )
+    )
+    for source_event_key, domain, score, attempt_type in (
+        ("school-event-1", "school", 0.8, "chapter_check"),
+        ("school-event-2", "school", 0.4, "chapter_check"),
+        ("school-guided-must-not-count-as-test", "school", 0.0, "v2_guided_practice"),
+        ("career-event-must-not-leak", "career", 1.0, "independent_check"),
+    ):
+        _run(
+            store.record_learning_event(
+                source_event_key=source_event_key,
+                user_id="test_user",
+                domain=domain,
+                task_type=(
+                    "school_rebuild_curriculum"
+                    if domain == "school"
+                    else "interview_prep"
+                ),
+                module_id="eng_c5_ch01" if domain == "school" else "interview",
+                session_id="school-session-5" if domain == "school" else "career-session",
+                node_id=source_event_key,
+                skill_id=(
+                    "reading_inference"
+                    if domain == "school"
+                    else "career_row_must_not_leak"
+                ),
+                source="school_rebuild" if domain == "school" else "prep_turn",
+                attempt_type=attempt_type,
+                score=score,
+                confidence=0.9,
+                criteria_json=[],
+                evidence_json={},
+                blockers=[],
+                gap="",
+            )
+        )
+    store.school_sessions[("test_user", "school-session-5")] = {
+        "session_id": "school-session-5",
+        "user_id": "test_user",
+        "api_version": "rebuild",
+        "flow_type": "placement",
+        "subject_id": "english",
+        "class_no": 5,
+        "status": "complete",
+    }
+    store.school_sessions[("test_user", "legacy-school-session")] = {
+        "session_id": "legacy-school-session",
+        "user_id": "test_user",
+        "api_version": "v3",
+        "flow_type": "placement",
+        "subject_id": "english",
+        "class_no": 9,
+        "status": "complete",
+    }
+    store.school_placement_reports[("test_user", "school-session-5")] = {
+        "report_id": "school-report-5",
+        "user_id": "test_user",
+        "placement_session_id": "school-session-5",
+        "target_class_no": 5,
+        "evaluated_class_no": 4,
+        "active_learning_class_no": 4,
+    }
+    store.school_placement_reports[("test_user", "legacy-school-session")] = {
+        "report_id": "legacy-school-report",
+        "user_id": "test_user",
+        "placement_session_id": "legacy-school-session",
+        "target_class_no": 9,
+        "evaluated_class_no": 9,
+        "active_learning_class_no": 9,
+    }
+
+    response = TestClient(app).get("/me/activity", headers=AUTH)
+
+    assert response.status_code == 200
+    assert response.json()["school"] == {
+        "results_count": 1,
+        "recent_classes": [4, 5],
+        "average_score": 0.6,
+        "weak_skills": ["reading_inference"],
+        "skill_mastery": [
+            {"skill": "reading_inference", "mastery": 0.25, "attempts": 2}
+        ],
+    }
+
+
+def test_school_activity_failure_preserves_career_projection(monkeypatch, store):
+    _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
+
+    async def career_snapshot(user_id: str) -> dict:
+        assert user_id == "test_user"
+        return {
+            "progression": [{"attempts": "4", "clean_pass": True}],
+            "weaknesses": [
+                {
+                    "task_type": "interview",
+                    "skill_id": "structure",
+                    "hit_count": "1",
+                    "last_raw": None,
+                }
+            ],
+        }
+
+    async def unavailable_school_graph(user_id: str) -> dict:
+        assert user_id == "test_user"
+        raise RuntimeError("school graph unavailable")
+
+    monkeypatch.setattr(store, "get_activity_snapshot", career_snapshot)
+    monkeypatch.setattr(store, "get_school_learning_graph", unavailable_school_graph)
+
+    response = TestClient(app).get("/me/activity", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["degraded"] is True
+    assert body["school"] == {
+        "results_count": 0,
+        "recent_classes": [],
+        "average_score": 0.0,
+        "weak_skills": [],
+        "skill_mastery": [],
+    }
+    assert body["career"]["attempts"] == 4
+    assert body["career"]["weaknesses"] == [
+        {
+            "task_type": "interview",
+            "skill_id": "structure",
+            "hit_count": 1,
+            "last_raw": "",
+        }
+    ]
 
 
 def test_learning_graph_returns_public_career_profile_without_resume_text(store):
@@ -205,7 +416,10 @@ def test_active_career_session_query_excludes_expired_leases():
 
     session = Session()
     assert _run(repo.get_active_career_session_runtimes(session, "user-1")) == []
-    assert "lease_expires_at IS NULL OR lease_expires_at > now()" in session.statement
+    assert (
+        "runtime.lease_expires_at IS NULL OR runtime.lease_expires_at > now()"
+        in session.statement
+    )
     assert "DISTINCT ON (module_id, test_mode)" in session.statement
 
 
@@ -272,6 +486,50 @@ def test_learning_graph_projects_only_career_memory_evidence():
     assert f"LIMIT {repo.CAREER_LEARNING_EVENT_LIMIT}" in event_query
     assert graph["progression"] == []
     assert graph["active_sessions"] == []
+
+
+def test_school_learning_graph_reads_only_canonical_school_rows():
+    from app.db import repo
+
+    class EmptyResult:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return []
+
+    class RecordingSession:
+        def __init__(self):
+            self.statements = []
+
+        async def execute(self, statement, _params):
+            self.statements.append(str(statement))
+            return EmptyResult()
+
+    session = RecordingSession()
+    graph = _run(repo.get_school_learning_graph(session, "user-1"))
+
+    assert graph == {"profiles": [], "reports": [], "events": [], "sessions": []}
+    assert len(session.statements) == 4
+    profile_query = next(
+        sql for sql in session.statements if "FROM learner_skill_profiles" in sql
+    )
+    event_query = next(sql for sql in session.statements if "FROM learning_events" in sql)
+    session_query = next(
+        sql
+        for sql in session.statements
+        if "FROM school_sessions" in sql and "school_placement_reports" not in sql
+    )
+    report_query = next(
+        sql for sql in session.statements if "FROM school_placement_reports" in sql
+    )
+
+    assert "domain = 'school'" in profile_query
+    assert "domain = 'school'" in event_query
+    assert "api_version = 'rebuild'" in session_query
+    assert "JOIN school_sessions" in report_query
+    assert "api_version = 'rebuild'" in report_query
+    assert all("session_reports" not in sql for sql in session.statements)
 
 
 def test_compact_event_projection_keeps_derived_grounded_quote():

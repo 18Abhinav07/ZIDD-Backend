@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -8,12 +9,234 @@ from fastapi.testclient import TestClient
 
 from app.api import school_rebuild_routes
 from app.content.school_rebuild_placement_bank import placement_bank_for
+from app.db import repo
 from app.main import app
 from app.services import school_rebuild_placement as placement
+from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 from app.services.school_core.readiness import SkillReadinessState
-from app.services.school_rebuild_report import build_placement_report, _evidence_summary
+from app.services.school_rebuild_recap import REVISION_STEPS, _checks_for_track
+from app.services.school_rebuild_report import (
+    _evidence_summary,
+    build_placement_report,
+    public_placement_report,
+)
 
 AUTH = {"Authorization": "Bearer test_token"}
+
+
+@pytest.mark.asyncio
+async def test_unknown_placement_class_persists_as_database_null(monkeypatch):
+    class FakeSession:
+        def __init__(self):
+            self.params = None
+            self.committed = False
+
+        async def execute(self, _statement, params):
+            self.params = params
+
+        async def commit(self):
+            self.committed = True
+
+    async def fake_get_report(_session, _user_id, _placement_session_id):
+        return {"report_id": "report-id"}
+
+    monkeypatch.setattr(repo, "get_school_placement_report", fake_get_report)
+    session = FakeSession()
+
+    await repo.upsert_school_placement_report(
+        session,
+        report_id="00000000-0000-0000-0000-000000000001",
+        user_id="test_user",
+        profile_version_id="00000000-0000-0000-0000-000000000002",
+        placement_session_id="00000000-0000-0000-0000-000000000003",
+        placement_status="insufficient_evidence",
+        subject_id="english",
+        target_class_no=5,
+        evaluated_class_no=None,
+        active_learning_class_no=None,
+        unlock_state="locked",
+        blocking_skills=[],
+        watchlist_skills=[],
+        evidence_summary={},
+        recommended_recap_modules=[],
+        learner_summary="We need a few more answers.",
+        parent_summary="Placement is not complete.",
+        allowed_next_actions=["resume_placement"],
+    )
+
+    assert session.params["evaluated_class_no"] is None
+    assert session.params["active_learning_class_no"] is None
+    assert session.committed is True
+
+
+def test_unknown_placement_class_has_additive_nullable_schema_migration():
+    root = Path(__file__).resolve().parents[2]
+    schema = (root / "app/db/schema.sql").read_text(encoding="utf-8").casefold()
+    migration = (
+        root
+        / "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql"
+    ).read_text(encoding="utf-8").casefold()
+
+    assert "evaluated_class_no             integer," in schema
+    assert "active_learning_class_no       integer," in schema
+    assert "alter column evaluated_class_no drop not null" in migration
+    assert "alter column active_learning_class_no drop not null" in migration
+
+
+@pytest.mark.parametrize("terminal_status", ("abandoned", "insufficient_evidence"))
+def test_evidence_free_incomplete_report_keeps_overall_class_unknown(terminal_status):
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    if terminal_status == "abandoned":
+        terminal = placement.abandon_placement(envelope)
+    else:
+        terminal = replace(
+            envelope,
+            state=replace(
+                envelope.state,
+                terminal_status="insufficient_evidence",
+                terminal_reason="required_tracks_unresolved",
+            ),
+        )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[],
+    )
+    public = public_placement_report(report)
+
+    assert report["evaluated_class_no"] is None
+    assert report["active_learning_class_no"] is None
+    assert public["evaluated_class_no"] is None
+    assert public["active_learning_class_no"] is None
+
+
+def test_incomplete_report_emits_class_when_three_target_anchors_agree():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    track_states = dict(envelope.state.track_states)
+    target_anchor_ids = [
+        track_id
+        for track_id, track in track_states.items()
+        if track.snapshot_source_band == envelope.state.class_no
+    ]
+    assert len(target_anchor_ids) == 4
+    for track_id in target_anchor_ids[:3]:
+        track = track_states[track_id]
+        track_states[track_id] = replace(
+            track,
+            status="resolved_ready",
+            evidence=(
+                placement.PlacementAttemptEvidence(
+                    item_id=track.snapshot_item_id,
+                    track_id=track.track_id,
+                    primary_skill_id=track.primary_skill_id,
+                    source_class_no=5,
+                    stage="snapshot",
+                    classification="pass",
+                    evaluator_score=0.9,
+                    evaluator_confidence=0.9,
+                ),
+            ),
+            highest_passed_band=5,
+        )
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            track_states=track_states,
+            terminal_status="insufficient_evidence",
+            terminal_reason="required_tracks_unresolved",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[],
+    )
+
+    assert report["evaluated_class_no"] == 5
+    assert report["active_learning_class_no"] is None
+
+
+@pytest.mark.parametrize(
+    "track_id",
+    ("english.c5.sentence_order", "english.c5.inference"),
+)
+@pytest.mark.parametrize("source_class_no", (4, 5))
+def test_class_five_recap_uses_distinct_authored_checks_not_placement_items(
+    track_id,
+    source_class_no,
+):
+    checks = _checks_for_track(
+        subject_id="english",
+        target_class_no=5,
+        track_id=track_id,
+        source_class_no=source_class_no,
+    )
+    required_steps = {
+        "guided_check",
+        "bridge",
+        "masterclass",
+        "independent_check",
+        "transfer_check",
+        *REVISION_STEPS,
+    }
+    placement_ids = {
+        item.item_id for item in placement_bank_for("english", 5)
+    }
+    placement_passages = {
+        " ".join(item.passage.casefold().split())
+        for item in placement_bank_for("english", 5)
+    }
+    placement_prompts = {
+        " ".join(item.prompt.casefold().split())
+        for item in placement_bank_for("english", 5)
+    }
+
+    assert required_steps <= set(checks)
+    source_ids = [checks[step]["source_item_id"] for step in required_steps]
+    assert len(source_ids) == len(set(source_ids))
+    assert placement_ids.isdisjoint(source_ids)
+    assert len({checks[step]["passage"] for step in required_steps}) == len(
+        required_steps
+    )
+    assert placement_passages.isdisjoint(
+        " ".join(checks[step]["passage"].casefold().split())
+        for step in required_steps
+    )
+    assert placement_prompts.isdisjoint(
+        " ".join(checks[step]["prompt"].casefold().split())
+        for step in required_steps
+    )
+
+
+def test_sentence_order_revision_accepts_both_valid_contrast_orders():
+    checks = _checks_for_track(
+        subject_id="english",
+        target_class_no=5,
+        track_id="english.c5.sentence_order",
+        source_class_no=5,
+    )
+
+    assert (
+        "The driver found another road although the first route was blocked."
+        in checks["revision_level_3"]["accepted_answers"]
+    )
 
 
 def test_placement_report_counts_blocked_attempt_as_needing_another_look():
@@ -22,12 +245,14 @@ def test_placement_report_counts_blocked_attempt_as_needing_another_look():
             {
                 "node_id": "strong",
                 "score": 0.9,
+                "confidence": 1.0,
                 "blockers": [],
                 "attempt_type": "snapshot",
             },
             {
                 "node_id": "blocked",
                 "score": 0.9,
+                "confidence": 1.0,
                 "blockers": ["required_criteria_missing"],
                 "attempt_type": "targeted_diagnostic",
             },
@@ -39,7 +264,72 @@ def test_placement_report_counts_blocked_attempt_as_needing_another_look():
     assert summary["incorrect_attempts"] == 1
 
 
-def test_every_blocking_skill_with_authored_support_gets_a_recap_module():
+def test_placement_report_does_not_count_low_confidence_high_score_as_correct():
+    summary = _evidence_summary(
+        [
+            {
+                "node_id": "low-confidence-answer",
+                "score": 0.9,
+                "confidence": 0.2,
+                "blockers": [],
+                "attempt_type": "snapshot",
+            }
+        ],
+        fallback_total=0,
+    )
+
+    assert summary["correct_attempts"] == 0
+    assert summary["incorrect_attempts"] == 1
+
+
+def test_blocking_skill_stats_do_not_count_low_confidence_high_score_as_correct():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    track_states = dict(envelope.state.track_states)
+    first_track_id = next(iter(track_states))
+    first_track = track_states[first_track_id]
+    track_states[first_track_id] = replace(
+        first_track,
+        status="confirmed_weak",
+        boundary_band=min(first_track.authored_bands),
+    )
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            track_states=track_states,
+            terminal_status="below_target",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[
+            {
+                "session_id": "placement-session",
+                "task_type": "school_rebuild_placement",
+                "node_id": "low-confidence-answer",
+                "skill_id": first_track.primary_skill_id,
+                "score": 0.9,
+                "confidence": 0.2,
+                "blockers": [],
+                "attempt_type": "snapshot",
+            }
+        ],
+    )
+
+    assert report["blocking_skills"][0]["attempts"] == 1
+    assert report["blocking_skills"][0]["correct_attempts"] == 0
+
+
+def test_only_confirmed_weak_tracks_become_recap_modules_and_unresolved_tracks_stay_watchlisted():
     envelope = placement.new_placement_envelope({
         "profile_version_id": "profile-version",
         "subject_ids": ["english"],
@@ -87,15 +377,126 @@ def test_every_blocking_skill_with_authored_support_gets_a_recap_module():
         learning_events=[],
     )
 
-    blocking_skill_ids = {
-        first_track.primary_skill_id,
-        second_track.primary_skill_id,
-    }
-    assert len(report["blocking_skills"]) == 2
+    assert len(report["blocking_skills"]) == 1
     assert {
         module["primary_skill_id"]
         for module in report["recommended_recap_modules"]
-    } == blocking_skill_ids
+    } == {first_track.primary_skill_id}
+    assert report["watchlist_skills"] == [
+        {
+            "label": second_track.learner_skill_label,
+            "source_class_no": min(second_track.authored_bands),
+            "status": "needs_confirmation",
+        }
+    ]
+
+
+def test_resolved_ready_track_is_not_reclassified_as_a_recap_gap_by_low_ema():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    track_states = dict(envelope.state.track_states)
+    skill_states = dict(envelope.state.skill_states)
+    first_track_id, second_track_id = tuple(track_states)[:2]
+    first_track = track_states[first_track_id]
+    second_track = track_states[second_track_id]
+    track_states[first_track_id] = replace(
+        first_track,
+        status="confirmed_weak",
+        boundary_band=min(first_track.authored_bands),
+    )
+    track_states[second_track_id] = replace(
+        second_track,
+        status="resolved_ready",
+        boundary_band=max(second_track.authored_bands),
+    )
+    skill_states[first_track.primary_skill_id] = SkillReadinessState(
+        skill_id=first_track.primary_skill_id,
+        practice_readiness=0.0,
+        total_attempts=2,
+        last_confidence=1.0,
+    )
+    # Placement track resolution is the placement authority. A low generic EMA
+    # must not turn a resolved track into a claimed prerequisite gap.
+    skill_states[second_track.primary_skill_id] = SkillReadinessState(
+        skill_id=second_track.primary_skill_id,
+        practice_readiness=0.0,
+        total_attempts=3,
+        last_confidence=0.95,
+    )
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            track_states=track_states,
+            skill_states=skill_states,
+            terminal_status="below_target",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[],
+    )
+
+    assert [row["label"] for row in report["blocking_skills"]] == [
+        first_track.learner_skill_label
+    ]
+    assert [row["primary_skill_id"] for row in report["recommended_recap_modules"]] == [
+        first_track.primary_skill_id
+    ]
+
+
+def test_recap_modules_follow_confirmed_weak_track_identity_when_skill_is_shared():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    track_states = dict(envelope.state.track_states)
+    weak_track_id, ready_sibling_id = tuple(track_states)[:2]
+    weak_track = track_states[weak_track_id]
+    ready_sibling = track_states[ready_sibling_id]
+    track_states[weak_track_id] = replace(
+        weak_track,
+        status="confirmed_weak",
+        boundary_band=min(weak_track.authored_bands),
+    )
+    track_states[ready_sibling_id] = replace(
+        ready_sibling,
+        primary_skill_id=weak_track.primary_skill_id,
+        status="resolved_ready",
+        highest_passed_band=max(ready_sibling.authored_bands),
+        boundary_band=max(ready_sibling.authored_bands),
+    )
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            track_states=track_states,
+            terminal_status="below_target",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[],
+    )
+
+    assert [
+        module["placement_track_id"]
+        for module in report["recommended_recap_modules"]
+    ] == [weak_track_id]
 
 
 def _run(coro):
@@ -154,7 +555,7 @@ def _trusted_open_placement_evaluator(monkeypatch):
         answer = kwargs["answer"]
         passed = answer != "wrong"
         return {
-            "schema_version": "school-v3-rubric-1",
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
             "item_id": activity["activity_id"],
             "skill_ids": list(activity["skill_ids"]),
             "score": 1.0 if passed else 0.0,
@@ -397,7 +798,8 @@ def test_school_placement_report_is_evidence_backed_and_does_not_leak_keys(store
     assert body["target_class_no"] == 3
     assert body["evaluated_class_no"] == 2
     assert body["unlock_state"] == "recap_required"
-    assert "allowed_next_actions" not in body
+    assert body["allowed_next_actions"] == ["start_recap"]
+    assert body["track_verdicts"]
     assert body["evidence_summary"]["total_attempts"] == 9
     assert body["evidence_summary"]["correct_attempts"] == 8
     assert body["blocking_skills"]

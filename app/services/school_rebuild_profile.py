@@ -186,19 +186,44 @@ class SchoolOnboardingDraftPatchIn(BaseModel):
     prior_difficulty_signals: list[
         Literal["reading", "vocabulary", "grammar", "writing", "chapter_answers"]
     ] | None = Field(default=None, max_length=5)
+    coach_avatar_id: str | None = Field(default=None, min_length=1, max_length=80)
+    coach_palette_id: str | None = Field(default=None, min_length=1, max_length=80)
     current_step: int = Field(ge=0, le=4)
     request_id: UUID
     profile_version_id: UUID | None = None
     expected_revision: int | None = Field(default=None, ge=1)
 
+    @model_validator(mode="after")
+    def validate_coach_identity(self) -> "SchoolOnboardingDraftPatchIn":
+        avatar_id = self.coach_avatar_id
+        palette_id = self.coach_palette_id
+        if avatar_id is None and palette_id is None:
+            return self
+        if (
+            avatar_id is None
+            or palette_id is None
+            or avatar_id != palette_id
+            or avatar_id not in CANONICAL_SCHOOL_COACH_IDS
+        ):
+            raise ValueError("school_coach_identity_invalid")
+        return self
+
     def profile_patch(self) -> dict[str, Any]:
         provided = self.model_fields_set
         values = self.model_dump(mode="json")
-        return {
+        patch = {
             field: values[field]
             for field in SCHOOL_PROFILE_FIELDS
             if field in provided
         }
+        if "coach_avatar_id" in provided:
+            patch.update(
+                {
+                    "coach_avatar_id": values["coach_avatar_id"],
+                    "coach_palette_id": values["coach_palette_id"],
+                }
+            )
+        return patch
 
     def payload_hash(self) -> str:
         return canonical_payload_hash(
@@ -286,4 +311,5 @@ def public_school_profile_draft(row: dict[str, Any]) -> dict[str, Any]:
         "prior_difficulty_signals": draft_list(
             row.get("prior_difficulty_signals")
         ),
+        **school_coach_identity(row),
     }

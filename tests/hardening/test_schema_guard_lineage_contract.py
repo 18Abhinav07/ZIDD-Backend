@@ -40,6 +40,70 @@ class _FakeSession:
         return _FakeResult(next(self._result_sets))
 
 
+def _legacy_retirement_guard_rows() -> list[dict[str, str]]:
+    return [
+        {
+            "table_name": "sessions",
+            "trigger_name": "sessions_reject_active_legacy_school",
+            "function_schema": "public",
+            "function_name": "reject_active_legacy_school_session_row",
+            "tgenabled": "O",
+            "trigger_definition": (
+                "CREATE TRIGGER sessions_reject_active_legacy_school "
+                "BEFORE INSERT OR UPDATE ON public.sessions FOR EACH ROW "
+                "EXECUTE FUNCTION public.reject_active_legacy_school_session_row()"
+            ),
+            "function_definition": (
+                "CREATE OR REPLACE FUNCTION public.reject_active_legacy_school_session_row() "
+                "RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN "
+                "IF NEW.status IS DISTINCT FROM 'ended' AND ("
+                "NEW.module_id = 'school_english' OR NEW.task_type = 'school_english' "
+                "OR EXISTS (SELECT 1 FROM public.session_runtime runtime "
+                "WHERE runtime.session_id = NEW.session_id AND ("
+                "runtime.module_id = 'school_english' "
+                "OR runtime.task_type = 'school_english' "
+                "OR runtime.state_snapshot ->> 'module_id' = 'school_english' "
+                "OR runtime.state_snapshot ->> 'task_type' = 'school_english' "
+                "OR runtime.state_snapshot ->> 'block_reason' "
+                "= 'legacy_school_module_retired' "
+                "OR runtime.last_error ->> 'code' "
+                "= 'legacy_school_module_retired'))) "
+                "THEN RAISE EXCEPTION 'legacy_school_module_retired:%', NEW.session_id; "
+                "END IF; RETURN NEW; END; $function$"
+            ),
+        },
+        {
+            "table_name": "session_runtime",
+            "trigger_name": "session_runtime_reject_active_legacy_school",
+            "function_schema": "public",
+            "function_name": "reject_active_legacy_school_runtime_row",
+            "tgenabled": "O",
+            "trigger_definition": (
+                "CREATE TRIGGER session_runtime_reject_active_legacy_school "
+                "BEFORE INSERT OR UPDATE ON public.session_runtime FOR EACH ROW "
+                "EXECUTE FUNCTION public.reject_active_legacy_school_runtime_row()"
+            ),
+            "function_definition": (
+                "CREATE OR REPLACE FUNCTION public.reject_active_legacy_school_runtime_row() "
+                "RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN "
+                "IF NEW.status IS DISTINCT FROM 'ended' AND ("
+                "NEW.module_id = 'school_english' OR NEW.task_type = 'school_english' "
+                "OR NEW.state_snapshot ->> 'module_id' = 'school_english' "
+                "OR NEW.state_snapshot ->> 'task_type' = 'school_english' "
+                "OR NEW.state_snapshot ->> 'block_reason' "
+                "= 'legacy_school_module_retired' "
+                "OR NEW.last_error ->> 'code' = 'legacy_school_module_retired' "
+                "OR EXISTS (SELECT 1 FROM public.sessions parent "
+                "WHERE parent.session_id = NEW.session_id AND ("
+                "parent.module_id = 'school_english' "
+                "OR parent.task_type = 'school_english'))) "
+                "THEN RAISE EXCEPTION 'legacy_school_module_retired:%', NEW.session_id; "
+                "END IF; RETURN NEW; END; $function$"
+            ),
+        },
+    ]
+
+
 def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
     columns = [
         {
@@ -54,6 +118,15 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
                 "uuid"
                 if (table, column) in schema_guard.REQUIRED_RUNTIME_COLUMN_TYPES
                 else "text"
+            ),
+            "is_nullable": (
+                "YES"
+                if (table, column)
+                in {
+                    ("school_placement_reports", "evaluated_class_no"),
+                    ("school_placement_reports", "active_learning_class_no"),
+                }
+                else "NO"
             ),
         }
         for table, required_columns in schema_guard.REQUIRED_RUNTIME_COLUMNS.items()
@@ -218,7 +291,10 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
         ],
         "immutability": [
             {
+                "table_name": "school_curriculum_releases",
                 "trigger_name": "school_curriculum_releases_immutable",
+                "function_schema": "public",
+                "function_name": "reject_school_curriculum_release_identity_change",
                 "tgenabled": "O",
                 "trigger_definition": (
                     "CREATE TRIGGER school_curriculum_releases_immutable "
@@ -231,7 +307,8 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
                     "RAISE EXCEPTION school_curriculum_release_immutable "
                     "RETURN OLD"
                 ),
-            }
+            },
+            *_legacy_retirement_guard_rows(),
         ],
     }
 
@@ -251,6 +328,21 @@ def _install_fake_session(monkeypatch, snapshot: dict[str, list[dict[str, str]]]
         db_engine,
         "get_sessionmaker",
         lambda: lambda: _FakeSession(result_sets),
+    )
+
+
+def _direct_connection(snapshot: dict[str, list[dict[str, str]]]) -> _FakeSession:
+    return _FakeSession(
+        [
+            snapshot["columns"],
+            snapshot["indexes"],
+            snapshot["foreign_keys"],
+            snapshot["checks"],
+            snapshot["rls"],
+            snapshot["privileges"],
+            snapshot["release_rows"],
+            snapshot["immutability"],
+        ]
     )
 
 
@@ -279,6 +371,10 @@ def test_lineage_type_fk_and_check_points_are_required():
         "public.composite_foreign_key.school_sessions.(user_id,linked_session_id)"
         "->public.school_sessions.(user_id,session_id)"
     ) in points
+    assert "public.trigger.sessions_reject_active_legacy_school" in points
+    assert "public.function.reject_active_legacy_school_session_row" in points
+    assert "public.trigger.session_runtime_reject_active_legacy_school" in points
+    assert "public.function.reject_active_legacy_school_runtime_row" in points
     for table in SENSITIVE_SCHOOL_TABLES:
         assert f"public.rls.{table}.enabled" in points
         assert f"public.privileges.{table}.api_roles_none" in points
@@ -390,6 +486,184 @@ async def test_runtime_guard_accepts_exact_lineage_constraints(monkeypatch):
     _install_fake_session(monkeypatch, _valid_snapshot())
 
     await schema_guard.validate_runtime_schema()
+
+
+@pytest.mark.asyncio
+async def test_runtime_guard_accepts_enabled_legacy_retirement_guards(monkeypatch):
+    snapshot = _valid_snapshot()
+    guard_names = {
+        row["trigger_name"]
+        for row in snapshot["immutability"]
+        if "legacy_school" in row["trigger_name"]
+    }
+    assert guard_names == {
+        "sessions_reject_active_legacy_school",
+        "session_runtime_reject_active_legacy_school",
+    }
+    _install_fake_session(monkeypatch, snapshot)
+
+    await schema_guard.validate_runtime_schema()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("trigger_name", "function_name"),
+    (
+        (
+            "sessions_reject_active_legacy_school",
+            "reject_active_legacy_school_session_row",
+        ),
+        (
+            "session_runtime_reject_active_legacy_school",
+            "reject_active_legacy_school_runtime_row",
+        ),
+    ),
+)
+async def test_runtime_guard_rejects_missing_legacy_retirement_guard(
+    monkeypatch,
+    trigger_name,
+    function_name,
+):
+    snapshot = _valid_snapshot()
+    snapshot["immutability"] = [
+        row
+        for row in snapshot["immutability"]
+        if row["trigger_name"] != trigger_name
+    ]
+    _install_fake_session(monkeypatch, snapshot)
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema()
+
+    error = str(exc_info.value)
+    assert f"public.trigger.{trigger_name}" in error
+    assert f"public.function.{function_name}" in error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "trigger_name",
+    (
+        "sessions_reject_active_legacy_school",
+        "session_runtime_reject_active_legacy_school",
+    ),
+)
+async def test_runtime_guard_rejects_disabled_legacy_retirement_guard(
+    monkeypatch,
+    trigger_name,
+):
+    snapshot = _valid_snapshot()
+    row = next(
+        row
+        for row in snapshot["immutability"]
+        if row["trigger_name"] == trigger_name
+    )
+    row["tgenabled"] = "D"
+    _install_fake_session(monkeypatch, snapshot)
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema()
+
+    assert f"public.trigger.{trigger_name}" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("trigger_name", "function_name"),
+    (
+        (
+            "sessions_reject_active_legacy_school",
+            "reject_active_legacy_school_session_row",
+        ),
+        (
+            "session_runtime_reject_active_legacy_school",
+            "reject_active_legacy_school_runtime_row",
+        ),
+    ),
+)
+async def test_runtime_guard_rejects_legacy_trigger_bound_to_wrong_function(
+    monkeypatch,
+    trigger_name,
+    function_name,
+):
+    snapshot = _valid_snapshot()
+    row = next(
+        row
+        for row in snapshot["immutability"]
+        if row["trigger_name"] == trigger_name
+    )
+    row["function_name"] = "wrong_legacy_school_guard"
+    row["trigger_definition"] = row["trigger_definition"].replace(
+        function_name,
+        "wrong_legacy_school_guard",
+    )
+    row["function_definition"] = row["function_definition"].replace(
+        function_name,
+        "wrong_legacy_school_guard",
+    )
+    _install_fake_session(monkeypatch, snapshot)
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema()
+
+    error = str(exc_info.value)
+    assert f"public.trigger.{trigger_name}" in error
+    assert f"public.function.{function_name}" in error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "column_name",
+    ("evaluated_class_no", "active_learning_class_no"),
+)
+async def test_runtime_guard_rejects_non_nullable_placement_report_classes(
+    monkeypatch,
+    column_name,
+):
+    snapshot = _valid_snapshot()
+    row = next(
+        row
+        for row in snapshot["columns"]
+        if row["table_name"] == "school_placement_reports"
+        and row["column_name"] == column_name
+    )
+    row["is_nullable"] = "NO"
+    _install_fake_session(monkeypatch, snapshot)
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema()
+
+    assert (
+        f"public.school_placement_reports.{column_name}.nullable"
+        in str(exc_info.value)
+    )
+
+
+@pytest.mark.asyncio
+async def test_validate_runtime_schema_accepts_direct_nullable_information_schema_rows():
+    snapshot = _valid_snapshot()
+
+    await schema_guard.validate_runtime_schema(_direct_connection(snapshot))
+
+
+@pytest.mark.asyncio
+async def test_validate_runtime_schema_rejects_direct_non_nullable_information_schema_rows():
+    snapshot = _valid_snapshot()
+    row = next(
+        row
+        for row in snapshot["columns"]
+        if row["table_name"] == "school_placement_reports"
+        and row["column_name"] == "evaluated_class_no"
+    )
+    row["is_nullable"] = "NO"
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema(_direct_connection(snapshot))
+
+    assert (
+        "public.school_placement_reports.evaluated_class_no.nullable"
+        in str(exc_info.value)
+    )
 
 
 @pytest.mark.asyncio

@@ -32,6 +32,7 @@ def _activity(**overrides) -> LiveChapterActivity:
         "prompt": "Which detail suggests that Mina expects rain?",
         "options": ["She carried an umbrella", "The sky was bright"],
         "accepted_answers": ["She carried an umbrella"],
+        "grading_mode": "selected_option",
         "response_mode": "short",
         "schema_version": "school-activity-v2",
         "episode_kind": "comprehension_studio",
@@ -54,6 +55,8 @@ def _teaching_steps() -> list[LiveTeachingStep]:
         "guided_practice",
         "feedback",
         "independent_application",
+        "transfer",
+        "review",
     )
     return [
         LiveTeachingStep(
@@ -62,17 +65,77 @@ def _teaching_steps() -> list[LiveTeachingStep]:
             activity=_activity(
                 teaching_phase=phase,
                 interaction_type="continue",
-                evidence_role=(
-                    "certifying"
-                    if phase == "independent_application"
-                    else "experience"
-                ),
+                evidence_role="experience",
+                grading_mode=None,
                 options=[],
-                accepted_answers=["continue"],
+                accepted_answers=[],
             ),
         )
         for phase in phases
     ]
+
+
+def _canonical_teaching_steps() -> list[LiveTeachingStep]:
+    phases = (
+        "connect",
+        "explain",
+        "model",
+        "co_construct",
+        "guided_practice",
+        "feedback",
+        "independent_application",
+        "transfer",
+        "review",
+    )
+    steps = []
+    for phase in phases:
+        if phase in {"guided_practice"}:
+            activity = _activity(teaching_phase=phase)
+        elif phase in {"independent_application", "transfer", "review"}:
+            activity = _activity(
+                teaching_phase=phase,
+                interaction_type="paragraph_text",
+                evidence_role="certifying",
+                certifying_language="en",
+                options=[],
+                accepted_answers=[],
+                grading_mode="strict_open_rubric",
+                response_mode="paragraph",
+                preflight_rule="relevant_english_response",
+                pass_score=0.8,
+                relevance_terms=["Mina", "umbrella", "rain"],
+                forbidden_phrases=[
+                    "Mina expected no rain",
+                    "The umbrella proves nothing",
+                ],
+                model_answer=(
+                    f"In the {phase} example, Mina expects rain because she "
+                    "carries an umbrella even while the sky is bright."
+                ),
+                rubric_criteria=[{
+                    "id": "uses_clue",
+                    "description": "Uses the relevant clue to support the inference.",
+                    "required": True,
+                    "min_quality": 0.7,
+                }],
+            )
+        else:
+            activity = _activity(
+                teaching_phase=phase,
+                interaction_type="continue",
+                evidence_role="experience",
+                options=[],
+                accepted_answers=[],
+                grading_mode=None,
+            )
+        steps.append(
+            LiveTeachingStep(
+                step_id=f"canonical-{phase}",
+                phase=phase,
+                activity=activity,
+            )
+        )
+    return steps
 
 
 def test_activity_v2_keeps_deep_teaching_metadata_in_runtime_projection():
@@ -100,13 +163,85 @@ def test_teaching_step_can_model_before_it_checks():
             teaching_phase="model",
             interaction_type="continue",
             evidence_role="experience",
+            grading_mode=None,
             options=[],
-            accepted_answers=["continue"],
+            accepted_answers=[],
         ),
     )
 
     assert step.phase == "model"
     assert step.activity.interaction_type == "continue"
+
+
+def test_canonical_teaching_cycle_includes_transfer_and_review():
+    payload = {
+        **json.loads(
+            (
+                Path(__file__).resolve().parents[2]
+                / "app/content/school_rebuild_chapters/english/class_5/eng_c5_ch01.json"
+            ).read_text(encoding="utf-8")
+        )["levels"][0],
+        "episode_kind": "comprehension_studio",
+        "source_anchor_ids": ["eng_c5_u01_m01:think:4"],
+        "teaching_steps": [step.runtime_dict() for step in _canonical_teaching_steps()],
+    }
+
+    level = LiveChapterLevel.model_validate(payload)
+
+    assert [step.phase for step in level.teaching_steps or ()][-2:] == [
+        "transfer",
+        "review",
+    ]
+    assert level.teaching_steps[0].activity.accepted_answers == []
+
+
+def test_activity_v2_rejects_the_legacy_seven_phase_cycle():
+    payload = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "app/content/school_rebuild_chapters/english/class_5/eng_c5_ch01.json"
+        ).read_text(encoding="utf-8")
+    )["levels"][0]
+    seven_steps = _teaching_steps()[:-2]
+
+    with pytest.raises(ValueError, match="invalid_live_teaching_phase_sequence"):
+        LiveChapterLevel.model_validate(
+            {
+                **payload,
+                "episode_kind": "comprehension_studio",
+                "source_anchor_ids": ["eng_c5_u01_m01:think:4"],
+                "teaching_steps": [step.runtime_dict() for step in seven_steps],
+            }
+        )
+
+
+def test_teaching_step_variant_pool_requires_distinct_authored_variants():
+    first = _activity(
+        pool_id="inference-guided",
+        variant_id="guided-a",
+    )
+    second = _activity(
+        pool_id="inference-guided",
+        variant_id="guided-b",
+        passage="Ravi packed a raincoat even though the morning was sunny.",
+        prompt="Which detail suggests Ravi expects rain?",
+        options=["He packed a raincoat", "The morning was sunny"],
+        accepted_answers=["He packed a raincoat"],
+    )
+
+    step = LiveTeachingStep(
+        step_id="guided-pool",
+        phase="guided_practice",
+        pool_id="inference-guided",
+        variant_pool=[first, second],
+    )
+
+    runtime = step.runtime_dict()
+    assert runtime["pool_id"] == "inference-guided"
+    assert [item["variant_id"] for item in runtime["variant_pool"]] == [
+        "guided-a",
+        "guided-b",
+    ]
 
 
 def test_source_anchor_records_coverage_without_storing_textbook_body():
@@ -156,7 +291,10 @@ def test_deep_teaching_sequence_is_reachable_from_the_live_chapter_contract():
         coverage_treatment="textbook_companion",
         required_for_chapter_certification=True,
     )
-    payload["source_anchors"] = [anchor.model_dump()]
+    payload["source_anchors"] = [
+        *payload.get("source_anchors", []),
+        anchor.model_dump(),
+    ]
     payload["levels"][0].update({
         "episode_kind": "comprehension_studio",
         "source_anchor_ids": [anchor.anchor_id],
@@ -166,7 +304,9 @@ def test_deep_teaching_sequence_is_reachable_from_the_live_chapter_contract():
     chapter = LiveSchoolChapter.model_validate(payload)
 
     assert chapter.levels[0].teaching_steps
-    assert chapter.runtime_dict()["source_anchors"][0]["anchor_id"] == anchor.anchor_id
+    assert anchor.anchor_id in {
+        item["anchor_id"] for item in chapter.runtime_dict()["source_anchors"]
+    }
 
 
 def test_deep_teaching_sequence_rejects_a_check_before_modeling():
@@ -221,7 +361,7 @@ def test_loader_rejects_skills_outside_the_class_band(tmp_path: Path):
     class_root.mkdir()
     target_path = class_root / source_path.name
     payload = json.loads(source_path.read_text(encoding="utf-8"))
-    payload["source_anchors"] = [{
+    payload["source_anchors"] = [*payload.get("source_anchors", []), {
         "anchor_id": "eng_c5_u01_m01:think:4",
         "section_label": "Let us Think",
         "page_start": 4,

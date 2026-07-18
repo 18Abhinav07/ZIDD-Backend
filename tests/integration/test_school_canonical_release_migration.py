@@ -344,7 +344,7 @@ async def test_failed_preflight_persists_evidence_before_engine_or_sql(
     )
     monkeypatch.setattr(
         apply_migrations,
-        "get_engine",
+        "get_migration_engine",
         lambda: _BoundEngine(connection),
     )
 
@@ -388,7 +388,11 @@ async def test_preflight_evidence_write_failure_executes_zero_migration_sql(
         "get_settings",
         lambda: type("Settings", (), {"supabase_pooler_url": "postgresql://redacted"})(),
     )
-    monkeypatch.setattr(apply_migrations, "get_engine", lambda: _BoundEngine(FakeConnection()))
+    monkeypatch.setattr(
+        apply_migrations,
+        "get_migration_engine",
+        lambda: _BoundEngine(FakeConnection()),
+    )
     monkeypatch.setattr(
         apply_migrations,
         "collect_preflight_on_connection",
@@ -565,11 +569,37 @@ async def test_preflight_reports_active_ids_and_ambiguous_lineage_deterministica
 
 
 def test_release_authority_migration_is_appended_and_guarded():
-    assert DEFAULT_MIGRATIONS[-2].resolve() == MIGRATION.resolve()
-    assert DEFAULT_MIGRATIONS[-1].name == "2026-07-14-integrated-domain-contract.sql"
+    correction = (
+        ROOT
+        / "app/db/migrations/2026-07-14-school-release-metadata-correction.sql"
+    )
+    nullable_classes = (
+        ROOT
+        / "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql"
+    )
+    retirement = (
+        ROOT
+        / "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql"
+    )
+    assert DEFAULT_MIGRATIONS[-5].resolve() == MIGRATION.resolve()
+    assert DEFAULT_MIGRATIONS[-4].resolve() == correction.resolve()
+    assert DEFAULT_MIGRATIONS[-3].name == "2026-07-14-integrated-domain-contract.sql"
+    assert DEFAULT_MIGRATIONS[-2].resolve() == nullable_classes.resolve()
+    assert DEFAULT_MIGRATIONS[-1].resolve() == retirement.resolve()
     assert DEFAULT_MIGRATIONS.count(MIGRATION) == 1
+    assert DEFAULT_MIGRATIONS.count(correction) == 1
+    assert DEFAULT_MIGRATIONS.count(nullable_classes) == 1
+    assert DEFAULT_MIGRATIONS.count(retirement) == 1
     assert (
         "app/db/migrations/2026-07-13-001-school-release-authority.sql"
+        in schema_guard.REQUIRED_MIGRATION_FILES
+    )
+    assert (
+        "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql"
+        in schema_guard.REQUIRED_MIGRATION_FILES
+    )
+    assert (
+        "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql"
         in schema_guard.REQUIRED_MIGRATION_FILES
     )
 
@@ -633,9 +663,24 @@ def test_release_authority_schema_and_sql_are_locked_down():
         )
     ]
     manifest = load_release_manifest()
-    assert seeded_payloads == [
+    expected_seeded_payloads = [
         release.model_dump(mode="json") for release in manifest.releases
     ]
+    historical_class_5 = next(
+        release
+        for release in expected_seeded_payloads
+        if release["curriculum_release_id"] == "english_cbse_2026_27_c5_eesa1"
+    )
+    historical_class_5["units"][0]["modules"][0]["source_genre"] = "play"
+    assert seeded_payloads == expected_seeded_payloads
+
+    correction_sql = (
+        ROOT
+        / "app/db/migrations/2026-07-14-school-release-metadata-correction.sql"
+    ).read_text().lower()
+    assert "'{units,0,modules,0,source_genre}'" in correction_sql
+    assert "current_genre <> 'play'" in correction_sql
+    assert "source_genre}' = 'poem'" in correction_sql
     for avatar_id in AVATAR_IDS:
         assert avatar_id in migration_sql
 
@@ -909,7 +954,10 @@ async def test_standalone_preflight_disables_asyncpg_statement_cache(monkeypatch
     )
 
     assert result == {"ok": True}
-    assert captured["connect"] == {"statement_cache_size": 0}
+    assert captured["connect"] == {
+        "statement_cache_size": 0,
+        "ssl": "require",
+    }
     assert captured["transaction"]["readonly"] is True
 
 
@@ -1247,7 +1295,10 @@ def test_default_migrations_keep_explicit_school_dependency_order():
         "2026-07-12-school-onboarding-drafts.sql",
         "2026-07-14-school-additive-reconciliation.sql",
         "2026-07-13-001-school-release-authority.sql",
+        "2026-07-14-school-release-metadata-correction.sql",
         "2026-07-14-integrated-domain-contract.sql",
+        "2026-07-14-school-placement-report-nullable-classes.sql",
+        "2026-07-16-retire-legacy-school-shared-sessions.sql",
     ]
 
 
@@ -1275,7 +1326,7 @@ async def test_schema_bootstrap_public_apply_preflight_guard_and_idempotency(
                 )
                 monkeypatch.setattr(
                     apply_migrations,
-                    "get_engine",
+                    "get_migration_engine",
                     lambda: _BoundEngine(connection),
                 )
                 output = tmp_path / "bootstrap-preflight.json"
@@ -1393,7 +1444,7 @@ async def test_reconciliation_resumes_a_valid_school_prefix_eight(
                 )
                 monkeypatch.setattr(
                     apply_migrations,
-                    "get_engine",
+                    "get_migration_engine",
                     lambda: _BoundEngine(connection),
                 )
 

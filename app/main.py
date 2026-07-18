@@ -43,9 +43,9 @@ async def lifespan(app: FastAPI):
     # Fail at BOOT (not first request) if the JWT signing secret is unset.
     get_jwt_secret()
     if settings.app_env.lower() != "test":
-        if not settings.supabase_pooler_url:
+        if not settings.runtime_database_configured:
             raise RuntimeError(
-                "SUPABASE_POOLER_URL is required for app runtime storage. "
+                "A runtime Supabase transaction-pooler URL is required. "
                 "Qwen/Ollama may run locally, but product data is cloud-only."
             )
         if not await get_storage().ping_writable():

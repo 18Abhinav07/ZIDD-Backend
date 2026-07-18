@@ -22,6 +22,7 @@ from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass
 
 logger = logging.getLogger("zidd.session")
+_LEGACY_SCHOOL_RETIRED_CODE = "legacy_school_module_retired"
 
 
 class ProgressionUnavailableError(RuntimeError):
@@ -38,6 +39,20 @@ class SessionNotActiveError(RuntimeError):
 
 class SessionScoringUnavailableError(RuntimeError):
     """Raised when a test-mode session cannot be scored yet."""
+
+
+class LegacySchoolModuleRetiredError(RuntimeError):
+    """Raised when the retired shared School runtime is accessed."""
+
+    def __init__(
+        self,
+        *,
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> None:
+        super().__init__(_LEGACY_SCHOOL_RETIRED_CODE)
+        self.user_id = user_id
+        self.session_id = session_id
 
 
 def _bump_session_version(state: dict) -> None:
@@ -219,6 +234,7 @@ from app.ai.prompts import build_opening_prompt, coach_view, sanitize_memory_tex
 from app.ai.test_gen import generate_test_items
 from app.graph.answer_check import is_blank_nonanswer
 from app.content.registry import (
+    SCHOOL_ID,
     SELF_REPORT_CEFR,
     all_node_ids,
     get_module,
@@ -270,6 +286,53 @@ _EVALUATION_RETRY_TEXT = (
     "I couldn't review that answer reliably, so I haven't counted it. "
     "Please send the same answer once more."
 )
+
+
+def _module_id_from_runtime_record(record: dict) -> str:
+    snapshot = dict(record.get("state_snapshot") or {})
+    last_error = record.get("last_error")
+    snapshot_last_error = snapshot.get("last_error")
+    retirement_markers = (
+        record.get("block_reason"),
+        snapshot.get("block_reason"),
+        last_error.get("code") if isinstance(last_error, dict) else last_error,
+        (
+            snapshot_last_error.get("code")
+            if isinstance(snapshot_last_error, dict)
+            else snapshot_last_error
+        ),
+    )
+    if any(
+        str(marker or "") == _LEGACY_SCHOOL_RETIRED_CODE
+        for marker in retirement_markers
+    ):
+        return SCHOOL_ID
+    module_markers = (
+        record.get("module_id"),
+        record.get("task_type"),
+        snapshot.get("module_id"),
+        snapshot.get("task_type"),
+    )
+    if any(str(marker or "") == SCHOOL_ID for marker in module_markers):
+        return SCHOOL_ID
+    module_id = record.get("module_id") or snapshot.get("module_id")
+    if module_id:
+        return str(module_id)
+    node_id = record.get("current_node") or snapshot.get("competency_node")
+    return _module_id_for_state(str(node_id or ""))
+
+
+def _reject_legacy_school_module(
+    module_id: str,
+    *,
+    user_id: str | None = None,
+    session_id: str | None = None,
+) -> None:
+    if module_id == SCHOOL_ID:
+        raise LegacySchoolModuleRetiredError(
+            user_id=user_id,
+            session_id=session_id,
+        )
 
 _TRANSFER_ANCHOR_STOPWORDS = {
     "about", "after", "answer", "ask", "before", "close", "context", "different",
@@ -3540,6 +3603,12 @@ async def _mark_committed_opening_replayed(state: dict, opening_key: str) -> Non
 
 def _hydrate_runtime_state(row: dict) -> dict:
     snapshot = dict(row.get("state_snapshot") or {})
+    runtime_module_id = _module_id_from_runtime_record(row)
+    _reject_legacy_school_module(
+        runtime_module_id,
+        user_id=str(row.get("user_id") or "") or None,
+        session_id=str(row.get("session_id") or "") or None,
+    )
     state = _new_state(
         row["user_id"],
         row["session_id"],
@@ -3548,7 +3617,7 @@ def _hydrate_runtime_state(row: dict) -> dict:
         learner_name=snapshot.get("learner_name", ""),
         weakness_context=snapshot.get("weakness_context") or [],
         task_type=row.get("task_type") or snapshot.get("task_type", ""),
-        module_id=row.get("module_id") or snapshot.get("module_id") or "",
+        module_id=runtime_module_id,
         sim_topic=snapshot.get("sim_topic", ""),
         career_context=snapshot.get("career_context") or {},
         scenario_config=snapshot.get("scenario_config") or {},
@@ -3578,6 +3647,22 @@ def _hydrate_runtime_state(row: dict) -> dict:
 async def get_session_state(session_id: str) -> dict | None:
     state = SessionStore.get(session_id)
     if state is not None:
+        try:
+            _reject_legacy_school_module(
+                _module_id_from_runtime_record(
+                    {
+                        **state,
+                        "current_node": state.get("competency_node"),
+                        "state_snapshot": state,
+                    }
+                ),
+                user_id=str(state.get("user_id") or "") or None,
+                session_id=session_id,
+            )
+        except LegacySchoolModuleRetiredError:
+            SessionStore.pop(session_id, None)
+            _SESSION_LOCKS.pop(session_id, None)
+            raise
         if _expire_state_if_needed(state):
             await _persist_runtime_state(state)
         return state
@@ -4068,6 +4153,11 @@ async def start_session(
     task_type_enum = task_type_of(node_id, test_mode=test_mode)
     task_type = task_type_enum.value
     module_id = module_of(node_id)
+    _reject_legacy_school_module(
+        module_id,
+        user_id=user_id,
+        session_id=session_id,
+    )
     is_test = task_type in _TEST_TASK_TYPES
     # A TEST session logs no per-skill weaknesses of its own — it reads the prep
     # sibling's (gd_test -> gd_prep). For prep/single-mode, prep_counterpart is a
@@ -5730,6 +5820,7 @@ async def get_progression_map(user_id: str, module_id: str = "communication") ->
     """
     from app.content.registry import get_module
 
+    _reject_legacy_school_module(module_id, user_id=user_id)
     module = get_module(module_id)
 
     store = get_storage()
@@ -5919,6 +6010,7 @@ async def place_user(
     Falls back to B1 if neither is usable. Returns the starting node so the UI
     can show what was placed and why before starting the session.
     """
+    _reject_legacy_school_module(module_id, user_id=user_id)
     module = get_module(module_id)  # raises KeyError on unknown module
 
     if uses_grade_placement(module_id):

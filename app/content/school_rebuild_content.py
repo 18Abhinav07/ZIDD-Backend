@@ -20,7 +20,11 @@ _QA_DEFAULT_ENABLED_ENVS = {"dev", "development", "local", "test", "ci"}
 _CLASS_DIRECTORY_PATTERN = re.compile(r"class_(\d+)$")
 _NON_LIVE_APPROVAL_ERRORS = (
     "live_chapter_not_approved:",
-    "live_chapter_not_human_approved:",
+    "live_chapter_not_release_approved:",
+    "live_chapter_not_production_reviewed:",
+)
+_PRODUCTION_APPROVAL_STATUSES = frozenset(
+    {"agent_reviewed", "release_approved"}
 )
 
 
@@ -94,8 +98,11 @@ def load_approved_live_chapter(
         )
     if chapter.approval_status == "draft":
         raise ValueError(f"live_chapter_not_approved:{chapter_id}")
-    if chapter.approval_status == "qa_approved" and not qa_live_content_enabled():
-        raise ValueError(f"live_chapter_not_human_approved:{chapter_id}")
+    if (
+        chapter.approval_status not in _PRODUCTION_APPROVAL_STATUSES
+        and not qa_live_content_enabled()
+    ):
+        raise ValueError(f"live_chapter_not_production_reviewed:{chapter_id}")
 
     source_map = load_ncert_source_map(subject_id, class_no)
     source_entry = next(

@@ -36,7 +36,7 @@ def test_readiness_path_uses_same_track_authored_items_without_label_prompt_fall
     assert module["primary_skill_id"] == "grammar.noun_verb_adjective"
     assert "person, place, animal, or thing" in module["teaching_block"]
     assert activity["prompt"] == "Which word names a person?"
-    assert activity["passage"] == "The teacher wrote neatly."
+    assert activity["passage"] == "The baker smiles at us."
     assert "Write the answer for" not in str(state)
     assert "What is the main clue for" not in str(state)
 
@@ -53,7 +53,7 @@ def test_readiness_path_requires_guided_independent_and_transfer_evidence():
     state, _ = recap.apply_recap_answer(
         state,
         activity_id=guided["activity_id"],
-        answer="teacher",
+        answer="baker",
     )
     assert recap._current_activity(state)["kind"] == "independent_check"
 
@@ -61,7 +61,7 @@ def test_readiness_path_requires_guided_independent_and_transfer_evidence():
     state, independent_evaluation = recap.apply_recap_answer(
         state,
         activity_id=independent["activity_id"],
-        answer="rushed",
+        answer="names a thing",
     )
     assert state["status"] == "active"
     transfer = recap._current_activity(state)
@@ -74,7 +74,7 @@ def test_readiness_path_requires_guided_independent_and_transfer_evidence():
     state, _ = recap.apply_recap_answer(
         state,
         activity_id=transfer["activity_id"],
-        answer="ancient",
+        answer="describes the plates",
     )
     assert state["status"] == "complete"
     assert recap._current_activity(state) is None

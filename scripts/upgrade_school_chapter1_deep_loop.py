@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Upgrade Class 5 Chapter 1 to the canonical deep teaching contract.
+"""Repair Class 5 Chapter 1 within the canonical deep teaching contract.
 
-The source chapter already contains reviewed Zidd-original checks. This script
-keeps that bank intact, assigns it deliberately to teaching/remediation roles,
-and adds original certifying variants without copying NCERT body text.
+The source chapter must already contain the authored nine-level gold structure
+and reviewed Zidd-original checks. This script repairs that bank in place; it
+does not reconstruct the nine-level chapter from the old six-level seed.
 """
 
 from __future__ import annotations
@@ -26,6 +26,17 @@ CHAPTER_PATH = (
     / "app/content/school_rebuild_chapters/english/class_5/eng_c5_ch01.json"
 )
 PDF_URL = "https://ncert.nic.in/textbook/pdf/eesa101.pdf"
+EXPECTED_GOLD_LEVEL_IDS = (
+    "papas_spectacles_poem_comprehension",
+    "papas_spectacles_chapter_words",
+    "papas_spectacles_personal_response",
+    "papas_spectacles_order_and_pairs",
+    "papas_spectacles_spelling_and_opposites",
+    "papas_spectacles_prepositions",
+    "papas_spectacles_poem_to_story",
+    "papas_spectacles_sound_lab",
+    "papas_spectacles_visual_fun_and_riddle",
+)
 
 
 SOURCE_ANCHORS = [
@@ -838,6 +849,43 @@ def _level(payload: dict[str, Any], level_id: str) -> dict[str, Any]:
     )
 
 
+def _validate_nine_level_gold_prerequisite(payload: dict[str, Any]) -> None:
+    levels = payload.get("levels")
+    if not isinstance(levels, list):
+        levels = []
+    found_level_ids = tuple(
+        str(level.get("level_id") or "<missing-level-id>")
+        if isinstance(level, dict)
+        else "<invalid-level>"
+        for level in levels
+    )
+    complete_level_containers = all(
+        isinstance(level, dict)
+        and isinstance(level.get("teaching_steps"), list)
+        and isinstance(level.get("checks"), dict)
+        for level in levels
+    )
+    if (
+        found_level_ids == EXPECTED_GOLD_LEVEL_IDS
+        and complete_level_containers
+    ):
+        return
+
+    missing_level_ids = tuple(
+        level_id
+        for level_id in EXPECTED_GOLD_LEVEL_IDS
+        if level_id not in found_level_ids
+    )
+    raise ValueError(
+        "chapter_one_nine_level_gold_structure_required: "
+        "upgrade_school_chapter1_deep_loop repairs an already-authored "
+        "nine-level gold chapter and does not reconstruct the old six-level "
+        f"seed; expected_level_ids={EXPECTED_GOLD_LEVEL_IDS!r}; "
+        f"found_level_ids={found_level_ids!r}; "
+        f"missing_level_ids={missing_level_ids!r}"
+    )
+
+
 def _strict_open_support(
     level: dict[str, Any],
     check_name: str,
@@ -1079,18 +1127,34 @@ def _repair_personal_response_checks(payload: dict[str, Any]) -> None:
     )
     clue_choice.update(
         passage=(
-            "A notebook was last used in the reading room. A friend only guesses "
+            "A pencil was last used in the reading room. A friend only guesses "
             "that it may be in the art room."
         ),
         prompt=(
-            "Which clue would you test first? Use because for your reason and but "
-            "to explain why the other clue is weaker."
+            "Which clue would you test first? Use because to connect your choice "
+            "to the pencil's last-use fact and but to explain why the art-room "
+            "claim is unsupported."
         ),
         model_answer=(
-            "I would test the reading-room clue first because it comes from the "
-            "notebook's last use, but the art-room clue is only a guess."
+            "I would test the reading-room clue first because the pencil was last "
+            "used there, but the art-room clue is only a guess."
         ),
-        relevance_terms=["reading room", "last used", "art room", "guess"],
+        semantic_validator_id="evidence_over_unsupported_guess_v1",
+        relevance_terms=[
+            "pencil",
+            "reading room",
+            "last used",
+            "art room",
+            "only a guess",
+        ],
+        forbidden_phrases=[
+            "No reason is needed",
+            "The situation details do not matter",
+            "art-room guess is best",
+            "art room guess is best",
+            "reading-room clue first seems useless",
+            "reading room clue first seems useless",
+        ],
     )
 
 
@@ -1733,19 +1797,34 @@ def _repair_personal_response_semantic_slots(payload: dict[str, Any]) -> None:
             "the mix-up and laughs, but Kabir looks embarrassed."
         ),
         prompt=(
-            "How can you explain the humour kindly? Use because for the reason "
-            "and but for the respectful limit."
+            "How can you explain the humour and respond kindly? Use because for "
+            "the reason and but for the kind, helpful, or no-mocking response."
         ),
         model_answer=(
             "I would explain that the moment is funny because Kabir is already "
-            "holding the pencil he is searching for, but I would not mock him."
+            "holding the pencil he is searching for, but I would help him notice "
+            "the pencil without mocking him."
         ),
+        semantic_validator_id="affirmative_support_or_no_mocking_v1",
         relevance_terms=[
             "holding the pencil",
             "searching for",
             "because",
             "but",
-            "embarrassed",
+            "help him notice",
+            "without mocking",
+        ],
+        forbidden_phrases=[
+            "No reason is needed",
+            "The situation details do not matter",
+            "not be kind to him",
+            "never be kind to him",
+            "refuse to be kind to him",
+            "never treat him kindly",
+            "never respond kindly",
+            "respond without kindness",
+            "would respond rudely",
+            "be rude to him",
         ],
     )
     specifications = {
@@ -1764,11 +1843,6 @@ def _repair_personal_response_semantic_slots(payload: dict[str, Any]) -> None:
             "need to return it responsibly.",
             ["water bottle", "bottle", "name label", "owner", "return it", "stairs"],
         ),
-        "papas_spectacles_personal_response:independent_application:v4": (
-            "Distinguishes the last-use reading-room clue from the unsupported "
-            "art-room guess.",
-            ["last used", "art room", "art-room clue"],
-        ),
         "papas_spectacles_personal_response:review:v1": (
             "Grounds the focused search plan in the recent route, last-used "
             "places, or the limit on repeating the same search.",
@@ -1779,17 +1853,6 @@ def _repair_personal_response_semantic_slots(payload: dict[str, Any]) -> None:
                 "last used places",
                 "better clues",
                 "same drawer",
-            ],
-        ),
-        "papas_spectacles_personal_response:review:v2": (
-            "Explains the visible mix-up kindly and avoids mocking the "
-            "embarrassed learner.",
-            [
-                "pencil in his hand",
-                "already holding",
-                "searching for",
-                "not mock",
-                "embarrassed",
             ],
         ),
         "papas_spectacles_personal_response:review:v3": (
@@ -1812,6 +1875,162 @@ def _repair_personal_response_semantic_slots(payload: dict[str, Any]) -> None:
         )
         detail_slot.update(description=description, any_of=aliases)
         detail_criterion["description"] = description
+
+    independent_slot_specs = {
+        "papas_spectacles_personal_response:independent_application:v4": {
+            "personal_response_target": (
+                "Explicitly chooses the pencil's reading-room last-use clue as "
+                "the first clue to test, uses because for the evidence, and "
+                "uses but for the unsupported art-room claim.",
+                [
+                    "test the reading-room clue first",
+                    "test the reading room clue first",
+                    "choose the reading-room clue first",
+                    "choose the reading room clue first",
+                    "check the reading-room clue first",
+                    "check the reading room clue first",
+                    "start with the reading-room clue",
+                    "start with the reading room clue",
+                ],
+            ),
+            "personal_response_target:detail_2": (
+                "States both the pencil and its last-use reading-room fact as "
+                "evidence for the choice.",
+                [
+                    "pencil was last used in the reading room",
+                    "pencil was last used there",
+                    "pencil's last use was in the reading room",
+                    "last used the pencil in the reading room",
+                    "pencil was used last in the reading room",
+                ],
+            ),
+            "personal_response_target:detail_3": (
+                "Explicitly gives both the art-room claim and its unsupported "
+                "polarity by calling it only a guess or unsupported.",
+                [
+                    "art-room clue is only a guess",
+                    "art room clue is only a guess",
+                    "art-room claim is only a guess",
+                    "art room claim is only a guess",
+                    "art-room claim is unsupported",
+                    "art room claim is unsupported",
+                    "art-room clue is unsupported",
+                    "art room clue is unsupported",
+                    "unsupported art-room claim",
+                    "unsupported art room claim",
+                    "unsupported art-room clue",
+                    "unsupported art room clue",
+                    "art-room guess is unsupported",
+                    "art room guess is unsupported",
+                ],
+            ),
+        },
+        "papas_spectacles_personal_response:review:v2": {
+            "personal_response_target": (
+                "Explains both sides of the visible pencil-search mix-up: "
+                "Kabir is searching for the pencil while already holding it, "
+                "uses because for the reason, and uses but for the kind limit.",
+                [
+                    "already holding the pencil he is searching for",
+                    "holding the pencil while searching for it",
+                    "holding the pencil while searching",
+                    "searching for the pencil he is holding",
+                    "pencil he is searching for",
+                    "pencil-search mix-up",
+                ],
+            ),
+            "personal_response_target:detail_2": (
+                "States one of three explicit positive responses: helps Kabir "
+                "notice the pencil, explains the mix-up kindly, or refuses to "
+                "mock him.",
+                [
+                    "help him",
+                    "help Kabir",
+                    "explain kindly",
+                    "point out the pencil",
+                    "point him",
+                    "show him the pencil",
+                    "show the pencil",
+                    "guide him",
+                    "guide Kabir",
+                    "not mock him",
+                    "never mock him",
+                    "wouldn't mock him",
+                    "won't mock him",
+                    "no mocking",
+                    "not make fun of him",
+                    "never make fun of him",
+                    "no making fun of him",
+                ],
+            ),
+        },
+    }
+    for key, slot_specs in independent_slot_specs.items():
+        authored = authored_by_key[key]
+        for criterion_id, (description, aliases) in slot_specs.items():
+            slot = next(
+                (
+                    item
+                    for item in authored["concept_slots"]
+                    if item["id"] == criterion_id
+                ),
+                None,
+            )
+            criterion = next(
+                (
+                    item
+                    for item in authored["rubric_criteria"]
+                    if item["id"] == criterion_id
+                ),
+                None,
+            )
+            if slot is None:
+                slot = {"id": criterion_id, "description": "", "any_of": []}
+                connector_index = next(
+                    (
+                        index
+                        for index, item in enumerate(authored["concept_slots"])
+                        if item["id"].endswith(":reason_link")
+                    ),
+                    len(authored["concept_slots"]),
+                )
+                authored["concept_slots"].insert(connector_index, slot)
+            if criterion is None:
+                criterion = {
+                    "id": criterion_id,
+                    "description": "",
+                    "required": True,
+                    "min_quality": 0.7,
+                }
+                connector_index = next(
+                    (
+                        index
+                        for index, item in enumerate(authored["rubric_criteria"])
+                        if item["id"].endswith(":reason_link")
+                    ),
+                    len(authored["rubric_criteria"]),
+                )
+                authored["rubric_criteria"].insert(connector_index, criterion)
+            slot.update(description=description, any_of=aliases)
+            criterion["description"] = description
+
+        connector_ids = {
+            item["id"]
+            for item in authored["concept_slots"]
+            if item["id"].endswith((":reason_link", ":contrast_link"))
+        }
+        owned_slot_ids = {*slot_specs, *connector_ids}
+        authored["concept_slots"] = [
+            item
+            for item in authored["concept_slots"]
+            if item["id"] in owned_slot_ids
+        ]
+        authored["rubric_criteria"] = [
+            item
+            for item in authored["rubric_criteria"]
+            if item["id"] in owned_slot_ids
+            or item["id"] == "clear_relevant_english"
+        ]
 
 
 def _repair_chapter_assessment_semantic_slots(payload: dict[str, Any]) -> None:
@@ -3786,11 +4005,12 @@ def _author_chapter_one_remediation_targets(payload: dict[str, Any]) -> None:
 
 def main() -> None:
     payload = json.loads(CHAPTER_PATH.read_text(encoding="utf-8"))
+    _validate_nine_level_gold_prerequisite(payload)
     _repair_current_deep_loop(payload)
     _author_chapter_one_remediation_targets(payload)
     payload["approval_status"] = "agent_reviewed"
-    payload["content_version"] = "2026-07-16.ch1-gold.14"
-    payload["certification_version"] = "2026-07-16.ch1-gold.12"
+    payload["content_version"] = "2026-07-17.ch1-gold.15"
+    payload["certification_version"] = "2026-07-17.ch1-gold.13"
     payload["reviewed_by"] = "Codex School content and browser review"
     payload["reviewed_at"] = "2026-07-16T17:34:45+05:30"
     payload["review_evidence"] = [

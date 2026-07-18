@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.api import school_rebuild_routes
 from app.content.school_v3_schema import SchoolV3RubricCriterion, SchoolV3RubricEvaluation
 from app.main import app
+from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 from app.services.school_rebuild_placement_evaluator import (
     EVALUATOR_UNAVAILABLE_CODE,
     SchoolPlacementEvaluatorUnavailableError,
@@ -56,7 +57,7 @@ def _seed_profile(store, *, signals):
 
 def _passing_open_evaluation(activity, answer):
     return SchoolV3RubricEvaluation(
-        schema_version="school-v3-rubric-1",
+        schema_version=OPEN_RUBRIC_SCHEMA_VERSION,
         item_id=activity["activity_id"],
         skill_ids=list(activity["skill_ids"]),
         score=1.0,
@@ -140,9 +141,59 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == EVALUATOR_UNAVAILABLE_CODE
     after = _run(store.get_school_session("test_user", started["session_id"]))
-    assert after["state_json"] == before["state_json"]
+    before_state = dict(before["state_json"])
+    after_state = dict(after["state_json"])
+    before_timing = before_state.pop("_placement_item_timing")
+    after_timing = after_state.pop("_placement_item_timing")
+    assert after_state == before_state
+    assert after_timing["item_id"] == before_timing["item_id"]
+    assert after_timing["retry_pending"] is True
+    assert after_timing["accrued_learner_seconds"] >= 0
     assert store.learning_events == []
-    claim = _run(
-        store.get_school_answer_request("test_user", started["session_id"], item["item_id"])
+    failed_claim = _run(
+        store.get_school_answer_request(
+            "test_user",
+            started["session_id"],
+            item["item_id"],
+        )
     )
-    assert claim["status"] == "failed"
+    assert failed_claim["status"] == "failed"
+
+
+def test_stale_answer_claim_cannot_rebase_placement_timing(store):
+    client = _seed_profile(store, signals=[])
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = started["session_id"]
+    item_id = started["next_item"]["item_id"]
+    before = _run(store.get_school_session("test_user", session_id))
+    claim = _run(
+        store.claim_school_answer_request(
+            "test_user",
+            session_id,
+            item_id,
+            "answer-hash",
+        )
+    )
+
+    _run(
+        store.fail_school_answer_request(
+            "test_user",
+            session_id,
+            item_id,
+            "answer-hash",
+            f"stale-{claim['claim_token']}",
+            placement_retry_timing={
+                "item_id": item_id,
+                "presented_at": "2099-01-01T00:00:00+00:00",
+                "retry_pending": True,
+                "accrued_learner_seconds": 999,
+            },
+        )
+    )
+
+    after = _run(store.get_school_session("test_user", session_id))
+    assert after["state_json"] == before["state_json"]
+    current_claim = _run(
+        store.get_school_answer_request("test_user", session_id, item_id)
+    )
+    assert current_claim["status"] == "processing"

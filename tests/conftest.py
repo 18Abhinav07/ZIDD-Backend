@@ -11,6 +11,7 @@ import copy
 import importlib
 import os
 import time
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -419,6 +420,8 @@ class InMemoryStore:
             "prior_difficulty_signals": copy.deepcopy(
                 row.get("prior_difficulty_signals")
             ),
+            "coach_avatar_id": row.get("coach_avatar_id"),
+            "coach_palette_id": row.get("coach_palette_id"),
         }
 
     async def save_school_profile_draft(
@@ -502,6 +505,8 @@ class InMemoryStore:
                 "activation_request_id": None,
                 "activation_payload_hash": None,
                 "activation_result_profile_version_id": None,
+                "coach_avatar_id": None,
+                "coach_palette_id": None,
                 "created_at": now,
                 "updated_at": now,
                 "activated_at": None,
@@ -519,6 +524,8 @@ class InMemoryStore:
                     "learner_goal",
                     "parent_goal",
                     "prior_difficulty_signals",
+                    "coach_avatar_id",
+                    "coach_palette_id",
                 ):
                     row[field] = copy.deepcopy(active.get(field))
             row.update(copy.deepcopy(patch))
@@ -1138,14 +1145,28 @@ class InMemoryStore:
 
     async def get_school_learning_graph(self, user_id: str) -> dict[str, Any]:
         graph = await self.get_learning_graph(user_id)
+        sessions = [
+            copy.deepcopy(row)
+            for (uid, _session_id), row in self.school_sessions.items()
+            if uid == user_id and row.get("api_version") == "rebuild"
+        ]
+        canonical_session_ids = {
+            str(row.get("session_id") or "") for row in sessions
+        }
         return {
             "profiles": [
                 row for row in graph.get("profiles", []) if row.get("domain") == "school"
             ],
-            "reports": [],
+            "reports": [
+                copy.deepcopy(row)
+                for (uid, placement_session_id), row in self.school_placement_reports.items()
+                if uid == user_id
+                and str(placement_session_id) in canonical_session_ids
+            ],
             "events": [
                 row for row in graph.get("events", []) if row.get("domain") == "school"
             ],
+            "sessions": sessions,
         }
 
     async def upsert_session_runtime(
@@ -1791,6 +1812,111 @@ class InMemoryStore:
                 self.school_sessions[(user_id, str(row["session_id"]))]
             )
 
+    def _school_placement_presented_at(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    async def present_school_placement_item(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        item_id: str,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        from app.services import school_rebuild_placement as placement
+
+        async with self._school_lineage_lock(user_id):
+            async with self._school_curriculum_attempt_lock:
+                key = (user_id, session_id)
+                row = self.school_sessions.get(key)
+                if row is None:
+                    raise ValueError("placement_session_not_found")
+                if (
+                    row.get("api_version") != "rebuild"
+                    or row.get("flow_type") != "placement"
+                    or row.get("status") != "active"
+                ):
+                    raise ValueError("placement_not_active")
+                state_json = dict(row.get("state_json") or {})
+                expected = placement.next_item(
+                    placement.envelope_from_json(state_json)
+                )
+                if expected is None or expected.item_id != item_id:
+                    raise ValueError("unexpected_placement_item")
+                current = state_json.get(placement.PRIVATE_PLACEMENT_TIMING_KEY)
+                if (
+                    not force
+                    and isinstance(current, dict)
+                    and str(current.get("item_id") or "") == item_id
+                    and current.get("presented_at")
+                ):
+                    return copy.deepcopy(row)
+
+                presented_at = self._school_placement_presented_at()
+                state_json[placement.PRIVATE_PLACEMENT_TIMING_KEY] = {
+                    "item_id": item_id,
+                    "presented_at": presented_at.isoformat(),
+                }
+                updated = {
+                    **row,
+                    "state_json": state_json,
+                    "updated_at": presented_at.timestamp(),
+                }
+                self.school_sessions[key] = updated
+                return copy.deepcopy(updated)
+
+    async def resume_school_placement_session(self, **kwargs) -> dict[str, Any]:
+        from app.services.school_rebuild_placement import (
+            validate_placement_resume_state_json,
+        )
+
+        user_id = str(kwargs["user_id"])
+        session_id = str(kwargs["session_id"])
+        profile_version_id = str(kwargs["profile_version_id"])
+        async with self._school_lineage_lock(user_id):
+            row = self.school_sessions.get((user_id, session_id))
+            if row is None:
+                raise ValueError("placement_session_not_found")
+            if (
+                row.get("api_version") != "rebuild"
+                or row.get("flow_type") != "placement"
+                or str(row.get("profile_version_id") or "") != profile_version_id
+            ):
+                raise ValueError("placement_session_not_resumable")
+            if row.get("status") == "active":
+                return copy.deepcopy(row)
+            if row.get("status") != "insufficient_evidence":
+                raise ValueError("placement_session_not_resumable")
+            profile = self.school_profile_versions.get((user_id, profile_version_id))
+            if not profile or profile.get("status") != "active":
+                raise ValueError("stale_school_profile_lineage")
+            state_json = dict(kwargs.get("state_json") or {})
+            embedded_profile_version_id = state_json.get("profile_version_id")
+            if (
+                embedded_profile_version_id not in (None, "")
+                and str(embedded_profile_version_id) != profile_version_id
+            ):
+                raise ValueError("school_session_lineage_conflict")
+            if str(state_json.get("placement_state", {}).get("stage") or "") != str(
+                kwargs.get("current_stage") or ""
+            ):
+                raise ValueError("placement_session_resume_conflict")
+            validate_placement_resume_state_json(
+                row.get("state_json") or {},
+                state_json,
+                profile_version_id=profile_version_id,
+            )
+            resumed = {
+                **row,
+                "status": "active",
+                "current_stage": str(kwargs.get("current_stage") or ""),
+                "state_json": state_json,
+                "completed_at": None,
+                "updated_at": time.time(),
+            }
+            self.school_sessions[(user_id, session_id)] = resumed
+            return copy.deepcopy(resumed)
+
     def _upsert_school_session(self, row: dict[str, Any]) -> None:
         session_id = str(row["session_id"])
         user_id = str(row["user_id"])
@@ -2005,6 +2131,7 @@ class InMemoryStore:
                     from app.services.school.projection import (
                         SchoolAttemptEvidence,
                         derive_school_projection_delta,
+                        enrich_school_projection_evidence,
                     )
 
                     existing_profiles = [
@@ -2012,7 +2139,16 @@ class InMemoryStore:
                         for (uid, domain, _skill_id), row in self.learner_skill_profiles.items()
                         if uid == school_session["user_id"] and domain == "school"
                     ]
-                    projection = SchoolAttemptEvidence.from_dict(projection_evidence)
+                    projection = SchoolAttemptEvidence.from_dict(
+                        enrich_school_projection_evidence(
+                            projection_evidence,
+                            learning_event=learning_event,
+                            user_id=str(school_session["user_id"]),
+                            session_id=str(school_session["session_id"]),
+                            activity_id=request_activity_id,
+                            answer_hash=request_answer_hash,
+                        )
+                    )
                     for profile in derive_school_projection_delta(
                         projection,
                         existing_profiles,
@@ -2168,16 +2304,41 @@ class InMemoryStore:
         activity_id: str,
         answer_hash: str,
         claim_token: str,
+        placement_retry_timing: dict | None = None,
     ) -> None:
         async with self._school_curriculum_attempt_lock:
             row = self.school_answer_requests.get((str(session_id), str(activity_id)))
-            if (
+            claim_is_current = bool(
                 row
                 and row.get("user_id") == user_id
                 and row.get("answer_hash") == answer_hash
                 and row.get("claim_token") == claim_token
                 and row.get("status") == "processing"
-            ):
+            )
+            if placement_retry_timing is not None and claim_is_current:
+                session_row = self.school_sessions.get((user_id, str(session_id)))
+                current_timing = (
+                    (session_row or {}).get("state_json", {}).get(
+                        "_placement_item_timing"
+                    )
+                )
+                if (
+                    session_row
+                    and session_row.get("api_version") == "rebuild"
+                    and session_row.get("flow_type") == "placement"
+                    and session_row.get("status") == "active"
+                    and isinstance(current_timing, dict)
+                    and str(current_timing.get("item_id") or "")
+                    == str(activity_id)
+                ):
+                    session_row["state_json"] = {
+                        **session_row.get("state_json", {}),
+                        "_placement_item_timing": copy.deepcopy(
+                            placement_retry_timing
+                        ),
+                    }
+                    session_row["updated_at"] = time.time()
+            if claim_is_current:
                 row.update(status="failed", response_json=None, updated_at=time.time())
 
     async def renew_school_answer_request(

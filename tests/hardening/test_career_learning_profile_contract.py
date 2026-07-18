@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 from app.ai.schemas import CriterionEval, PrepRubricEval, ProbeItem, SimulationReport
 from app.content.registry import get_module, get_node
@@ -1575,10 +1576,11 @@ def test_test_generation_prompt_uses_only_matching_prep_hot_delta():
     assert "Add quantified impact." not in gd_prompt
 
 
-def test_pgvector_career_history_uses_durable_task_scope(monkeypatch):
+def test_pgvector_embedding_provenance_is_persisted_and_scopes_retrieval(monkeypatch):
     from app.memory import store as memory_store
+    from app.memory.embed import EmbeddingResult
 
-    seen: dict = {}
+    seen: dict = {"calls": []}
 
     class MappingResult:
         def mappings(self):
@@ -1594,38 +1596,146 @@ def test_pgvector_career_history_uses_durable_task_scope(monkeypatch):
             }]
 
     class FakeSession:
+        def __init__(self):
+            self.commits = 0
+            self.rollbacks = 0
+
         async def execute(self, statement, params):
-            seen["sql"] = str(statement)
-            seen["params"] = dict(params)
+            seen["calls"].append((str(statement), dict(params)))
             return MappingResult()
 
+        async def commit(self):
+            self.commits += 1
+
+        async def rollback(self):
+            self.rollbacks += 1
+
     async def fake_embed(_text):
-        return [0.0, 1.0]
+        return EmbeddingResult(
+            vector=[0.0, 1.0],
+            provider="gemini",
+            model="gemini-embedding-2",
+        )
 
     monkeypatch.setattr(memory_store, "embed", fake_embed)
 
+    session = FakeSession()
+    assert _run(memory_store.write_memory(
+        session,
+        "user-1",
+        "session-1",
+        "int_04_star_behavioral",
+        "Strengths: clear action",
+    )) is True
+
+    insert_sql, insert_params = seen["calls"][0]
+    assert "embedding_provider" in insert_sql
+    assert "embedding_model" in insert_sql
+    assert insert_params["embedding_provider"] == "gemini"
+    assert insert_params["embedding_model"] == "gemini-embedding-2"
+    assert session.commits == 1
+
     rows = _run(memory_store.load_context(
-        FakeSession(),
+        session,
         "user-1",
         "interview_test",
         3,
     ))
 
-    assert "LEFT JOIN sessions" in seen["sql"]
-    assert "s.task_type = :task_type" in seen["sql"]
-    assert "CASE WHEN s.task_type = :task_type THEN 0 ELSE 1 END" in seen["sql"]
-    assert seen["params"]["task_type"] == "interview_test"
-    assert seen["params"]["legacy_prefix"] == ""
+    search_sql, search_params = seen["calls"][1]
+    assert "LEFT JOIN sessions" in search_sql
+    assert "s.task_type = :task_type" in search_sql
+    assert "CASE WHEN s.task_type = :task_type THEN 0 ELSE 1 END" in search_sql
+    assert "m.embedding_provider = :embedding_provider" in search_sql
+    assert "m.embedding_model = :embedding_model" in search_sql
+    assert "m.embedding_provider IS NULL" not in search_sql
+    assert "m.embedding_model IS NULL" not in search_sql
+    assert search_params["task_type"] == "interview_test"
+    assert search_params["legacy_prefix"] == ""
+    assert search_params["embedding_provider"] == "gemini"
+    assert search_params["embedding_model"] == "gemini-embedding-2"
     assert rows[0]["task_type"] == "interview_test"
 
     _run(memory_store.load_context(
-        FakeSession(),
+        session,
         "user-1",
         "interview_prep",
         3,
     ))
-    assert seen["params"]["legacy_prefix"] == "int\\_%"
-    assert "ESCAPE '\\'" in seen["sql"]
+    prep_sql, prep_params = seen["calls"][2]
+    assert prep_params["legacy_prefix"] == "int\\_%"
+    assert prep_params["embedding_provider"] == "gemini"
+    assert prep_params["embedding_model"] == "gemini-embedding-2"
+    assert "ESCAPE '\\'" in prep_sql
+
+    root = Path(__file__).resolve().parents[2]
+    schema = (root / "app/db/schema.sql").read_text()
+    migration = (
+        root
+        / "app/db/migrations/2026-07-17-memory-embedding-provenance.sql"
+    ).read_text()
+    assert "embedding_provider TEXT" in schema
+    assert "embedding_model    TEXT" in schema
+    assert "ADD COLUMN IF NOT EXISTS embedding_provider TEXT" in migration
+    assert "ADD COLUMN IF NOT EXISTS embedding_model TEXT" in migration
+    assert "UPDATE memory_entries" not in migration
+    assert "DROP " not in migration
+    from scripts.apply_migrations import DEFAULT_MIGRATIONS
+
+    assert any(
+        path.name == "2026-07-17-memory-embedding-provenance.sql"
+        for path in DEFAULT_MIGRATIONS
+    )
+
+    async def unavailable_embed(_text):
+        return None
+
+    monkeypatch.setattr(memory_store, "embed", unavailable_embed)
+    call_count = len(seen["calls"])
+    assert _run(memory_store.write_memory(
+        session,
+        "user-1",
+        "session-2",
+        "int_04_star_behavioral",
+        "Embedding unavailable",
+    )) is False
+    assert _run(memory_store.load_context(
+        session,
+        "user-1",
+        "interview_test",
+        3,
+    )) == []
+    assert len(seen["calls"]) == call_count
+
+    class FailingSession:
+        def __init__(self):
+            self.rollbacks = 0
+
+        async def execute(self, _statement, _params):
+            raise RuntimeError("database unavailable")
+
+        async def commit(self):
+            raise AssertionError("failed writes must not commit")
+
+        async def rollback(self):
+            self.rollbacks += 1
+
+    monkeypatch.setattr(memory_store, "embed", fake_embed)
+    failing_session = FailingSession()
+    assert _run(memory_store.write_memory(
+        failing_session,
+        "user-1",
+        "session-3",
+        "int_04_star_behavioral",
+        "Database unavailable",
+    )) is False
+    assert failing_session.rollbacks == 1
+    assert _run(memory_store.load_context(
+        failing_session,
+        "user-1",
+        "interview_test",
+        3,
+    )) == []
 
 
 def test_postgres_report_reconciliation_cleans_legacy_ids_and_is_idempotent():

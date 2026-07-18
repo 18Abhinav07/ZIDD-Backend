@@ -14,6 +14,16 @@ from app.content.school_rebuild_content import LIVE_CHAPTER_ROOT, load_live_chap
 from app.content.school_rebuild_quality import chapter_quality_issues, corpus_quality_issues
 
 
+def _launch_level_count_is_valid(chapter) -> bool:
+    """Allow deeper source-mapped modules only under the full Activity V2 contract."""
+
+    max_levels = 9 if chapter.source_anchors and all(
+        level.teaching_steps and level.episode_kind
+        for level in chapter.levels
+    ) else 7
+    return 5 <= len(chapter.levels) <= max_levels
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--class", dest="class_no", type=int, choices=(2, 3, 4, 5))
@@ -31,7 +41,7 @@ def main() -> int:
         chapter = load_live_chapter_file(path)
         chapters.append(chapter)
         issues = list(chapter_quality_issues(chapter))
-        if not 5 <= len(chapter.levels) <= 7:
+        if not _launch_level_count_is_valid(chapter):
             issues.append(f"launch_level_count:{len(chapter.levels)}")
         if chapter.chapter_assessment is None:
             issues.append("launch_chapter_assessment_missing")

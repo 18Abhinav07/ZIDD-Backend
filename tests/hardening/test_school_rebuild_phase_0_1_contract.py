@@ -2,6 +2,7 @@ import asyncio
 import copy
 import inspect
 import re
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -47,7 +48,6 @@ CANONICAL_SCHOOL_NEXT_ACTIONS = {
     "edit_profile",
     "start_placement",
     "resume_placement",
-    "finish_placement",
     "view_placement_report",
     "start_recap",
     "resume_recap",
@@ -83,6 +83,7 @@ CANONICAL_SCHOOL_ROUTES = {
     "/school/curriculum/{session_id}",
     "/school/curriculum/{session_id}/abandon-masterclass",
     "/school/curriculum/{session_id}/answer",
+    "/school/curriculum/{session_id}/continue-after-support-cap",
     "/school/curriculum/{session_id}/masterclass/start",
     "/school/curriculum/{session_id}/resume-masterclass",
     "/school/masterclass/{session_id}",
@@ -220,6 +221,31 @@ def _placement_session(status="active"):
     }
 
 
+def _terminal_placement_session(*, exhausted: bool):
+    envelope = placement.new_placement_envelope(_state_school_profile())
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            total_items=(
+                placement.MAX_PLACEMENT_ITEMS
+                if exhausted
+                else envelope.state.total_items
+            ),
+            terminal_status="insufficient_evidence",
+            terminal_reason=(
+                "item_budget_exhausted_without_honest_boundary"
+                if exhausted
+                else "placement_window_ended"
+            ),
+        ),
+    )
+    return {
+        **_placement_session("insufficient_evidence"),
+        "state_json": placement.envelope_to_json(terminal),
+    }
+
+
 def _placement_report(status="below_target"):
     target_ready = status == "target_ready"
     insufficient = status == "insufficient_evidence"
@@ -347,15 +373,15 @@ STATE_CASES = [
         id="answer-awaiting-evaluation",
     ),
     pytest.param(
-        {"placement_session": _placement_session("insufficient_evidence")},
+        {"placement_session": _terminal_placement_session(exhausted=True)},
         {
-            "active_flow": "placement",
+            "active_flow": "placement_report",
             "placement_status": "insufficient_evidence",
             "unlock_state": "locked",
             "status": "insufficient_evidence",
-            "next_action": "finish_placement",
-            "next_action_url": "/school/readiness/placement-v1",
-            "allowed_next_actions": ["finish_placement"],
+            "next_action": "start_placement",
+            "next_action_url": "/school/readiness",
+            "allowed_next_actions": ["view_placement_report", "start_placement"],
             "blocked_reason": "insufficient_evidence",
         },
         id="insufficient-evidence",
@@ -567,13 +593,16 @@ def test_school_state_for_profile_is_exhaustive(overrides, expected):
         pytest.param(
             "insufficient_evidence",
             {
-                "active_flow": "placement",
+                "active_flow": "placement_report",
                 "placement_status": "insufficient_evidence",
                 "unlock_state": "locked",
                 "status": "insufficient_evidence",
-                "next_action": "finish_placement",
-                "next_action_url": "/school/readiness/placement-v1",
-                "allowed_next_actions": ["finish_placement"],
+                "next_action": "start_placement",
+                "next_action_url": "/school/readiness",
+                "allowed_next_actions": [
+                    "view_placement_report",
+                    "start_placement",
+                ],
                 "blocked_reason": "insufficient_evidence",
             },
             id="insufficient-evidence-locked-report",
@@ -604,7 +633,11 @@ def test_school_state_never_unlocks_recap_for_valid_locked_report(
     body = school_state_for_profile(
         learner_profile={"name": "Mira"},
         school_profile=_state_school_profile(),
-        placement_session=_placement_session("complete"),
+        placement_session=(
+            _terminal_placement_session(exhausted=True)
+            if report_status == "insufficient_evidence"
+            else _placement_session("complete")
+        ),
         placement_report=report,
     )
 
@@ -1087,18 +1120,117 @@ def test_insufficient_session_and_report_preserve_evaluated_class():
     body = school_state_for_profile(
         learner_profile={"name": "Mira"},
         school_profile=_state_school_profile(),
-        placement_session=_placement_session("insufficient_evidence"),
+        placement_session=_terminal_placement_session(exhausted=True),
         placement_report=_placement_report("insufficient_evidence"),
     )
 
     assert set(body) == SCHOOL_STATE_KEYS
-    assert body["active_flow"] == "placement"
+    assert body["active_flow"] == "placement_report"
     assert body["placement_status"] == "insufficient_evidence"
     assert body["unlock_state"] == "locked"
     assert body["evaluated_class_no"] == 2
-    assert body["next_action"] == "finish_placement"
+    assert body["next_action"] == "start_placement"
+    assert body["next_action_url"] == "/school/readiness"
+    assert body["allowed_next_actions"] == [
+        "view_placement_report",
+        "start_placement",
+    ]
+
+
+def test_terminal_placement_with_null_next_item_can_still_be_resumable():
+    placement_session = _terminal_placement_session(exhausted=False)
+    envelope = placement.envelope_from_json(placement_session["state_json"])
+
+    assert placement.next_item(envelope) is None
+    assert placement.can_resume_placement(envelope) is True
+
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=placement_session,
+    )
+
+    assert body["active_flow"] == "placement"
+    assert body["next_action"] == "resume_placement"
     assert body["next_action_url"] == "/school/readiness/placement-v1"
-    assert body["allowed_next_actions"] == ["finish_placement"]
+    assert body["allowed_next_actions"] == ["resume_placement"]
+
+
+@pytest.mark.parametrize(
+    "malformed_state_json",
+    [
+        pytest.param([], id="list"),
+        pytest.param("not-a-placement-envelope", id="string"),
+    ],
+)
+def test_malformed_terminal_placement_envelope_is_recoverable(
+    malformed_state_json,
+):
+    placement_session = _terminal_placement_session(exhausted=True)
+    placement_session["state_json"] = malformed_state_json
+
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=placement_session,
+        placement_report=_placement_report("insufficient_evidence"),
+    )
+
+    assert set(body) == SCHOOL_STATE_KEYS
+    assert body["active_flow"] == "none"
+    assert body["placement_status"] == "not_started"
+    assert body["status"] == "recoverable_error"
+    assert body["next_action"] == "retry"
+    assert body["allowed_next_actions"] == ["retry"]
+    assert body["blocked_reason"] == "inconsistent_school_state"
+
+
+def test_terminal_placement_with_inconsistent_queue_reference_is_recoverable():
+    placement_session = _terminal_placement_session(exhausted=True)
+    placement_session["state_json"]["placement_state"]["pending_track_ids"] = [
+        "missing-track"
+    ]
+
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=placement_session,
+        placement_report=_placement_report("insufficient_evidence"),
+    )
+
+    assert set(body) == SCHOOL_STATE_KEYS
+    assert body["active_flow"] == "none"
+    assert body["placement_status"] == "not_started"
+    assert body["status"] == "recoverable_error"
+    assert body["next_action"] == "retry"
+    assert body["allowed_next_actions"] == ["retry"]
+    assert body["blocked_reason"] == "inconsistent_school_state"
+
+
+def test_exhausted_terminal_envelope_overrides_stale_resumable_report():
+    placement_session = _terminal_placement_session(exhausted=True)
+    envelope = placement.envelope_from_json(placement_session["state_json"])
+    stale_report = _placement_report("insufficient_evidence")
+
+    assert placement.next_item(envelope) is None
+    assert placement.can_resume_placement(envelope) is False
+    assert stale_report["allowed_next_actions"] == ["resume_placement"]
+
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=placement_session,
+        placement_report=stale_report,
+    )
+
+    assert body["active_flow"] == "placement_report"
+    assert body["active_session_id"] == "placement-v1"
+    assert body["next_action"] == "start_placement"
+    assert body["next_action_url"] == "/school/readiness"
+    assert body["allowed_next_actions"] == [
+        "view_placement_report",
+        "start_placement",
+    ]
 
 
 def test_school_state_routes_curriculum_support_phase_without_false_progress():
@@ -1217,8 +1349,10 @@ def _seed_endpoint_state(store, scenario):
         if scenario == "insufficient-evidence"
         else "mystery" if scenario == "unknown-state-is-recoverable" else "complete"
     )
-    placement_state = placement.envelope_to_json(
-        placement.new_placement_envelope(profile)
+    placement_state = (
+        _terminal_placement_session(exhausted=True)["state_json"]
+        if scenario == "insufficient-evidence"
+        else placement.envelope_to_json(placement.new_placement_envelope(profile))
     )
     placement_row = _stored_session(
         session_id="placement-v1",
@@ -1397,6 +1531,75 @@ def test_get_school_state_recovers_malformed_curriculum_levels(store):
     assert body["status"] == "recoverable_error"
     assert body["unlock_state"] == "locked"
     assert body["allowed_next_actions"] == ["retry"]
+
+
+def test_get_school_state_uses_completed_curriculum_for_next_chapter(store):
+    _seed_endpoint_state(store, "curriculum-in-progress")
+    curriculum_row = store.school_sessions[("test_user", "curriculum-v1")]
+    curriculum_row["status"] = "complete"
+    curriculum_row["state_json"].update(
+        {
+            "status": "complete",
+            "phase": "complete",
+            "next_available_chapter": {
+                "chapter_id": "eng_c3_ch02",
+                "chapter_no": 2,
+                "title": "Badal and Moti",
+            },
+        }
+    )
+
+    response = TestClient(app).get("/school/state", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active_flow"] == "curriculum"
+    assert body["active_session_id"] == "curriculum-v1"
+    assert body["next_action"] == "start_curriculum"
+    assert body["next_action_url"] == "/school/classes/3"
+    assert body["learner_message"].endswith(
+        "this chapter is complete. Start the next chapter."
+    )
+    assert body["parent_message"] == (
+        "The learner completed this chapter and can continue to the next one."
+    )
+
+
+def test_class_map_selects_next_chapter_after_completed_curriculum(store):
+    _seed_endpoint_state(store, "curriculum-in-progress")
+    curriculum_row = store.school_sessions[("test_user", "curriculum-v1")]
+    completed_chapter = curriculum_row["state_json"]["chapter"]
+    completion_version = (
+        completed_chapter.get("certification_version")
+        or completed_chapter.get("content_version")
+    )
+    curriculum_row["status"] = "complete"
+    curriculum_row["state_json"].update(
+        {
+            "status": "complete",
+            "phase": "complete",
+            "completed_chapter_ids": [completed_chapter["chapter_id"]],
+            "completed_chapter_certification_versions": {
+                completed_chapter["chapter_id"]: completion_version,
+            },
+            "next_available_chapter": {
+                "chapter_id": "eng_c3_ch02",
+                "chapter_no": 2,
+                "title": "Badal and Moti",
+            },
+        }
+    )
+
+    response = TestClient(app).get(
+        "/school/catalog/english/classes/3",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active_chapter_id"] == "eng_c3_ch02"
+    assert body["chapters"][0]["status"] == "complete"
+    assert body["chapters"][1]["status"] == "ready"
 
 
 @pytest.mark.parametrize(("scenario", "expected"), ENDPOINT_STATE_CASES)

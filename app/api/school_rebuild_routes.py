@@ -1,10 +1,14 @@
 import asyncio
 import hashlib
 import logging
+import time
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from starlette.responses import JSONResponse
 
 from app.config import get_settings
 from app.services.school.authority import school_route_owner
@@ -13,6 +17,7 @@ from app.services.school.availability import (
     unavailable_school_state,
 )
 from app.services.school.open_answer_ai import evaluate_school_open_answer
+from app.services.school.evaluator_contract import SchoolOpenAnswerRetryableError
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_masterclass as masterclass
 from app.services.school_rebuild_learning import (
@@ -65,15 +70,94 @@ router = APIRouter(
     dependencies=[Depends(_require_school_available)],
 )
 logger = logging.getLogger(__name__)
-SCHOOL_OPEN_ANSWER_TIMEOUT_SECONDS = 8.0
 SCHOOL_ANSWER_HEARTBEAT_SECONDS = 30.0
+_PLACEMENT_ITEM_TIMING_KEY = "_placement_item_timing"
+_PLACEMENT_EVIDENCE_EXCERPT_CHARS = 320
+
+
+def _placement_server_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _placement_monotonic() -> float:
+    return time.monotonic()
+
+
+def _placement_elapsed_since_presented(
+    state_json: dict,
+    *,
+    item_id: str,
+    answer_arrived_at: datetime,
+) -> float:
+    timing = state_json.get(_PLACEMENT_ITEM_TIMING_KEY)
+    if not isinstance(timing, dict) or str(timing.get("item_id") or "") != item_id:
+        return 0
+    accrued = max(0.0, float(timing.get("accrued_learner_seconds") or 0.0))
+    if timing.get("retry_pending") is True:
+        return accrued
+    raw_presented_at = timing.get("presented_at")
+    if not isinstance(raw_presented_at, str):
+        return 0
+    try:
+        presented_at = datetime.fromisoformat(raw_presented_at)
+    except ValueError:
+        return 0
+    if presented_at.tzinfo is None:
+        presented_at = presented_at.replace(tzinfo=timezone.utc)
+    arrived_at = answer_arrived_at
+    if arrived_at.tzinfo is None:
+        arrived_at = arrived_at.replace(tzinfo=timezone.utc)
+    return accrued + max(0.0, (arrived_at - presented_at).total_seconds())
+
+
+def _placement_retry_timing(
+    *,
+    item_id: str,
+    accrued_learner_seconds: float,
+) -> dict[str, object]:
+    return {
+        "item_id": item_id,
+        "presented_at": _placement_server_now().isoformat(),
+        "retry_pending": True,
+        "accrued_learner_seconds": max(0.0, float(accrued_learner_seconds)),
+    }
+
+
+async def _present_school_placement_row(
+    store,
+    row: dict,
+    envelope: placement.PlacementEnvelope,
+    *,
+    force: bool = False,
+) -> dict:
+    item = placement.next_item(envelope)
+    if item is None:
+        return row
+    try:
+        return await store.present_school_placement_item(
+            user_id=str(row["user_id"]),
+            session_id=str(row["session_id"]),
+            item_id=item.item_id,
+            force=force,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code in {
+            "placement_not_active",
+            "placement_presentation_conflict",
+            "placement_session_not_found",
+            "unexpected_placement_item",
+        }:
+            raise HTTPException(status_code=409, detail={"code": code}) from exc
+        raise
 
 
 def _school_open_answer_timeout_seconds() -> float | None:
     """Local models may need a minute or more; cloud requests stay bounded."""
-    if get_settings().ai_backend == "local":
+    settings = get_settings()
+    if settings.ai_backend == "local":
         return None
-    return SCHOOL_OPEN_ANSWER_TIMEOUT_SECONDS
+    return max(1.0, float(settings.school_open_answer_timeout_seconds))
 
 
 async def _evaluate_school_open_answer_with_runtime_policy(
@@ -213,6 +297,61 @@ def _public_session_with_school_coach(response: dict, session_row: dict) -> dict
         **response,
         **school_coach_identity(session_row.get("state_json")),
     }
+
+
+def _validated_public_json_payload(payload: dict) -> dict:
+    """Run the same JSON conversion before committing a state transition."""
+
+    encoded = jsonable_encoder(payload)
+    JSONResponse(content=encoded)
+    return encoded
+
+
+def _interrupt_skill_ids(parent_state: dict, interrupt: dict) -> list[str]:
+    skill_ids = [
+        str(skill_id)
+        for skill_id in interrupt.get("skill_ids") or []
+        if str(skill_id)
+    ]
+    if skill_ids:
+        return list(dict.fromkeys(skill_ids))
+    level_id = str(interrupt.get("level_id") or "")
+    level = next(
+        (
+            candidate
+            for candidate in parent_state.get("levels") or []
+            if str(candidate.get("level_id") or "") == level_id
+        ),
+        None,
+    )
+    return list(dict.fromkeys(
+        str(skill_id)
+        for skill_id in ((level or {}).get("skill_ids") or [])
+        if str(skill_id)
+    ))
+
+
+def _masterclass_child_qualifies_for_resume(
+    child: dict,
+    *,
+    curriculum_session_id: str,
+    parent_state: dict,
+    interrupt: dict,
+) -> bool:
+    child_state = dict(child.get("state_json") or {})
+    return bool(
+        child.get("flow_type") == "masterclass"
+        and child.get("status") in {"active", "complete"}
+        and child_state.get("status") == "complete"
+        and str(child.get("linked_session_id") or "") == curriculum_session_id
+        and masterclass.qualifies_for_curriculum_resume(
+            child_state,
+            curriculum_session_id=curriculum_session_id,
+            interrupt_id=str(interrupt.get("interrupt_id") or ""),
+            level_id=str(interrupt.get("level_id") or ""),
+            skill_ids=_interrupt_skill_ids(parent_state, interrupt),
+        )
+    )
 
 
 def _canonical_state_allows(state: dict, action: str) -> bool:
@@ -456,6 +595,11 @@ async def _latest_placement_report_for_profile(
 ) -> dict | None:
     placement_session = await _latest_placement_for_profile(user_id, public_profile)
     if placement_session:
+        # A terminal report is historical once that exact placement is resumed.
+        # Keep it in storage for audit, but do not let it drive live state or
+        # appear as the current report while the same session is active.
+        if placement_session.get("status") == "active":
+            return None
         report = await get_storage().get_school_placement_report(
             user_id,
             placement_session["session_id"],
@@ -607,6 +751,23 @@ async def _latest_curriculum_for_profile(
     public_profile: dict,
     source_placement_report_id: str | None,
 ) -> dict | None:
+    latest = await _latest_curriculum_progress_for_profile(
+        user_id,
+        public_profile,
+        source_placement_report_id,
+    )
+    if latest and latest.get("status") == "expired":
+        return None
+    return latest
+
+
+async def _latest_curriculum_progress_for_profile(
+    user_id: str,
+    public_profile: dict,
+    source_placement_report_id: str | None,
+) -> dict | None:
+    """Return the newest same-lineage row, including an expired progress ledger."""
+
     if not source_placement_report_id:
         return None
     subject_id = (public_profile.get("subject_ids") or ["english"])[0]
@@ -626,8 +787,6 @@ async def _latest_curriculum_for_profile(
         profile_version_id=str(public_profile["profile_version_id"]),
         source_placement_report_id=source_placement_report_id,
     )
-    if latest and latest.get("status") == "expired":
-        return None
     return latest
 
 
@@ -750,6 +909,49 @@ def _linked_school_sessions_from_snapshot(
             None,
         ),
     )
+
+
+def _resumable_masterclass_from_snapshot(
+    *,
+    rows: list[dict],
+    parent_session: dict | None,
+    public_profile: dict,
+    source_placement_report_id: str | None,
+) -> dict | None:
+    if not parent_session or not source_placement_report_id:
+        return None
+    parent_state = dict(parent_session.get("state_json") or {})
+    interrupt = parent_state.get("active_interrupt")
+    if (
+        parent_session.get("status") != "paused_for_masterclass"
+        or parent_state.get("status") != "paused_for_masterclass"
+        or parent_state.get("phase") != "paused_for_masterclass"
+        or not isinstance(interrupt, dict)
+    ):
+        return None
+    profile_version_id = str(public_profile.get("profile_version_id") or "")
+    parent_session_id = str(parent_session.get("session_id") or "")
+    masterclass_session_id = str(interrupt.get("masterclass_session_id") or "")
+    if not masterclass_session_id:
+        return None
+    for child in rows:
+        if (
+            child.get("api_version") != "rebuild"
+            or child.get("flow_type") != "masterclass"
+            or str(child.get("session_id") or "") != masterclass_session_id
+            or str(child.get("profile_version_id") or "") != profile_version_id
+            or str(child.get("source_placement_report_id") or "")
+            != source_placement_report_id
+        ):
+            continue
+        if _masterclass_child_qualifies_for_resume(
+            child,
+            curriculum_session_id=parent_session_id,
+            parent_state=parent_state,
+            interrupt=interrupt,
+        ):
+            return child
+    return None
 
 
 def _processing_curriculum_request_from_snapshot(
@@ -906,7 +1108,15 @@ async def _canonical_school_read_context(request: Request) -> dict:
                 source_placement_report_id=source_report_id,
                 state_json=stale_state,
             )
-            curriculum_session = None
+            # The stale chapter itself cannot resume, but its cumulative
+            # completed-chapter ledger remains the progression source. Keep
+            # the expired row in the read model so this first refresh request
+            # agrees with subsequent catalog requests.
+            curriculum_session = {
+                **curriculum_session,
+                "status": "expired",
+                "state_json": stale_state,
+            }
 
         if curriculum_session and curriculum_session.get("status") == "complete":
             curriculum_public = curriculum.public_curriculum_response(
@@ -934,6 +1144,12 @@ async def _canonical_school_read_context(request: Request) -> dict:
         public_profile=public_profile or {},
         source_placement_report_id=source_report_id,
     ) if public_profile else (None, None)
+    resumable_masterclass = _resumable_masterclass_from_snapshot(
+        rows=list(snapshot.get("linked_sessions") or []),
+        parent_session=active_curriculum,
+        public_profile=public_profile or {},
+        source_placement_report_id=source_report_id,
+    ) if public_profile else None
     processing_answer_request = _processing_curriculum_request_from_snapshot(
         rows=list(snapshot.get("processing_answer_requests") or []),
         curriculum_session=curriculum_session,
@@ -963,6 +1179,7 @@ async def _canonical_school_read_context(request: Request) -> dict:
         "processing_answer_request": processing_answer_request,
         "active_masterclass_session": active_masterclass,
         "active_support_session": active_support,
+        "resumable_masterclass_session": resumable_masterclass,
         "learning_memory": learning_memory,
     }
     request.state.school_read_context = context
@@ -984,6 +1201,13 @@ async def school_state(request: Request) -> dict:
         recap_session=context["recap_session"],
         curriculum_session=context["curriculum_session"],
     )
+    state_curriculum_session = context["active_curriculum_session"]
+    if (
+        state_curriculum_session is None
+        and context["curriculum_session"]
+        and context["curriculum_session"].get("status") == "complete"
+    ):
+        state_curriculum_session = context["curriculum_session"]
     return {
         **school_state_for_profile(
             learner_profile=context["learner_profile"],
@@ -991,10 +1215,11 @@ async def school_state(request: Request) -> dict:
             placement_session=context["placement_session"],
             placement_report=state_placement_report,
             active_recap_session=context["recap_session"],
-            active_curriculum_session=context["curriculum_session"],
+            active_curriculum_session=state_curriculum_session,
             processing_answer_request=context["processing_answer_request"],
             active_masterclass_session=context["active_masterclass_session"],
             active_support_session=context["active_support_session"],
+            resumable_masterclass_session=context["resumable_masterclass_session"],
         ),
         "available": True,
     }
@@ -1081,11 +1306,7 @@ async def _catalog_curriculum_context(
         public_profile,
         source_report_id,
     )
-    latest_curriculum = await _latest_curriculum_for_profile(
-        user_id,
-        public_profile,
-        source_report_id,
-    )
+    latest_curriculum = read_context["curriculum_session"]
     return (
         _canonical_state_allows(canonical_state, "start_curriculum"),
         latest_curriculum,
@@ -1190,21 +1411,11 @@ async def get_school_curriculum_landing(request: Request) -> dict:
         {"start_curriculum", "resume_curriculum"},
         error_code="curriculum_locked",
     )
-    placement_report = await _latest_placement_report_for_profile(
-        user_id,
-        public_profile,
-    )
+    read_context = await _canonical_school_read_context(request)
+    placement_report = read_context["placement_report"]
     source_report_id = str(placement_report["report_id"]) if placement_report else None
-    recap_session = await _latest_recap_for_profile(
-        user_id,
-        public_profile,
-        source_report_id,
-    )
-    latest_curriculum = await _latest_curriculum_for_profile(
-        user_id,
-        public_profile,
-        source_report_id,
-    )
+    recap_session = read_context["recap_session"]
+    latest_curriculum = read_context["curriculum_session"]
     if not curriculum.is_curriculum_unlocked(
         placement_report=placement_report,
         recap_session=recap_session,
@@ -1261,7 +1472,7 @@ async def start_school_curriculum(
         public_profile,
         source_report_id,
     )
-    latest_curriculum = await _latest_curriculum_for_profile(
+    latest_curriculum = await _latest_curriculum_progress_for_profile(
         user_id,
         public_profile,
         source_report_id,
@@ -1463,6 +1674,11 @@ async def _reconcile_saved_curriculum_session(
     expected_state = dict(row.get("state_json") or {})
     reconciled_state, repair = curriculum.reconcile_curriculum_state(expected_state)
     if reconciled_state == expected_state:
+        await _ensure_saved_chapter_certification_projection(
+            store=store,
+            row=row,
+            user_id=user_id,
+        )
         return row
 
     state_status = str(reconciled_state.get("status") or "active")
@@ -1491,31 +1707,133 @@ async def _reconcile_saved_curriculum_session(
         "source_placement_report_id": row.get("source_placement_report_id"),
         "state_json": reconciled_state,
     }
-    changed = await store.compare_and_set_school_session(
-        school_session=school_session,
-        expected_state_json=expected_state,
+    if repair is None:
+        updated_row = {**row, **school_session}
+    else:
+        changed = await store.compare_and_set_school_session(
+            school_session=school_session,
+            expected_state_json=expected_state,
+        )
+        if not changed:
+            current = await store.get_school_session(user_id, str(row["session_id"]))
+            updated_row = current or row
+        else:
+            updated_row = await store.get_school_session(
+                user_id,
+                str(row["session_id"]),
+            )
+            updated_row = updated_row or {**row, **school_session}
+    await _ensure_saved_chapter_certification_projection(
+        store=store,
+        row=updated_row,
+        user_id=user_id,
     )
-    if not changed:
-        current = await store.get_school_session(user_id, str(row["session_id"]))
-        return current or row
-
-    updated_row = await store.get_school_session(user_id, str(row["session_id"]))
-    updated_row = updated_row or {**row, **school_session}
-    if repair and repair.get("kind") == "chapter_certification_reconciled":
-        try:
-            await SchoolLearningProfileService(store).record_chapter_certification(
-                user_id=user_id,
-                session_id=str(row["session_id"]),
-                chapter_id=str(repair.get("chapter_id") or ""),
-                skill_scores=dict(repair.get("skill_scores") or {}),
-            )
-        except Exception as projection_error:
-            logger.warning(
-                "School reconciled certification projection failed for %s: %s",
-                row["session_id"],
-                type(projection_error).__name__,
-            )
     return updated_row
+
+
+def _saved_chapter_certification_projection(state: dict) -> dict | None:
+    """Read only durable historical-repair certification evidence from state."""
+
+    if state.get("status") != "complete" or state.get("phase") != "complete":
+        return None
+    chapter_id = str((state.get("chapter") or {}).get("chapter_id") or "")
+    if not chapter_id:
+        return None
+    for reconciliation in reversed(list(state.get("state_reconciliations") or [])):
+        if (
+            not isinstance(reconciliation, dict)
+            or reconciliation.get("kind") != "chapter_certification_reconciled"
+            or str(reconciliation.get("chapter_id") or "") != chapter_id
+        ):
+            continue
+        skill_scores = {
+            str(skill_id): float(score)
+            for skill_id, score in dict(reconciliation.get("skill_scores") or {}).items()
+            if str(skill_id)
+        }
+        if not skill_scores:
+            continue
+        feedback = state.get("last_feedback")
+        final_activity_id = (
+            str(feedback.get("activity_id") or "")
+            if isinstance(feedback, dict)
+            and feedback.get("kind") == "chapter_check"
+            else ""
+        )
+        return {
+            "chapter_id": chapter_id,
+            "skill_scores": skill_scores,
+            "final_activity_id": final_activity_id,
+        }
+    return None
+
+
+def _has_saved_chapter_certification_projection(
+    profiles: list[dict],
+    *,
+    session_id: str,
+    chapter_id: str,
+    skill_scores: dict[str, float],
+) -> bool:
+    identity_key = f"{session_id}:{chapter_id}"
+    expected = {
+        "session_id": session_id,
+        "chapter_id": chapter_id,
+    }
+    profiles_by_skill = {
+        str(profile.get("skill_id") or ""): profile
+        for profile in profiles
+        if isinstance(profile, dict) and profile.get("domain") == "school"
+    }
+    for skill_id, score in skill_scores.items():
+        certification = {**expected, "score": float(score)}
+        profile = profiles_by_skill.get(skill_id)
+        evidence = (
+            profile.get("evidence_json")
+            if isinstance(profile, dict) and isinstance(profile.get("evidence_json"), dict)
+            else {}
+        )
+        ledger = evidence.get("reconciliation_certification_ledger")
+        if isinstance(ledger, dict) and ledger.get(identity_key) == certification:
+            continue
+        return False
+    return True
+
+
+async def _ensure_saved_chapter_certification_projection(
+    *,
+    store,
+    row: dict,
+    user_id: str,
+) -> None:
+    """Retry a lost certification projection without another state transition."""
+
+    certification = _saved_chapter_certification_projection(
+        dict(row.get("state_json") or {})
+    )
+    if certification is None:
+        return
+    graph = await store.get_school_learning_graph(user_id)
+    if _has_saved_chapter_certification_projection(
+        list(graph.get("profiles") or []),
+        session_id=str(row["session_id"]),
+        chapter_id=str(certification["chapter_id"]),
+        skill_scores=dict(certification["skill_scores"]),
+    ):
+        return
+    try:
+        await SchoolLearningProfileService(store).record_chapter_certification(
+            user_id=user_id,
+            session_id=str(row["session_id"]),
+            chapter_id=str(certification["chapter_id"]),
+            skill_scores=dict(certification["skill_scores"]),
+        )
+    except Exception as projection_error:
+        logger.warning(
+            "School reconciled certification projection failed for %s: %s",
+            row["session_id"],
+            type(projection_error).__name__,
+        )
 
 
 @router.get("/curriculum/{session_id}")
@@ -1637,10 +1955,31 @@ async def answer_school_curriculum(
         or row.get("flow_type") != "curriculum"
     ):
         raise HTTPException(status_code=404, detail={"code": "curriculum_session_not_found"})
+    expected_state_json = dict(row.get("state_json") or {})
+    # This also retries a prior post-CAS certification projection failure.
+    # Keep the original snapshot for the ordinary stale-overlay answer CAS.
+    row = await _reconcile_saved_curriculum_session(
+        store=store,
+        row=row,
+        user_id=user_id,
+    )
+    repaired_certification = _saved_chapter_certification_projection(
+        dict(row.get("state_json") or {})
+    )
+    is_reconciled_final_activity = bool(
+        repaired_certification
+        and repaired_certification.get("final_activity_id")
+        == req.activity_id
+    )
+    is_complete = (
+        row.get("status") == "complete"
+        and dict(row.get("state_json") or {}).get("status") == "complete"
+    )
     answer_hash = hashlib.sha256(req.answer.encode("utf-8")).hexdigest()
     existing_request = await store.get_school_answer_request(
         user_id, session_id, req.activity_id
     )
+    request_status = ""
     if existing_request:
         request_status = str(existing_request.get("status") or "")
         if (
@@ -1651,7 +1990,13 @@ async def answer_school_curriculum(
                 status_code=409,
                 detail={"code": "curriculum_answer_conflict"},
             )
+    if existing_request:
         if request_status == "completed":
+            if is_complete and is_reconciled_final_activity:
+                return _public_session_with_school_coach(
+                    curriculum.public_curriculum_response(row),
+                    row,
+                )
             return dict(existing_request.get("response_json") or {})
         if (
             request_status == "processing"
@@ -1661,6 +2006,11 @@ async def answer_school_curriculum(
                 status_code=409,
                 detail={"code": "curriculum_answer_in_progress"},
             )
+    if is_complete and is_reconciled_final_activity:
+        return _public_session_with_school_coach(
+            curriculum.public_curriculum_response(row),
+            row,
+        )
     if row.get("status") != "active":
         raise HTTPException(status_code=409, detail={"code": "curriculum_not_active"})
     try:
@@ -1721,10 +2071,16 @@ async def answer_school_curriculum(
                     )
                 )
         try:
+            attempt_no = int(activity.get("attempt_no") or 1)
+            source_event_key = (
+                f"school_rebuild:curriculum:{row['session_id']}:"
+                f"{req.activity_id}:attempt:{attempt_no}"
+            )
             updated_state, evaluation = curriculum.apply_curriculum_answer(
                 row.get("state_json") or {},
                 activity_id=req.activity_id,
                 answer=req.answer,
+                evidence_id=source_event_key,
                 open_answer_evaluation=open_answer_evaluation,
                 open_answer_preflight_failed=open_answer_preflight_failed,
             )
@@ -1746,10 +2102,7 @@ async def answer_school_curriculum(
             raise
 
         learning_event = {
-            "source_event_key": (
-                f"school_rebuild:curriculum:{row['session_id']}:"
-                f"{req.activity_id}:attempt:{evaluation.get('attempt_no', 1)}"
-            ),
+            "source_event_key": source_event_key,
             "user_id": user_id,
             "domain": "school",
             "task_type": "school_rebuild_curriculum",
@@ -1773,9 +2126,25 @@ async def answer_school_curriculum(
                 "active_learning_class_no": updated_state.get("active_learning_class_no"),
                 "chapter_id": (updated_state.get("chapter") or {}).get("chapter_id"),
                 "evaluation_mode": evaluation.get("evaluation_mode"),
+                "evidence_role": evaluation.get("evidence_role"),
+                "teaching_phase": evaluation.get("phase"),
+                "support_mode": evaluation.get("support_mode"),
                 "model_score": evaluation.get("model_score"),
                 "language_detected": evaluation.get("language_detected"),
                 "misconception_tags": list(evaluation.get("misconception_tags") or []),
+                "learner_response_excerpt": req.answer[:320],
+                "learner_response_truncated": len(req.answer) > 320,
+                "evaluation_evidence": {
+                    "score": float(evaluation["score"]),
+                    "confidence": float(evaluation["confidence"]),
+                    "criteria": list(evaluation.get("criteria") or []),
+                    "missing_criteria": list(
+                        evaluation.get("missing_criteria") or []
+                    ),
+                    "blockers": list(evaluation.get("blockers") or []),
+                },
+                "source_anchor_ids": list(activity.get("source_anchor_ids") or []),
+                "variant": dict(activity.get("variant") or {}),
             },
             "blockers": list(
                 dict.fromkeys(
@@ -1834,7 +2203,7 @@ async def answer_school_curriculum(
         await store.persist_school_curriculum_attempt(
             learning_event=learning_event,
             school_session=school_session,
-            expected_state_json=row.get("state_json") or {},
+            expected_state_json=expected_state_json,
             request_activity_id=req.activity_id,
             request_answer_hash=answer_hash,
             request_claim_token=claim_token,
@@ -1859,10 +2228,22 @@ async def answer_school_curriculum(
                 "answer_excerpt": req.answer,
                 "attempt_passed": bool(evaluation["correct"]),
                 "certified_skill_scores": certified_skill_scores,
-            },
-            language_evaluation=evaluation,
+            }
+            if evaluation.get("scored", True)
+            else None,
+            language_evaluation=(
+                evaluation if evaluation.get("scored", True) else None
+            ),
         )
         return public_response
+    except SchoolOpenAnswerRetryableError as exc:
+        await store.fail_school_answer_request(
+            user_id, session_id, req.activity_id, answer_hash, claim_token
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"code": exc.code},
+        ) from exc
     except TimeoutError as exc:
         logger.warning(
             "School open-answer evaluator timed out for activity %s",
@@ -1887,15 +2268,15 @@ async def answer_school_curriculum(
         await store.fail_school_answer_request(
             user_id, session_id, req.activity_id, answer_hash, claim_token
         )
-        if str(exc) in _SCHOOL_SESSION_WRITE_CONFLICTS:
-            raise HTTPException(
-                status_code=409,
-                detail={"code": str(exc)},
-            ) from exc
         if str(exc) in {"stale_school_answer_session", "stale_school_answer_request"}:
             raise HTTPException(
                 status_code=409,
                 detail={"code": "stale_curriculum_answer"},
+            ) from exc
+        if str(exc) in _SCHOOL_SESSION_WRITE_CONFLICTS:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": str(exc)},
             ) from exc
         raise
     except HTTPException:
@@ -1944,6 +2325,40 @@ async def _curriculum_parent_for_masterclass(
             detail={"code": "curriculum_session_not_found"},
         )
     return store, row, public_profile, placement_report
+
+
+async def _linked_parent_for_masterclass_provenance(
+    store,
+    *,
+    user_id: str,
+    child: dict,
+) -> dict | None:
+    """Load only the linked curriculum row used for legacy source projection."""
+
+    child_state = dict(child.get("state_json") or {})
+    linked_session_id = str(
+        child.get("linked_session_id")
+        or child_state.get("curriculum_session_id")
+        or ""
+    )
+    if not linked_session_id:
+        return None
+    parent = await store.get_school_session(user_id, linked_session_id)
+    if not isinstance(parent, dict):
+        return None
+    if (
+        str(parent.get("session_id") or "") != linked_session_id
+        or parent.get("api_version") != "rebuild"
+        or parent.get("flow_type") != "curriculum"
+        or str(parent.get("user_id") or "") != str(child.get("user_id") or "")
+    ):
+        return None
+    for lineage_field in ("profile_version_id", "source_placement_report_id"):
+        child_value = str(child.get(lineage_field) or "")
+        parent_value = str(parent.get(lineage_field) or "")
+        if not child_value or not parent_value or child_value != parent_value:
+            return None
+    return parent
 
 
 def _school_session_write_payload(
@@ -2004,8 +2419,30 @@ async def start_school_curriculum_masterclass(
     if existing_id:
         existing = await store.get_school_session(user_id, existing_id)
         if existing and existing.get("flow_type") == "masterclass":
+            existing_state = dict(existing.get("state_json") or {})
+            if (
+                existing.get("status") == "complete"
+                or existing_state.get("status") == "complete"
+            ):
+                if not _masterclass_child_qualifies_for_resume(
+                    existing,
+                    curriculum_session_id=session_id,
+                    parent_state=parent_state,
+                    interrupt=interrupt,
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"code": "masterclass_completion_invalid"},
+                    )
+                return await resume_school_curriculum_masterclass(
+                    UUID(session_id),
+                    request,
+                )
             return _public_session_with_school_coach(
-                masterclass.public_masterclass_response(existing),
+                masterclass.public_masterclass_response(
+                    existing,
+                    parent_session=parent,
+                ),
                 existing,
             )
 
@@ -2044,7 +2481,10 @@ async def start_school_curriculum_masterclass(
         ),
     )
     return _public_session_with_school_coach(
-        masterclass.public_masterclass_response(child),
+        masterclass.public_masterclass_response(
+            child,
+            parent_session=parent,
+        ),
         child,
     )
 
@@ -2072,8 +2512,16 @@ async def get_school_masterclass(session_id: UUID, request: Request) -> dict:
             status_code=404,
             detail={"code": "masterclass_session_not_found"},
         )
+    parent = await _linked_parent_for_masterclass_provenance(
+        store,
+        user_id=user_id,
+        child=row,
+    )
     return _public_session_with_school_coach(
-        masterclass.public_masterclass_response(row),
+        masterclass.public_masterclass_response(
+            row,
+            parent_session=parent,
+        ),
         row,
     )
 
@@ -2122,19 +2570,12 @@ async def answer_school_masterclass(
             status_code=409,
             detail={"code": "masterclass_not_active"},
         )
-    try:
-        updated_state, evaluation = masterclass.apply_masterclass_answer(
-            row.get("state_json") or {},
-            activity_id=req.activity_id,
-            answer=req.answer,
+    activity = masterclass.current_activity(row.get("state_json") or {})
+    if not activity or activity.get("activity_id") != req.activity_id:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "unexpected_masterclass_activity"},
         )
-    except ValueError as exc:
-        if str(exc) == "unexpected_masterclass_activity":
-            raise HTTPException(
-                status_code=409,
-                detail={"code": "unexpected_masterclass_activity"},
-            ) from exc
-        raise
     claim = await _claim_school_answer(
         store,
         user_id=user_id,
@@ -2147,6 +2588,72 @@ async def answer_school_masterclass(
     if isinstance(claim, dict):
         return claim
     claim_token = claim
+    try:
+        open_answer_evaluation = None
+        open_answer_preflight_failed = False
+        evaluator_activity = curriculum.evaluator_activity_for_answer(
+            activity,
+            req.answer,
+        )
+        if evaluator_activity is not None:
+            if not curriculum._open_answer_preflight(
+                evaluator_activity,
+                req.answer,
+            ):
+                open_answer_preflight_failed = True
+            else:
+                open_answer_evaluation = (
+                    await _evaluate_school_open_answer_with_claim_heartbeat(
+                        store=store,
+                        user_id=user_id,
+                        session_id=session_id,
+                        activity_id=req.activity_id,
+                        answer_hash=answer_hash,
+                        claim_token=claim_token,
+                        activity=evaluator_activity,
+                        answer=req.answer,
+                    )
+                )
+        updated_state, evaluation = masterclass.apply_masterclass_answer(
+            row.get("state_json") or {},
+            activity_id=req.activity_id,
+            answer=req.answer,
+            open_answer_evaluation=open_answer_evaluation,
+            open_answer_preflight_failed=open_answer_preflight_failed,
+        )
+    except SchoolOpenAnswerRetryableError as exc:
+        await store.fail_school_answer_request(
+            user_id, session_id, req.activity_id, answer_hash, claim_token
+        )
+        raise HTTPException(status_code=503, detail={"code": exc.code}) from exc
+    except TimeoutError as exc:
+        await store.fail_school_answer_request(
+            user_id, session_id, req.activity_id, answer_hash, claim_token
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "open_answer_evaluation_timeout"},
+        ) from exc
+    except (ValidationError, ValueError) as exc:
+        await store.fail_school_answer_request(
+            user_id, session_id, req.activity_id, answer_hash, claim_token
+        )
+        if isinstance(exc, ValueError) and str(exc) == "unexpected_masterclass_activity":
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "unexpected_masterclass_activity"},
+            ) from exc
+        if isinstance(exc, ValueError) and str(exc) not in {
+            "invalid_open_answer_evaluation_contract",
+            "open_answer_evaluation_required",
+            "untraceable_open_answer_evidence",
+        }:
+            raise
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "open_answer_evaluation_unavailable"},
+        ) from exc
+    attempt_type = masterclass.persistence_attempt_type(evaluation)
     learning_event = {
         "source_event_key": (
             f"school_rebuild:masterclass:{session_id}:"
@@ -2163,7 +2670,7 @@ async def answer_school_masterclass(
             f"curriculum.{evaluation['level_id']}",
         ),
         "source": "school_rebuild",
-        "attempt_type": "masterclass",
+        "attempt_type": attempt_type,
         "score": float(evaluation["score"]),
         "confidence": float(evaluation["confidence"]),
         "criteria_json": list(evaluation["criteria"]),
@@ -2190,8 +2697,16 @@ async def answer_school_masterclass(
         ),
         state_json=updated_state,
     )
+    parent = await _linked_parent_for_masterclass_provenance(
+        store,
+        user_id=user_id,
+        child=school_session,
+    )
     public_response = _public_session_with_school_coach(
-        masterclass.public_masterclass_response(school_session),
+        masterclass.public_masterclass_response(
+            school_session,
+            parent_session=parent,
+        ),
         school_session,
     )
     try:
@@ -2211,7 +2726,7 @@ async def answer_school_masterclass(
                 "task_type": "school_rebuild_masterclass",
                 "focus": evaluation["focus"],
                 "skill_ids": list(evaluation.get("skill_ids") or []),
-                "attempt_type": "masterclass",
+                "attempt_type": attempt_type,
                 "score": float(evaluation["score"]),
                 "confidence": float(evaluation["confidence"]),
                 "criteria": learning_event["criteria_json"],
@@ -2247,8 +2762,89 @@ async def resume_school_curriculum_masterclass(
         session_id=session_id,
     )
     parent_state = dict(parent.get("state_json") or {})
+    if (
+        parent.get("status") == "expired"
+        or parent_state.get("phase") == "content_refresh_required"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "curriculum_content_refresh_required"},
+        )
     interrupt = parent_state.get("active_interrupt")
     if not isinstance(interrupt, dict):
+        history = list(parent_state.get("interrupt_history") or [])
+        last_resolution = history[-1] if history else None
+        replay_child_id = str(
+            (last_resolution or {}).get("masterclass_session_id") or ""
+        )
+        replay_child = (
+            await store.get_school_session(user_id, replay_child_id)
+            if replay_child_id
+            else None
+        )
+        if (
+            parent_state.get("status") == "active"
+            and parent_state.get("phase") == "learning"
+            and isinstance(last_resolution, dict)
+            and last_resolution.get("resolution") == "complete"
+            and replay_child
+        ):
+            if not _masterclass_child_qualifies_for_resume(
+                replay_child,
+                curriculum_session_id=session_id,
+                parent_state=parent_state,
+                interrupt=last_resolution,
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "masterclass_completion_invalid"},
+                )
+            recovered = curriculum.recover_completed_masterclass_replay(
+                parent_state,
+                masterclass_session_id=replay_child_id,
+            )
+            if recovered is not None:
+                parent_write = _school_session_write_payload(
+                    parent,
+                    status="active",
+                    state_json=recovered,
+                )
+                updated_parent = {**parent, **parent_write}
+                public_response = _validated_public_json_payload(
+                    _public_session_with_school_coach(
+                        curriculum.public_curriculum_response(updated_parent),
+                        updated_parent,
+                    )
+                )
+                changed = await store.compare_and_set_school_session(
+                    school_session=parent_write,
+                    expected_state_json=parent_state,
+                )
+                if changed:
+                    return public_response
+                reloaded = await store.get_school_session(user_id, session_id)
+                if reloaded:
+                    try:
+                        return _validated_public_json_payload(
+                            _public_session_with_school_coach(
+                                curriculum.public_curriculum_response(reloaded),
+                                reloaded,
+                            )
+                        )
+                    except ValueError:
+                        pass
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "curriculum_masterclass_transition_conflict"
+                    },
+                )
+            return _validated_public_json_payload(
+                _public_session_with_school_coach(
+                    curriculum.public_curriculum_response(parent),
+                    parent,
+                )
+            )
         raise HTTPException(
             status_code=409,
             detail={"code": "curriculum_not_paused_for_masterclass"},
@@ -2260,10 +2856,23 @@ async def resume_school_curriculum_masterclass(
             status_code=409,
             detail={"code": "masterclass_not_complete"},
         )
+    if not _masterclass_child_qualifies_for_resume(
+        child,
+        curriculum_session_id=session_id,
+        parent_state=parent_state,
+        interrupt=interrupt,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "masterclass_completion_invalid"},
+        )
     resumed = curriculum.resume_after_masterclass(
         parent_state,
         masterclass_session_id=child_id,
         resolution="complete",
+        consumed_variant_ids=masterclass.consumed_source_activity_ids(
+            dict(child.get("state_json") or {})
+        ),
     )
     parent_write = _school_session_write_payload(
         parent,
@@ -2271,6 +2880,12 @@ async def resume_school_curriculum_masterclass(
         state_json=resumed,
     )
     updated_parent = {**parent, **parent_write}
+    public_response = _validated_public_json_payload(
+        _public_session_with_school_coach(
+            curriculum.public_curriculum_response(updated_parent),
+            updated_parent,
+        )
+    )
     changed = await store.compare_and_set_school_session(
         school_session=parent_write,
         expected_state_json=parent_state,
@@ -2280,10 +2895,7 @@ async def resume_school_curriculum_masterclass(
             status_code=409,
             detail={"code": "curriculum_masterclass_transition_conflict"},
         )
-    return _public_session_with_school_coach(
-        curriculum.public_curriculum_response(updated_parent),
-        updated_parent,
-    )
+    return public_response
 
 
 @router.post("/curriculum/{session_id}/abandon-masterclass")
@@ -2306,8 +2918,13 @@ async def abandon_school_curriculum_masterclass(
             detail={"code": "curriculum_not_paused_for_masterclass"},
         )
     child_id = str(interrupt.get("masterclass_session_id") or "")
+    consumed_variant_ids: tuple[str, ...] = ()
     if child_id:
         child = await store.get_school_session(user_id, child_id)
+        if child:
+            consumed_variant_ids = masterclass.consumed_source_activity_ids(
+                dict(child.get("state_json") or {})
+            )
         if child and child.get("status") == "active":
             abandoned_state = {
                 **dict(child.get("state_json") or {}),
@@ -2326,6 +2943,7 @@ async def abandon_school_curriculum_masterclass(
         parent_state,
         masterclass_session_id=resolution_id,
         resolution="abandoned",
+        consumed_variant_ids=consumed_variant_ids,
     )
     parent_write = _school_session_write_payload(
         parent,
@@ -2345,6 +2963,131 @@ async def abandon_school_curriculum_masterclass(
     return _public_session_with_school_coach(
         curriculum.public_curriculum_response(updated_parent),
         updated_parent,
+    )
+
+
+def _is_completed_support_cap_continuation(state: object) -> bool:
+    if not isinstance(state, dict):
+        return False
+    if (
+        state.get("status") != "active"
+        or state.get("phase") != "learning"
+        or state.get("active_interrupt") is not None
+    ):
+        return False
+    feedback = state.get("feedback_v2")
+    support_required = state.get("support_required")
+    levels = state.get("levels")
+    if (
+        not isinstance(feedback, dict)
+        or feedback.get("outcome") != "continued_after_support_cap"
+        or feedback.get("scored") is not False
+        or not isinstance(support_required, dict)
+        or support_required.get("reason") != "masterclass_cap_exceeded"
+        or support_required.get("continuation_status") != "continued_with_warning"
+        or not isinstance(levels, list)
+    ):
+        return False
+    try:
+        level = levels[int(state.get("current_level_index") or 0)]
+    except (IndexError, TypeError, ValueError):
+        return False
+    try:
+        acknowledged_count = int(
+            level.get("v2_support_cap_acknowledged_count") or 0
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return bool(
+        isinstance(level, dict)
+        and level.get("v2_auto_masterclass_disabled") is True
+        and acknowledged_count >= 1
+    )
+
+
+def _same_school_session_lineage(left: dict, right: object) -> bool:
+    if not isinstance(right, dict):
+        return False
+    lineage_fields = (
+        "session_id",
+        "user_id",
+        "api_version",
+        "flow_type",
+        "subject_id",
+        "class_no",
+        "profile_version_id",
+        "source_placement_report_id",
+    )
+    return all(
+        str(left.get(field) or "") == str(right.get(field) or "")
+        for field in lineage_fields
+    )
+
+
+@router.post("/curriculum/{session_id}/continue-after-support-cap")
+@school_route_owner("app.services.school_rebuild_curriculum")
+async def continue_school_curriculum_after_support_cap(
+    session_id: UUID,
+    request: Request,
+) -> dict:
+    user_id = _uid(request)
+    session_id = str(session_id)
+    store, parent, _profile, _report = await _curriculum_parent_for_masterclass(
+        user_id=user_id,
+        session_id=session_id,
+    )
+    parent_state = dict(parent.get("state_json") or {})
+    if _is_completed_support_cap_continuation(parent_state):
+        return _public_session_with_school_coach(
+            curriculum.public_curriculum_response(parent),
+            parent,
+        )
+
+    try:
+        continued = curriculum.continue_after_support_cap(parent_state)
+    except ValueError as exc:
+        error_code = str(exc)
+        if error_code in {
+            "curriculum_not_capped_for_support",
+            "capped_support_level_not_found",
+            "capped_support_return_step_not_found",
+            "capped_support_return_activity_unavailable",
+        }:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": error_code},
+            ) from exc
+        raise
+
+    parent_write = _school_session_write_payload(
+        parent,
+        status="active",
+        state_json=continued,
+    )
+    updated_parent = {**parent, **parent_write}
+    changed = await store.compare_and_set_school_session(
+        school_session=parent_write,
+        expected_state_json=parent_state,
+    )
+    if changed:
+        return _public_session_with_school_coach(
+            curriculum.public_curriculum_response(updated_parent),
+            updated_parent,
+        )
+
+    current = await store.get_school_session(user_id, session_id)
+    current_state = current.get("state_json") if isinstance(current, dict) else None
+    if (
+        _same_school_session_lineage(parent, current)
+        and _is_completed_support_cap_continuation(current_state)
+    ):
+        return _public_session_with_school_coach(
+            curriculum.public_curriculum_response(current),
+            current,
+        )
+    raise HTTPException(
+        status_code=409,
+        detail={"code": "curriculum_support_cap_transition_conflict"},
     )
 
 
@@ -2515,8 +3258,90 @@ async def start_school_placement(request: Request) -> dict:
                 },
             )
 
+        if next_action == "resume_placement":
+            resumable_row = await store.get_latest_school_session(
+                user_id,
+                "rebuild",
+                "placement",
+                subject_id,
+                target_class_no,
+                profile_version_id=str(profile["profile_version_id"]),
+            )
+            if not resumable_row:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "placement_session_not_resumable"},
+                )
+            resumable_row = await _placement_row_with_effective_status(resumable_row)
+            resumable_envelope = placement.envelope_from_json(
+                resumable_row.get("state_json") or {}
+            )
+            if resumable_row.get("status") == "active":
+                resumable_row = await _present_school_placement_row(
+                    store,
+                    resumable_row,
+                    resumable_envelope,
+                )
+                return _public_session_with_school_coach(
+                    placement.placement_response(
+                        session_id=resumable_row["session_id"],
+                        envelope=resumable_envelope,
+                    ),
+                    resumable_row,
+                )
+            try:
+                resumed_envelope = placement.resume_placement(resumable_envelope)
+            except ValueError as exc:
+                code = str(exc)
+                if code in {
+                    "placement_not_resumable",
+                    "placement_resume_evidence_unavailable",
+                }:
+                    raise HTTPException(status_code=409, detail={"code": code}) from exc
+                raise
+            resumed_state_json = _state_with_school_coach(
+                placement.envelope_to_json(resumed_envelope),
+                resumable_row.get("state_json"),
+            )
+            try:
+                resumed_row = await store.resume_school_placement_session(
+                    user_id=user_id,
+                    session_id=str(resumable_row["session_id"]),
+                    profile_version_id=str(profile["profile_version_id"]),
+                    current_stage=resumed_envelope.state.stage,
+                    state_json=resumed_state_json,
+                )
+            except ValueError as exc:
+                code = str(exc)
+                if code in _SCHOOL_SESSION_WRITE_CONFLICTS or code in {
+                    "placement_session_not_found",
+                    "placement_session_not_resumable",
+                    "placement_session_resume_conflict",
+                }:
+                    raise HTTPException(status_code=409, detail={"code": code}) from exc
+                raise
+            resumed_row = await _present_school_placement_row(
+                store,
+                resumed_row,
+                resumed_envelope,
+                force=True,
+            )
+            return _public_session_with_school_coach(
+                placement.placement_response(
+                    session_id=resumed_row["session_id"],
+                    envelope=placement.envelope_from_json(
+                        resumed_row.get("state_json") or {}
+                    ),
+                ),
+                resumed_row,
+            )
+
         session_id = str(uuid4())
         envelope = placement.new_placement_envelope(profile)
+        initial_state_json = _state_with_school_coach(
+            placement.envelope_to_json(envelope),
+            profile,
+        )
         try:
             row = await store.get_or_create_active_school_placement_session(
                 session_id=session_id,
@@ -2525,10 +3350,7 @@ async def start_school_placement(request: Request) -> dict:
                 subject_id=subject_id,
                 class_no=target_class_no,
                 current_stage=envelope.state.stage,
-                state_json=_state_with_school_coach(
-                    placement.envelope_to_json(envelope),
-                    profile,
-                ),
+                state_json=initial_state_json,
             )
         except ValueError as exc:
             code = str(exc)
@@ -2538,6 +3360,11 @@ async def start_school_placement(request: Request) -> dict:
                 raise HTTPException(status_code=409, detail={"code": code}) from exc
             raise
         winner_envelope = placement.envelope_from_json(row.get("state_json") or {})
+        row = await _present_school_placement_row(
+            store,
+            row,
+            winner_envelope,
+        )
         return _public_session_with_school_coach(
             placement.placement_response(
                 session_id=row["session_id"],
@@ -2645,6 +3472,12 @@ async def get_school_placement(session_id: UUID, request: Request) -> dict:
         raise HTTPException(status_code=404, detail={"code": "placement_session_not_found"})
     row = await _placement_row_with_effective_status(row)
     envelope = placement.envelope_from_json(row.get("state_json") or {})
+    if row.get("status") == "active":
+        row = await _present_school_placement_row(
+            get_storage(),
+            row,
+            envelope,
+        )
     return _public_session_with_school_coach(
         placement.placement_response(
             session_id=row["session_id"],
@@ -2661,6 +3494,9 @@ async def answer_school_placement(
     req: SchoolPlacementAnswerIn,
     request: Request,
 ) -> dict:
+    # Learner time stops when the request reaches the route. Database, claim,
+    # and evaluator wait must never consume the placement time budget.
+    answer_arrived_at = _placement_server_now()
     session_id = str(session_id)
     user_id = _uid(request)
     await _learner_profile(user_id)
@@ -2730,7 +3566,14 @@ async def answer_school_placement(
     if isinstance(claim, dict):
         return claim
     claim_token = claim
+    learner_elapsed_seconds: float | None = None
     try:
+        learner_elapsed_seconds = _placement_elapsed_since_presented(
+            row.get("state_json") or {},
+            item_id=item.item_id,
+            answer_arrived_at=answer_arrived_at,
+        )
+
         async def placement_provider(activity: dict, answer: str):
             return await _evaluate_school_open_answer_with_claim_heartbeat(
                 store=store,
@@ -2743,6 +3586,7 @@ async def answer_school_placement(
                 answer=answer,
             )
 
+        evaluator_started_at = _placement_monotonic()
         try:
             evaluation = await placement_evaluator.evaluate_school_placement_item(
                 item,
@@ -2754,6 +3598,10 @@ async def answer_school_placement(
                 status_code=503,
                 detail={"code": placement_evaluator.EVALUATOR_UNAVAILABLE_CODE},
             ) from exc
+        evaluator_wait_seconds = max(
+            0,
+            int(_placement_monotonic() - evaluator_started_at),
+        )
 
         if "language_mismatch" in evaluation.blockers:
             raise HTTPException(
@@ -2763,12 +3611,18 @@ async def answer_school_placement(
 
         score = float(evaluation.score)
         confidence = float(evaluation.confidence)
+        criteria_evidence = [
+            criterion.model_dump() for criterion in evaluation.criteria
+        ]
+        learner_response_excerpt = req.answer[:_PLACEMENT_EVIDENCE_EXCERPT_CHARS]
         updated = placement.apply_evaluated_attempt(
             envelope,
             item,
             evaluator_score=score,
             evaluator_confidence=confidence,
             certifying_blockers=tuple(evaluation.blockers),
+            elapsed_seconds_delta=learner_elapsed_seconds,
+            evaluator_wait_seconds_delta=evaluator_wait_seconds,
         )
         status = placement.placement_status(updated)
         learning_event = {
@@ -2786,9 +3640,7 @@ async def answer_school_placement(
             "attempt_type": item.stage,
             "score": score,
             "confidence": confidence,
-            "criteria_json": [
-                criterion.model_dump() for criterion in evaluation.criteria
-            ],
+            "criteria_json": criteria_evidence,
             "evidence_json": {
                 "profile_version_id": updated.profile_version_id,
                 "target_class_no": item.target_class_no,
@@ -2799,6 +3651,18 @@ async def answer_school_placement(
                 "learner_skill_label": item.learner_skill_label,
                 "language_detected": evaluation.language_detected,
                 "misconception_tags": list(evaluation.misconception_tags),
+                "learner_response_excerpt": learner_response_excerpt,
+                "learner_response_truncated": (
+                    len(req.answer) > _PLACEMENT_EVIDENCE_EXCERPT_CHARS
+                ),
+                "evaluation_evidence": {
+                    "score": score,
+                    "confidence": confidence,
+                    "criteria": criteria_evidence,
+                    "blockers": list(evaluation.blockers),
+                    "misconception_tags": list(evaluation.misconception_tags),
+                    "language_detected": evaluation.language_detected,
+                },
             },
             "blockers": list(evaluation.blockers),
             "gap": (
@@ -2900,6 +3764,14 @@ async def answer_school_placement(
             req.item_id,
             answer_hash,
             claim_token,
+            placement_retry_timing=(
+                _placement_retry_timing(
+                    item_id=req.item_id,
+                    accrued_learner_seconds=learner_elapsed_seconds,
+                )
+                if learner_elapsed_seconds is not None
+                else None
+            ),
         )
         if isinstance(exc, ValueError):
             code = str(exc)
@@ -2909,6 +3781,11 @@ async def answer_school_placement(
             }:
                 raise HTTPException(status_code=409, detail={"code": code}) from exc
         raise
+    await _present_school_placement_row(
+        store,
+        school_session,
+        updated,
+    )
     return public_response
 
 
@@ -2960,21 +3837,47 @@ async def abandon_school_placement(session_id: UUID, request: Request) -> dict:
         "current_stage": abandoned.state.stage,
         "state_json": state_json,
     }
-    await _upsert_school_session(
-        store,
-        session_id=session_id,
-        user_id=user_id,
-        api_version="rebuild",
-        flow_type="placement",
-        subject_id=row["subject_id"],
-        class_no=int(row["class_no"]),
+    school_session = _school_session_write_payload(
+        row,
         status="abandoned",
-        current_stage=abandoned.state.stage,
-        linked_session_id=row.get("linked_session_id"),
-        profile_version_id=row.get("profile_version_id"),
-        source_placement_report_id=None,
         state_json=state_json,
+        current_stage=abandoned.state.stage,
     )
+    try:
+        changed = await store.compare_and_set_school_session(
+            school_session=school_session,
+            expected_state_json=row.get("state_json") or {},
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code in _SCHOOL_SESSION_WRITE_CONFLICTS:
+            raise HTTPException(status_code=409, detail={"code": code}) from exc
+        raise
+    if not changed:
+        current = await store.get_school_session(user_id, session_id)
+        if (
+            _same_school_session_lineage(row, current)
+            and current.get("status") == "abandoned"
+        ):
+            current_envelope = placement.envelope_from_json(
+                current.get("state_json") or {}
+            )
+            await _ensure_school_placement_report(
+                user_id=user_id,
+                profile=public_profile,
+                placement_row=current,
+            )
+            return _public_session_with_school_coach(
+                placement.placement_response(
+                    session_id=session_id,
+                    envelope=current_envelope,
+                ),
+                current,
+            )
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "placement_abandon_conflict"},
+        )
     await _ensure_school_placement_report(
         user_id=user_id,
         profile=public_profile,
@@ -2994,16 +3897,12 @@ async def abandon_school_placement(session_id: UUID, request: Request) -> dict:
 async def start_school_recap(request: Request) -> dict:
     user_id = _uid(request)
     await _learner_profile(user_id)
-    active_profile = await get_storage().get_active_school_profile_version(user_id)
+    store = get_storage()
+    active_profile = await store.get_active_school_profile_version(user_id)
     if not active_profile:
         raise HTTPException(status_code=409, detail={"code": "school_profile_required"})
     profile = public_school_profile(active_profile)
     _require_available_school_selection(profile)
-    await _require_canonical_school_action(
-        request,
-        {"start_recap", "resume_recap"},
-        error_code="recap_not_required",
-    )
     report = await _latest_placement_report_for_profile(
         user_id,
         profile,
@@ -3024,13 +3923,33 @@ async def start_school_recap(request: Request) -> dict:
             existing,
         )
 
+    await _require_canonical_school_action(
+        request,
+        {"start_recap", "resume_recap"},
+        error_code="recap_not_required",
+    )
+
     session_id = str(uuid4())
+    try:
+        language_confidence = await load_language_confidence(store, user_id)
+    except Exception as language_load_error:
+        logger.warning(
+            "School language confidence load failed for recap start: %s",
+            type(language_load_error).__name__,
+        )
+        language_confidence = LanguageConfidenceState(user_id=user_id)
     state_json = _state_with_school_coach(
-        recap.new_recap_state(report),
+        recap.new_recap_state(
+            report,
+            preferred_teaching_language=profile["preferred_teaching_language"],
+            en_production_confidence=(
+                language_confidence.en_production_confidence
+            ),
+        ),
         profile,
     )
     row = await _get_or_create_school_session(
-        get_storage(),
+        store,
         session_id=session_id,
         user_id=user_id,
         api_version="rebuild",
@@ -3265,6 +4184,18 @@ async def answer_school_recap(
             },
             language_evaluation=evaluation,
         )
+    except SchoolOpenAnswerRetryableError as exc:
+        await store.fail_school_answer_request(
+            user_id,
+            session_id,
+            req.activity_id,
+            answer_hash,
+            claim_token,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"code": exc.code},
+        ) from exc
     except Exception as exc:
         await store.fail_school_answer_request(
             user_id,

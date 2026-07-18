@@ -14,7 +14,14 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.content.registry import get_module, get_node, is_voice_node, list_modules, module_of
+from app.content.registry import (
+    SCHOOL_ID,
+    get_module,
+    get_node,
+    is_voice_node,
+    list_modules,
+    module_of,
+)
 from app.content.task_types import TaskType
 from app.graph.route import level_kind, session_phase
 from app.models import (
@@ -38,18 +45,39 @@ _SSE_HEARTBEAT_SECONDS = 12.0
 _STREAM_SENTINEL = object()
 _BACKGROUND_STREAM_TASKS: set[asyncio.Task] = set()
 _ORPHANED_TURN_LATCH_GRACE_SECONDS = 5.0
+_LEGACY_SCHOOL_RETIRED_DETAIL = {
+    "code": "legacy_school_module_retired",
+    "replacement": "/school",
+}
+
+
+def _raise_legacy_school_retired(
+    exc: svc.LegacySchoolModuleRetiredError,
+    user_id: str,
+) -> None:
+    if exc.user_id and exc.user_id != user_id:
+        raise HTTPException(status_code=403, detail="not your session") from exc
+    raise HTTPException(
+        status_code=410,
+        detail=_LEGACY_SCHOOL_RETIRED_DETAIL,
+    ) from exc
 
 
 @onboarding.get("/modules")
 async def modules() -> list[dict]:
     """Module picker payload for onboarding."""
-    return list_modules()
+    return [module for module in list_modules() if module["id"] != SCHOOL_ID]
 
 
 @onboarding.post("/onboarding/placement")
 async def placement(req: PlacementRequest, request: Request) -> dict:
     """Estimate the learner's level and return their STARTING node."""
     user_id = await _authed_existing_user_id(request)
+    if req.module_id == SCHOOL_ID:
+        raise HTTPException(
+            status_code=410,
+            detail=_LEGACY_SCHOOL_RETIRED_DETAIL,
+        )
     try:
         return await svc.place_user(
             req.module_id, req.writing_sample, req.self_report, req.grade, user_id=user_id
@@ -344,7 +372,10 @@ async def _validate_source_transition(
             status_code=409,
             detail={"code": "source_transition_prep_only"},
         )
-    source = await svc.get_session_state(req.source_session_id)
+    try:
+        source = await svc.get_session_state(req.source_session_id)
+    except svc.LegacySchoolModuleRetiredError as exc:
+        _raise_legacy_school_retired(exc, user_id)
     pending = (source or {}).get("pending_node_transition")
     expected_target = (
         pending.get("from_node")
@@ -688,7 +719,10 @@ async def _owned_state(session_id: str, request: Request) -> dict:
     guessing its id (IDOR).
     """
     user_id = await _authed_existing_user_id(request)
-    state = await svc.get_session_state(session_id)
+    try:
+        state = await svc.get_session_state(session_id)
+    except svc.LegacySchoolModuleRetiredError as exc:
+        _raise_legacy_school_retired(exc, user_id)
     if state is None:
         raise HTTPException(status_code=404, detail="no active session")
     if state.get("user_id") != user_id:
@@ -708,6 +742,15 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
     # spoofable body field. The middleware guarantees an identity on this route
     # (or 401s), so there is no body fallback to spoof.
     user_id = await _authed_existing_user_id(request)
+    try:
+        requested_module_id = module_of(req.competency_node)
+    except KeyError:
+        requested_module_id = None
+    if requested_module_id == SCHOOL_ID:
+        raise HTTPException(
+            status_code=410,
+            detail=_LEGACY_SCHOOL_RETIRED_DETAIL,
+        )
     if not req.client_start_id:
         raise HTTPException(
             status_code=400,
@@ -1484,6 +1527,11 @@ async def get_my_progress(request: Request, module_id: str = "communication") ->
             status_code=404,
             detail={"code": "unknown_module", "module_id": module_id},
         ) from e
+    except svc.LegacySchoolModuleRetiredError as e:
+        raise HTTPException(
+            status_code=410,
+            detail=_LEGACY_SCHOOL_RETIRED_DETAIL,
+        ) from e
     except svc.ProgressionUnavailableError as e:
         raise HTTPException(
             status_code=503,
@@ -1506,6 +1554,11 @@ async def get_progress(
         raise HTTPException(
             status_code=404,
             detail={"code": "unknown_module", "module_id": module_id},
+        ) from e
+    except svc.LegacySchoolModuleRetiredError as e:
+        raise HTTPException(
+            status_code=410,
+            detail=_LEGACY_SCHOOL_RETIRED_DETAIL,
         ) from e
     except svc.ProgressionUnavailableError as e:
         raise HTTPException(

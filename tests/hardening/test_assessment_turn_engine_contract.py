@@ -219,6 +219,39 @@ def test_interview_probe_plan_starts_with_selected_scenario_prompt():
     assert "technical project" not in first_prompt
 
 
+def test_interview_probe_plan_excludes_generated_duplicate_for_scenario_node():
+    from app.services import session_service as svc
+    from app.services.interview_probes import build_interview_probe_plan
+
+    state = svc._new_state(
+        "user-1",
+        "session-int-elevator-pitch-diversity",
+        "int_01_elevator_pitch",
+        [],
+        task_type=TaskType.INTERVIEW_TEST.value,
+        module_id="interview",
+        scenario_config={"target_role": "Backend Software Engineer"},
+    )
+    state["probe_items"] = [
+        {
+            "skill_id": "int_01_elevator_pitch",
+            "prompt": "Tell me about yourself, focusing on your experience as a Backend Software Engineer.",
+            "aim": "Summarizes relevant experience and career goals.",
+        },
+        {
+            "skill_id": "int_02_behavioral_past_performance",
+            "prompt": "Describe a time you had to work with a difficult stakeholder.",
+            "aim": "Shows stakeholder management.",
+        },
+    ]
+
+    plan = build_interview_probe_plan(state)
+
+    assert plan[0]["probe_id"] == "scenario_tell_me_about_yourself"
+    assert [probe["skill_id"] for probe in plan].count("int_01_elevator_pitch") == 0
+    assert plan[1]["skill_id"] == "int_02_behavioral_past_performance"
+
+
 def test_interview_star_scenario_defers_semantically_repeated_project_probe():
     from app.services import session_service as svc
     from app.services.interview_probes import build_interview_probe_plan

@@ -33,9 +33,9 @@ EXPECTED = {
         "book_title": "Santoor",
         "unit_title": "Up High",
         "source_url": "https://ncert.nic.in/textbook/pdf/desa111.pdf",
-        "level_count": 6,
-        "assessment_count": 22,
-        "items_per_attempt": 11,
+        "level_count": 7,
+        "assessment_count": 30,
+        "items_per_attempt": 15,
     },
     "eng_c4_ch12": {
         "chapter_no": 12,
@@ -44,14 +44,17 @@ EXPECTED = {
         "unit_title": "Up High",
         "source_url": "https://ncert.nic.in/textbook/pdf/desa112.pdf",
         "level_count": 7,
-        "assessment_count": 20,
-        "items_per_attempt": 10,
+        "assessment_count": 30,
+        "items_per_attempt": 15,
     },
 }
 STAGES = {
     "guided_check",
     "bridge",
     "masterclass",
+    "revision_level_1",
+    "revision_level_2",
+    "revision_level_3",
     "independent_check",
     "transfer_check",
 }
@@ -83,13 +86,13 @@ def test_owned_class4_chapter_meets_launch_content_contract(chapter_id):
     runtime = chapter.runtime_dict()
     expected = EXPECTED[chapter_id]
 
-    assert chapter.approval_status == "qa_approved"
-    assert chapter.reviewed_by == "codex-school-content-worker"
-    assert chapter.reviewed_at == "2026-07-12"
-    assert chapter.review_evidence == [
-        "tests/hardening/test_school_rebuild_class4_ch11_ch12_launch_contract.py",
-        "scripts/audit_school_rebuild_content.py --class 4",
-    ]
+    assert chapter.approval_status == "agent_reviewed"
+    assert chapter.reviewed_by
+    assert chapter.reviewed_at
+    evidence = " ".join(chapter.review_evidence).casefold()
+    assert "semantic" in evidence
+    assert "audit_school_rebuild_content.py" in evidence
+    assert "official" in evidence
     for key in ("chapter_no", "title", "book_title", "unit_title", "source_url"):
         assert runtime[key] == expected[key]
     assert len(runtime["levels"]) == expected["level_count"]
@@ -111,7 +114,7 @@ def test_owned_class4_chapter_meets_launch_content_contract(chapter_id):
                 (activity["teaching_block"], activity["passage"], activity["prompt"])
                 for activity in checks.values()
             }
-        ) == 5
+        ) == len(STAGES)
         stage_passages.update(activity["passage"] for activity in checks.values())
 
     assessment = runtime["chapter_assessment"]
@@ -135,7 +138,8 @@ def test_owned_class4_chapter_meets_launch_content_contract(chapter_id):
         for item in assessment["items"]
     ) >= 2
     assert sum(
-        item.get("answer_rule") == "concept_slots"
+        item.get("grading_mode") == "strict_open_rubric"
+        and bool(item.get("concept_slots"))
         for item in assessment["items"]
     ) >= 4
 

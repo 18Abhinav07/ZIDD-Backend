@@ -26,7 +26,9 @@ FORBIDDEN_PUBLIC_KEYS = {
     "rubric_criteria",
     "scoring_criteria",
 }
-OPAQUE_ITEM_ID = re.compile(r"^spv_c0[2-5]_t0[1-8]_v0[1-5]$")
+OPAQUE_ITEM_ID = re.compile(
+    r"^(?:spv_c0[2-5]_t0[1-8]_v0[1-5]|spv_c05_t03_v06)$"
+)
 
 
 def _all_tracks():
@@ -114,8 +116,11 @@ def test_each_target_class_has_exactly_eight_engineering_qa_snapshot_tracks(clas
     assert all(track.target_class_no == class_no for track in tracks)
     assert all(track.snapshot_item.stage == "snapshot" for track in tracks)
     assert all(track.approval.engineering_qa_status == "passed" for track in tracks)
-    assert all(track.approval.human_review_status == "pending" for track in tracks)
-    assert all(track.approval.launch_status == "blocked_pending_human_review" for track in tracks)
+    assert all(
+        track.approval.content_review_status == "agent_reviewed"
+        for track in tracks
+    )
+    assert all(track.approval.launch_status == "qa_only" for track in tracks)
     assert all(
         track.approval.reference == "app/content/school_rebuild_placement_review_manifest.json"
         for track in tracks
@@ -160,6 +165,35 @@ def test_every_reachable_source_band_has_two_independent_unused_variants():
             )
 
 
+def test_each_track_uses_a_distinct_prompt_surface_for_every_probe():
+    for track in _all_tracks():
+        items = (
+            track.snapshot_item,
+            *(variant for band in track.bands for variant in band.variants),
+        )
+        normalized_prompts = [
+            " ".join(item.prompt.casefold().split())
+            for item in items
+        ]
+
+        assert len(normalized_prompts) == len(set(normalized_prompts)), track.track_id
+
+
+def test_validator_rejects_normalized_passage_reuse_with_distinct_prompts():
+    track = next(track for track in _all_tracks() if track.snapshot_item.passage.strip())
+    original = track.bands[0].variants[0]
+    reused_passage = "   ".join(track.snapshot_item.passage.swapcase().split())
+    replacement = replace(original, passage=f"  {reused_passage}  ")
+
+    with pytest.raises(
+        placement_validation.PlacementBankValidationError,
+        match="repeats a passage within",
+    ):
+        placement_validation.validate_placement_bank(
+            _bank_with_replaced_item(original, replacement)
+        )
+
+
 def test_every_item_has_three_learner_safe_localizations_and_approved_evaluation():
     unsafe_support_phrases = ("answer is", "correct answer", "rubric", "score")
 
@@ -173,8 +207,8 @@ def test_every_item_has_three_learner_safe_localizations_and_approved_evaluation
             )
 
         assert item.approval.engineering_qa_status == "passed"
-        assert item.approval.human_review_status == "pending"
-        assert item.approval.launch_status == "blocked_pending_human_review"
+        assert item.approval.content_review_status == "agent_reviewed"
+        assert item.approval.launch_status == "qa_only"
         assert item.misconception_clusters
 
         if item.evaluation_mode == "deterministic":
@@ -184,6 +218,20 @@ def test_every_item_has_three_learner_safe_localizations_and_approved_evaluation
             assert item.evaluation_mode == "strict_rubric"
             assert item.rubric_ref and item.rubric_ref.startswith("school.strict.")
             assert not item.accepted_answers
+
+
+def test_deterministic_short_answers_explain_the_closed_response_contract():
+    items = [
+        item
+        for item in _all_items()
+        if item.evaluation_mode == "deterministic"
+        and item.item_type == "short_answer"
+    ]
+
+    assert items
+    for item in items:
+        assert "only" in item.localized_copy["en"].instruction.casefold()
+        assert "smallest complete response" in item.localized_copy["en"].support.casefold()
 
 
 def test_multiple_choice_wrong_options_map_to_explicit_misconception_clusters():
@@ -243,22 +291,22 @@ def test_engineering_qa_approval_uses_backend_local_manifest_without_claiming_hu
 
     assert manifest["content_version"] == "placement-bank-v1"
     assert manifest["engineering_qa_status"] == "passed"
-    assert manifest["human_pedagogical_review_status"] == "pending"
-    assert manifest["launch_status"] == "blocked_pending_human_review"
+    assert manifest["content_review_status"] == "agent_reviewed"
+    assert manifest["launch_status"] == "qa_only"
     for track in _all_tracks():
         assert track.approval.reference == (
             "app/content/school_rebuild_placement_review_manifest.json"
         )
-        assert track.approval.human_review_status != "approved"
+        assert track.approval.content_review_status != "release_approved"
 
     item = _all_items()[0]
     false_approval = replace(
         item.approval,
-        human_review_status="approved",
-        launch_status="approved",
+        content_review_status="release_approved",
+        launch_status="release_approved",
     )
     falsely_approved_item = replace(item, approval=false_approval)
-    with pytest.raises(PlacementBankValidationError, match="human-review status"):
+    with pytest.raises(PlacementBankValidationError, match="content-review status"):
         validate_placement_bank(_bank_with_replaced_item(item, falsely_approved_item))
 
 
@@ -272,6 +320,12 @@ def test_public_item_ids_are_opaque_and_do_not_semantically_leak_answers():
             normalized_answer = _normalized_identifier_part(accepted_answer)
             if len(normalized_answer) >= 3:
                 assert normalized_answer not in normalized_id
+
+
+def test_opaque_item_id_contract_limits_v06_to_class_five_inference():
+    assert OPAQUE_ITEM_ID.fullmatch("spv_c05_t03_v06")
+    assert OPAQUE_ITEM_ID.fullmatch("spv_c02_t01_v05")
+    assert not OPAQUE_ITEM_ID.fullmatch("spv_c02_t01_v06")
 
 
 def test_complete_sentence_tracks_require_authentic_production_and_band_rubrics():

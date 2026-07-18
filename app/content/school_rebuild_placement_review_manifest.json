@@ -4,7 +4,8 @@
   "scope": "English placement content for target Classes 2-5",
   "engineering_qa_status": "passed",
   "engineering_qa_basis": "Automated authored-bank contract, leakage, immutability, normalization, and compatibility tests",
-  "human_pedagogical_review_status": "pending",
-  "launch_status": "blocked_pending_human_review",
-  "reviewed_on": "2026-07-12"
+  "content_review_status": "agent_reviewed",
+  "content_review_basis": "Agent review of item clarity, answer authority, misconception mapping, age fit, language scaffolding, and adaptive-stage coverage",
+  "launch_status": "qa_only",
+  "reviewed_on": "2026-07-15"
 }

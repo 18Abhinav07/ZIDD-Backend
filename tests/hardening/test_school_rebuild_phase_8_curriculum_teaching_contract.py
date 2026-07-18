@@ -20,6 +20,9 @@ from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_placement as placement
 
 AUTH = {"Authorization": "Bearer test_token"}
+_REAL_SCHOOL_OPEN_ANSWER_WITH_HEARTBEAT = (
+    school_rebuild_routes._evaluate_school_open_answer_with_claim_heartbeat
+)
 
 RAINBOW_JOURNEY_PARAGRAPH = (
     "Last Sunday I travelled to Jaipur by train with my parents. We left home early and reached "
@@ -37,12 +40,61 @@ WISE_PARROT_STORY_CONTINUATION = (
     "him freely, and he enjoyed their songs."
 )
 
+PLACEMENT_STRONG_SUMMARY_ANSWERS = {
+    "spv_c05_t08_v01": (
+        "A storm blocked the lane, so residents cut the fallen branches "
+        "and reopened a path."
+    ),
+    "spv_c05_t08_v02": (
+        "The school checked its power costs, installed solar panels, and "
+        "used the money saved to buy library books."
+    ),
+    "spv_c05_t08_v03": (
+        "The children contacted rescuers and kept the area calm while the "
+        "injured bird waited for help."
+    ),
+    "spv_c05_t08_v04": (
+        "Students studied dangerous bus stops and proposed three safer "
+        "changes to the transport office."
+    ),
+    "spv_c05_t08_v05": (
+        "Testing found harmful bacteria in one clear-looking water sample, "
+        "so that sample needed treatment."
+    ),
+}
+
 
 @pytest.fixture(autouse=True)
 def _stub_school_open_answer_evaluator(monkeypatch):
-    async def evaluate(activity: dict[str, Any], answer: str) -> SchoolV3RubricEvaluation:
+    async def evaluate(
+        *,
+        activity: dict[str, Any],
+        answer: str,
+        **_kwargs,
+    ) -> SchoolV3RubricEvaluation:
+        concept_slots = {
+            slot["id"]: tuple(slot["any_of"])
+            for slot in activity.get("concept_slots") or []
+        }
+
+        def evidence_quote(criterion_id: str) -> str:
+            slot_id = {
+                "plausible_inference": "inference_claim",
+                "relevant_text_clue": "passage_clue",
+            }.get(criterion_id)
+            if slot_id is not None:
+                for alias in concept_slots.get(slot_id, ()):
+                    start = answer.casefold().find(alias.casefold())
+                    if start >= 0:
+                        return answer[start : start + len(alias)]
+            return answer.strip() or "(empty answer)"
+
         return SchoolV3RubricEvaluation(
-            schema_version="school-v3-rubric-1",
+            schema_version=(
+                "school.open.v1"
+                if activity.get("grading_mode") == "strict_open_rubric"
+                else "school-v3-rubric-1"
+            ),
             item_id=activity["activity_id"],
             skill_ids=list(activity["skill_ids"]),
             score=0.9,
@@ -53,7 +105,7 @@ def _stub_school_open_answer_evaluator(monkeypatch):
                     id=criterion["id"],
                     met=True,
                     quality=0.9,
-                    evidence_quote=answer[:120] or "(empty answer)",
+                    evidence_quote=evidence_quote(criterion["id"]),
                 )
                 for criterion in activity["rubric_criteria"]
             ],
@@ -65,9 +117,8 @@ def _stub_school_open_answer_evaluator(monkeypatch):
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "evaluate_school_open_answer",
+        "_evaluate_school_open_answer_with_claim_heartbeat",
         evaluate,
-        raising=False,
     )
 
 
@@ -180,7 +231,7 @@ def _complete_weak_placement(client: TestClient) -> None:
             headers=AUTH,
             json={"item_id": item["item_id"], "answer": "wrong"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         current = response.json()
     assert current["status"] == "below_target"
 
@@ -227,7 +278,7 @@ def _complete_recap_success_path(client: TestClient) -> dict:
                 "answer": _correct_recap_answer(activity),
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         body = response.json()
     assert body["status"] == "complete"
     return body
@@ -254,16 +305,19 @@ def _complete_target_ready_placement(client: TestClient) -> dict:
         answer = (
             private_item.answer_key
             or next(iter(private_item.accepted_answers), None)
-            or "I used the passage clues and answered in a complete English sentence."
+            or PLACEMENT_STRONG_SUMMARY_ANSWERS.get(private_item.item_id)
+            or " because ".join(
+                slot.aliases[0] for slot in private_item.semantic_claim_slots
+            )
         )
         response = client.post(
             f"/school/placement/{session_id}/answer",
             headers=AUTH,
             json={"item_id": item["item_id"], "answer": answer},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         current = response.json()
-    assert current["status"] == "target_ready"
+    assert current["status"] == "target_ready", current
     report = client.get("/school/placement/report", headers=AUTH)
     assert report.status_code == 200
     body = report.json()
@@ -299,7 +353,9 @@ def _assert_no_hidden_keys(payload: Any) -> None:
             _assert_no_hidden_keys(value)
 
 
-def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch):
+def _seed_certification_repair_session(
+    store,
+) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]:
     profile = _seed_school_profile(store, target_class_no=5)
     _seed_direct_curriculum_report_lineage(store, profile)
     session_id = str(uuid4())
@@ -358,6 +414,14 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
                 }
             ]
         },
+        "last_feedback": {
+            "activity_id": "eng_c5_ch01:chapter_check:final",
+            "level_id": "chapter_assessment",
+            "kind": "chapter_check",
+            "correct": True,
+            "result_visible": True,
+            "message": "Chapter check passed. The next chapter is ready.",
+        },
     }
     repair = {
         "kind": "chapter_certification_reconciled",
@@ -368,6 +432,18 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
             "writing.summary_own_words": 0.98,
         },
     }
+    repaired_state["state_reconciliations"] = [{
+        "from_engine_version": "school-rebuild-curriculum-2",
+        "to_engine_version": curriculum.ENGINE_VERSION,
+        **repair,
+    }]
+    return session_id, old_state, repaired_state, repair
+
+
+def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch):
+    session_id, old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
 
     def reconcile(state):
         if state.get("engine_version") == curriculum.ENGINE_VERSION:
@@ -376,12 +452,22 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
 
     monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
     client = TestClient(app)
+    cas_calls = 0
+    original_compare_and_set = store.compare_and_set_school_session
+
+    async def count_compare_and_set(**kwargs):
+        nonlocal cas_calls
+        cas_calls += 1
+        return await original_compare_and_set(**kwargs)
+
+    monkeypatch.setattr(store, "compare_and_set_school_session", count_compare_and_set)
 
     first = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
     second = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
 
     assert first.status_code == 200
     assert second.status_code == 200
+    assert cas_calls == 1
     assert first.json()["status"] == "complete"
     assert first.json()["phase"] == "complete"
     saved = _run(store.get_school_session("test_user", session_id))
@@ -389,8 +475,7 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
     assert saved["state_json"]["engine_version"] == curriculum.ENGINE_VERSION
     profiles = {
         row["skill_id"]: row
-        for row in _run(store.get_learning_graph("test_user"))["profiles"]
-        if row.get("domain") == "school"
+        for row in _run(store.get_school_learning_graph("test_user"))["profiles"]
     }
     for skill_id, score in (
         ("reading.paragraph_main_idea", 1.0),
@@ -405,6 +490,726 @@ def test_curriculum_read_reconciles_saved_certification_once(store, monkeypatch)
             "chapter_id": "eng_c5_ch01",
             "score": score,
         }
+
+
+def test_curriculum_read_backfills_legacy_matching_certification_ledger_once(
+    store,
+    monkeypatch,
+):
+    session_id, old_state, repaired_state, _repair = _seed_certification_repair_session(
+        store
+    )
+    career_profile = {
+        "target_roles": ["Data Analyst"],
+        "interview_goals": ["Explain projects clearly"],
+    }
+    _run(store.complete_onboarding(
+        user_id="test_user",
+        display_name="Open Assets",
+        primary_motive="school",
+        school_profile={},
+        career_profile=career_profile,
+    ))
+    career_before = copy.deepcopy(_run(store.get_profile("test_user"))["career_profile"])
+    _run(school_rebuild_routes.SchoolLearningProfileService(
+        store
+    ).record_curriculum_attempt(
+        user_id="test_user",
+        session_id=session_id,
+        chapter_id="eng_c5_ch01",
+        level_id="chapter_assessment",
+        focus="legacy chapter certification",
+        skill_ids=[
+            "reading.paragraph_main_idea",
+            "writing.summary_own_words",
+        ],
+        attempt_type="chapter_check",
+        score=1.0,
+        confidence=1.0,
+        criteria=[],
+        blockers=[],
+        answer_excerpt="A legacy certified answer.",
+        attempt_passed=True,
+        chapter_certified=True,
+    ))
+    for profile in _run(store.get_school_learning_graph("test_user"))["profiles"]:
+        if profile["skill_id"] == "writing.summary_own_words":
+            profile["evidence_json"]["latest_certification"]["score"] = 0.98
+    row = _run(store.get_school_session("test_user", session_id))
+    assert _run(store.compare_and_set_school_session(
+        school_session={
+            **row,
+            "status": "complete",
+            "current_stage": "complete",
+            "state_json": repaired_state,
+        },
+        expected_state_json=old_state,
+    ))
+    projection_attempts = 0
+    original_projection = (
+        school_rebuild_routes.SchoolLearningProfileService.record_chapter_certification
+    )
+
+    async def count_projection(self, **kwargs):
+        nonlocal projection_attempts
+        projection_attempts += 1
+        return await original_projection(self, **kwargs)
+
+    monkeypatch.setattr(
+        school_rebuild_routes.SchoolLearningProfileService,
+        "record_chapter_certification",
+        count_projection,
+    )
+
+    client = TestClient(app)
+    first = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    second = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert projection_attempts == 1
+    profiles = _run(store.get_school_learning_graph("test_user"))["profiles"]
+    for skill_id, score in (
+        ("reading.paragraph_main_idea", 1.0),
+        ("writing.summary_own_words", 0.98),
+    ):
+        evidence = next(
+            row["evidence_json"] for row in profiles if row["skill_id"] == skill_id
+        )
+        assert evidence["latest_certification"] == {
+            "session_id": session_id,
+            "chapter_id": "eng_c5_ch01",
+            "score": score,
+        }
+        assert evidence["reconciliation_certification_ledger"][
+            f"{session_id}:eng_c5_ch01"
+        ] == evidence["latest_certification"]
+    assert _run(store.get_profile("test_user"))["career_profile"] == career_before
+
+
+def test_curriculum_post_retries_failed_certification_projection_without_another_cas(
+    store,
+    monkeypatch,
+):
+    session_id, _old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
+
+    def reconcile(state):
+        if state.get("engine_version") == curriculum.ENGINE_VERSION:
+            return state, None
+        return repaired_state, repair
+
+    monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
+    cas_calls = 0
+    projection_attempts = 0
+    original_compare_and_set = store.compare_and_set_school_session
+    original_projection = (
+        school_rebuild_routes.SchoolLearningProfileService.record_chapter_certification
+    )
+
+    async def count_compare_and_set(**kwargs):
+        nonlocal cas_calls
+        cas_calls += 1
+        return await original_compare_and_set(**kwargs)
+
+    async def fail_first_projection(self, **kwargs):
+        nonlocal projection_attempts
+        projection_attempts += 1
+        if projection_attempts == 1:
+            raise RuntimeError("injected_certification_projection_failure")
+        return await original_projection(self, **kwargs)
+
+    monkeypatch.setattr(store, "compare_and_set_school_session", count_compare_and_set)
+    monkeypatch.setattr(
+        school_rebuild_routes.SchoolLearningProfileService,
+        "record_chapter_certification",
+        fail_first_projection,
+    )
+    activity_id = "eng_c5_ch01:chapter_check:final"
+    answer = "The learner's final answer."
+    store.school_answer_requests[(session_id, activity_id)] = {
+        "user_id": "test_user",
+        "answer_hash": hashlib.sha256(answer.encode("utf-8")).hexdigest(),
+        "claim_token": "historical-final-answer",
+        "status": "completed",
+        "response_json": {
+            "session_id": session_id,
+            "status": "active",
+            "phase": "needs_support",
+        },
+        "updated_at": time.time(),
+    }
+    persist_calls = 0
+    evaluator_calls = 0
+    original_persist = store.persist_school_curriculum_attempt
+    original_evaluator = (
+        school_rebuild_routes._evaluate_school_open_answer_with_claim_heartbeat
+    )
+
+    async def count_persist(**kwargs):
+        nonlocal persist_calls
+        persist_calls += 1
+        return await original_persist(**kwargs)
+
+    async def count_evaluator(**kwargs):
+        nonlocal evaluator_calls
+        evaluator_calls += 1
+        return await original_evaluator(**kwargs)
+
+    monkeypatch.setattr(store, "persist_school_curriculum_attempt", count_persist)
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        count_evaluator,
+    )
+
+    client = TestClient(app)
+    first = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": activity_id, "answer": answer},
+    )
+    second = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": activity_id, "answer": answer},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["status"] == "complete"
+    assert second.json()["status"] == "complete"
+    assert cas_calls == 1
+    assert projection_attempts == 2
+    assert persist_calls == 0
+    assert evaluator_calls == 0
+    profiles = _run(store.get_school_learning_graph("test_user"))["profiles"]
+    certified_profiles = [
+        row
+        for row in profiles
+        if row.get("evidence_json", {})
+        .get("reconciliation_certification_ledger", {})
+        .get(f"{session_id}:eng_c5_ch01", {})
+        .get("session_id")
+        == session_id
+    ]
+    assert len(certified_profiles) == 2
+    assert {row["skill_id"] for row in certified_profiles} == {
+        "reading.paragraph_main_idea",
+        "writing.summary_own_words",
+    }
+
+
+def test_curriculum_get_retries_failed_certification_projection_without_another_cas(
+    store,
+    monkeypatch,
+):
+    session_id, _old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
+
+    def reconcile(state):
+        if state.get("engine_version") == curriculum.ENGINE_VERSION:
+            return state, None
+        return repaired_state, repair
+
+    monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
+    cas_calls = 0
+    projection_attempts = 0
+    original_compare_and_set = store.compare_and_set_school_session
+    original_projection = (
+        school_rebuild_routes.SchoolLearningProfileService.record_chapter_certification
+    )
+
+    async def count_compare_and_set(**kwargs):
+        nonlocal cas_calls
+        cas_calls += 1
+        return await original_compare_and_set(**kwargs)
+
+    async def fail_first_projection(self, **kwargs):
+        nonlocal projection_attempts
+        projection_attempts += 1
+        if projection_attempts == 1:
+            raise RuntimeError("injected_certification_projection_failure")
+        return await original_projection(self, **kwargs)
+
+    monkeypatch.setattr(store, "compare_and_set_school_session", count_compare_and_set)
+    monkeypatch.setattr(
+        school_rebuild_routes.SchoolLearningProfileService,
+        "record_chapter_certification",
+        fail_first_projection,
+    )
+
+    client = TestClient(app)
+    first = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    second = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert cas_calls == 1
+    assert projection_attempts == 2
+    certified_profiles = [
+        row
+        for row in _run(store.get_school_learning_graph("test_user"))["profiles"]
+        if row.get("evidence_json", {})
+        .get("reconciliation_certification_ledger", {})
+        .get(f"{session_id}:eng_c5_ch01", {})
+        .get("session_id")
+        == session_id
+    ]
+    assert len(certified_profiles) == 2
+    assert {row["skill_id"] for row in certified_profiles} == {
+        "reading.paragraph_main_idea",
+        "writing.summary_own_words",
+    }
+
+
+def test_curriculum_recovery_ignores_completed_state_without_repair_provenance(
+    store,
+    monkeypatch,
+):
+    session_id, old_state, repaired_state, _repair = _seed_certification_repair_session(
+        store
+    )
+    ordinary_complete_state = {
+        **repaired_state,
+        "state_reconciliations": [],
+    }
+    row = _run(store.get_school_session("test_user", session_id))
+    assert _run(
+        store.compare_and_set_school_session(
+            school_session={
+                **row,
+                "status": "complete",
+                "current_stage": "complete",
+                "state_json": ordinary_complete_state,
+            },
+            expected_state_json=old_state,
+        )
+    )
+    projection_attempts = 0
+    original_projection = (
+        school_rebuild_routes.SchoolLearningProfileService.record_chapter_certification
+    )
+
+    async def count_projection(self, **kwargs):
+        nonlocal projection_attempts
+        projection_attempts += 1
+        return await original_projection(self, **kwargs)
+
+    monkeypatch.setattr(
+        school_rebuild_routes.SchoolLearningProfileService,
+        "record_chapter_certification",
+        count_projection,
+    )
+
+    response = TestClient(app).get(
+        f"/school/curriculum/{session_id}",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "complete"
+    assert projection_attempts == 0
+    assert _run(store.get_school_learning_graph("test_user"))["profiles"] == []
+
+
+def test_curriculum_recovery_preserves_newer_latest_certification(store, monkeypatch):
+    session_id, old_state, repaired_state, _repair = _seed_certification_repair_session(
+        store
+    )
+    newer_session_id = "newer-certified-session"
+    newer_chapter_id = "eng_c5_ch02"
+    newer_score = 0.97
+    _run(
+        school_rebuild_routes.SchoolLearningProfileService(
+            store
+        ).record_curriculum_attempt(
+            user_id="test_user",
+            session_id=newer_session_id,
+            chapter_id=newer_chapter_id,
+            level_id="chapter_assessment",
+            focus="newer chapter check",
+            skill_ids=["reading.paragraph_main_idea"],
+            attempt_type="chapter_check",
+            score=newer_score,
+            confidence=1.0,
+            criteria=[],
+            blockers=[],
+            answer_excerpt="A newer certified answer.",
+            attempt_passed=True,
+            chapter_certified=True,
+        )
+    )
+    row = _run(store.get_school_session("test_user", session_id))
+    assert _run(
+        store.compare_and_set_school_session(
+            school_session={
+                **row,
+                "status": "complete",
+                "current_stage": "complete",
+                "state_json": repaired_state,
+            },
+            expected_state_json=old_state,
+        )
+    )
+    projection_attempts = 0
+    original_projection = (
+        school_rebuild_routes.SchoolLearningProfileService.record_chapter_certification
+    )
+
+    async def count_projection(self, **kwargs):
+        nonlocal projection_attempts
+        projection_attempts += 1
+        return await original_projection(self, **kwargs)
+
+    monkeypatch.setattr(
+        school_rebuild_routes.SchoolLearningProfileService,
+        "record_chapter_certification",
+        count_projection,
+    )
+    client = TestClient(app)
+
+    first = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    second = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert projection_attempts == 1
+    profile = _run(store.get_school_learning_graph("test_user"))["profiles"]
+    reading = next(
+        row for row in profile if row["skill_id"] == "reading.paragraph_main_idea"
+    )
+    evidence = reading["evidence_json"]
+    assert evidence["latest_certification"] == {
+        "session_id": newer_session_id,
+        "chapter_id": newer_chapter_id,
+        "score": newer_score,
+    }
+    assert evidence["reconciliation_certification_ledger"][
+        f"{session_id}:eng_c5_ch01"
+    ] == {
+        "session_id": session_id,
+        "chapter_id": "eng_c5_ch01",
+        "score": 1.0,
+    }
+
+
+def test_curriculum_answer_reconciles_stale_certification_to_completed_response(
+    store,
+    monkeypatch,
+):
+    session_id, _old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
+
+    def reconcile(_state):
+        return repaired_state, repair
+
+    monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
+
+    response = TestClient(app).post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": "eng_c5_ch01:chapter_check:final",
+            "answer": "The learner's final answer.",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "complete"
+    assert response.json()["phase"] == "complete"
+    _assert_no_hidden_keys(response.json())
+    assert not store.school_answer_requests
+    assert not store.learning_events
+
+
+def test_curriculum_duplicate_final_answer_returns_reconciled_completed_response(
+    store,
+    monkeypatch,
+):
+    session_id, _old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
+    activity_id = "eng_c5_ch01:chapter_check:final"
+    answer = "The learner's final answer."
+    answer_hash = hashlib.sha256(answer.encode("utf-8")).hexdigest()
+    stale_response = {
+        "session_id": session_id,
+        "status": "active",
+        "phase": "needs_support",
+        "current_activity": None,
+    }
+    store.school_answer_requests[(session_id, activity_id)] = {
+        "user_id": "test_user",
+        "answer_hash": answer_hash,
+        "claim_token": "historical-final-answer",
+        "status": "completed",
+        "response_json": stale_response,
+        "updated_at": time.time(),
+    }
+
+    def reconcile(state):
+        if state.get("engine_version") == curriculum.ENGINE_VERSION:
+            return state, None
+        return repaired_state, repair
+
+    monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
+    cas_calls = 0
+    persist_calls = 0
+    evaluator_calls = 0
+    original_compare_and_set = store.compare_and_set_school_session
+    original_persist = store.persist_school_curriculum_attempt
+    original_evaluator = (
+        school_rebuild_routes._evaluate_school_open_answer_with_claim_heartbeat
+    )
+
+    async def count_compare_and_set(**kwargs):
+        nonlocal cas_calls
+        cas_calls += 1
+        return await original_compare_and_set(**kwargs)
+
+    async def count_persist(**kwargs):
+        nonlocal persist_calls
+        persist_calls += 1
+        return await original_persist(**kwargs)
+
+    async def count_evaluator(**kwargs):
+        nonlocal evaluator_calls
+        evaluator_calls += 1
+        return await original_evaluator(**kwargs)
+
+    monkeypatch.setattr(store, "compare_and_set_school_session", count_compare_and_set)
+    monkeypatch.setattr(store, "persist_school_curriculum_attempt", count_persist)
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        count_evaluator,
+    )
+
+    client = TestClient(app)
+    repaired = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    replay = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": activity_id, "answer": answer},
+    )
+
+    assert repaired.status_code == 200
+    assert replay.status_code == 200
+    assert replay.json()["status"] == "complete"
+    assert replay.json()["phase"] == "complete"
+    assert replay.json() != stale_response
+    assert cas_calls == 1
+    assert persist_calls == 0
+    assert evaluator_calls == 0
+    _assert_no_hidden_keys(replay.json())
+
+
+def test_curriculum_only_canonicalizes_the_reconciled_final_answer_replay(
+    store,
+    monkeypatch,
+):
+    session_id, _old_state, repaired_state, repair = _seed_certification_repair_session(
+        store
+    )
+    final_activity_id = "eng_c5_ch01:chapter_check:final"
+    final_answer = "The learner's final answer."
+    earlier_activity_id = "eng_c5_ch01:chapter_check:earlier"
+    earlier_answer = "The learner's earlier answer."
+    final_cached_response = {
+        "session_id": session_id,
+        "status": "active",
+        "phase": "needs_support",
+    }
+    earlier_cached_response = {
+        "session_id": session_id,
+        "status": "active",
+        "phase": "learning",
+        "replay_marker": "earlier-completed-answer",
+    }
+    store.school_answer_requests[(session_id, final_activity_id)] = {
+        "user_id": "test_user",
+        "answer_hash": hashlib.sha256(final_answer.encode("utf-8")).hexdigest(),
+        "claim_token": "historical-final-answer",
+        "status": "completed",
+        "response_json": final_cached_response,
+        "updated_at": time.time(),
+    }
+    store.school_answer_requests[(session_id, earlier_activity_id)] = {
+        "user_id": "test_user",
+        "answer_hash": hashlib.sha256(earlier_answer.encode("utf-8")).hexdigest(),
+        "claim_token": "historical-earlier-answer",
+        "status": "completed",
+        "response_json": earlier_cached_response,
+        "updated_at": time.time(),
+    }
+
+    def reconcile(state):
+        if state.get("engine_version") == curriculum.ENGINE_VERSION:
+            return state, None
+        return repaired_state, repair
+
+    monkeypatch.setattr(curriculum, "reconcile_curriculum_state", reconcile)
+    client = TestClient(app)
+
+    final = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": final_activity_id, "answer": final_answer},
+    )
+    conflict = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": final_activity_id, "answer": "A conflicting answer."},
+    )
+    earlier = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": earlier_activity_id, "answer": earlier_answer},
+    )
+
+    assert final.status_code == 200
+    assert final.json()["status"] == "complete"
+    assert final.json()["phase"] == "complete"
+    assert final.json() != final_cached_response
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "curriculum_answer_conflict"
+    assert earlier.status_code == 200
+    assert earlier.json() == earlier_cached_response
+    _assert_no_hidden_keys(final.json())
+
+
+def _seed_stale_ordinary_curriculum_session(store, *, session_id: str) -> dict[str, Any]:
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    current_state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_comprehension",
+    )
+    stale_state = copy.deepcopy(current_state)
+    stale_state["engine_version"] = "school-rebuild-curriculum-4"
+    row = _run(store.get_school_session("test_user", session_id))
+    changed = _run(
+        store.compare_and_set_school_session(
+            school_session={**row, "state_json": stale_state},
+            expected_state_json=current_state,
+        )
+    )
+    assert changed is True
+    return stale_state
+
+
+def test_curriculum_read_reconciles_ordinary_state_without_cas(store, monkeypatch):
+    session_id = str(uuid4())
+    stale_state = _seed_stale_ordinary_curriculum_session(
+        store,
+        session_id=session_id,
+    )
+    persisted_before = _run(store.get_school_session("test_user", session_id))
+    canonical_state, repair = curriculum.reconcile_curriculum_state(stale_state)
+    assert repair is None
+    expected = curriculum.public_curriculum_response(
+        {**persisted_before, "state_json": canonical_state}
+    )
+    cas_calls = 0
+    original_compare_and_set = store.compare_and_set_school_session
+
+    async def count_compare_and_set(**kwargs):
+        nonlocal cas_calls
+        cas_calls += 1
+        return await original_compare_and_set(**kwargs)
+
+    monkeypatch.setattr(store, "compare_and_set_school_session", count_compare_and_set)
+
+    response = TestClient(app).get(
+        f"/school/curriculum/{session_id}",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    for key in ("status", "phase", "progress", "levels", "current_activity"):
+        assert body[key] == expected[key]
+    assert cas_calls == 0
+    persisted_after = _run(store.get_school_session("test_user", session_id))
+    assert persisted_after["state_json"] == stale_state
+    assert persisted_after["state_json"]["engine_version"] == "school-rebuild-curriculum-4"
+
+
+def test_curriculum_answer_from_stale_ordinary_state_persists_current_engine(
+    store,
+    monkeypatch,
+):
+    session_id = str(uuid4())
+    stale_state = _seed_stale_ordinary_curriculum_session(
+        store,
+        session_id=session_id,
+    )
+    client = TestClient(app)
+    read = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    assert read.status_code == 200
+    activity = read.json()["current_activity"]
+    captured_persist: dict[str, Any] = {}
+    persist_calls = 0
+    original_persist = store.persist_school_curriculum_attempt
+    evaluator_calls = 0
+    original_evaluator = (
+        school_rebuild_routes._evaluate_school_open_answer_with_claim_heartbeat
+    )
+
+    async def capture_persist(**kwargs):
+        nonlocal persist_calls
+        persist_calls += 1
+        captured_persist.update(copy.deepcopy(kwargs))
+        return await original_persist(**kwargs)
+
+    async def count_evaluator(**kwargs):
+        nonlocal evaluator_calls
+        evaluator_calls += 1
+        return await original_evaluator(**kwargs)
+
+    monkeypatch.setattr(store, "persist_school_curriculum_attempt", capture_persist)
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        count_evaluator,
+    )
+
+    payload = {
+        "activity_id": activity["activity_id"],
+        "answer": "I used the chapter details to explain my answer.",
+    }
+    response = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json=payload,
+    )
+    replay = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    assert replay.status_code == 200
+    assert replay.json() == response.json()
+    assert persist_calls == 1
+    assert evaluator_calls == 1
+    assert captured_persist["expected_state_json"] == stale_state
+    assert (
+        captured_persist["school_session"]["state_json"]["engine_version"]
+        == curriculum.ENGINE_VERSION
+    )
+    persisted = _run(store.get_school_session("test_user", session_id))
+    assert persisted["state_json"]["engine_version"] == curriculum.ENGINE_VERSION
 
 
 def _answer(body: dict, answer: str, client: TestClient) -> dict:
@@ -914,6 +1719,14 @@ def _seed_curriculum_activity_session(
         level["attempts"] = []
     levels[level_index]["status"] = "in_progress"
     levels[level_index]["current_step"] = "independent_check"
+    if levels[level_index].get("teaching_steps"):
+        independent_index = next(
+            index
+            for index, step in enumerate(levels[level_index]["teaching_steps"])
+            if step["phase"] == "independent_application"
+        )
+        levels[level_index]["v2_step_index"] = independent_index
+        levels[level_index]["current_step"] = "independent_application"
     state = curriculum.normalize_curriculum_state(
         {
             "engine_version": curriculum.ENGINE_VERSION,
@@ -1264,6 +2077,7 @@ def test_curriculum_get_refreshes_learning_memory_created_after_session_start(st
     assert refreshed.status_code == 200
     assert refreshed.json()["memory_summary"]["strong_skills"] == [{
         "skill_id": "reading.inference_reason",
+        "skill_label": "Infer a reason",
         "latest_evidence": "I used the passage clue to explain why he searched.",
         "last_attempt_type": "transfer_check",
         "last_chapter_id": "eng_c5_ch01",
@@ -2507,8 +3321,13 @@ def test_class_five_target_ready_placement_opens_papas_spectacles(store):
     assert body["chapter"]["chapter_id"] == "eng_c5_ch01"
     assert body["chapter"]["title"] == "Papa's Spectacles"
     assert body["chapter"]["unit_title"] == "Let's Have Fun"
-    assert body["current_activity"]["level_id"] == "papas_spectacles_story_details"
-    assert "story detail" in body["current_activity"]["teaching_block"].lower()
+    assert (
+        body["current_activity"]["level_id"]
+        == "papas_spectacles_poem_comprehension"
+    )
+    teaching_block = body["current_activity"]["teaching_block"].lower()
+    assert "because" in teaching_block
+    assert "passage evidence" in teaching_block
     _assert_no_hidden_keys(body)
 
 
@@ -3689,12 +4508,24 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
     monkeypatch,
 ):
     session_id = str(uuid4())
-    _seed_curriculum_activity_session(
+    state = _seed_curriculum_activity_session(
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id="rainbow_image_and_idea",
     )
+    activity_id = curriculum.current_curriculum_activity_id(state)
+    assert activity_id
+    answer = (
+        "The curve looks like a bridge because it arches over the river "
+        "and seems to connect the reeds to the old fort."
+    )
+    activity = curriculum.curriculum_activity_for_answer(
+        state,
+        activity_id=activity_id,
+    )
+    assert activity["evaluation_mode"] == "llm_rubric"
+    assert curriculum._open_answer_preflight(activity, answer)
     cancelled = threading.Event()
 
     async def evaluator_that_must_be_cancelled(_activity, _answer):
@@ -3715,6 +4546,11 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
     )
     monkeypatch.setattr(
         school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        _REAL_SCHOOL_OPEN_ANSWER_WITH_HEARTBEAT,
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
         "_school_open_answer_timeout_seconds",
         lambda: None,
     )
@@ -3729,12 +4565,17 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
         f"/school/curriculum/{session_id}/answer",
         headers=AUTH,
         json={
-            "activity_id": "rainbow_journey_writing:independent_check:1",
-            "answer": RAINBOW_JOURNEY_PARAGRAPH,
+            "activity_id": activity_id,
+            "answer": answer,
         },
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 409, (
+        activity_id,
+        response.json().get("last_feedback"),
+        response.json().get("current_activity"),
+        cancelled.is_set(),
+    )
     assert response.json()["detail"]["code"] == "stale_curriculum_answer"
     assert cancelled.wait(0.2)
 

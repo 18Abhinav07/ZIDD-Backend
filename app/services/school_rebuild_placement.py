@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
+from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Literal
 
+from app.config import get_jwt_secret
 from app.content.school_rebuild_placement_bank import (
+    PLACEMENT_TRACKS_BY_CLASS,
     SIGNAL_SKILL_PRIORITY,
     PlacementTrack,
     SchoolPlacementBankItem,
@@ -27,6 +32,11 @@ ENGINE_VERSION = "school-rebuild-placement-2"
 LEGACY_ENGINE_VERSION = "school-rebuild-placement-1"
 MAX_PLACEMENT_ITEMS = 18
 MIN_SCORABLE_FOR_TERMINAL_PLACEMENT = 8
+SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS = 240
+TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS = 300
+CONFIRMATORY_LEARNER_TIME_BUDGET_SECONDS = 180
+PLACEMENT_LEARNER_TIME_BUDGET_SECONDS = 720
+PRIVATE_PLACEMENT_TIMING_KEY = "_placement_item_timing"
 
 PlacementStage = Literal["snapshot", "targeted_diagnostic", "confirmatory"]
 PlacementClassification = Literal["pass", "fail", "ambiguous", "unscorable"]
@@ -43,6 +53,7 @@ PlacementTerminalStatus = Literal[
     "target_ready",
     "below_target",
     "insufficient_evidence",
+    "abandoned",
 ]
 
 
@@ -57,7 +68,7 @@ class PlacementAttemptEvidence:
     evaluator_score: float
     evaluator_confidence: float
     certifying_blockers: tuple[str, ...] = ()
-    elapsed_seconds: int = 0
+    elapsed_seconds: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -91,10 +102,11 @@ class PlacementSessionState:
     total_items: int = 0
     scorable_answers: int = 0
     unscorable_attempts: int = 0
-    elapsed_seconds: int = 0
+    elapsed_seconds: float = 0.0
+    sitting_elapsed_seconds: float | None = None
     evaluator_wait_seconds: int = 0
     stage_items: int = 0
-    stage_elapsed_seconds: int = 0
+    stage_elapsed_seconds: float = 0.0
     pending_track_ids: tuple[str, ...] = ()
     confirmatory_track_ids: tuple[str, ...] = ()
     terminal_status: PlacementTerminalStatus | None = None
@@ -132,7 +144,83 @@ def placement_supported(subject_id: str, target_class_no: int) -> bool:
     return bool(placement_tracks_for(subject_id, target_class_no))
 
 
+def preflight_placement_track_plans(
+    tracks_by_class: Mapping[int, tuple[PlacementTrack, ...]],
+) -> bool:
+    """Fail before session creation when the scheduler can outrun its bank.
+
+    A snapshot miss can descend to any authored band, while an ambiguous
+    snapshot probes the target band first. Every authored boundary therefore
+    needs its own targeted item and a distinct confirmation from the same
+    track. Runtime may use additional confirmations when authors provide them,
+    but never borrows evidence from another track.
+    """
+
+    if set(tracks_by_class) != {2, 3, 4, 5}:
+        raise ValueError("placement_preflight_class_plan_incomplete")
+    seen_item_ids: set[str] = set()
+    for class_no in range(2, 6):
+        tracks = tuple(tracks_by_class[class_no])
+        if len(tracks) != 8:
+            raise ValueError(f"placement_preflight_track_count:{class_no}")
+        for track in tracks:
+            if track.target_class_no != class_no:
+                raise ValueError(
+                    f"placement_preflight_track_class_mismatch:{track.track_id}"
+                )
+            if track.snapshot_item.track_id != track.track_id:
+                raise ValueError(
+                    f"placement_preflight_snapshot_track_mismatch:{track.track_id}"
+                )
+            authored_bands = tuple(
+                sorted({int(band.source_class_no) for band in track.bands})
+            )
+            if int(track.snapshot_item.source_class_no) not in authored_bands:
+                raise ValueError(
+                    f"placement_preflight_snapshot_band_unreachable:{track.track_id}"
+                )
+            track_item_ids = {track.snapshot_item.item_id}
+            if track_item_ids & seen_item_ids:
+                raise ValueError(
+                    f"placement_preflight_duplicate_item:{track.snapshot_item.item_id}"
+                )
+            for band in track.bands:
+                targeted = tuple(
+                    item
+                    for item in band.variants
+                    if item.stage == "targeted_diagnostic"
+                    and item.track_id == track.track_id
+                    and int(item.source_class_no) == int(band.source_class_no)
+                )
+                confirmations = tuple(
+                    item
+                    for item in band.variants
+                    if item.stage == "confirmatory"
+                    and item.track_id == track.track_id
+                    and int(item.source_class_no) == int(band.source_class_no)
+                )
+                if not targeted:
+                    raise ValueError(
+                        "placement_preflight_missing_targeted_item:"
+                        f"{track.track_id}:{band.source_class_no}"
+                    )
+                if not confirmations:
+                    raise ValueError(
+                        "placement_preflight_missing_confirmatory_item:"
+                        f"{track.track_id}:{band.source_class_no}"
+                    )
+                for item in targeted + confirmations:
+                    if item.item_id in track_item_ids or item.item_id in seen_item_ids:
+                        raise ValueError(
+                            f"placement_preflight_duplicate_item:{item.item_id}"
+                        )
+                    track_item_ids.add(item.item_id)
+            seen_item_ids.update(track_item_ids)
+    return True
+
+
 def new_placement_envelope(profile: dict[str, Any]) -> PlacementEnvelope:
+    preflight_placement_track_plans(PLACEMENT_TRACKS_BY_CLASS)
     subject_id = _subject_id(profile)
     target_class_no = int(profile["target_class_no"])
     tracks = _ordered_tracks(
@@ -220,11 +308,45 @@ def placement_response(
         "scorable_answers": state.scorable_answers,
         "max_items": MAX_PLACEMENT_ITEMS,
         "readiness_summary": readiness_summary(state, status_override=status),
+        "track_verdicts": public_track_verdicts(state),
         "next_item": (
-            public_placement_item(item, envelope.preferred_teaching_language)
+            _public_placement_item_for_session(
+                item,
+                language=envelope.preferred_teaching_language,
+                session_id=session_id,
+            )
             if item
             else None
         ),
+    }
+
+
+def _public_placement_item_for_session(
+    item: SchoolPlacementBankItem,
+    *,
+    language: str,
+    session_id: str,
+) -> dict[str, Any]:
+    public_item = public_placement_item(item, language)
+    if not item.options:
+        return public_item
+
+    secret = get_jwt_secret().encode("utf-8")
+    ordered = sorted(
+        enumerate(item.options),
+        key=lambda indexed_option: hmac.new(
+            secret,
+            (
+                "school-placement-option-v1\0"
+                f"{session_id}\0{item.item_id}\0"
+                f"{indexed_option[0]}\0{indexed_option[1]}"
+            ).encode("utf-8"),
+            hashlib.sha256,
+        ).digest(),
+    )
+    return {
+        **public_item,
+        "options": [option for _index, option in ordered],
     }
 
 
@@ -251,6 +373,183 @@ def abandon_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
             readiness_seeds_applied=False,
         ),
     )
+
+
+def resume_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
+    """Resume the same insufficient placement only when fresh evidence exists.
+
+    Resumption never clears attempts, readiness evidence, learner time, or the
+    item budget. It only reconstructs a queue from unused authored items that
+    belong to unresolved tracks.
+    """
+
+    state = envelope.state
+    if state.terminal_status != "insufficient_evidence":
+        raise ValueError("placement_not_resumable")
+    if state.total_items >= MAX_PLACEMENT_ITEMS:
+        raise ValueError("placement_resume_evidence_unavailable")
+    if (
+        _outer_learner_budget_reason(state) is not None
+        and state.terminal_reason != "placement_learner_time_budget_exhausted"
+    ):
+        raise ValueError("placement_resume_evidence_unavailable")
+
+    tracks = _tracks_by_id(state)
+    answered = set(state.answered_item_ids)
+    unresolved_ids = tuple(
+        track_id
+        for track_id, track_state in state.track_states.items()
+        if track_state.status not in {
+            "provisional_ready",
+            "resolved_ready",
+            "confirmed_weak",
+        }
+    )
+    snapshot_ids = tuple(
+        track_id
+        for track_id in unresolved_ids
+        if state.track_states[track_id].status == "pending"
+        and (track := tracks.get(track_id)) is not None
+        and track.snapshot_item.item_id not in answered
+    )
+    targeted_ids = tuple(
+        track_id
+        for track_id in unresolved_ids
+        if (track := tracks.get(track_id)) is not None
+        and _targeted_item(track, state.track_states[track_id], answered) is not None
+    )
+    confirmatory_ids = tuple(
+        track_id
+        for track_id in unresolved_ids
+        if (track := tracks.get(track_id)) is not None
+        and _unused_confirmation_for(track, state.track_states[track_id], answered)
+        is not None
+    )
+
+    if state.stage == "confirmatory" and confirmatory_ids:
+        resumed_state = replace(
+            state,
+            stage="confirmatory",
+            pending_track_ids=(),
+            confirmatory_track_ids=confirmatory_ids,
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    elif state.stage == "targeted_diagnostic" and targeted_ids:
+        resumed_state = replace(
+            state,
+            stage="targeted_diagnostic",
+            pending_track_ids=targeted_ids,
+            confirmatory_track_ids=confirmatory_ids,
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    elif snapshot_ids:
+        resumed_state = replace(
+            state,
+            stage="snapshot",
+            pending_track_ids=(),
+            confirmatory_track_ids=(),
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    elif targeted_ids:
+        resumed_state = replace(
+            state,
+            stage="targeted_diagnostic",
+            pending_track_ids=targeted_ids,
+            confirmatory_track_ids=confirmatory_ids,
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    elif confirmatory_ids:
+        resumed_state = replace(
+            state,
+            stage="confirmatory",
+            pending_track_ids=(),
+            confirmatory_track_ids=confirmatory_ids,
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    else:
+        raise ValueError("placement_resume_evidence_unavailable")
+
+    resumed_state = replace(resumed_state, sitting_elapsed_seconds=0.0)
+    resumed = replace(envelope, state=resumed_state)
+    item = next_item(resumed)
+    if (
+        item is None
+        or item.item_id in answered
+        or item.track_id not in unresolved_ids
+    ):
+        raise ValueError("placement_resume_evidence_unavailable")
+    return resumed
+
+
+def can_resume_placement(envelope: PlacementEnvelope) -> bool:
+    try:
+        resume_placement(envelope)
+    except ValueError:
+        return False
+    return True
+
+
+def validate_placement_resume_state_json(
+    previous_state_json: dict[str, Any],
+    proposed_state_json: dict[str, Any],
+    *,
+    profile_version_id: str,
+) -> None:
+    """Reject resume writes that mutate evidence, counters, or profile lineage."""
+
+    previous = envelope_from_json(previous_state_json)
+    if previous.profile_version_id != str(profile_version_id):
+        raise ValueError("school_session_lineage_conflict")
+    expected = resume_placement(previous)
+    try:
+        proposed = envelope_from_json(proposed_state_json)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("placement_session_resume_conflict") from exc
+    if envelope_to_json(proposed) != envelope_to_json(expected):
+        raise ValueError("placement_session_resume_conflict")
+
+    expected_public_metadata = {
+        key: value
+        for key, value in previous_state_json.items()
+        if key not in {"placement_state", PRIVATE_PLACEMENT_TIMING_KEY}
+    }
+    proposed_public_metadata = {
+        key: value
+        for key, value in proposed_state_json.items()
+        if key not in {"placement_state", PRIVATE_PLACEMENT_TIMING_KEY}
+    }
+    if proposed_public_metadata != expected_public_metadata:
+        raise ValueError("placement_session_resume_conflict")
+
+    if PRIVATE_PLACEMENT_TIMING_KEY not in proposed_state_json:
+        return
+    timing = proposed_state_json.get(PRIVATE_PLACEMENT_TIMING_KEY)
+    next_expected = next_item(expected)
+    if next_expected is None or not isinstance(timing, dict):
+        raise ValueError("placement_session_resume_conflict")
+    if str(timing.get("item_id") or "") != next_expected.item_id:
+        raise ValueError("placement_session_resume_conflict")
+    if not isinstance(timing.get("presented_at"), str) or not timing["presented_at"]:
+        raise ValueError("placement_session_resume_conflict")
+    try:
+        datetime.fromisoformat(timing["presented_at"])
+    except ValueError as exc:
+        raise ValueError("placement_session_resume_conflict") from exc
 
 
 def next_item(envelope: PlacementEnvelope) -> SchoolPlacementBankItem | None:
@@ -308,7 +607,7 @@ def apply_evaluated_attempt(
     evaluator_confidence: float,
     scorable: bool = True,
     certifying_blockers: tuple[str, ...] = (),
-    elapsed_seconds_delta: int = 0,
+    elapsed_seconds_delta: float = 0.0,
     evaluator_wait_seconds_delta: int = 0,
 ) -> PlacementEnvelope:
     state = envelope.state
@@ -321,7 +620,22 @@ def apply_evaluated_attempt(
         certifying_blockers=certifying_blockers,
     )
     if classification == "unscorable":
-        return envelope
+        elapsed = max(0.0, float(elapsed_seconds_delta))
+        updated_state = replace(
+            state,
+            unscorable_attempts=state.unscorable_attempts + 1,
+            elapsed_seconds=state.elapsed_seconds + elapsed,
+            sitting_elapsed_seconds=_current_sitting_elapsed(state) + elapsed,
+            evaluator_wait_seconds=(
+                state.evaluator_wait_seconds
+                + max(0, int(evaluator_wait_seconds_delta))
+            ),
+            stage_elapsed_seconds=state.stage_elapsed_seconds + elapsed,
+        )
+        return replace(
+            envelope,
+            state=_advance_after_unscorable_attempt(updated_state),
+        )
     track_state = state.track_states.get(item.track_id)
     if track_state is None or track_state.primary_skill_id != item.primary_skill_id:
         raise ValueError("placement_item_track_mismatch")
@@ -335,7 +649,7 @@ def apply_evaluated_attempt(
         evaluator_score=float(evaluator_score),
         evaluator_confidence=float(evaluator_confidence),
         certifying_blockers=tuple(sorted(set(certifying_blockers))),
-        elapsed_seconds=max(0, int(elapsed_seconds_delta)),
+        elapsed_seconds=max(0.0, float(elapsed_seconds_delta)),
     )
     updated_track = _record_track_evidence(track_state, evidence)
     track_states = dict(state.track_states)
@@ -355,7 +669,7 @@ def apply_evaluated_attempt(
             blockers=tuple(sorted(set(certifying_blockers))),
         ),
     )
-    elapsed = max(0, int(elapsed_seconds_delta))
+    elapsed = max(0.0, float(elapsed_seconds_delta))
     updated_state = replace(
         state,
         track_states=_frozen_mapping(track_states),
@@ -364,6 +678,7 @@ def apply_evaluated_attempt(
         total_items=state.total_items + 1,
         scorable_answers=state.scorable_answers + 1,
         elapsed_seconds=state.elapsed_seconds + elapsed,
+        sitting_elapsed_seconds=_current_sitting_elapsed(state) + elapsed,
         evaluator_wait_seconds=(
             state.evaluator_wait_seconds + max(0, int(evaluator_wait_seconds_delta))
         ),
@@ -372,6 +687,32 @@ def apply_evaluated_attempt(
     )
     advanced = _advance_after_attempt(updated_state, item.track_id)
     return replace(envelope, state=advanced)
+
+
+def _advance_after_unscorable_attempt(
+    state: PlacementSessionState,
+) -> PlacementSessionState:
+    outer_budget_reason = _outer_learner_budget_reason(state)
+    if outer_budget_reason is not None:
+        return _finalize_from_available_evidence(
+            state,
+            budget_reason=outer_budget_reason,
+        )
+
+    stage_budget_reason = _stage_budget_reason(state)
+    if stage_budget_reason is None:
+        return state
+    if state.stage == "snapshot":
+        return _finish_snapshot(state, include_unseen=True)
+    if state.stage == "targeted_diagnostic":
+        return _finish_targeted_on_budget(
+            state,
+            budget_reason=stage_budget_reason,
+        )
+    return _finalize_from_available_evidence(
+        state,
+        budget_reason=stage_budget_reason,
+    )
 
 
 def classify_placement_evidence(
@@ -387,7 +728,7 @@ def classify_placement_evidence(
     confidence = max(0.0, min(1.0, float(evaluator_confidence)))
     if score >= 0.80 and confidence >= 0.75 and not certifying_blockers:
         return "pass"
-    if score < 0.60 and confidence >= 0.75:
+    if score < 0.60 and confidence >= 0.70:
         return "fail"
     return "ambiguous"
 
@@ -427,25 +768,103 @@ def readiness_summary(
             skill_id for skill_id, status in statuses.items() if status == "weak"
         ],
         "skill_statuses": statuses,
+        "track_verdicts": public_track_verdicts(state),
     }
 
 
-def _advance_after_attempt(state: PlacementSessionState, track_id: str) -> PlacementSessionState:
-    if state.total_items >= MAX_PLACEMENT_ITEMS:
-        return _finalize_from_available_evidence(
-            state,
-            budget_reason="item_budget_exhausted_without_honest_boundary",
+def public_track_verdicts(state: PlacementSessionState) -> list[dict[str, Any]]:
+    verdicts: list[dict[str, Any]] = []
+    for track in state.track_states.values():
+        evidence = track.evidence
+        confidence = (
+            sum(row.evaluator_confidence for row in evidence) / len(evidence)
+            if evidence
+            else 0.0
         )
+        pass_bands = _bands_for(track, "pass")
+        fail_bands = _bands_for(track, "fail")
+        verdicts.append(
+            {
+                "track_id": track.track_id,
+                "skill_ids": [track.primary_skill_id],
+                "evidence_count": len(evidence),
+                "highest_clear_pass_band": (
+                    max(pass_bands) if pass_bands else None
+                ),
+                "lowest_clear_fail_band": (
+                    min(fail_bands) if fail_bands else None
+                ),
+                "confidence": round(confidence, 3),
+                "status": track.status,
+                "unresolved_reason": track.unresolved_reason,
+            }
+        )
+    return verdicts
+
+
+def _advance_after_attempt(state: PlacementSessionState, track_id: str) -> PlacementSessionState:
     if state.stage == "snapshot":
         if any(track.status == "pending" for track in state.track_states.values()):
-            return state
-        return _finish_snapshot(state)
-    if state.stage == "targeted_diagnostic":
-        return _advance_targeted(state, track_id)
-    return _advance_confirmatory(state, track_id)
+            advanced = state
+        else:
+            advanced = _finish_snapshot(state)
+    elif state.stage == "targeted_diagnostic":
+        advanced = _advance_targeted(state, track_id)
+    else:
+        advanced = _advance_confirmatory(state, track_id)
+
+    if advanced.terminal_status in {"target_ready", "below_target"}:
+        return advanced
+
+    outer_budget_reason = _outer_learner_budget_reason(state)
+    if outer_budget_reason is not None:
+        return _finalize_from_available_evidence(
+            advanced,
+            budget_reason=outer_budget_reason,
+        )
+
+    stage_budget_reason = _stage_budget_reason(state)
+    if (
+        stage_budget_reason is not None
+        and advanced.terminal_status is None
+        and advanced.stage == state.stage
+    ):
+        if state.stage == "snapshot":
+            advanced = _finish_snapshot(advanced, include_unseen=True)
+        elif state.stage == "targeted_diagnostic":
+            advanced = _finish_targeted_on_budget(
+                advanced,
+                budget_reason=stage_budget_reason,
+            )
+        else:
+            advanced = _finalize_from_available_evidence(
+                advanced,
+                budget_reason=stage_budget_reason,
+            )
+
+    if advanced.terminal_status in {"target_ready", "below_target"}:
+        return advanced
+
+    terminal_reason = None
+    if state.total_items >= MAX_PLACEMENT_ITEMS:
+        terminal_reason = "item_budget_exhausted_without_honest_boundary"
+    if terminal_reason is None:
+        return advanced
+    if advanced.terminal_status in {"target_ready", "below_target"}:
+        return advanced
+    if advanced.terminal_status == "insufficient_evidence":
+        return replace(advanced, terminal_reason=terminal_reason)
+    return _finalize_from_available_evidence(
+        advanced,
+        budget_reason=terminal_reason,
+    )
 
 
-def _finish_snapshot(state: PlacementSessionState) -> PlacementSessionState:
+def _finish_snapshot(
+    state: PlacementSessionState,
+    *,
+    include_unseen: bool = False,
+) -> PlacementSessionState:
     if all(
         track.status == "provisional_ready"
         for track in state.track_states.values()
@@ -454,7 +873,11 @@ def _finish_snapshot(state: PlacementSessionState) -> PlacementSessionState:
     pending = tuple(
         track_id
         for track_id, track in state.track_states.items()
-        if track.status in {"provisional_weak", "ambiguous"}
+        if track.status in {
+            "provisional_weak",
+            "ambiguous",
+            *(("pending",) if include_unseen else ()),
+        }
     )
     staged = replace(
         state,
@@ -467,7 +890,54 @@ def _finish_snapshot(state: PlacementSessionState) -> PlacementSessionState:
     staged = _drop_missing_targeted_items(staged)
     if staged.pending_track_ids:
         return staged
+    if staged.confirmatory_track_ids:
+        return _enter_confirmatory(staged)
     return _finalize_from_available_evidence(staged)
+
+
+def _finish_targeted_on_budget(
+    state: PlacementSessionState,
+    *,
+    budget_reason: str,
+) -> PlacementSessionState:
+    track_states = dict(state.track_states)
+    confirmatory = list(state.confirmatory_track_ids)
+    for track_id in state.pending_track_ids:
+        resolved, confirmation_reason = _resolve_targeted_track(
+            track_states[track_id]
+        )
+        if confirmation_reason or resolved.status in {
+            "pending",
+            "provisional_weak",
+            "ambiguous",
+        }:
+            resolved = replace(
+                resolved,
+                status="ambiguous",
+                boundary_band=_confirmation_band(resolved),
+                unresolved_reason=(
+                    confirmation_reason
+                    or "targeted_stage_time_budget_exhausted"
+                ),
+            )
+            confirmatory.append(track_id)
+        track_states[track_id] = resolved
+
+    staged = replace(
+        state,
+        track_states=_frozen_mapping(track_states),
+        pending_track_ids=(),
+        confirmatory_track_ids=tuple(dict.fromkeys(confirmatory)),
+    )
+    if staged.confirmatory_track_ids:
+        advanced = _enter_confirmatory(staged)
+        if advanced.terminal_status == "insufficient_evidence":
+            return replace(advanced, terminal_reason=budget_reason)
+        return advanced
+    return _finalize_from_available_evidence(
+        staged,
+        budget_reason=budget_reason,
+    )
 
 
 def _advance_targeted(state: PlacementSessionState, track_id: str) -> PlacementSessionState:
@@ -509,6 +979,27 @@ def _advance_confirmatory(state: PlacementSessionState, track_id: str) -> Placem
     confirmatory = tuple(
         value for value in state.confirmatory_track_ids if value != track_id
     )
+    authored_track = _tracks_by_id(state).get(track_id)
+    if track.status == "unresolved":
+        fresh_item = (
+            _unused_confirmation_for(
+                authored_track,
+                track,
+                set(state.answered_item_ids),
+            )
+            if authored_track
+            else None
+        )
+        if fresh_item is not None:
+            confirmatory = confirmatory + (track_id,)
+        else:
+            track = replace(
+                track,
+                unresolved_reason=(
+                    "missing_additional_authored_same_track_confirmatory_item"
+                ),
+            )
+            track_states[track_id] = track
     staged = replace(
         state,
         track_states=_frozen_mapping(track_states),
@@ -622,6 +1113,22 @@ def _targeted_item(
     )
 
 
+def _unused_confirmation_for(
+    track: PlacementTrack,
+    track_state: PlacementTrackState,
+    answered: set[str],
+) -> SchoolPlacementBankItem | None:
+    boundary_band = track_state.boundary_band
+    if boundary_band is None:
+        boundary_band = _confirmation_band(track_state)
+    return _variant_for(
+        track,
+        source_band=boundary_band,
+        stage="confirmatory",
+        answered=answered,
+    )
+
+
 def _choose_targeted_band(track: PlacementTrackState) -> int | None:
     bands = tuple(sorted(set(track.authored_bands)))
     pass_bands = _bands_for(track, "pass")
@@ -634,10 +1141,19 @@ def _choose_targeted_band(track: PlacementTrackState) -> int | None:
     if _contradictory(pass_bands, fail_bands):
         return None
     if pass_bands and fail_bands:
-        return _midpoint_band(_bands_between(bands, max(pass_bands), min(fail_bands)))
+        candidates = tuple(
+            band
+            for band in _bands_between(bands, max(pass_bands), min(fail_bands))
+            if band not in targeted_bands
+        )
+        return _midpoint_band(candidates)
     if fail_bands:
         failed_floor = min(fail_bands)
-        lower = tuple(band for band in bands if band < failed_floor)
+        lower = tuple(
+            band
+            for band in bands
+            if band < failed_floor and band not in targeted_bands
+        )
         if lower:
             return _midpoint_band(lower)
         if failed_floor not in targeted_bands:
@@ -645,15 +1161,18 @@ def _choose_targeted_band(track: PlacementTrackState) -> int | None:
         return None
     if pass_bands:
         passed_ceiling = max(pass_bands)
-        higher = tuple(band for band in bands if band > passed_ceiling)
+        higher = tuple(
+            band
+            for band in bands
+            if band > passed_ceiling and band not in targeted_bands
+        )
         if higher:
             return _midpoint_band(higher)
         if passed_ceiling not in targeted_bands:
             return passed_ceiling
         return None
-    if track.snapshot_source_band not in targeted_bands:
-        return track.snapshot_source_band
-    return None
+    untested = tuple(band for band in bands if band not in targeted_bands)
+    return max(untested) if untested else None
 
 
 def _drop_missing_targeted_items(state: PlacementSessionState) -> PlacementSessionState:
@@ -734,6 +1253,33 @@ def _enter_confirmatory(state: PlacementSessionState) -> PlacementSessionState:
     if staged.confirmatory_track_ids:
         return staged
     return _finalize_from_available_evidence(staged)
+
+
+def _outer_learner_budget_reason(state: PlacementSessionState) -> str | None:
+    if _current_sitting_elapsed(state) >= PLACEMENT_LEARNER_TIME_BUDGET_SECONDS:
+        return "placement_learner_time_budget_exhausted"
+    return None
+
+
+def _current_sitting_elapsed(state: PlacementSessionState) -> float:
+    if state.sitting_elapsed_seconds is None:
+        return float(state.elapsed_seconds)
+    return float(state.sitting_elapsed_seconds)
+
+
+def _stage_budget_reason(state: PlacementSessionState) -> str | None:
+    stage_limits = {
+        "snapshot": SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS,
+        "targeted_diagnostic": TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS,
+        "confirmatory": CONFIRMATORY_LEARNER_TIME_BUDGET_SECONDS,
+    }
+    if state.stage_elapsed_seconds >= stage_limits[state.stage]:
+        return f"{state.stage}_learner_time_budget_exhausted"
+    return None
+
+
+def _learner_budget_reason(state: PlacementSessionState) -> str | None:
+    return _outer_learner_budget_reason(state) or _stage_budget_reason(state)
 
 
 def _finalize_target_ready(state: PlacementSessionState) -> PlacementSessionState:
@@ -1013,6 +1559,7 @@ def _placement_state_to_json(state: PlacementSessionState) -> dict[str, Any]:
         "scorable_answers": state.scorable_answers,
         "unscorable_attempts": state.unscorable_attempts,
         "elapsed_seconds": state.elapsed_seconds,
+        "sitting_elapsed_seconds": state.sitting_elapsed_seconds,
         "evaluator_wait_seconds": state.evaluator_wait_seconds,
         "stage_items": state.stage_items,
         "stage_elapsed_seconds": state.stage_elapsed_seconds,
@@ -1045,7 +1592,7 @@ def _placement_state_from_json(payload: dict[str, Any]) -> PlacementSessionState
                     evaluator_score=float(evidence.get("evaluator_score") or 0.0),
                     evaluator_confidence=float(evidence.get("evaluator_confidence") or 0.0),
                     certifying_blockers=tuple(evidence.get("certifying_blockers") or ()),
-                    elapsed_seconds=int(evidence.get("elapsed_seconds") or 0),
+                    elapsed_seconds=float(evidence.get("elapsed_seconds") or 0.0),
                 )
                 for evidence in value.get("evidence") or ()
             ),
@@ -1077,10 +1624,16 @@ def _placement_state_from_json(payload: dict[str, Any]) -> PlacementSessionState
         total_items=int(payload.get("total_items") or 0),
         scorable_answers=int(payload.get("scorable_answers") or 0),
         unscorable_attempts=int(payload.get("unscorable_attempts") or 0),
-        elapsed_seconds=int(payload.get("elapsed_seconds") or 0),
+        elapsed_seconds=float(payload.get("elapsed_seconds") or 0.0),
+        sitting_elapsed_seconds=(
+            float(payload.get("sitting_elapsed_seconds") or 0.0)
+            if "sitting_elapsed_seconds" in payload
+            and payload.get("sitting_elapsed_seconds") is not None
+            else None
+        ),
         evaluator_wait_seconds=int(payload.get("evaluator_wait_seconds") or 0),
         stage_items=int(payload.get("stage_items") or 0),
-        stage_elapsed_seconds=int(payload.get("stage_elapsed_seconds") or 0),
+        stage_elapsed_seconds=float(payload.get("stage_elapsed_seconds") or 0.0),
         pending_track_ids=tuple(payload.get("pending_track_ids") or ()),
         confirmatory_track_ids=tuple(payload.get("confirmatory_track_ids") or ()),
         terminal_status=payload.get("terminal_status"),

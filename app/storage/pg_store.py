@@ -6,6 +6,8 @@ and session history while making the product look functional.
 """
 from contextlib import asynccontextmanager
 
+from app.db.cancellation import finish_cleanup
+
 
 @asynccontextmanager
 async def _session():
@@ -18,7 +20,7 @@ async def _session():
         yield sess
     finally:
         try:
-            await sess.close()
+            await finish_cleanup(sess.close())
         except Exception:
             pass
 
@@ -462,6 +464,18 @@ class PgStore:
         async with _session() as s:
             await repo.upsert_learner_skill_profile(s, **kwargs)
 
+    async def reconcile_school_chapter_certification_projection(
+        self,
+        **kwargs,
+    ) -> list[dict]:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.reconcile_school_chapter_certification_projection(
+                s,
+                **kwargs,
+            )
+
     async def replace_learner_skill_profiles_for_task(self, **kwargs) -> None:
         from app.db import repo
 
@@ -902,12 +916,19 @@ class PgStore:
         activity_id: str,
         answer_hash: str,
         claim_token: str,
+        placement_retry_timing: dict | None = None,
     ) -> None:
         from app.db import repo
 
         async with _session() as s:
             await repo.fail_school_answer_request(
-                s, user_id, session_id, activity_id, answer_hash, claim_token
+                s,
+                user_id,
+                session_id,
+                activity_id,
+                answer_hash,
+                claim_token,
+                placement_retry_timing=placement_retry_timing,
             )
 
     async def renew_school_answer_request(
@@ -995,6 +1016,18 @@ class PgStore:
 
         async with _session() as s:
             return await repo.get_or_create_active_school_placement_session(s, **kwargs)
+
+    async def present_school_placement_item(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.present_school_placement_item(s, **kwargs)
+
+    async def resume_school_placement_session(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.resume_school_placement_session(s, **kwargs)
 
     async def get_school_sessions_linked_to(
         self,

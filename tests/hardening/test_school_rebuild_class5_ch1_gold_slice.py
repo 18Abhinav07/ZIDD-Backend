@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from collections import Counter
+import json
 from pathlib import Path
 import re
+from typing import get_args
+
+import pytest
+from pydantic import ValidationError
 
 from app.content.school.standards import locked_english_taxonomy
 from app.content.school.content_schema import SchoolRubricEvaluation
 from app.content.school_rebuild_content import load_live_chapter_file
 from app.content.school_rebuild_quality import chapter_quality_issues
+from app.content import school_rebuild_schema as school_schema
 from app.content.school_rebuild_schema import LiveChapterAssessmentItem
 from app.services.school import open_answer_ai
 from app.services.school.evaluator_contract import (
@@ -18,6 +24,7 @@ from app.services.school.evaluator_contract import (
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_masterclass as masterclass
 from scripts.audit_school_rebuild_content import _launch_level_count_is_valid
+from scripts import upgrade_school_chapter1_deep_loop as chapter1_upgrader
 
 
 CHAPTER_PATH = (
@@ -118,6 +125,612 @@ def _word_ngrams(value: str, size: int) -> set[tuple[str, ...]]:
         tuple(words[index : index + size])
         for index in range(max(0, len(words) - size + 1))
     }
+
+
+def _personal_response_variant(variant_id: str) -> dict:
+    level = _level(_chapter(), "papas_spectacles_personal_response")
+    activity = next(
+        item
+        for step in level["teaching_steps"]
+        for item in (
+            [step["activity"]]
+            if "activity" in step
+            else step["variant_pool"]
+        )
+        if item.get("variant_id") == variant_id
+    )
+    return {
+        **activity,
+        "activity_id": variant_id,
+        "skill_ids": list(activity["knowledge_components"]),
+    }
+
+
+def _authored_personal_response_variant(variant_id: str) -> dict:
+    activity = _personal_response_variant(variant_id)
+    return {
+        key: value
+        for key, value in activity.items()
+        if key not in {"activity_id", "skill_ids"}
+    }
+
+
+def test_semantic_validator_literal_contains_exactly_two_closed_rules():
+    assert set(get_args(school_schema.SchoolOpenSemanticValidatorId)) == {
+        "evidence_over_unsupported_guess_v1",
+        "affirmative_support_or_no_mocking_v1",
+    }
+
+
+def test_semantic_validator_ids_are_preserved_only_on_two_target_variants():
+    chapter = _chapter()
+    tagged = {
+        item["variant_id"]: item["semantic_validator_id"]
+        for level in chapter["levels"]
+        for step in level["teaching_steps"]
+        for item in (
+            [step["activity"]]
+            if "activity" in step
+            else step["variant_pool"]
+        )
+        if item.get("semantic_validator_id")
+    }
+
+    assert tagged == {
+        "papas_spectacles_personal_response:independent_application:v4": (
+            "evidence_over_unsupported_guess_v1"
+        ),
+        "papas_spectacles_personal_response:review:v2": (
+            "affirmative_support_or_no_mocking_v1"
+        ),
+    }
+    for variant_id, validator_id in tagged.items():
+        activity = _personal_response_variant(variant_id)
+        context = school_open_context_from_activity(
+            activity,
+            activity["model_answer"],
+        )
+        assert context.semantic_validator_id == validator_id
+        assert context.model_dump()["semantic_validator_id"] == validator_id
+
+
+def test_semantic_validator_id_is_only_legal_for_strict_open_activities():
+    activity = _authored_personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="semantic_validator_requires_strict_open_rubric",
+    ):
+        school_schema.LiveChapterActivity.model_validate(
+            {
+                **activity,
+                "grading_mode": "selected_option",
+                "semantic_validator_id": (
+                    "evidence_over_unsupported_guess_v1"
+                ),
+            }
+        )
+
+
+def test_unknown_semantic_validator_id_fails_schema_and_context_validation():
+    authored = _authored_personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    with pytest.raises(ValidationError) as schema_error:
+        school_schema.LiveChapterActivity.model_validate(
+            {**authored, "semantic_validator_id": "unregistered_rule_v1"}
+        )
+    assert any(
+        error["loc"] == ("semantic_validator_id",)
+        and error["type"] == "literal_error"
+        for error in schema_error.value.errors()
+    )
+
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    with pytest.raises(ValidationError) as context_error:
+        school_open_context_from_activity(
+            {**activity, "semantic_validator_id": "unregistered_rule_v1"},
+            activity["model_answer"],
+        )
+    assert any(
+        error["loc"] == ("semantic_validator_id",)
+        and error["type"] == "literal_error"
+        for error in context_error.value.errors()
+    )
+
+
+def _model_overgraded_decision(
+    activity: dict,
+    answer: str,
+    semantic_evidence: dict[str, str],
+) -> dict:
+    evidence_by_id = {
+        **semantic_evidence,
+        "personal_response_target:reason_link": "because",
+        "personal_response_target:contrast_link": "but",
+        "clear_relevant_english": answer,
+    }
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 1.0,
+            "confidence": 0.99,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": evidence_by_id[criterion["id"]],
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "The response addresses the situation.",
+        }
+    )
+    return curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+
+def test_clue_choice_strong_answer_passes_real_evaluator_decision_path():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the reading-room clue first because the pencil was last "
+        "used in the reading room, but the art-room claim is only a guess."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "test the reading-room clue first",
+            "personal_response_target:detail_2": (
+                "the pencil was last used in the reading room"
+            ),
+            "personal_response_target:detail_3": (
+                "the art-room claim is only a guess"
+            ),
+        },
+    )
+
+    assert decision["correct"] is True, decision
+    assert decision["missing_criteria"] == []
+    assert decision["blockers"] == []
+    assert "pencil was last used in the reading room" in activity[
+        "passage"
+    ].casefold()
+    assert "notebook" not in activity["passage"].casefold()
+
+
+def test_clue_choice_rejects_preference_reason_without_pencil_last_use_evidence():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the reading-room clue first because I like reading, but "
+        "the art-room guess sounds silly."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "test the reading-room clue first",
+            "personal_response_target:detail_2": "I like reading",
+            "personal_response_target:detail_3": (
+                "art-room guess sounds silly"
+            ),
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "semantic_required_claim_missing" in decision["blockers"]
+
+
+def test_clue_choice_rejects_wrong_polarity_despite_authority_phrases():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the art room first because I prefer it, but the "
+        "reading-room clue first seems useless and the art-room guess is best."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "reading-room clue first",
+            "personal_response_target:detail_2": "I prefer it",
+            "personal_response_target:detail_3": "art-room guess is best",
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "semantic_required_claim_missing" in decision["blockers"]
+
+
+def test_clue_choice_rejects_later_contradictory_art_room_choice():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the reading-room clue first because the pencil was last "
+        "used there, but the art-room clue is unsupported. Still, I would "
+        "begin in the art room."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "test the reading-room clue first",
+            "personal_response_target:detail_2": (
+                "the pencil was last used there"
+            ),
+            "personal_response_target:detail_3": (
+                "the art-room clue is unsupported"
+            ),
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "authored_contradiction" in decision["blockers"]
+
+
+@pytest.mark.parametrize(
+    "contradictory_choice",
+    (
+        "I would choose the art room",
+        "I would pick the art room",
+        "I would select the art room",
+        "I would prefer the art room",
+        "I would prioritize the art room",
+        "I would investigate the art room",
+        "I would explore the art room",
+        "I would examine the art room",
+        "I would begin in the art room",
+        "I will start in art room",
+        "I should check the art room",
+        "I could search art room",
+        "I can look in the art room",
+        "I might go to art room",
+        "I would go straight to the art room",
+        "I may head to the art room",
+        "I'd try art room",
+        "I'll test the art room",
+        "We would visit the art room",
+        "I would inspect the art room",
+        "I would follow the art-room clue",
+        "I would take the art-room clue",
+        "I would opt for the art room",
+    ),
+)
+def test_clue_choice_rejects_natural_art_room_choice_verbs(
+    contradictory_choice,
+):
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the reading-room clue first because the pencil was last "
+        "used there, but the art-room clue is unsupported. Still, "
+        f"{contradictory_choice}."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "test the reading-room clue first",
+            "personal_response_target:detail_2": (
+                "the pencil was last used there"
+            ),
+            "personal_response_target:detail_3": (
+                "the art-room clue is unsupported"
+            ),
+        },
+    )
+
+    assert decision["correct"] is False, (contradictory_choice, decision)
+    assert "authored_contradiction" in decision["blockers"]
+
+
+@pytest.mark.parametrize(
+    "rejected_choice",
+    (
+        "I would not pick the art room",
+        "I would never select the art-room clue",
+        "I refuse to visit the art room",
+        "I reject the idea that we should search the art room",
+        "I dismiss the suggestion to inspect the art room",
+        "I oppose trying the art room",
+    ),
+)
+def test_clue_choice_allows_negated_or_rejected_art_room_actions(
+    rejected_choice,
+):
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:independent_application:v4"
+    )
+    answer = (
+        "I would test the reading-room clue first because the pencil was last "
+        "used there, but the art-room clue is unsupported. Also, "
+        f"{rejected_choice}."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "test the reading-room clue first",
+            "personal_response_target:detail_2": (
+                "the pencil was last used there"
+            ),
+            "personal_response_target:detail_3": (
+                "the art-room clue is unsupported"
+            ),
+        },
+    )
+
+    assert decision["correct"] is True, (rejected_choice, decision)
+    assert decision["blockers"] == []
+
+
+def test_kind_humour_strong_answer_passes_real_evaluator_decision_path():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The moment is funny because Kabir is already holding the pencil he is "
+        "searching for, but I would not mock him."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": (
+                "already holding the pencil he is searching for"
+            ),
+            "personal_response_target:detail_2": "would not mock him",
+        },
+    )
+
+    assert decision["correct"] is True, decision
+    assert decision["missing_criteria"] == []
+    assert decision["blockers"] == []
+
+
+def test_kind_humour_accepts_explicit_helping_response():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        "searching for it, but I would help him notice the pencil."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": (
+                "holding the pencil while searching for it"
+            ),
+            "personal_response_target:detail_2": (
+                "help him notice the pencil"
+            ),
+        },
+    )
+
+    assert decision["correct"] is True, decision
+    assert decision["missing_criteria"] == []
+    assert decision["blockers"] == []
+
+
+def test_kind_humour_accepts_affirmative_kind_explanation():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        "searching, but I would explain kindly."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "holding the pencil while searching",
+            "personal_response_target:detail_2": "I would explain kindly",
+        },
+    )
+
+    assert decision["correct"] is True, decision
+    assert decision["missing_criteria"] == []
+    assert decision["blockers"] == []
+
+
+def test_kind_humour_rejects_help_phrase_inside_never_negation():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        "searching, but I would never help him notice it."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "holding the pencil while searching",
+            "personal_response_target:detail_2": "help him notice it",
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "authored_contradiction" in decision["blockers"]
+
+
+@pytest.mark.parametrize(
+    "hostile_response",
+    (
+        "I would not help him notice the pencil",
+        "I wouldn't help him notice it",
+        "I would give no help to him",
+        "I decline to help him notice the pencil",
+        "I refuse to help him notice it",
+        "I refuse ever to help him notice the pencil",
+        "I refuse under any circumstance now or ever to help him",
+        "I never intend to help him notice the pencil",
+        "I do not think that we should help him notice it",
+        "I would avoid helping him notice the pencil",
+        "I would rather not help him notice the pencil",
+        "I cannot help him notice the pencil",
+        "I would continue without helping him notice it",
+        "I continue without choosing to help him notice the pencil",
+        "I would not point out the pencil to him",
+        "I refuse to show him the pencil",
+        "I would continue without guiding him",
+        "I would help him notice it and ridicule him",
+        "I would help him notice it and tease him",
+        "I would never treat him kindly",
+        "I wouldn't explain kindly",
+        "I refuse to be kind to him",
+        "I would respond without kindness",
+        "I would never respond kindly",
+    ),
+)
+def test_kind_humour_rejects_negated_refused_or_hostile_responses(
+    hostile_response,
+):
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        f"searching, but {hostile_response}."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "holding the pencil while searching",
+            "personal_response_target:detail_2": answer,
+        },
+    )
+
+    assert decision["correct"] is False, (hostile_response, decision)
+    assert "authored_contradiction" in decision["blockers"]
+
+
+@pytest.mark.parametrize(
+    "support_response",
+    (
+        "I would help him notice the pencil",
+        "I would explain kindly",
+        "I would point out the pencil to him",
+        "I would point him to the pencil",
+        "I would show him the pencil",
+        "I would show the pencil to him",
+        "I would guide him to notice the pencil",
+        "I would guide Kabir toward the pencil",
+        "without hesitation I would help him",
+        "without delay I would guide him",
+        (
+            "I would not point it out in front of everyone, but I would help "
+            "him notice the pencil quietly"
+        ),
+        "I would not mock him",
+        "I would not make fun of him",
+    ),
+)
+def test_kind_humour_allows_support_or_explicit_no_mocking(
+    support_response,
+):
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        f"searching for it, but {support_response}."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": (
+                "holding the pencil while searching for it"
+            ),
+            "personal_response_target:detail_2": support_response,
+        },
+    )
+
+    assert decision["correct"] is True, (support_response, decision)
+    assert decision["blockers"] == []
+
+
+def test_kind_humour_rejects_mockery_when_model_overgrades_embarrassment():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The moment is funny because Kabir is holding the pencil while "
+        "searching, but I would mock him for looking embarrassed."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "holding the pencil",
+            "personal_response_target:detail_2": "embarrassed",
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "semantic_required_claim_missing" in decision["blockers"]
+
+
+def test_kind_humour_rejects_kind_phrase_inside_explicit_negation():
+    activity = _personal_response_variant(
+        "papas_spectacles_personal_response:review:v2"
+    )
+    answer = (
+        "The mix-up is funny because Kabir is holding the pencil while "
+        "searching, but I would not be kind to him."
+    )
+
+    decision = _model_overgraded_decision(
+        activity,
+        answer,
+        {
+            "personal_response_target": "holding the pencil while searching",
+            "personal_response_target:detail_2": "not be kind to him",
+        },
+    )
+
+    assert decision["correct"] is False, decision
+    assert "semantic_required_claim_missing" in decision["blockers"]
+    assert "authored_contradiction" in decision["blockers"]
 
 
 def test_transfer_accepts_the_contextually_clear_label_paraphrase():
@@ -688,7 +1301,30 @@ def test_chapter_one_assessment_is_deep_and_source_grounded():
         if ":form_b:" in item["item_id"]
     }
     assert form_a_signatures.isdisjoint(form_b_signatures)
-    assert chapter["content_version"] == "2026-07-16.ch1-gold.14"
+    assert chapter["content_version"] == "2026-07-17.ch1-gold.15"
+    assert chapter["certification_version"] == "2026-07-17.ch1-gold.13"
+
+
+def test_semantic_contract_version_bump_invalidates_pre_validator_session():
+    chapter = _chapter()
+    session = {
+        "subject_id": "english",
+        "class_no": 5,
+        "state_json": {
+            "subject_id": "english",
+            "target_class_no": 5,
+            "chapter": {
+                "chapter_id": chapter["chapter_id"],
+                "content_version": "2026-07-16.ch1-gold.14",
+            },
+        },
+    }
+
+    assert curriculum.session_content_version_is_current(session) is False
+    session["state_json"]["chapter"]["content_version"] = chapter[
+        "content_version"
+    ]
+    assert curriculum.session_content_version_is_current(session) is True
 
 
 def test_chapter_one_strict_open_items_have_authored_grading_authority():
@@ -890,7 +1526,7 @@ def test_chapter_one_has_global_freshness_for_every_teaching_candidate():
         for check in level["checks"].values()
     )
     all_servables.extend(chapter["chapter_assessment"]["items"])
-    assert len(all_servables) == 266
+    assert len(all_servables) == 267
     assert duplicates("passage", all_servables) == {}
     assert duplicates("prompt", all_servables) == {}
 
@@ -1991,3 +2627,26 @@ def test_all_three_phase_masterclass_checks_are_evaluable():
 def test_chapter_one_runtime_sha_matches_the_approved_loader():
     chapter = load_live_chapter_file(CHAPTER_PATH)
     assert chapter.calculated_runtime_sha256() == chapter.runtime_sha256
+
+
+def test_upgrader_rejects_old_six_level_seed_with_clear_prerequisite(
+    tmp_path,
+    monkeypatch,
+):
+    payload = json.loads(CHAPTER_PATH.read_text(encoding="utf-8"))
+    payload["levels"] = payload["levels"][:6]
+    seed_path = tmp_path / "eng_c5_ch01.json"
+    seed_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    seed_before = seed_path.read_bytes()
+    monkeypatch.setattr(chapter1_upgrader, "CHAPTER_PATH", seed_path)
+
+    with pytest.raises(
+        ValueError,
+        match="chapter_one_nine_level_gold_structure_required",
+    ):
+        chapter1_upgrader.main()
+
+    assert seed_path.read_bytes() == seed_before

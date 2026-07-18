@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.api import auth as auth_module
 from app.config import get_jwt_secret, get_settings
-from app.storage.pg_store import PgStore
+from app.storage.pg_store import PgStore, _session
 from app.main import app
 from app.models import SessionStartRequest
 from app.storage import get_storage, reset_storage
@@ -146,3 +146,89 @@ def test_dev_credit_grant_stays_closed_in_prod_even_with_flag(monkeypatch, store
     assert _run(store.get_credits("test_user")) == 0
     get_settings.cache_clear()
     get_jwt_secret.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_pg_session_close_finishes_under_repeated_cancellation(monkeypatch):
+    from app.db import engine as engine_module
+
+    close_started = asyncio.Event()
+    allow_close = asyncio.Event()
+
+    class FakeSession:
+        closed = False
+
+        async def close(self):
+            close_started.set()
+            await allow_close.wait()
+            self.closed = True
+
+    fake_session = FakeSession()
+    monkeypatch.setattr(
+        engine_module,
+        "get_sessionmaker",
+        lambda: lambda: fake_session,
+    )
+
+    async def use_session():
+        async with _session():
+            await asyncio.Event().wait()
+
+    task = asyncio.create_task(use_session())
+    await asyncio.sleep(0)
+    task.cancel()
+    await asyncio.wait_for(close_started.wait(), timeout=0.2)
+    task.cancel()
+    allow_close.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert fake_session.closed is True
+
+
+@pytest.mark.asyncio
+async def test_school_answer_persistence_rolls_back_under_cancellation():
+    from app.db import repo
+
+    execute_started = asyncio.Event()
+    rollback_started = asyncio.Event()
+    allow_rollback = asyncio.Event()
+
+    class FakeSession:
+        rolled_back = False
+
+        async def execute(self, *_args, **_kwargs):
+            execute_started.set()
+            await asyncio.Event().wait()
+
+        async def rollback(self):
+            rollback_started.set()
+            await allow_rollback.wait()
+            self.rolled_back = True
+
+    fake_session = FakeSession()
+    task = asyncio.create_task(
+        repo.persist_school_answer_attempt(
+            fake_session,
+            learning_event={},
+            school_session={
+                "user_id": "learner-1",
+                "session_id": "00000000-0000-0000-0000-000000000001",
+                "api_version": "rebuild",
+            },
+            expected_state_json={},
+        )
+    )
+    await asyncio.wait_for(execute_started.wait(), timeout=0.2)
+    task.cancel()
+    for _ in range(20):
+        if rollback_started.is_set():
+            break
+        await asyncio.sleep(0)
+    task.cancel()
+    allow_rollback.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert rollback_started.is_set()
+    assert fake_session.rolled_back is True

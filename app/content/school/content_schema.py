@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from types import MappingProxyType
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -125,7 +125,7 @@ class SchoolRubricCriterion(_StrictFrozenModel):
     id: str
     met: bool
     quality: float = Field(ge=0.0, le=1.0)
-    evidence_quote: str
+    evidence_quote: str = Field(min_length=1)
 
     @field_validator("id", "evidence_quote")
     @classmethod
@@ -135,14 +135,13 @@ class SchoolRubricCriterion(_StrictFrozenModel):
             raise ValueError("rubric_result_field_empty")
         return cleaned
 
-
 class SchoolRubricEvaluation(_StrictFrozenModel):
-    schema_version: str
+    schema_version: Literal["school-v3-rubric-1", "school.open.v1"]
     item_id: str
     skill_ids: tuple[str, ...] = Field(min_length=1)
     score: float = Field(ge=0.0, le=1.0)
     confidence: float = Field(ge=0.0, le=1.0)
-    language_detected: str
+    language_detected: Literal["en", "hi", "hi_en", "other", "unknown"]
     criteria: tuple[SchoolRubricCriterion, ...] = Field(min_length=1)
     misconception_tags: tuple[str, ...] = ()
     blockers: tuple[str, ...] = ()
@@ -181,6 +180,19 @@ class SchoolRubricEvaluation(_StrictFrozenModel):
         criterion_ids = [criterion.id for criterion in self.criteria]
         if len(criterion_ids) != len(set(criterion_ids)):
             raise ValueError("duplicate_rubric_result_criterion")
+        if self.schema_version == "school.open.v1":
+            invalid = next(
+                (
+                    criterion
+                    for criterion in self.criteria
+                    if not criterion.met and criterion.quality > 0.0
+                ),
+                None,
+            )
+            if invalid is not None:
+                raise ValueError(
+                    f"rubric_unmet_criterion_has_quality:{invalid.id}"
+                )
         return self
 
 

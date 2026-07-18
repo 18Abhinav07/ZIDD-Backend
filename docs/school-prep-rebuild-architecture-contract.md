@@ -141,7 +141,7 @@ The content and frontend renderer support:
 - guided exploration, drawing, game, or offline action with a verifiable follow-up;
 - reflection that is explicitly non-certifying.
 
-### Gold Content Gate
+### 8+ Production Content Gate
 
 Every production module must have:
 
@@ -151,11 +151,11 @@ Every production module must have:
 - explicit prerequisite standards;
 - teaching before performance;
 - worked examples;
-- at least 6 unique guided and 6 unique independent items per outcome;
+- at least 4 unique guided and 4 unique independent items per outcome;
 - at least 3 unique transfer items per outcome and 2 review items per certifying
   standard;
-- at least 4 bridge items and 2 distinct reteaching strategies per authored
-  misconception cluster;
+- at least 5 targeted support checks and 2 distinct reteaching strategies per
+  authored misconception cluster;
 - at least 20 chapter-assessment items for a normal chapter;
 - strict rubrics for every open answer;
 - English, Hindi, and Hinglish instruction support where applicable;

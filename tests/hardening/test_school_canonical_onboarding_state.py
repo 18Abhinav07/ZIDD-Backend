@@ -209,6 +209,83 @@ def test_activation_round_trips_every_field_and_selects_profile_coach_once(
     assert persisted["coach_palette_id"] == "brave_bella"
 
 
+def test_draft_pins_selected_coach_identity_across_steps_and_activation(
+    store,
+    monkeypatch,
+):
+    _seed_user(store)
+    client = TestClient(app)
+
+    first_save = client.post(
+        "/school/onboarding",
+        headers=AUTH,
+        json={
+            "display_name": "Mira Sharma",
+            "school_name": "Saraswati Public School",
+            "coach_avatar_id": "casual_blue",
+            "coach_palette_id": "casual_blue",
+            "current_step": 1,
+            "request_id": str(uuid4()),
+        },
+    )
+    assert first_save.status_code == 200, first_save.text
+    first_draft = first_save.json()["draft"]
+    assert first_draft["coach_avatar_id"] == "casual_blue"
+    assert first_draft["coach_palette_id"] == "casual_blue"
+
+    later_save = client.post(
+        "/school/onboarding",
+        headers=AUTH,
+        json={
+            **_profile_payload(),
+            "current_step": 4,
+            "request_id": str(uuid4()),
+            "profile_version_id": first_draft["profile_version_id"],
+            "expected_revision": first_draft["draft_revision"],
+        },
+    )
+    assert later_save.status_code == 200, later_save.text
+    draft = later_save.json()["draft"]
+    assert draft["coach_avatar_id"] == "casual_blue"
+    assert draft["coach_palette_id"] == "casual_blue"
+
+    def should_not_reroll(_values):
+        raise AssertionError("saved onboarding coach identity must not reroll")
+
+    monkeypatch.setattr(profile_service.secrets, "choice", should_not_reroll)
+    completed = client.post(
+        "/school/onboarding/complete",
+        headers=AUTH,
+        json={
+            "profile_version_id": draft["profile_version_id"],
+            "expected_revision": draft["draft_revision"],
+            "request_id": str(uuid4()),
+        },
+    )
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["profile"]["coach_avatar_id"] == "casual_blue"
+    assert completed.json()["profile"]["coach_palette_id"] == "casual_blue"
+
+
+def test_draft_rejects_invalid_coach_identity_pair(store):
+    _seed_user(store)
+
+    response = TestClient(app).post(
+        "/school/onboarding",
+        headers=AUTH,
+        json={
+            "display_name": "Mira Sharma",
+            "school_name": "Saraswati Public School",
+            "coach_avatar_id": "casual_blue",
+            "coach_palette_id": "quiet_quint",
+            "current_step": 1,
+            "request_id": str(uuid4()),
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_activation_and_placement_reject_unsupported_legacy_ncert_selection(store):
     _seed_user(store)
     client = TestClient(app)
@@ -421,7 +498,11 @@ def test_placement_recap_and_curriculum_snapshot_profile_coach_identity(
         activity = kwargs["activity"]
         answer = kwargs["answer"]
         return {
-            "schema_version": "school-v3-rubric-1",
+            "schema_version": (
+                "school.open.v1"
+                if activity.get("grading_mode") == "strict_open_rubric"
+                else "school-v3-rubric-1"
+            ),
             "item_id": activity["activity_id"],
             "skill_ids": list(activity["skill_ids"]),
             "score": 0.0,
@@ -517,8 +598,8 @@ def test_placement_recap_and_curriculum_snapshot_profile_coach_identity(
     assert public_report.status_code == 200, public_report.text
     assert {key: public_report.json()[key] for key in identity} == identity
     assert {key: direct_report[key] for key in identity} == identity
-    assert "allowed_next_actions" not in public_report.json()
-    assert "allowed_next_actions" not in direct_report
+    assert public_report.json()["allowed_next_actions"] == ["start_recap"]
+    assert direct_report["allowed_next_actions"] == ["start_recap"]
     assert "coach_seed" not in public_report.text
 
     recap_response = client.post("/school/recap/start", headers=AUTH)

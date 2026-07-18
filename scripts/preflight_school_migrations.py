@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlparse
 
 import asyncpg
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -593,17 +594,29 @@ def _database_url(explicit_url: str | None) -> str:
     env_url = os.environ.get("SCHOOL_MIGRATION_DATABASE_URL", "").strip()
     if env_url:
         return env_url
-    configured = get_settings().supabase_pooler_url
+    settings = get_settings()
+    configured = getattr(
+        settings,
+        "migration_async_database_url",
+        settings.supabase_pooler_url,
+    )
     if not configured:
         raise RuntimeError(
-            "SCHOOL_MIGRATION_DATABASE_URL or SUPABASE_POOLER_URL is required"
+            "SCHOOL_MIGRATION_DATABASE_URL or a direct Supabase migration URL is required"
         )
     return str(configured)
 
 
 async def run_preflight(database_url: str) -> dict[str, object]:
-    asyncpg_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
-    connection = await asyncpg.connect(asyncpg_url, statement_cache_size=0)
+    parsed_url = make_url(database_url).difference_update_query(["ssl", "sslmode"])
+    asyncpg_url = parsed_url.set(drivername="postgresql").render_as_string(
+        hide_password=False
+    )
+    connection = await asyncpg.connect(
+        asyncpg_url,
+        statement_cache_size=0,
+        ssl="require",
+    )
     try:
         transaction = connection.transaction(
             isolation="serializable",

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.config import get_settings
-from app.db.engine import get_engine
+from app.db.engine import get_migration_engine
 from app.db.schema_guard import validate_runtime_schema
 from scripts.preflight_school_migrations import (
     collect_preflight_on_connection,
@@ -54,7 +54,11 @@ DEFAULT_MIGRATIONS = [
     ROOT / "app/db/migrations/2026-07-12-school-onboarding-drafts.sql",
     ROOT / "app/db/migrations/2026-07-14-school-additive-reconciliation.sql",
     ROOT / "app/db/migrations/2026-07-13-001-school-release-authority.sql",
+    ROOT / "app/db/migrations/2026-07-14-school-release-metadata-correction.sql",
     ROOT / "app/db/migrations/2026-07-14-integrated-domain-contract.sql",
+    ROOT / "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql",
+    ROOT / "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
+    ROOT / "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
 ]
 
 SCHOOL_ADDITIVE_RECONCILIATION_MIGRATION = (
@@ -64,7 +68,10 @@ CANONICAL_MIGRATIONS = frozenset(
     {
         SCHOOL_ADDITIVE_RECONCILIATION_MIGRATION,
         ROOT / "app/db/migrations/2026-07-13-001-school-release-authority.sql",
+        ROOT / "app/db/migrations/2026-07-14-school-release-metadata-correction.sql",
         ROOT / "app/db/migrations/2026-07-14-integrated-domain-contract.sql",
+        ROOT / "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql",
+        ROOT / "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
     }
 )
 
@@ -512,10 +519,14 @@ async def _ensure_canonical_marker_shape(conn) -> None:
 async def _mark_reconciled_school_migrations(
     conn,
     snapshots: list[MigrationSnapshot],
+    *,
+    include_canonical: bool = False,
 ) -> None:
-    legacy_paths = {path.resolve() for path in LEGACY_SCHOOL_MIGRATIONS}
+    markable_paths = {path.resolve() for path in LEGACY_SCHOOL_MIGRATIONS}
+    if include_canonical:
+        markable_paths.update(path.resolve() for path in CANONICAL_MIGRATIONS)
     for snapshot in snapshots:
-        if snapshot.path.resolve() not in legacy_paths:
+        if snapshot.path.resolve() not in markable_paths:
             continue
         existing_hash = await conn.scalar(
             text(
@@ -579,10 +590,15 @@ async def apply(
         raise RuntimeError("canonical_school_migration_preflight_output_required")
 
     settings = get_settings()
-    if not settings.supabase_pooler_url:
-        raise RuntimeError("SUPABASE_POOLER_URL is required to apply migrations.")
+    migration_configured = getattr(
+        settings,
+        "migration_database_configured",
+        bool(getattr(settings, "supabase_pooler_url", "")),
+    )
+    if not migration_configured:
+        raise RuntimeError("A direct Supabase migration URL is required.")
 
-    engine = get_engine()
+    engine = get_migration_engine()
     try:
         async with engine.begin() as conn:
             await conn.execute(
@@ -619,9 +635,14 @@ async def apply(
                     await _ensure_canonical_marker_shape(conn)
                     await _apply_canonical_migration(conn, additive_snapshot)
                     await _apply_final_schema(conn)
-                elif predecessor in {"fresh", "career"}:
-                    # Fresh/Career predecessors need learner_profiles and the
-                    # complete base schema before School foreign keys can exist.
+                elif predecessor == "fresh":
+                    # A fresh database has no rows to reconcile. The final
+                    # schema is authoritative and already contains every
+                    # historical additive effect and corrected seed.
+                    await _apply_final_schema(conn)
+                elif predecessor == "career":
+                    # Career predecessors need the complete base schema before
+                    # School foreign keys and additive reconciliation can run.
                     await _apply_final_schema(conn)
                     await _apply_canonical_migration(conn, additive_snapshot)
                 else:
@@ -641,7 +662,11 @@ async def apply(
                 # Any failure still rolls the whole transaction back.
                 preflight = await collect_preflight_on_connection(
                     conn,
-                    settings.supabase_pooler_url,
+                    getattr(
+                        settings,
+                        "migration_async_database_url",
+                        settings.supabase_pooler_url,
+                    ),
                 )
                 write_preflight_output(preflight, preflight_output)
                 if not preflight.get("ok", False):
@@ -650,6 +675,8 @@ async def apply(
             canonical_paths = {item.resolve() for item in CANONICAL_MIGRATIONS}
             legacy_paths = {path.resolve() for path in LEGACY_SCHOOL_MIGRATIONS}
             for snapshot in snapshots:
+                if reconcile_predecessor and predecessor == "fresh":
+                    continue
                 if (
                     reconcile_predecessor
                     and (
@@ -674,7 +701,11 @@ async def apply(
                     await conn.exec_driver_sql(statement)
             await validate_runtime_schema(conn)
             if reconcile_predecessor:
-                await _mark_reconciled_school_migrations(conn, snapshots)
+                await _mark_reconciled_school_migrations(
+                    conn,
+                    snapshots,
+                    include_canonical=predecessor == "fresh",
+                )
     finally:
         await engine.dispose()
 

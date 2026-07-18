@@ -676,24 +676,27 @@ def test_gd_node_without_provable_reconciler_retries_failed_structural_repair(mo
     assert call_count == 2
 
 
-def test_prep_evaluation_pitch_omissions_raise_before_deterministic_reconciliation(monkeypatch):
+def test_prep_evaluation_pitch_omissions_use_deterministic_fallback_after_one_repair(monkeypatch):
     from app.ai import calls
 
     prompts = []
 
+    incomplete = PrepRubricEval(
+        raw_score=0.80,
+        criteria=[
+            CriterionEval(id="pitch_structure", met=False, quality=0.2, reason="missing structure"),
+            CriterionEval(id="future_goal", met=False, quality=0.2, reason="missing future goal"),
+        ],
+        pass_eligible=True,
+        mastery_eligible=False,
+        next_focus="missing structural rows",
+    )
+    outputs = [incomplete, incomplete]
+
     async def fake_structured(prompt, schema):
         assert schema is PrepRubricEval
         prompts.append(prompt)
-        return PrepRubricEval(
-            raw_score=0.80,
-            criteria=[
-                CriterionEval(id="pitch_structure", met=False, quality=0.2, reason="missing structure"),
-                CriterionEval(id="future_goal", met=False, quality=0.2, reason="missing future goal"),
-            ],
-            pass_eligible=True,
-            mastery_eligible=False,
-            next_focus="missing structural rows",
-        )
+        return outputs[len(prompts) - 1]
 
     monkeypatch.setattr(calls, "_local", lambda: True)
     monkeypatch.setattr(calls, "ollama_structured", fake_structured)
@@ -713,17 +716,72 @@ def test_prep_evaluation_pitch_omissions_raise_before_deterministic_reconciliati
         career_context={"primary_role": "Backend Software Engineer"},
     )
 
-    with pytest.raises(RuntimeError, match="prep_evaluation_retry_required"):
-        _run(
-            calls.evaluate_prep_answer(
-                svc.get_node("int_01_elevator_pitch"),
-                [],
-                answer,
-                career_context=state["career_context"],
-                state=state,
-            )
+    result = _run(
+        calls.evaluate_prep_answer(
+            svc.get_node("int_01_elevator_pitch"),
+            [],
+            answer,
+            career_context=state["career_context"],
+            state=state,
         )
+    )
+
     assert len(prompts) == 2
+    assert "answers_question" in prompts[1]
+    assert result.pass_eligible is True
+    assert result.required_missing == []
+
+
+def test_complete_pitch_uses_existing_deterministic_evidence_after_structural_repair_fails(monkeypatch):
+    """A Flash-Lite rubric omission must not force a learner to repeat a valid pitch."""
+    from app.ai import calls
+
+    answer = (
+        "I am a backend software engineer who builds reliable APIs. In a recent project, "
+        "I designed a payment workflow with idempotency checks so duplicate requests could "
+        "not charge users twice. I want to bring that focus on reliability and clear user "
+        "impact to a backend engineering role."
+    )
+    state = svc._new_state(
+        "user-1",
+        "session-pitch-fallback",
+        "int_01_elevator_pitch",
+        [],
+        task_type="interview_prep",
+        career_context={"primary_role": "Backend Software Engineer"},
+    )
+    call_count = 0
+
+    async def incomplete_then_timeout(_prompt, _schema):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return PrepRubricEval(
+                raw_score=0.2,
+                criteria=[],
+                required_missing=[],
+                next_focus="Evaluator omitted rows.",
+                pass_eligible=False,
+            )
+        raise TimeoutError("repair unavailable")
+
+    monkeypatch.setattr(calls, "_local", lambda: True)
+    monkeypatch.setattr(calls, "ollama_structured", incomplete_then_timeout)
+
+    result = _run(
+        calls.evaluate_prep_answer(
+            svc.get_node("int_01_elevator_pitch"),
+            [],
+            answer,
+            career_context=state["career_context"],
+            state=state,
+        )
+    )
+
+    assert call_count == 2
+    assert result.pass_eligible is True
+    assert result.required_missing == []
+    assert result.blockers == []
 
 
 def test_missing_required_criterion_caps_score_and_blocks_pass():

@@ -151,15 +151,15 @@ async def complete_onboarding(req: OnboardingCompleteRequest, request: Request) 
     if not display_name:
         raise HTTPException(status_code=422, detail="display_name is required")
 
-    school_profile: dict = {}
-    career_profile: dict = {}
+    store = get_storage()
+    existing_profile = await _profile_or_401(user_id)
+    school_profile = dict(existing_profile.get("school_profile") or {})
+    career_profile = dict(existing_profile.get("career_profile") or {})
     if req.primary_motive == "school":
         school_profile = _school_profile(req.school_profile)
     else:
         career_profile = _career_profile(req.career_profile)
 
-    store = get_storage()
-    await _profile_or_401(user_id)
     profile = await store.complete_onboarding(
         user_id=user_id,
         display_name=display_name,

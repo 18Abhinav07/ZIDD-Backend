@@ -2,23 +2,129 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from copy import deepcopy
+import hashlib
+import json
 import re
 from difflib import SequenceMatcher
 from typing import Any
 
 from app.content.school.content_schema import SchoolRubricEvaluation
 from app.content.school.source_map_compat import load_beta_source_map
+from app.content.school.standards import locked_english_taxonomy
 from app.content.school_rebuild_content import load_approved_live_chapters_for_class
-from app.services.school.evaluator_contract import RUBRIC_SCHEMA_VERSION
+from app.services.school.evaluator_contract import (
+    OPEN_RUBRIC_SCHEMA_VERSION,
+    RUBRIC_SCHEMA_VERSION,
+    grade_typed_school_answer,
+    school_open_context_from_activity,
+    validate_school_open_evaluation,
+)
+from app.services.school.semantic_evidence import (
+    authored_evidence_can_prove_criterion,
+    inference_clue_is_explicitly_linked,
+)
 from app.services.school_rebuild_language import localized_teaching_support
 from app.services.school_rebuild_profile import school_coach_identity
 
 
-ENGINE_VERSION = "school-rebuild-curriculum-3"
-_PREVIOUS_ENGINE_VERSION = "school-rebuild-curriculum-2"
+ENGINE_VERSION = "school-rebuild-curriculum-6"
+_ASSESSMENT_REPAIR_ENGINE_VERSION = "school-rebuild-curriculum-2"
+_SUPPORTED_PREVIOUS_ENGINE_VERSIONS = frozenset(
+    {
+        _ASSESSMENT_REPAIR_ENGINE_VERSION,
+        "school-rebuild-curriculum-3",
+        "school-rebuild-curriculum-4",
+        "school-rebuild-curriculum-5",
+    }
+)
 REVISION_STEPS = ("revision_level_1", "revision_level_2", "revision_level_3")
 MAX_MASTERCLASS_INTERRUPTS_PER_LEVEL = 2
 CHAPTER_ASSESSMENT_HARD_BLOCKERS = frozenset({"contradictory_response"})
+_V2_SUPPORT_KINDS = (
+    "bridge",
+    "revision_level_1",
+    "revision_level_2",
+    "revision_level_3",
+    "revision_level_4",
+)
+_PUBLIC_FEEDBACK_OUTCOMES = frozenset(
+    {
+        "advanced",
+        "correct",
+        "needs_support",
+        "paused_for_masterclass",
+        "capped_support",
+        "masterclass_complete",
+        "masterclass_complete_advanced",
+        "masterclass_abandoned",
+        "continued_after_support_cap",
+        "continued_after_support_cap_advanced",
+    }
+)
+_PUBLIC_FEEDBACK_TYPES = frozenset(
+    {
+        "instruction",
+        "affirmation",
+        "corrective",
+        "masterclass",
+        "support_limit",
+        "support_resolution",
+    }
+)
+_PUBLIC_RETRY_POLICIES = frozenset(
+    {
+        "advance",
+        "advance_assessment_remediation",
+        "advance_with_diagnostic_support",
+        "advance_without_skill_evidence",
+        "bridge_then_fresh_variant",
+        "challenge_fallback",
+        "continue_after_support_cap",
+        "advance_after_exhausted_return",
+        "fresh_variant",
+        "fresh_variant_without_auto_masterclass",
+        "open_support_plan",
+        "start_masterclass",
+    }
+)
+_PUBLIC_FEEDBACK_ACTIONS = frozenset(
+    {
+        "answer_next_activity",
+        "continue_after_support_cap",
+        "start_masterclass",
+        "view_chapter_result",
+        "view_support_plan",
+    }
+)
+_PRIVATE_FEEDBACK_VALUE_KEYS = frozenset(
+    {
+        "accepted_answers",
+        "active_blockers",
+        "answer_key",
+        "blockers",
+        "criterion_gap_ids",
+        "criterion_id",
+        "failed_hard_blocker_item_ids",
+        "failed_rubric_item_ids",
+        "missing_criteria",
+        "model_answer",
+        "recent_criterion_gaps",
+        "rubric_criteria",
+    }
+)
+_PRIVATE_FEEDBACK_MARKERS = (
+    "accepted_answer",
+    "answer_key",
+    "blocker_id",
+    "criterion:",
+    "model_answer",
+    "private_rubric",
+)
+_LEARNER_SKILL_LABELS = {
+    entry.skill_id: entry.name for entry in locked_english_taxonomy().entries
+}
 
 
 CLASS_3_CURRICULUM_CHAPTERS: tuple[dict[str, Any], ...] = (
@@ -189,6 +295,7 @@ def class_chapter_map(
 ) -> dict[str, Any]:
     chapters = _available_chapters(subject_id, class_no)
     completed_ids = _completed_chapter_ids(latest_curriculum_session)
+    review_due_ids = set(_review_due_chapter_ids(latest_curriculum_session))
     active_state = normalize_curriculum_state(
         dict((active_curriculum_session or {}).get("state_json") or {})
     )
@@ -237,6 +344,7 @@ def class_chapter_map(
                 "chapter_no": int(chapter["chapter_no"]),
                 "title": str(chapter.get("title") or ""),
                 "status": status,
+                "review_due": chapter_id in review_due_ids,
                 "completed_levels": completed_levels,
                 "total_levels": total_levels,
                 "active_session_id": (
@@ -370,6 +478,57 @@ def chapter_level_map(
     }
 
 
+def _memory_skill_ids(
+    learning_memory: dict[str, Any] | None,
+    *buckets: str,
+) -> set[str]:
+    return {
+        str(item.get("skill_id") or "")
+        for bucket in buckets
+        for item in (learning_memory or {}).get(bucket) or []
+        if isinstance(item, dict) and str(item.get("skill_id") or "")
+    }
+
+
+def _level_entry_mode(
+    level: dict[str, Any],
+    *,
+    placement_report: dict[str, Any] | None,
+    learning_memory: dict[str, Any] | None,
+) -> str:
+    skill_ids = {
+        str(skill_id)
+        for skill_id in level.get("skill_ids") or []
+        if str(skill_id)
+    }
+    active_gap_ids = _memory_skill_ids(
+        learning_memory,
+        "active_gaps",
+        "improving_gaps",
+    )
+    if skill_ids & active_gap_ids:
+        return "full_cycle"
+    if (placement_report or {}).get("placement_status") == "target_ready":
+        return "challenge"
+    confirmed_ids = _memory_skill_ids(
+        learning_memory,
+        "strong_skills",
+        "mastered_skills",
+    )
+    return "challenge" if skill_ids and skill_ids <= confirmed_ids else "full_cycle"
+
+
+def _independent_application_index(level: dict[str, Any]) -> int:
+    return next(
+        (
+            index
+            for index, step in enumerate(level.get("teaching_steps") or [])
+            if step.get("phase") == "independent_application"
+        ),
+        0,
+    )
+
+
 def new_curriculum_state(
     *,
     school_profile: dict[str, Any],
@@ -394,15 +553,37 @@ def new_curriculum_state(
         ):
             raise ValueError("curriculum_chapter_not_authored")
         raise ValueError("curriculum_chapter_locked")
-    chapter = dict(chapter)
+    # A session owns its mutable teaching state. Authored catalog objects remain
+    # immutable for later learners and for compatibility reconciliation.
+    chapter = deepcopy(chapter)
     levels = []
     for index, level in enumerate(chapter["levels"]):
+        uses_v2 = bool(level.get("teaching_steps"))
+        entry_mode = _level_entry_mode(
+            level,
+            placement_report=placement_report,
+            learning_memory=learning_memory,
+        )
+        start_step_index = (
+            _independent_application_index(level)
+            if uses_v2 and entry_mode == "challenge"
+            else 0
+        )
         levels.append({
             **level,
             "status": "in_progress" if index == 0 else "not_started",
-            "current_step": "guided_check",
+            "current_step": (
+                str(level["teaching_steps"][start_step_index]["phase"])
+                if uses_v2
+                else "guided_check"
+            ),
+            "entry_mode": entry_mode,
             "attempts": [],
+            "v2_step_index": start_step_index,
+            "v2_support_mode": None,
+            "used_variant_ids": [],
         })
+    prior_memory_tags = _prior_memory_targeting_tags(learning_memory, chapter)
     return normalize_curriculum_state({
         "engine_version": ENGINE_VERSION,
         "profile_version_id": str(school_profile.get("profile_version_id") or ""),
@@ -448,6 +629,25 @@ def new_curriculum_state(
         "current_level_index": 0,
         "levels": levels,
         "last_feedback": None,
+        "feedback_v2": None,
+        "hot_session_memory": {
+            "revision": 1,
+            "recent_outcomes": [],
+            "skill_streaks": {},
+            "used_variant_ids": [],
+            "served_activity_ids": [],
+            "passage_fingerprints": [],
+            "prompt_fingerprints": [],
+            "recent_evidence_ids": [],
+            "recent_criterion_gaps": [],
+            "support_history": [],
+            "unresolved_misconception_tags": prior_memory_tags,
+            "active_support_count": 0,
+            "last_activity_id": None,
+            "last_response_language": None,
+            "unresolved_outcome_id": None,
+            "next_instructional_action": None,
+        },
         "active_interrupt": None,
         "interrupt_history": [],
         "interrupt_counts": {},
@@ -456,10 +656,21 @@ def new_curriculum_state(
 
 def public_curriculum_response(session_row: dict[str, Any]) -> dict[str, Any]:
     state = normalize_curriculum_state(dict(session_row.get("state_json") or {}))
+    private_feedback_tokens = _private_feedback_tokens(state)
+    public_feedback = _public_feedback_v2(
+        state.get("feedback_v2"),
+        public_digest=state.get("feedback_v2_public_digest"),
+        private_tokens=private_feedback_tokens,
+    )
     status = state.get("status") or session_row.get("status")
     subject_id = state.get("subject_id") or session_row.get("subject_id")
     target_class_no = int(state.get("target_class_no") or session_row.get("class_no") or 0)
     completed_chapter_ids = _completed_chapter_ids({
+        **session_row,
+        "state_json": state,
+        "status": status,
+    })
+    review_due_chapter_ids = _review_due_chapter_ids({
         **session_row,
         "state_json": state,
         "status": status,
@@ -492,23 +703,217 @@ def public_curriculum_response(session_row: dict[str, Any]) -> dict[str, Any]:
         "source_placement_report_id": state.get("source_placement_report_id"),
         "chapter": _public_active_chapter(state.get("chapter") or {}),
         "completed_chapter_ids": completed_chapter_ids,
+        "review_due_chapter_ids": review_due_chapter_ids,
         "next_available_chapter": next_available_chapter,
         "carry_forward_focuses": list(state.get("carry_forward_focuses") or []),
         "memory_summary": _public_memory_summary(state.get("learner_memory")),
         "progress": _progress(state),
         "chapter_assessment": _public_chapter_assessment_progress(state),
         "levels": [_public_level(level) for level in state.get("levels") or []],
-        "current_activity": _public_activity(_current_activity(state)),
-        "last_feedback": state.get("last_feedback"),
+        "current_activity": _public_activity(
+            _current_activity(state),
+            chapter=state.get("chapter") or {},
+        ),
+        "last_feedback": _public_last_feedback(
+            state.get("last_feedback"),
+            public_feedback=public_feedback,
+            private_tokens=private_feedback_tokens,
+        ),
+        "feedback_v2": public_feedback,
+        "session_memory": _public_hot_session_memory(
+            state.get("hot_session_memory")
+        ),
         "active_interrupt": _public_interrupt(state.get("active_interrupt")),
         "interrupt_history": _public_interrupt_history(
             state.get("interrupt_history") or []
         ),
+        "support_required": _public_support_required(
+            state.get("support_required")
+        ),
+        "next_action": _public_curriculum_next_action(
+            state,
+            session_id=str(session_row["session_id"]),
+        ),
+    }
+
+
+def _feedback_v2_public_digest(value: dict[str, Any]) -> str:
+    serialized = json.dumps(
+        value,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _set_feedback_v2(state: dict[str, Any], value: dict[str, Any]) -> None:
+    state["feedback_v2"] = value
+    state["feedback_v2_public_digest"] = _feedback_v2_public_digest(value)
+
+
+def _private_feedback_tokens(state: dict[str, Any]) -> set[str]:
+    tokens: set[str] = set()
+
+    def collect(value: Any) -> None:
+        if isinstance(value, str):
+            cleaned = value.strip().casefold()
+            if len(cleaned) >= 4:
+                tokens.add(cleaned)
+                public_form = cleaned.removeprefix("criterion:").replace("_", " ")
+                if len(public_form) >= 4:
+                    tokens.add(public_form)
+            return
+        if isinstance(value, dict):
+            for item in value.values():
+                collect(item)
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                collect(item)
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if str(key) in _PRIVATE_FEEDBACK_VALUE_KEYS:
+                    collect(item)
+                if isinstance(item, str) and item.casefold().startswith("criterion:"):
+                    collect(item)
+                visit(item)
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                visit(item)
+
+    visit(state)
+    return tokens
+
+
+def _contains_private_feedback_detail(
+    value: Any,
+    *,
+    private_tokens: set[str],
+) -> bool:
+    text = str(value or "").strip().casefold()
+    if not text:
+        return False
+    return any(marker in text for marker in _PRIVATE_FEEDBACK_MARKERS) or any(
+        token in text for token in private_tokens
+    )
+
+
+def _public_feedback_v2(
+    value: Any,
+    *,
+    public_digest: Any = None,
+    private_tokens: set[str] | None = None,
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    trusted = str(public_digest or "") == _feedback_v2_public_digest(value)
+    private_tokens = private_tokens or set()
+    correct = value.get("correct")
+    scored = bool(value.get("scored", True))
+    if trusted:
+        response_excerpt = ""
+        what_worked = str(value.get("what_worked") or "")
+        criterion_gap = value.get("criterion_gap")
+        next_support = str(value.get("next_support") or "")
+    else:
+        response_excerpt = ""
+        what_worked = (
+            "You reviewed this teaching step before moving on."
+            if not scored
+            else "Your answer was checked against the visible task."
+            if correct
+            else "Your attempt is saved."
+        )
+        criterion_gap = (
+            None
+            if not scored or correct
+            else "Review the visible prompt and focus before trying again."
+        )
+        next_support = "Continue with the next visible learning step."
+    if not trusted and _contains_private_feedback_detail(
+        what_worked,
+        private_tokens=private_tokens,
+    ):
+        what_worked = "Your latest learning step is saved."
+    if not trusted and _contains_private_feedback_detail(
+        criterion_gap,
+        private_tokens=private_tokens,
+    ):
+        criterion_gap = "Review the visible prompt and focus before trying again."
+    if not trusted and _contains_private_feedback_detail(
+        next_support,
+        private_tokens=private_tokens,
+    ):
+        next_support = "Continue with the next visible learning step."
+    outcome = value.get("outcome")
+    feedback_type = value.get("feedback_type")
+    retry_policy = value.get("retry_policy")
+    return {
+        "outcome": outcome if outcome in _PUBLIC_FEEDBACK_OUTCOMES else None,
+        "feedback_type": (
+            feedback_type if feedback_type in _PUBLIC_FEEDBACK_TYPES else None
+        ),
+        "correct": correct,
+        "scored": scored,
+        "response_excerpt": response_excerpt,
+        "what_worked": what_worked,
+        "criterion_gap": criterion_gap,
+        "misconception_tag": None,
+        "next_support": next_support,
+        "retry_policy": (
+            retry_policy if retry_policy in _PUBLIC_RETRY_POLICIES else None
+        ),
+        "allowed_next_actions": [
+            str(action)
+            for action in value.get("allowed_next_actions") or []
+            if str(action) in _PUBLIC_FEEDBACK_ACTIONS
+        ],
+    }
+
+
+def _public_last_feedback(
+    value: Any,
+    *,
+    public_feedback: dict[str, Any] | None,
+    private_tokens: set[str] | None = None,
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    if public_feedback is not None:
+        message = " ".join(
+            part
+            for part in (
+                str(public_feedback.get("what_worked") or ""),
+                str(public_feedback.get("criterion_gap") or ""),
+            )
+            if part
+        )
+    else:
+        message = str(value.get("message") or "")
+        if _contains_private_feedback_detail(
+            message,
+            private_tokens=private_tokens or set(),
+        ):
+            message = "Your latest learning step is saved."
+    return {
+        "activity_id": value.get("activity_id"),
+        "level_id": value.get("level_id"),
+        "kind": value.get("kind"),
+        "correct": value.get("correct"),
+        "message": message or "Your latest learning step is saved.",
     }
 
 
 def current_curriculum_activity_id(state: Any) -> str | None:
     if not isinstance(state, dict) or state.get("status") == "complete":
+        return None
+    try:
+        state, _repair = reconcile_curriculum_state(state)
+    except (TypeError, ValueError):
         return None
     if state.get("phase") == "chapter_check":
         assessment = state.get("chapter_assessment")
@@ -539,6 +944,9 @@ def current_curriculum_activity_id(state: Any) -> str | None:
     level = levels[level_index]
     if level.get("status") == "complete":
         return None
+    if level.get("teaching_steps"):
+        activity = _current_activity(state)
+        return str(activity.get("activity_id") or "") if activity else None
     attempts = level.get("attempts") or []
     if not isinstance(attempts, list) or any(
         not isinstance(attempt, dict) for attempt in attempts
@@ -557,6 +965,7 @@ def resume_after_masterclass(
     *,
     masterclass_session_id: str,
     resolution: str,
+    consumed_variant_ids: Iterable[str] = (),
 ) -> dict[str, Any]:
     normalized = normalize_curriculum_state(state)
     interrupt = normalized.get("active_interrupt")
@@ -568,6 +977,12 @@ def resume_after_masterclass(
         raise ValueError("curriculum_not_paused_for_masterclass")
     if resolution not in {"complete", "abandoned"}:
         raise ValueError("invalid_masterclass_resolution")
+    is_v2_interrupt = str(interrupt.get("runtime_contract") or "") == "v2"
+    attached_session_id = str(interrupt.get("masterclass_session_id") or "")
+    if is_v2_interrupt and not attached_session_id:
+        raise ValueError("masterclass_session_not_attached")
+    if is_v2_interrupt and attached_session_id != masterclass_session_id:
+        raise ValueError("masterclass_session_mismatch")
     level_id = str(interrupt.get("level_id") or "")
     levels = list(normalized.get("levels") or [])
     level_index = next(
@@ -582,9 +997,40 @@ def resume_after_masterclass(
         raise ValueError("masterclass_level_not_found")
     level = dict(levels[level_index])
     level["status"] = "in_progress"
-    level["current_step"] = str(
-        interrupt.get("return_step") or "independent_check"
-    )
+    advanced_past_exhausted_return = False
+    if is_v2_interrupt:
+        return_step_index = int(interrupt.get("return_step_index") or 0)
+        teaching_steps = list(level.get("teaching_steps") or [])
+        if return_step_index < 0 or return_step_index >= len(teaching_steps):
+            raise ValueError("masterclass_return_step_not_found")
+        level["v2_step_index"] = return_step_index
+        level["v2_support_mode"] = None
+        level["current_step"] = str(teaching_steps[return_step_index].get("phase") or "")
+        level["v2_trigger_activity_id"] = interrupt.get("trigger_activity_id")
+        level["v2_return_activity_id"] = interrupt.get("return_activity_id")
+        level["v2_trigger_skill_ids"] = list(interrupt.get("skill_ids") or [])
+        level["v2_last_interrupt_id"] = interrupt.get("interrupt_id")
+        level["v2_last_masterclass_session_id"] = attached_session_id
+        authored_variant_ids = {
+            str(variant.get("variant_id") or "")
+            for step in teaching_steps
+            if isinstance(step, dict)
+            for variant in step.get("variant_pool") or []
+            if isinstance(variant, dict) and variant.get("variant_id")
+        }
+        used_variant_ids = list(level.get("used_variant_ids") or [])
+        for candidate in consumed_variant_ids:
+            variant_id = str(candidate or "")
+            if (
+                variant_id in authored_variant_ids
+                and variant_id not in used_variant_ids
+            ):
+                used_variant_ids.append(variant_id)
+        level["used_variant_ids"] = used_variant_ids
+    else:
+        level["current_step"] = str(
+            interrupt.get("return_step") or "independent_check"
+        )
     levels[level_index] = level
     normalized["levels"] = levels
     normalized["current_level_index"] = level_index
@@ -598,18 +1044,280 @@ def resume_after_masterclass(
         "masterclass_session_id": masterclass_session_id,
         "resolution": resolution,
     }]
+    if is_v2_interrupt and resolution == "complete":
+        return_step = _v2_step(level)
+        authored_return = (
+            _v2_step_activity(normalized, level, return_step)[0]
+            if return_step is not None
+            else None
+        )
+        if authored_return is None:
+            normalized, levels, level = _advance_v2_step(
+                normalized,
+                levels=list(normalized.get("levels") or []),
+                level=level,
+                level_index=level_index,
+            )
+            normalized["levels"] = levels
+            advanced_past_exhausted_return = True
     normalized["last_feedback"] = {
         "activity_id": str(interrupt.get("interrupt_id") or ""),
         "level_id": level_id,
         "kind": "masterclass",
         "correct": True if resolution == "complete" else None,
         "message": (
-            "Focused practice complete. Return to the same lesson step you paused."
+            (
+                "Focused practice complete. Every saved-step example was already "
+                "used, so continue to the next authored lesson step."
+            )
+            if advanced_past_exhausted_return
+            else "Focused practice complete. Return to the same lesson step you paused."
             if resolution == "complete"
             else "Focused practice was left unfinished. Return to the same lesson step when you are ready."
         ),
     }
+    if is_v2_interrupt:
+        _set_feedback_v2(normalized, {
+            "outcome": (
+                (
+                    "masterclass_complete_advanced"
+                    if advanced_past_exhausted_return
+                    else "masterclass_complete"
+                )
+                if resolution == "complete"
+                else "masterclass_abandoned"
+            ),
+            "feedback_type": "support_resolution",
+            "correct": True if resolution == "complete" else None,
+            "scored": False,
+            "what_worked": (
+                "The focused support session was completed."
+                if resolution == "complete"
+                else "The unfinished support session was recorded without awarding credit."
+            ),
+            "criterion_gap": None,
+            "misconception_tag": None,
+            "next_support": (
+                "Continue to the next authored lesson step; the completed "
+                "masterclass supplied the independent return evidence."
+                if advanced_past_exhausted_return
+                else "Return to the exact lesson phase with a fresh authored example."
+            ),
+            "retry_policy": (
+                "advance_after_exhausted_return"
+                if advanced_past_exhausted_return
+                else "fresh_variant"
+            ),
+            "allowed_next_actions": ["answer_next_activity"],
+            "response_excerpt": "",
+        })
     return normalize_curriculum_state(normalized)
+
+
+def recover_completed_masterclass_replay(
+    state: dict[str, Any],
+    *,
+    masterclass_session_id: str,
+) -> dict[str, Any] | None:
+    """Repair a pre-fix resume that committed before its response rendered."""
+
+    normalized = normalize_curriculum_state(state)
+    if (
+        normalized.get("status") != "active"
+        or normalized.get("phase") != "learning"
+        or normalized.get("active_interrupt") is not None
+    ):
+        return None
+    history = list(normalized.get("interrupt_history") or [])
+    last_resolution = history[-1] if history else None
+    if (
+        not isinstance(last_resolution, dict)
+        or last_resolution.get("resolution") != "complete"
+        or str(last_resolution.get("masterclass_session_id") or "")
+        != masterclass_session_id
+        or str(last_resolution.get("runtime_contract") or "") != "v2"
+    ):
+        return None
+    levels = list(normalized.get("levels") or [])
+    level_index = int(normalized.get("current_level_index") or 0)
+    if level_index < 0 or level_index >= len(levels):
+        return None
+    level = dict(levels[level_index])
+    if (
+        str(level.get("level_id") or "")
+        != str(last_resolution.get("level_id") or "")
+        or str(level.get("v2_last_masterclass_session_id") or "")
+        != masterclass_session_id
+    ):
+        return None
+    return_step = _v2_step(level)
+    if return_step is None:
+        return None
+    authored_return, _variant_id, _fresh = _v2_step_activity(
+        normalized,
+        level,
+        return_step,
+    )
+    if authored_return is not None:
+        return None
+
+    levels[level_index] = level
+    normalized, levels, _level = _advance_v2_step(
+        normalized,
+        levels=levels,
+        level=level,
+        level_index=level_index,
+    )
+    normalized["levels"] = levels
+    normalized["last_feedback"] = {
+        "activity_id": str(last_resolution.get("interrupt_id") or ""),
+        "level_id": str(last_resolution.get("level_id") or ""),
+        "kind": "masterclass",
+        "correct": True,
+        "message": (
+            "Focused practice complete. Every saved-step example was already "
+            "used, so continue to the next authored lesson step."
+        ),
+    }
+    _set_feedback_v2(normalized, {
+        "outcome": "masterclass_complete_advanced",
+        "feedback_type": "support_resolution",
+        "correct": True,
+        "scored": False,
+        "what_worked": "The focused support session was completed.",
+        "criterion_gap": None,
+        "misconception_tag": None,
+        "next_support": (
+            "Continue to the next authored lesson step; the completed "
+            "masterclass supplied the independent return evidence."
+        ),
+        "retry_policy": "advance_after_exhausted_return",
+        "allowed_next_actions": ["answer_next_activity"],
+        "response_excerpt": "",
+    })
+    return normalize_curriculum_state(normalized)
+
+
+def continue_after_support_cap(state: dict[str, Any]) -> dict[str, Any]:
+    """Resume the preserved V2 phase without certifying or clearing the cap."""
+
+    normalized = normalize_curriculum_state(state)
+    if (
+        normalized.get("status") != "active"
+        or normalized.get("phase") != "capped_support"
+        or normalized.get("active_interrupt") is not None
+    ):
+        raise ValueError("curriculum_not_capped_for_support")
+    levels = list(normalized.get("levels") or [])
+    level_index = int(normalized.get("current_level_index") or 0)
+    if level_index < 0 or level_index >= len(levels):
+        raise ValueError("capped_support_level_not_found")
+    level = dict(levels[level_index])
+    blockers = list(level.get("active_blockers") or [])
+    if (
+        not level.get("teaching_steps")
+        or "masterclass_cap_exceeded" not in blockers
+    ):
+        raise ValueError("curriculum_not_capped_for_support")
+    step = _v2_step(level)
+    if step is None:
+        raise ValueError("capped_support_return_step_not_found")
+
+    level["status"] = "in_progress"
+    level["current_step"] = str(step.get("phase") or "")
+    level["v2_support_mode"] = None
+    level["v2_auto_masterclass_disabled"] = True
+    level["v2_support_cap_acknowledged_count"] = (
+        int(level.get("v2_support_cap_acknowledged_count") or 0) + 1
+    )
+    levels[level_index] = level
+    normalized["levels"] = levels
+    normalized["status"] = "active"
+    normalized["phase"] = "learning"
+    normalized["active_interrupt"] = None
+    advanced_past_exhausted_return = False
+    if _v2_step_activity(normalized, level, step)[0] is None:
+        try:
+            normalized, levels, level = _advance_v2_step(
+                normalized,
+                levels=levels,
+                level=level,
+                level_index=level_index,
+            )
+        except ValueError as exc:
+            if str(exc) == "chapter_assessment_required_for_v2":
+                raise ValueError(
+                    "capped_support_return_activity_unavailable"
+                ) from exc
+            raise
+        normalized["levels"] = levels
+        advanced_past_exhausted_return = True
+    support_required = dict(normalized.get("support_required") or {})
+    support_required.update(
+        reason="masterclass_cap_exceeded",
+        level_id=str(level.get("level_id") or ""),
+        skill_ids=list(level.get("v2_trigger_skill_ids") or []),
+        auto_masterclass_disabled=True,
+        continuation_status="continued_with_warning",
+    )
+    normalized["support_required"] = support_required
+    memory = _normalize_hot_session_memory(normalized.get("hot_session_memory"))
+    memory["revision"] += 1
+    memory["next_instructional_action"] = "answer_next_activity"
+    normalized["hot_session_memory"] = memory
+    _set_feedback_v2(normalized, {
+        "outcome": (
+            "continued_after_support_cap_advanced"
+            if advanced_past_exhausted_return
+            else "continued_after_support_cap"
+        ),
+        "feedback_type": "support_limit",
+        "correct": None,
+        "scored": False,
+        "what_worked": "You chose to continue the lesson with the support limit recorded.",
+        "criterion_gap": None,
+        "misconception_tag": "masterclass_cap_exceeded",
+        "next_support": (
+            "Continue to the next authored lesson step; the exhausted return "
+            "activity will not be repeated."
+            if advanced_past_exhausted_return
+            else "Try a fresh authored example in the same lesson phase."
+        ),
+        "retry_policy": (
+            "advance_after_exhausted_return"
+            if advanced_past_exhausted_return
+            else "fresh_variant_without_auto_masterclass"
+        ),
+        "allowed_next_actions": ["answer_next_activity"],
+        "response_excerpt": "",
+    })
+    normalized["last_feedback"] = {
+        "activity_id": str(level.get("v2_return_activity_id") or ""),
+        "level_id": str(level.get("level_id") or ""),
+        "kind": "capped_support_continuation",
+        "correct": None,
+        "message": (
+            "Continue at the next authored lesson step; the exhausted return "
+            "activity will not be repeated."
+            if advanced_past_exhausted_return
+            else "Continue at the same lesson phase with a fresh example."
+        ),
+    }
+    resumed = normalize_curriculum_state(normalized)
+    try:
+        current_activity = _current_activity(resumed)
+    except ValueError as exc:
+        if str(exc) in {
+            "authored_activity_variant_unavailable",
+            "authored_variant_pool_exhausted",
+        }:
+            raise ValueError(
+                "capped_support_return_activity_unavailable"
+            ) from exc
+        raise
+    if current_activity is None:
+        raise ValueError("capped_support_return_activity_unavailable")
+    return resumed
 
 
 def attach_masterclass_session(
@@ -619,7 +1327,11 @@ def attach_masterclass_session(
 ) -> dict[str, Any]:
     normalized = normalize_curriculum_state(state)
     interrupt = normalized.get("active_interrupt")
-    if not isinstance(interrupt, dict):
+    if (
+        normalized.get("status") != "paused_for_masterclass"
+        or normalized.get("phase") != "paused_for_masterclass"
+        or not isinstance(interrupt, dict)
+    ):
         raise ValueError("curriculum_not_paused_for_masterclass")
     existing = str(interrupt.get("masterclass_session_id") or "")
     if existing and existing != masterclass_session_id:
@@ -631,13 +1343,97 @@ def attach_masterclass_session(
     return normalize_curriculum_state(normalized)
 
 
+def _reconstruct_v2_trigger_relevance_terms(level: dict[str, Any]) -> list[str]:
+    """Recover authored semantic anchors for pre-anchor support sessions."""
+
+    stored_terms = [
+        str(term).strip()
+        for term in level.get("v2_trigger_relevance_terms") or []
+        if str(term).strip()
+    ]
+    if stored_terms:
+        return list(dict.fromkeys(stored_terms))
+    trigger_activity_id = str(level.get("v2_trigger_activity_id") or "")
+    if not trigger_activity_id:
+        return []
+    trigger_variant_id = next(
+        (
+            str(attempt.get("variant_id") or "")
+            for attempt in level.get("attempts") or []
+            if str(attempt.get("activity_id") or "") == trigger_activity_id
+            and str(attempt.get("variant_id") or "")
+        ),
+        "",
+    )
+    for step in level.get("teaching_steps") or []:
+        if not isinstance(step, dict):
+            continue
+        authored_candidates = []
+        if isinstance(step.get("activity"), dict):
+            authored_candidates.append(dict(step["activity"]))
+        authored_candidates.extend(
+            dict(item)
+            for item in step.get("variant_pool") or []
+            if isinstance(item, dict)
+        )
+        for authored in authored_candidates:
+            variant_id = str(
+                authored.get("variant_id")
+                or f"{step.get('step_id') or ''}:single"
+            )
+            if variant_id != trigger_variant_id and (
+                not variant_id or f":{variant_id}:" not in trigger_activity_id
+            ):
+                continue
+            return list(
+                dict.fromkeys(
+                    str(term).strip()
+                    for term in authored.get("relevance_terms") or []
+                    if str(term).strip()
+                )
+            )
+    return []
+
+
 def normalize_curriculum_state(state: dict[str, Any]) -> dict[str, Any]:
     levels = []
     for index, level in enumerate(state.get("levels") or []):
         normalized = dict(level)
         normalized.setdefault("status", "in_progress" if index == int(state.get("current_level_index") or 0) else "not_started")
         normalized.setdefault("current_step", "guided_check")
-        normalized.setdefault("attempts", [])
+        normalized["attempts"] = [
+            _sanitize_persisted_attempt(attempt)
+            for attempt in normalized.get("attempts") or []
+            if isinstance(attempt, dict)
+        ]
+        normalized.setdefault("v2_step_index", 0)
+        normalized.setdefault("v2_support_mode", None)
+        normalized.setdefault("entry_mode", "full_cycle")
+        normalized.setdefault("used_variant_ids", [])
+        normalized.setdefault("v2_trigger_activity_id", None)
+        normalized.setdefault("v2_return_activity_id", None)
+        normalized.setdefault("v2_trigger_skill_ids", [])
+        normalized.setdefault("v2_active_misconception_tags", [])
+        normalized["v2_trigger_relevance_terms"] = (
+            _reconstruct_v2_trigger_relevance_terms(normalized)
+        )
+        active_tags = {
+            str(tag) for tag in normalized.get("v2_active_misconception_tags") or []
+        }
+        forced_support_kind = str(normalized.get("v2_forced_support_kind") or "")
+        forced_tags = {
+            str(tag)
+            for tag in (
+                (normalized.get("checks") or {}).get(forced_support_kind) or {}
+            ).get("target_misconception_tags")
+            or []
+        }
+        if forced_support_kind and active_tags and not active_tags.intersection(
+            forced_tags
+        ):
+            normalized.pop("v2_forced_support_kind", None)
+        normalized.setdefault("v2_auto_masterclass_disabled", False)
+        normalized.setdefault("v2_support_cap_acknowledged_count", 0)
         levels.append(normalized)
     if levels and not any(level.get("status") == "in_progress" for level in levels):
         current_index = min(int(state.get("current_level_index") or 0), len(levels) - 1)
@@ -664,11 +1460,24 @@ def normalize_curriculum_state(state: dict[str, Any]) -> dict[str, Any]:
         "current_level_index": current_index,
         "levels": levels,
         "last_feedback": state.get("last_feedback"),
+        "feedback_v2": _sanitize_feedback_v2(state.get("feedback_v2")),
+        "chapter_assessment": _sanitize_chapter_assessment(
+            state.get("chapter_assessment")
+        ),
+        "hot_session_memory": _normalize_hot_session_memory(
+            state.get("hot_session_memory")
+        ),
         "active_interrupt": state.get("active_interrupt"),
         "interrupt_history": list(state.get("interrupt_history") or []),
         "interrupt_counts": dict(state.get("interrupt_counts") or {}),
     }
-    return _ensure_assessment_support_contract(normalized_state)
+    normalized_state["hot_session_memory"] = _reconstruct_hot_session_fingerprints(
+        normalized_state,
+        normalized_state["hot_session_memory"],
+    )
+    return _ensure_assessment_support_contract(
+        _ensure_v2_support_availability_contract(normalized_state)
+    )
 
 
 def reconcile_curriculum_state(
@@ -676,17 +1485,150 @@ def reconcile_curriculum_state(
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Upgrade persisted state and repair only deterministic historical false negatives."""
 
-    normalized = normalize_curriculum_state(state)
-    previous_version = str(normalized.get("engine_version") or "")
+    previous_version = str(state.get("engine_version") or "")
+    pre_normalized = state
+    if previous_version == "school-rebuild-curriculum-5":
+        pre_normalized = _reconcile_v5_source_semantic_support_contract(state)
+    normalized = normalize_curriculum_state(pre_normalized)
     if previous_version == ENGINE_VERSION:
         return normalized, None
 
     updated = dict(normalized)
     repair = None
-    if previous_version == _PREVIOUS_ENGINE_VERSION:
+    if previous_version == _ASSESSMENT_REPAIR_ENGINE_VERSION:
         updated, repair = _reconcile_v2_chapter_assessment(updated)
+    elif previous_version not in _SUPPORTED_PREVIOUS_ENGINE_VERSIONS:
+        return normalized, None
     updated["engine_version"] = ENGINE_VERSION
     return normalize_curriculum_state(updated), repair
+
+
+def _reconcile_v5_source_semantic_support_contract(state: dict[str, Any]) -> dict[str, Any]:
+    """Backfill additive authored support metadata into v5 in-progress snapshots."""
+
+    chapter_state = state.get("chapter")
+    if not isinstance(chapter_state, dict):
+        return state
+    chapter_id = str(chapter_state.get("chapter_id") or "")
+    subject_id = str(state.get("subject_id") or "")
+    try:
+        class_no = int(state.get("target_class_no") or 0)
+    except (TypeError, ValueError):
+        return state
+    live_chapter = next(
+        (
+            chapter
+            for chapter in _available_chapters(subject_id, class_no)
+            if str(chapter.get("chapter_id") or "") == chapter_id
+        ),
+        None,
+    )
+    levels = state.get("levels")
+    if not live_chapter or not isinstance(levels, list):
+        return state
+    live_levels = {
+        str(level.get("level_id") or ""): level
+        for level in live_chapter.get("levels") or []
+        if isinstance(level, dict) and level.get("level_id")
+    }
+    updated_levels: list[dict[str, Any]] = []
+    changed = False
+    for persisted_level in levels:
+        if not isinstance(persisted_level, dict):
+            updated_levels.append(persisted_level)
+            continue
+        authored_level = live_levels.get(str(persisted_level.get("level_id") or ""))
+        if not isinstance(authored_level, dict):
+            updated_levels.append(persisted_level)
+            continue
+        updated_level = dict(persisted_level)
+        persisted_checks = persisted_level.get("checks")
+        authored_checks = authored_level.get("checks")
+        if (
+            isinstance(persisted_checks, dict)
+            and isinstance(authored_checks, dict)
+            and "revision_level_4" not in persisted_checks
+            and isinstance(authored_checks.get("revision_level_4"), dict)
+        ):
+            updated_level["checks"] = {
+                **persisted_checks,
+                "revision_level_4": deepcopy(authored_checks["revision_level_4"]),
+            }
+            changed = True
+
+        persisted_steps = persisted_level.get("teaching_steps")
+        authored_steps = authored_level.get("teaching_steps")
+        if isinstance(persisted_steps, list) and isinstance(authored_steps, list):
+            authored_steps_by_id = {
+                str(step.get("step_id") or ""): step
+                for step in authored_steps
+                if isinstance(step, dict) and step.get("step_id")
+            }
+            updated_steps: list[dict[str, Any]] = []
+            steps_changed = False
+            for persisted_step in persisted_steps:
+                if not isinstance(persisted_step, dict):
+                    updated_steps.append(persisted_step)
+                    continue
+                authored_step = authored_steps_by_id.get(
+                    str(persisted_step.get("step_id") or "")
+                )
+                variants = persisted_step.get("variant_pool")
+                authored_variants = (
+                    authored_step.get("variant_pool")
+                    if isinstance(authored_step, dict)
+                    else None
+                )
+                if not isinstance(variants, list) or not isinstance(authored_variants, list):
+                    updated_steps.append(persisted_step)
+                    continue
+                authored_by_variant_id = {
+                    str(variant.get("variant_id") or ""): variant
+                    for variant in authored_variants
+                    if isinstance(variant, dict) and variant.get("variant_id")
+                }
+                updated_variants: list[dict[str, Any]] = []
+                variants_changed = False
+                for persisted_variant in variants:
+                    if not isinstance(persisted_variant, dict):
+                        updated_variants.append(persisted_variant)
+                        continue
+                    authored_variant = authored_by_variant_id.get(
+                        str(persisted_variant.get("variant_id") or "")
+                    )
+                    criterion_mapping = (
+                        authored_variant.get("criterion_misconception_tags")
+                        if isinstance(authored_variant, dict)
+                        else None
+                    )
+                    if (
+                        isinstance(criterion_mapping, dict)
+                        and criterion_mapping
+                        and "criterion_misconception_tags" not in persisted_variant
+                    ):
+                        updated_variants.append(
+                            {
+                                **persisted_variant,
+                                "criterion_misconception_tags": deepcopy(
+                                    criterion_mapping
+                                ),
+                            }
+                        )
+                        variants_changed = True
+                    else:
+                        updated_variants.append(persisted_variant)
+                if variants_changed:
+                    updated_steps.append(
+                        {**persisted_step, "variant_pool": updated_variants}
+                    )
+                    steps_changed = True
+                else:
+                    updated_steps.append(persisted_step)
+            if steps_changed:
+                updated_level["teaching_steps"] = updated_steps
+                changed = True
+        updated_levels.append(updated_level)
+    return {**state, "levels": updated_levels} if changed else state
 
 
 def _reconcile_v2_chapter_assessment(
@@ -765,7 +1707,7 @@ def _reconcile_v2_chapter_assessment(
     updated["state_reconciliations"] = list(
         updated.get("state_reconciliations") or []
     ) + [{
-        "from_engine_version": _PREVIOUS_ENGINE_VERSION,
+        "from_engine_version": _ASSESSMENT_REPAIR_ENGINE_VERSION,
         "to_engine_version": ENGINE_VERSION,
         **repair,
     }]
@@ -869,6 +1811,7 @@ def apply_curriculum_answer(
     *,
     activity_id: str,
     answer: str,
+    evidence_id: str | None = None,
     open_answer_evaluation: SchoolRubricEvaluation | dict[str, Any] | None = None,
     open_answer_preflight_failed: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -919,6 +1862,15 @@ def apply_curriculum_answer(
             answer=answer,
             answer_evaluation=answer_evaluation,
         )
+    if activity.get("schema_version") == "school-activity-v2":
+        return _apply_v2_curriculum_answer(
+            normalized,
+            activity=activity,
+            answer=answer,
+            answer_evaluation=answer_evaluation,
+            evaluation_mode=effective_evaluation_mode,
+            evidence_id=evidence_id or activity_id,
+        )
     attempt_no = 1 + sum(
         1
         for previous in level.get("attempts") or []
@@ -928,11 +1880,11 @@ def apply_curriculum_answer(
         "activity_id": activity_id,
         "kind": activity["kind"],
         "attempt_no": attempt_no,
-        "answer": answer,
+        "response_excerpt": "",
         "correct": correct,
         "score": float(answer_evaluation["score"]),
         "confidence": float(answer_evaluation["confidence"]),
-        "criteria": list(answer_evaluation["criteria"]),
+        "criteria": _sanitize_persisted_criteria(answer_evaluation["criteria"]),
         "blockers": list(answer_evaluation["blockers"]),
         "evaluation_mode": effective_evaluation_mode,
     }
@@ -1068,6 +2020,10 @@ def apply_curriculum_answer(
 
     levels[level_index] = level
     normalized["levels"] = levels
+    normalized["hot_session_memory"] = _remember_activity_fingerprints(
+        normalized.get("hot_session_memory"),
+        activity,
+    )
     expanded_revision = (
         activity["kind"] in REVISION_STEPS
         and state.get("remediation_mode") == "expanded_revision"
@@ -1108,6 +2064,1014 @@ def apply_curriculum_answer(
         "attempt_no": attempt_no,
     }
     return updated, evaluation
+
+
+def _apply_v2_curriculum_answer(
+    state: dict[str, Any],
+    *,
+    activity: dict[str, Any],
+    answer: str,
+    answer_evaluation: dict[str, Any],
+    evaluation_mode: str,
+    evidence_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    level_index = int(activity["level_index"])
+    levels = list(state.get("levels") or [])
+    level = dict(levels[level_index])
+    correct = bool(answer_evaluation["correct"])
+    scored = bool(answer_evaluation.get("scored", True))
+    attempt_no = int(activity.get("attempt_no") or 1)
+    variant = dict(activity.get("variant") or {})
+    variant_id = str(variant.get("variant_id") or "")
+    active_tags = _bounded_remediation_tags(
+        activity,
+        answer_evaluation,
+        correct=correct,
+    )
+    resolved_tags = list(level.get("v2_active_misconception_tags") or [])
+    bounded_criteria = _sanitize_persisted_criteria(
+        answer_evaluation.get("criteria") or []
+    )
+    attempt = {
+        "activity_id": activity["activity_id"],
+        "step_id": activity.get("step_id"),
+        "kind": activity["kind"],
+        "phase": activity.get("phase"),
+        "attempt_no": attempt_no,
+        "response_excerpt": "",
+        "correct": correct,
+        "scored": scored,
+        "score": float(answer_evaluation["score"]),
+        "confidence": float(answer_evaluation["confidence"]),
+        "criteria": bounded_criteria,
+        "missing_criteria": list(answer_evaluation.get("missing_criteria") or []),
+        "misconception_tags": (
+            active_tags
+            if not correct
+            else list(answer_evaluation.get("misconception_tags") or [])
+        ),
+        "blockers": list(answer_evaluation.get("blockers") or []),
+        "evaluation_mode": evaluation_mode,
+        "evidence_role": activity.get("evidence_role"),
+        "support_mode": activity.get("support_mode"),
+        "skill_ids": list(activity.get("assessed_skill_ids") or []),
+        "variant_id": variant_id or None,
+        "evidence_id": evidence_id,
+    }
+    level["attempts"] = list(level.get("attempts") or []) + [attempt]
+    if variant_id:
+        level["used_variant_ids"] = list(
+            dict.fromkeys(list(level.get("used_variant_ids") or []) + [variant_id])
+        )
+
+    is_support = activity.get("support_mode") == "bridge"
+    is_entry_challenge = (
+        level.get("entry_mode") == "challenge"
+        and activity.get("phase") == "independent_application"
+    )
+    next_action = "advance"
+    if is_support:
+        if correct:
+            level["v2_support_mode"] = None
+            level.pop("v2_forced_support_kind", None)
+            if state.get("phase") == "remediation":
+                if state.get("remediation_mode") == "expanded_revision":
+                    state, levels, level = _advance_expanded_revision(
+                        state,
+                        levels=levels,
+                        level=level,
+                        level_index=level_index,
+                        kind=variant_id,
+                    )
+                else:
+                    state, levels, level = _advance_focused_v2_remediation(
+                        state,
+                        levels=levels,
+                        level=level,
+                        level_index=level_index,
+                        assessed_skill_ids=list(
+                            activity.get("assessed_skill_ids") or []
+                        ),
+                    )
+                next_action = "advance_assessment_remediation"
+            else:
+                next_action = "fresh_variant"
+        else:
+            level["v2_support_mode"] = None
+            level.pop("v2_forced_support_kind", None)
+            state, level, next_action = _pause_v2_for_masterclass(
+                state,
+                level=level,
+                activity=activity,
+            )
+    elif not correct and is_entry_challenge:
+        level["entry_mode"] = "full_cycle"
+        level["v2_step_index"] = 0
+        level["v2_support_mode"] = None
+        level["current_step"] = str(
+            (level.get("teaching_steps") or [{}])[0].get("phase") or "connect"
+        )
+        level["v2_active_misconception_tags"] = active_tags
+        next_action = "challenge_fallback"
+    elif not activity.get("assessed_skill_ids"):
+        if (
+            not correct
+            and activity.get("interaction_type") != "continue"
+            and _v2_step_has_unused_variant(level)
+        ):
+            level["v2_active_misconception_tags"] = active_tags
+            next_action = "fresh_variant_without_skill_evidence"
+        else:
+            if not correct:
+                level["v2_active_misconception_tags"] = active_tags
+            state, levels, level = _advance_v2_step(
+                state,
+                levels=levels,
+                level=level,
+                level_index=level_index,
+            )
+            next_action = (
+                "advance_without_skill_evidence"
+                if correct
+                else "advance_with_diagnostic_support"
+            )
+    elif correct:
+        if scored:
+            level["v2_active_misconception_tags"] = []
+        state, levels, level = _advance_v2_step(
+            state,
+            levels=levels,
+            level=level,
+            level_index=level_index,
+        )
+    elif activity.get("phase") in {"connect", "co_construct"}:
+        level["v2_active_misconception_tags"] = active_tags
+        state, levels, level = _advance_v2_step(
+            state,
+            levels=levels,
+            level=level,
+            level_index=level_index,
+        )
+        next_action = "advance_with_diagnostic_support"
+    else:
+        level["v2_trigger_activity_id"] = activity["activity_id"]
+        level["v2_return_activity_id"] = activity["activity_id"]
+        level["v2_trigger_skill_ids"] = list(
+            activity.get("assessed_skill_ids") or []
+        )
+        level["v2_trigger_relevance_terms"] = list(
+            dict.fromkeys(
+                str(term).strip()
+                for term in activity.get("relevance_terms") or []
+                if str(term).strip()
+            )
+        )
+        level["v2_active_misconception_tags"] = active_tags
+        level.pop("v2_forced_support_kind", None)
+        targeted_support_kinds = _fresh_v2_targeted_support_kinds(
+            state,
+            level,
+            trigger_skill_ids=list(activity.get("assessed_skill_ids") or []),
+            active_tags=active_tags,
+        )
+        if active_tags and not targeted_support_kinds:
+            state["phase"] = "needs_support"
+            state["status"] = "active"
+            state["active_interrupt"] = None
+            state["support_required"] = {
+                "reason": "authored_targeted_support_unavailable",
+                "attempt_count": len(level.get("attempts") or []),
+                "weak_skill_ids": list(activity.get("assessed_skill_ids") or []),
+                "remediation_skill_ids": list(
+                    activity.get("assessed_skill_ids") or []
+                ),
+                "focus": str(level.get("focus") or ""),
+            }
+            next_action = "open_support_plan"
+        else:
+            level["v2_support_mode"] = "bridge"
+            if targeted_support_kinds:
+                level["v2_forced_support_kind"] = _semantic_support_kind(
+                    level,
+                    targeted_support_kinds,
+                )
+            next_action = "bridge_then_fresh_variant"
+
+    levels[level_index] = level
+    state["levels"] = levels
+    state["hot_session_memory"] = _update_v2_hot_session_memory(
+        state.get("hot_session_memory"),
+        activity=activity,
+        evaluation=answer_evaluation,
+        evidence_id=evidence_id,
+        level=level,
+        resolved_tags=resolved_tags,
+        next_action=next_action,
+    )
+    updated = normalize_curriculum_state(state)
+    feedback = _v2_feedback_action(
+        activity=activity,
+        answer=answer,
+        evaluation=answer_evaluation,
+        next_action=next_action,
+        updated_state=updated,
+    )
+    _set_feedback_v2(updated, feedback)
+    updated["last_feedback"] = {
+        "activity_id": activity["activity_id"],
+        "level_id": activity["level_id"],
+        "kind": activity["kind"],
+        "correct": correct if scored else None,
+        "message": " ".join(
+            part
+            for part in (
+                str(feedback["what_worked"] or ""),
+                str(feedback["criterion_gap"] or ""),
+            )
+            if part
+        ),
+    }
+    evaluation = {
+        "activity_id": activity["activity_id"],
+        "level_id": activity["level_id"],
+        "kind": activity["kind"],
+        "phase": activity.get("phase"),
+        "focus": activity["focus"],
+        "skill_ids": list(activity.get("assessed_skill_ids") or []),
+        "correct": correct,
+        "scored": scored,
+        "score": float(answer_evaluation["score"]),
+        "confidence": float(answer_evaluation["confidence"]),
+        "criteria": list(answer_evaluation.get("criteria") or []),
+        "missing_criteria": list(answer_evaluation.get("missing_criteria") or []),
+        "misconception_tags": (
+            active_tags
+            if not correct
+            else list(answer_evaluation.get("misconception_tags") or [])
+        ),
+        "blockers": list(answer_evaluation.get("blockers") or []),
+        "language_detected": str(answer_evaluation.get("language_detected") or ""),
+        "model_score": answer_evaluation.get("model_score"),
+        "evaluation_mode": evaluation_mode,
+        "evidence_role": activity.get("evidence_role"),
+        "attempt_no": attempt_no,
+        "evidence_id": evidence_id,
+    }
+    return normalize_curriculum_state(updated), evaluation
+
+
+def _advance_v2_step(
+    state: dict[str, Any],
+    *,
+    levels: list[dict[str, Any]],
+    level: dict[str, Any],
+    level_index: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+    steps = list(level.get("teaching_steps") or [])
+    next_step_index = int(level.get("v2_step_index") or 0) + 1
+    if next_step_index < len(steps):
+        next_step = steps[next_step_index]
+        level["v2_step_index"] = next_step_index
+        level["current_step"] = str(next_step.get("phase") or "")
+        level["status"] = "in_progress"
+        return state, levels, level
+
+    level["status"] = "complete"
+    level["current_step"] = "complete"
+    level["v2_step_index"] = len(steps)
+    if (next_level_index := level_index + 1) < len(levels):
+        next_level = dict(levels[next_level_index])
+        next_level["status"] = "in_progress"
+        next_level["v2_step_index"] = int(next_level.get("v2_step_index") or 0)
+        if next_level.get("teaching_steps"):
+            next_level["current_step"] = str(
+                next_level["teaching_steps"][next_level["v2_step_index"]]["phase"]
+            )
+        else:
+            next_level["current_step"] = "guided_check"
+        levels[next_level_index] = next_level
+        state["current_level_index"] = next_level_index
+        return state, levels, level
+
+    state["current_level_index"] = level_index
+    levels[level_index] = level
+    state["levels"] = levels
+    if not state.get("chapter_assessment"):
+        raise ValueError("chapter_assessment_required_for_v2")
+    state = _begin_chapter_assessment(state)
+    return state, list(state.get("levels") or levels), level
+
+
+def _configure_v2_assessment_remediation(
+    level: dict[str, Any],
+    *,
+    targeted_skill_ids: list[str],
+    forced_support_kind: str | None = None,
+) -> dict[str, Any]:
+    configured = dict(level)
+    remediation_skill_ids = _assessment_remediation_skill_ids(configured)
+    targeted = [
+        skill_id
+        for skill_id in dict.fromkeys(targeted_skill_ids)
+        if skill_id in remediation_skill_ids
+    ]
+    if not targeted:
+        raise ValueError("chapter_assessment_remediation_skill_missing")
+    configured["status"] = "in_progress"
+    configured["current_step"] = forced_support_kind or "bridge"
+    configured["v2_support_mode"] = "bridge"
+    configured["v2_trigger_skill_ids"] = targeted
+    configured["v2_active_misconception_tags"] = []
+    configured["v2_trigger_activity_id"] = "chapter_assessment"
+    configured["v2_return_activity_id"] = "chapter_assessment"
+    if forced_support_kind:
+        configured["v2_forced_support_kind"] = forced_support_kind
+    else:
+        configured.pop("v2_forced_support_kind", None)
+    return configured
+
+
+def _advance_focused_v2_remediation(
+    state: dict[str, Any],
+    *,
+    levels: list[dict[str, Any]],
+    level: dict[str, Any],
+    level_index: int,
+    assessed_skill_ids: list[str],
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+    if not assessed_skill_ids:
+        raise ValueError("chapter_assessment_remediation_evidence_missing")
+    remaining = list(
+        dict.fromkeys(
+            str(item)
+            for item in state.get("assessment_remediation_remaining_skill_ids")
+            or level.get("v2_trigger_skill_ids")
+            or []
+        )
+    )
+    remaining = [
+        skill_id for skill_id in remaining if skill_id not in set(assessed_skill_ids)
+    ]
+    state["assessment_remediation_remaining_skill_ids"] = remaining
+    level.pop("v2_forced_support_kind", None)
+    level["v2_support_mode"] = None
+
+    current_remaining = [
+        skill_id
+        for skill_id in remaining
+        if skill_id in _assessment_remediation_skill_ids(level)
+    ]
+    if current_remaining:
+        level = _configure_v2_assessment_remediation(
+            level,
+            targeted_skill_ids=current_remaining,
+        )
+        levels[level_index] = level
+        state["levels"] = levels
+        return state, levels, level
+
+    level["status"] = "complete"
+    level["current_step"] = "complete"
+    levels[level_index] = level
+    queue = list(state.get("remediation_queue") or [])
+    if not queue or queue[0] != level.get("level_id"):
+        raise ValueError("chapter_remediation_queue_mismatch")
+    queue = queue[1:]
+    state["remediation_queue"] = queue
+    if queue:
+        next_level_index = next(
+            index
+            for index, candidate in enumerate(levels)
+            if candidate.get("level_id") == queue[0]
+        )
+        next_level = _configure_v2_assessment_remediation(
+            dict(levels[next_level_index]),
+            targeted_skill_ids=remaining,
+        )
+        levels[next_level_index] = next_level
+        state["levels"] = levels
+        state["current_level_index"] = next_level_index
+        return state, levels, level
+
+    if remaining:
+        raise ValueError("chapter_assessment_remediation_level_missing")
+    state["levels"] = levels
+    state["current_level_index"] = level_index
+    state.pop("assessment_remediation_remaining_skill_ids", None)
+    state = _begin_chapter_assessment(state)
+    levels = list(state.get("levels") or levels)
+    return state, levels, dict(levels[level_index])
+
+
+def _masterclass_cap_support_plan(
+    state: dict[str, Any],
+    *,
+    level: dict[str, Any],
+    assessed_skill_ids: list[str],
+) -> dict[str, Any]:
+    level_id = str(level["level_id"])
+    history = [
+        {
+            key: item.get(key)
+            for key in (
+                "interrupt_id",
+                "level_id",
+                "focus",
+                "skill_ids",
+                "trigger_count",
+                "masterclass_session_id",
+                "resolution",
+            )
+        }
+        for raw_item in state.get("interrupt_history") or []
+        if isinstance(raw_item, dict)
+        for item in [dict(raw_item)]
+        if str(item.get("level_id") or "") == level_id
+        and item.get("resolution") in {"complete", "abandoned"}
+        and item.get("masterclass_session_id")
+    ]
+    return {
+        "reason": "masterclass_cap_exceeded",
+        "level_id": level_id,
+        "skill_ids": assessed_skill_ids,
+        "focus": str(level.get("focus") or ""),
+        "auto_masterclass_disabled": True,
+        "continuation_action": "continue_after_support_cap",
+        "cap": {
+            "used": min(len(history), MAX_MASTERCLASS_INTERRUPTS_PER_LEVEL),
+            "limit": MAX_MASTERCLASS_INTERRUPTS_PER_LEVEL,
+            "scope": "level",
+        },
+        "history": history,
+    }
+
+
+def _pause_v2_for_masterclass(
+    state: dict[str, Any],
+    *,
+    level: dict[str, Any],
+    activity: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], str]:
+    counts = dict(state.get("interrupt_counts") or {})
+    level_id = str(level["level_id"])
+    assessed_skill_ids = list(activity.get("assessed_skill_ids") or [])
+    if not assessed_skill_ids:
+        raise ValueError("masterclass_assessed_skills_missing")
+    if level.get("v2_auto_masterclass_disabled"):
+        state["status"] = "active"
+        state["phase"] = "capped_support"
+        state["active_interrupt"] = None
+        state["support_required"] = _masterclass_cap_support_plan(
+            state,
+            level=level,
+            assessed_skill_ids=assessed_skill_ids,
+        )
+        return state, level, "continue_after_support_cap"
+    trigger_count = int(counts.get(level_id) or 0) + 1
+    counts[level_id] = trigger_count
+    state["interrupt_counts"] = counts
+    if trigger_count <= MAX_MASTERCLASS_INTERRUPTS_PER_LEVEL:
+        state["status"] = "paused_for_masterclass"
+        state["phase"] = "paused_for_masterclass"
+        state["active_interrupt"] = {
+            "runtime_contract": "v2",
+            "interrupt_id": f"{level_id}:masterclass:{trigger_count}",
+            "level_id": level_id,
+            "focus": level.get("focus") or "",
+            "skill_ids": assessed_skill_ids,
+            "trigger_count": trigger_count,
+            "return_step": str(activity.get("phase") or "guided_practice"),
+            "return_step_index": int(level.get("v2_step_index") or 0),
+            "trigger_activity_id": level.get("v2_trigger_activity_id"),
+            "return_activity_id": level.get("v2_return_activity_id"),
+            "masterclass_session_id": None,
+        }
+        return state, level, "start_masterclass"
+
+    state["status"] = "active"
+    state["phase"] = "capped_support"
+    state["active_interrupt"] = None
+    level["v2_auto_masterclass_disabled"] = True
+    state["interrupt_history"] = list(state.get("interrupt_history") or []) + [
+        {
+            "interrupt_id": f"{level_id}:masterclass:{trigger_count}",
+            "level_id": level_id,
+            "focus": level.get("focus") or "",
+            "skill_ids": assessed_skill_ids,
+            "trigger_count": trigger_count,
+            "masterclass_session_id": None,
+            "resolution": "capped_out",
+        }
+    ]
+    state["support_required"] = _masterclass_cap_support_plan(
+        state,
+        level=level,
+        assessed_skill_ids=assessed_skill_ids,
+    )
+    level["active_blockers"] = list(
+        dict.fromkeys(
+            list(level.get("active_blockers") or [])
+            + ["masterclass_cap_exceeded"]
+        )
+    )
+    return state, level, "continue_after_support_cap"
+
+
+def _update_v2_hot_session_memory(
+    value: Any,
+    *,
+    activity: dict[str, Any],
+    evaluation: dict[str, Any],
+    evidence_id: str,
+    level: dict[str, Any],
+    resolved_tags: list[str],
+    next_action: str,
+) -> dict[str, Any]:
+    memory = _normalize_hot_session_memory(value)
+    correct = bool(evaluation["correct"])
+    scored = bool(evaluation.get("scored", True))
+    variant_id = str((activity.get("variant") or {}).get("variant_id") or "")
+    memory["revision"] += 1
+    memory["last_activity_id"] = activity["activity_id"]
+    memory["last_response_language"] = evaluation.get("language_detected")
+    memory["next_instructional_action"] = next_action
+    memory["served_activity_ids"] = list(
+        dict.fromkeys(memory["served_activity_ids"] + [activity["activity_id"]])
+    )[-40:]
+    memory = _remember_activity_fingerprints(memory, activity)
+    if variant_id:
+        memory["used_variant_ids"] = list(
+            dict.fromkeys(memory["used_variant_ids"] + [variant_id])
+        )
+    memory["recent_evidence_ids"] = list(
+        dict.fromkeys(memory["recent_evidence_ids"] + [evidence_id])
+    )[-12:]
+    missing_criteria = list(evaluation.get("missing_criteria") or [])
+    memory["recent_criterion_gaps"] = (
+        memory["recent_criterion_gaps"]
+        + [
+            {
+                "activity_id": activity["activity_id"],
+                "criterion_id": str(criterion_id),
+            }
+            for criterion_id in missing_criteria
+        ]
+    )[-12:]
+    effective_misconception_tags = list(
+        dict.fromkeys(
+            list(evaluation.get("misconception_tags") or [])
+            + (
+                list(activity.get("target_misconception_tags") or [])
+                if not correct
+                else []
+            )
+        )
+    )
+    memory["recent_outcomes"] = (
+        memory["recent_outcomes"]
+        + [
+            {
+                "activity_id": activity["activity_id"],
+                "phase": activity.get("phase"),
+                "skill_ids": list(activity.get("skill_ids") or []),
+                "correct": correct if scored else None,
+                "scored": scored,
+                "score": float(evaluation["score"]),
+                "outcome": (
+                    "not_scored"
+                    if not scored
+                    else "correct"
+                    if correct
+                    else "needs_support"
+                ),
+                "criterion_gap_ids": missing_criteria,
+                "misconception_tags": effective_misconception_tags,
+                "support_mode": activity.get("support_mode"),
+            }
+        ]
+    )[-8:]
+    if activity.get("support_mode"):
+        memory["support_history"] = (
+            memory["support_history"]
+            + [
+                {
+                    "activity_id": activity["activity_id"],
+                    "support_mode": activity.get("support_mode"),
+                    "correct": correct,
+                }
+            ]
+        )[-8:]
+    if next_action == "bridge_then_fresh_variant":
+        memory["active_support_count"] += 1
+    if scored:
+        streaks = dict(memory["skill_streaks"])
+        for skill_id in activity.get("skill_ids") or []:
+            streaks[str(skill_id)] = (
+                int(streaks.get(str(skill_id)) or 0) + 1 if correct else 0
+            )
+        memory["skill_streaks"] = streaks
+    if scored and correct and not activity.get("support_mode"):
+        resolved_tag_set = set(resolved_tags)
+        memory["unresolved_misconception_tags"] = [
+            tag
+            for tag in memory["unresolved_misconception_tags"]
+            if tag not in resolved_tag_set
+        ]
+        memory["unresolved_outcome_id"] = None
+    elif not correct:
+        new_tags = list(
+            dict.fromkeys(
+                effective_misconception_tags
+                + [f"criterion:{item}" for item in missing_criteria]
+            )
+        )
+        memory["unresolved_misconception_tags"] = list(
+            dict.fromkeys(memory["unresolved_misconception_tags"] + new_tags)
+        )
+        memory["unresolved_outcome_id"] = level.get("level_id")
+    return _normalize_hot_session_memory(memory)
+
+
+def _v2_feedback_action(
+    *,
+    activity: dict[str, Any],
+    answer: str,
+    evaluation: dict[str, Any],
+    next_action: str,
+    updated_state: dict[str, Any],
+) -> dict[str, Any]:
+    scored = bool(evaluation.get("scored", True))
+    correct = bool(evaluation["correct"])
+    missing = list(evaluation.get("missing_criteria") or [])
+    if not scored:
+        what_worked = "You reviewed this teaching step before moving on."
+        criterion_gap = None
+    elif correct:
+        what_worked = "Your response met the visible task criteria."
+        criterion_gap = None
+    else:
+        what_worked = (
+            "That choice does not fit the visible clue yet."
+            if activity.get("grading_mode") == "selected_option"
+            else "Your attempt was checked against the visible task."
+        )
+        criterion_gap = _learner_visible_criterion_gap(
+            activity,
+            missing_gaps=[str(value) for value in missing],
+        )
+    next_support_by_action = {
+        "advance": "Continue to the next authored learning step.",
+        "fresh_variant": "Try a fresh example without repeating the previous prompt.",
+        "fresh_variant_without_skill_evidence": (
+            "Try one fresh guided example before moving on."
+        ),
+        "bridge_then_fresh_variant": (
+            "Use one smaller bridge example, then retry with a fresh prompt."
+        ),
+        "challenge_fallback": (
+            "Build this skill from the first teaching step, then return to a fresh challenge."
+        ),
+        "advance_with_diagnostic_support": (
+            "Continue to the explanation; Zidd will use this response to choose extra support."
+        ),
+        "start_masterclass": "Open the focused masterclass, then resume this exact step.",
+        "open_support_plan": "Open the support plan; another automatic detour is blocked.",
+        "continue_after_support_cap": (
+            "Continue explicitly with the cap recorded and retry this phase using a fresh example."
+        ),
+    }
+    if updated_state.get("status") == "paused_for_masterclass":
+        allowed_next_actions = ["start_masterclass"]
+    elif updated_state.get("phase") == "capped_support":
+        allowed_next_actions = ["continue_after_support_cap"]
+    elif updated_state.get("phase") == "needs_support":
+        allowed_next_actions = ["view_support_plan"]
+    elif updated_state.get("status") == "complete":
+        allowed_next_actions = ["view_chapter_result"]
+    else:
+        allowed_next_actions = ["answer_next_activity"]
+    if not scored:
+        outcome = "advanced"
+        feedback_type = "instruction"
+    elif correct:
+        outcome = "correct"
+        feedback_type = "affirmation"
+    elif updated_state.get("status") == "paused_for_masterclass":
+        outcome = "paused_for_masterclass"
+        feedback_type = "masterclass"
+    elif updated_state.get("phase") == "capped_support":
+        outcome = "capped_support"
+        feedback_type = "support_limit"
+    else:
+        outcome = "needs_support"
+        feedback_type = "corrective"
+    return {
+        "outcome": outcome,
+        "feedback_type": feedback_type,
+        "correct": correct,
+        "scored": scored,
+        "response_excerpt": "",
+        "what_worked": what_worked,
+        "criterion_gap": criterion_gap,
+        "misconception_tag": None,
+        "next_support": next_support_by_action.get(
+            next_action,
+            "Continue with the next learning step.",
+        ),
+        "retry_policy": next_action,
+        "allowed_next_actions": allowed_next_actions,
+    }
+
+
+def _feedback_evidence_sentence(prefix: str, evidence: str) -> str:
+    terminal = "" if evidence.rstrip().endswith((".", "!", "?")) else "."
+    return f'{prefix}: "{evidence}"{terminal}'
+
+
+def _humanize_criterion(value: str) -> str:
+    cleaned = value.removeprefix("criterion:").replace("_", " ").strip()
+    return cleaned or "the required idea"
+
+
+def _validated_feedback_evidence(
+    answer: str,
+    evaluation: dict[str, Any],
+) -> str:
+    """Return only evaluator evidence traceable to the learner's own answer."""
+
+    answer_text = str(answer or "")
+    folded_answer = answer_text.casefold()
+    for criterion in evaluation.get("criteria") or []:
+        if not isinstance(criterion, dict) or not bool(criterion.get("met")):
+            continue
+        evidence = " ".join(str(criterion.get("evidence_quote") or "").split())
+        if not evidence:
+            continue
+        start = folded_answer.find(evidence.casefold())
+        if start < 0:
+            continue
+        return answer_text[start : start + len(evidence)].strip()[:240]
+    return ""
+
+
+def _learner_visible_criterion_gap(
+    activity: dict[str, Any],
+    *,
+    missing_gaps: list[str],
+) -> str:
+    prompt = " ".join(str(activity.get("prompt") or "").split()).strip()
+    if prompt:
+        if activity.get("grading_mode") == "selected_option":
+            return (
+                f"{_selected_option_reasoning_hint(prompt)} "
+                f'Re-read the question: "{prompt}"'
+            )
+        criterion_hints = list(
+            dict.fromkeys(
+                hint
+                for criterion_id in missing_gaps
+                if (hint := _safe_criterion_coaching_hint(criterion_id))
+            )
+        )
+        if criterion_hints:
+            return (
+                f"{' '.join(criterion_hints[:3])} "
+                f'Re-read the task: "{prompt}"'
+            )
+        return (
+            "Re-read the visible example and check each part of the task before "
+            f'answering again: "{prompt}"'
+        )
+    focus = str(activity.get("focus") or "this chapter skill").strip()
+    return f"Use one clear clue from the passage to show {focus}."
+
+
+def _safe_criterion_coaching_hint(criterion_id: str) -> str:
+    """Translate common rubric gaps without exposing a model answer or raw ID."""
+
+    label = str(criterion_id or "").rsplit(":", 1)[-1].casefold()
+    hints = {
+        "own_words": (
+            "Put the idea into your own words instead of copying labels or phrases "
+            "from the notes."
+        ),
+        "structure": "Include every requested part and place the parts in a clear order.",
+        "source": "Name the supplied source so the reader can trace the facts.",
+        "facts": "Use the requested number of facts and keep each one supported by the packet.",
+        "evidence": "Link your answer to a visible clue from the passage.",
+        "reason": "Add a reason that explains how the visible clue supports your answer.",
+        "order": "Put the events or ideas in the order shown by the passage.",
+        "start": "Add where or how the event begins.",
+        "beginning": "Add where or how the event begins.",
+        "middle": "Add what happens between the beginning and ending.",
+        "movement": "Add what happens between the beginning and ending.",
+        "first_speaker": "Identify who speaks first.",
+        "second_speaker": "Identify who gives the next reply.",
+        "listener": "Name who hears the line.",
+        "contribution": (
+            "Explain what new information or action the reply adds."
+        ),
+        "cause": "Name the event or clue that caused the result.",
+        "outcome": "State the final result clearly.",
+        "tense": "Match the verb form to the visible time clue.",
+    }
+    return hints.get(label, "")
+
+
+def _selected_option_reasoning_hint(prompt: str) -> str:
+    """Give a visible-clue strategy without exposing an authored answer."""
+
+    folded = prompt.casefold()
+    if "immediately before" in folded:
+        return (
+            "Trace only the final two events. 'Immediately before' asks for the "
+            "last place or action just before the stated outcome."
+        )
+    if "happened second" in folded or "second event" in folded:
+        return (
+            "Number the visible events 1, 2, 3 and check event 2 rather than the "
+            "first or final event."
+        )
+    if "main idea" in folded or "central idea" in folded:
+        return (
+            "Test each choice against the whole passage; a single true detail is "
+            "not enough to be the main idea."
+        )
+    if folded.startswith("who") and any(
+        marker in folded
+        for marker in ("promise", "said", "says", "speak", "reply", "told")
+    ):
+        return (
+            "Find the exact spoken line, then follow the name or reporting verb "
+            "attached to that line; do not choose the speaker of a different turn."
+        )
+    if folded.startswith("why") or " cause" in f" {folded}":
+        return (
+            "Find the clue that causes the event, then reject choices that only "
+            "repeat the result."
+        )
+    if "meaning" in folded or "means" in folded:
+        return (
+            "Substitute each choice into the sentence and keep the one that fits "
+            "the surrounding clue."
+        )
+    return (
+        "Eliminate each choice with a visible clue; a related phrase is not "
+        "automatically the requested answer."
+    )
+
+
+def _content_fingerprint(value: Any) -> str:
+    cleaned = " ".join(str(value or "").split()).casefold()
+    return hashlib.sha256(cleaned.encode("utf-8")).hexdigest() if cleaned else ""
+
+
+def _sanitize_persisted_criteria(value: Any) -> list[dict[str, Any]]:
+    return [
+        {
+            **criterion,
+            "evidence_quote": "",
+        }
+        for criterion in value or []
+        if isinstance(criterion, dict)
+    ]
+
+
+def _sanitize_persisted_attempt(value: dict[str, Any]) -> dict[str, Any]:
+    sanitized = {
+        key: item
+        for key, item in value.items()
+        if key not in {"answer", "response_excerpt"}
+    }
+    sanitized["response_excerpt"] = ""
+    if "criteria" in sanitized:
+        sanitized["criteria"] = _sanitize_persisted_criteria(sanitized["criteria"])
+    return sanitized
+
+
+def _sanitize_chapter_assessment(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    sanitized = dict(value)
+    sanitized["responses"] = [
+        _sanitize_persisted_attempt(response)
+        for response in value.get("responses") or []
+        if isinstance(response, dict)
+    ]
+    return sanitized
+
+
+def _sanitize_last_feedback(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    sanitized = dict(value)
+    sanitized["message"] = (
+        "Chapter check passed. The next chapter is ready."
+        if sanitized.get("result_visible") and sanitized.get("correct")
+        else "Your latest learning step is saved."
+    )
+    return sanitized
+
+
+def _sanitize_feedback_v2(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    sanitized = dict(value)
+    scored = bool(sanitized.get("scored", True))
+    correct = bool(sanitized.get("correct"))
+    sanitized["response_excerpt"] = ""
+    sanitized["what_worked"] = (
+        "You reviewed this teaching step before moving on."
+        if not scored
+        else "Your response met the visible task criteria."
+        if correct
+        else "Your attempt was checked against the visible task."
+    )
+    sanitized["criterion_gap"] = (
+        None
+        if not scored or correct
+        else "Review the visible prompt and focus before trying again."
+    )
+    return sanitized
+
+
+def _activity_content_is_fresh(value: Any, activity: dict[str, Any]) -> bool:
+    memory = _normalize_hot_session_memory(value)
+    passage_fingerprint = _content_fingerprint(activity.get("passage"))
+    prompt_fingerprint = _content_fingerprint(activity.get("prompt"))
+    return (
+        (not passage_fingerprint or passage_fingerprint not in memory["passage_fingerprints"])
+        and (not prompt_fingerprint or prompt_fingerprint not in memory["prompt_fingerprints"])
+    )
+
+
+def _remember_activity_fingerprints(value: Any, activity: dict[str, Any]) -> dict[str, Any]:
+    memory = _normalize_hot_session_memory(value)
+    passage_fingerprint = _content_fingerprint(activity.get("passage"))
+    prompt_fingerprint = _content_fingerprint(activity.get("prompt"))
+    if passage_fingerprint:
+        memory["passage_fingerprints"] = list(
+            dict.fromkeys(memory["passage_fingerprints"] + [passage_fingerprint])
+        )
+    if prompt_fingerprint:
+        memory["prompt_fingerprints"] = list(
+            dict.fromkeys(memory["prompt_fingerprints"] + [prompt_fingerprint])
+        )
+    return memory
+
+
+def _attempt_authored_activity(
+    level: dict[str, Any], attempt: dict[str, Any]
+) -> dict[str, Any] | None:
+    variant_id = str(attempt.get("variant_id") or "")
+    if attempt.get("kind") == "v2_support":
+        candidate = (level.get("checks") or {}).get(variant_id)
+        return dict(candidate) if isinstance(candidate, dict) else None
+    step_id = str(attempt.get("step_id") or "")
+    for step in level.get("teaching_steps") or []:
+        if not isinstance(step, dict) or str(step.get("step_id") or "") != step_id:
+            continue
+        if isinstance(step.get("activity"), dict):
+            return dict(step["activity"])
+        candidate = next(
+            (
+                item
+                for item in step.get("variant_pool") or []
+                if isinstance(item, dict)
+                and str(item.get("variant_id") or "") == variant_id
+            ),
+            None,
+        )
+        return dict(candidate) if isinstance(candidate, dict) else None
+    candidate = (level.get("checks") or {}).get(str(attempt.get("kind") or ""))
+    return dict(candidate) if isinstance(candidate, dict) else None
+
+
+def _reconstruct_hot_session_fingerprints(
+    state: dict[str, Any], value: Any
+) -> dict[str, Any]:
+    memory = _normalize_hot_session_memory(value)
+    for level in state.get("levels") or []:
+        if not isinstance(level, dict):
+            continue
+        for attempt in level.get("attempts") or []:
+            if isinstance(attempt, dict) and (
+                activity := _attempt_authored_activity(level, attempt)
+            ):
+                memory = _remember_activity_fingerprints(memory, activity)
+    assessment = state.get("chapter_assessment")
+    if isinstance(assessment, dict):
+        items_by_id = {
+            str(item.get("item_id") or ""): item
+            for item in assessment.get("items") or []
+            if isinstance(item, dict)
+        }
+        for response in assessment.get("responses") or []:
+            if isinstance(response, dict) and (
+                item := items_by_id.get(str(response.get("item_id") or ""))
+            ):
+                memory = _remember_activity_fingerprints(memory, item)
+    return memory
 
 
 def curriculum_activity_for_answer(
@@ -1187,34 +3151,54 @@ def _completed_chapter_ids(latest_curriculum_session: dict[str, Any] | None) -> 
         str(chapter.get("chapter_id") or ""): chapter
         for chapter in _available_chapters(subject_id, class_no)
     }
+    completed: list[str] = []
+    for chapter_id in state_json.get("completed_chapter_ids") or []:
+        cleaned = str(chapter_id).strip()
+        if cleaned in available_by_id and cleaned not in completed:
+            completed.append(cleaned)
+    if _session_status(latest_curriculum_session) == "complete":
+        chapter_id = str((state_json.get("chapter") or {}).get("chapter_id") or "").strip()
+        if chapter_id in available_by_id and chapter_id not in completed:
+            completed.append(chapter_id)
+    return completed
+
+
+def _review_due_chapter_ids(
+    latest_curriculum_session: dict[str, Any] | None,
+) -> list[str]:
+    if not latest_curriculum_session:
+        return []
+    state_json = latest_curriculum_session.get("state_json") or {}
+    subject_id = str(
+        state_json.get("subject_id") or latest_curriculum_session.get("subject_id") or ""
+    )
+    class_no = int(
+        state_json.get("target_class_no") or latest_curriculum_session.get("class_no") or 0
+    )
+    available_by_id = {
+        str(chapter.get("chapter_id") or ""): chapter
+        for chapter in _available_chapters(subject_id, class_no)
+    }
     completed_versions = dict(state_json.get("completed_chapter_versions") or {})
     completed_certification_versions = dict(
         state_json.get("completed_chapter_certification_versions") or {}
     )
-
-    def completion_is_current(chapter_id: str) -> bool:
+    review_due: list[str] = []
+    for chapter_id in _completed_chapter_ids(latest_curriculum_session):
         chapter = available_by_id.get(chapter_id) or {}
         required_version = str(
             chapter.get("certification_version")
             or chapter.get("content_version")
             or ""
         ).strip()
-        completed_version = (
+        completed_version = str(
             completed_certification_versions.get(chapter_id)
             or completed_versions.get(chapter_id)
-        )
-        return not required_version or completed_version == required_version
-
-    completed: list[str] = []
-    for chapter_id in state_json.get("completed_chapter_ids") or []:
-        cleaned = str(chapter_id).strip()
-        if cleaned and completion_is_current(cleaned) and cleaned not in completed:
-            completed.append(cleaned)
-    if _session_status(latest_curriculum_session) == "complete":
-        chapter_id = str((state_json.get("chapter") or {}).get("chapter_id") or "").strip()
-        if chapter_id and completion_is_current(chapter_id) and chapter_id not in completed:
-            completed.append(chapter_id)
-    return completed
+            or ""
+        ).strip()
+        if required_version and completed_version != required_version:
+            review_due.append(chapter_id)
+    return review_due
 
 
 def _completed_chapter_versions(
@@ -1303,6 +3287,65 @@ def _public_interrupt(value: Any) -> dict[str, Any] | None:
     }
 
 
+def _public_curriculum_next_action(
+    state: dict[str, Any],
+    *,
+    session_id: str,
+) -> dict[str, Any] | None:
+    if (
+        state.get("status") == "active"
+        and state.get("phase") == "needs_support"
+        and state.get("active_interrupt") is None
+        and isinstance(state.get("support_required"), dict)
+    ):
+        return {
+            "action": "view_support_plan",
+            "next_action_url": f"/school/support/{session_id}",
+            "reason": str(
+                state["support_required"].get("reason")
+                or "chapter_support_required"
+            ),
+            "requires_explicit_confirmation": False,
+        }
+    if (
+        state.get("status") != "active"
+        or state.get("phase") != "capped_support"
+        or state.get("active_interrupt") is not None
+    ):
+        return None
+    levels = list(state.get("levels") or [])
+    level_index = int(state.get("current_level_index") or 0)
+    if level_index < 0 or level_index >= len(levels):
+        return None
+    level = levels[level_index]
+    if "masterclass_cap_exceeded" not in list(level.get("active_blockers") or []):
+        return None
+    return {
+        "action": "continue_after_support_cap",
+        "level_id": str(level.get("level_id") or ""),
+        "reason": "masterclass_cap_exceeded",
+        "requires_explicit_confirmation": True,
+    }
+
+
+def _public_support_required(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    cap = value.get("cap")
+    history = value.get("history")
+    return {
+        "reason": str(value.get("reason") or "support_required"),
+        "attempt_count": int(value.get("attempt_count") or 0),
+        "weak_skill_ids": [str(item) for item in value.get("weak_skill_ids") or []],
+        "remediation_skill_ids": [
+            str(item) for item in value.get("remediation_skill_ids") or []
+        ],
+        "focus": str(value.get("focus") or ""),
+        "cap": dict(cap) if isinstance(cap, dict) else {},
+        "history": [dict(item) for item in history or [] if isinstance(item, dict)],
+    }
+
+
 def _public_interrupt_history(values: list[Any]) -> list[dict[str, Any]]:
     return [
         {
@@ -1360,16 +3403,69 @@ def _merge_memory_focuses(
     return merged[:8]
 
 
+def _prior_memory_targeting_tags(
+    learning_memory: dict[str, Any] | None,
+    chapter: dict[str, Any],
+) -> list[str]:
+    chapter_skill_ids = {
+        str(skill_id)
+        for level in chapter.get("levels") or []
+        for skill_id in level.get("skill_ids") or []
+        if str(skill_id)
+    }
+    tags: list[str] = []
+    for bucket in ("active_gaps", "improving_gaps"):
+        for item in (learning_memory or {}).get(bucket) or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("skill_id") or "") not in chapter_skill_ids:
+                continue
+            tags.extend(
+                str(value)
+                for value in item.get("misconception_tags") or []
+                if str(value)
+            )
+            tags.extend(
+                f"criterion:{value}"
+                for value in item.get("criterion_gap_ids") or []
+                if str(value)
+            )
+    return list(dict.fromkeys(tags))[:16]
+
+
 def _public_memory_summary(value: Any) -> dict[str, Any]:
     memory = value if isinstance(value, dict) else {}
+
+    def learner_skill_label(skill_id: str) -> str:
+        label = _LEARNER_SKILL_LABELS.get(skill_id)
+        if label:
+            return label
+        fallback = skill_id.rsplit(".", 1)[-1].replace("_", " ").strip()
+        return fallback.capitalize() if fallback else "English skill"
+
     def public_skill_evidence(items: Any) -> list[dict[str, Any]]:
         return [
             {
-                "skill_id": str(item.get("skill_id") or ""),
+                "skill_id": (skill_id := str(item.get("skill_id") or "")),
+                "skill_label": learner_skill_label(skill_id),
+                "skill_status": str(item.get("skill_status") or ""),
+                "readiness": float(item.get("readiness") or 0.0),
+                "mastery": float(item.get("mastery") or 0.0),
+                "confidence": float(item.get("confidence") or 0.0),
                 "latest_evidence": str(item.get("latest_evidence") or "")[:240],
                 "last_attempt_type": str(item.get("last_attempt_type") or ""),
                 "last_chapter_id": str(item.get("last_chapter_id") or ""),
                 "attempts": int(item.get("attempts") or 0),
+                "certifying_attempts": int(item.get("certifying_attempts") or 0),
+                "independent_passes": int(item.get("independent_passes") or 0),
+                "transfer_passes": int(item.get("transfer_passes") or 0),
+                "review_passes": int(item.get("review_passes") or 0),
+                "chapter_passes": int(item.get("chapter_passes") or 0),
+                "active_blockers": [
+                    str(value)
+                    for value in item.get("active_blockers") or []
+                    if str(value)
+                ],
             }
             for item in items or []
             if isinstance(item, dict) and item.get("skill_id")
@@ -1381,7 +3477,8 @@ def _public_memory_summary(value: Any) -> dict[str, Any]:
     return {
         "active_gaps": [
             {
-                "skill_id": str(item.get("skill_id") or ""),
+                "skill_id": (skill_id := str(item.get("skill_id") or "")),
+                "skill_label": learner_skill_label(skill_id),
                 "gap": str(item.get("gap") or ""),
                 "recommended_next_action": str(
                     item.get("recommended_next_action") or ""
@@ -1405,6 +3502,128 @@ def _public_memory_summary(value: Any) -> dict[str, Any]:
         ][:4],
         "improving_skills": public_skill_evidence(memory.get("improving_gaps")),
         "strong_skills": public_skill_evidence(confirmed_skills),
+    }
+
+
+def _normalize_hot_session_memory(value: Any) -> dict[str, Any]:
+    memory = dict(value) if isinstance(value, dict) else {}
+    recent_criterion_gaps = [
+        {
+            "activity_id": str(item.get("activity_id") or ""),
+            "criterion_id": str(item.get("criterion_id") or ""),
+        }
+        for item in memory.get("recent_criterion_gaps") or []
+        if isinstance(item, dict) and item.get("criterion_id")
+    ][-12:]
+    support_history = [
+        {
+            "activity_id": str(item.get("activity_id") or ""),
+            "support_mode": str(item.get("support_mode") or ""),
+            "correct": bool(item.get("correct")),
+        }
+        for item in memory.get("support_history") or []
+        if isinstance(item, dict) and item.get("activity_id")
+    ][-8:]
+    return {
+        "revision": max(1, int(memory.get("revision") or 1)),
+        "recent_outcomes": [
+            {
+                "activity_id": str(item.get("activity_id") or ""),
+                "phase": str(item.get("phase") or ""),
+                "skill_ids": [str(value) for value in item.get("skill_ids") or []],
+                "outcome": str(item.get("outcome") or ""),
+                "correct": item.get("correct"),
+                "scored": bool(item.get("scored")),
+                "score": float(item.get("score") or 0.0),
+                "criterion_gap_ids": [
+                    str(value) for value in item.get("criterion_gap_ids") or []
+                ],
+                "misconception_tags": [
+                    str(value) for value in item.get("misconception_tags") or []
+                ],
+                "support_mode": item.get("support_mode"),
+            }
+            for item in memory.get("recent_outcomes") or []
+            if isinstance(item, dict)
+        ][-8:],
+        "skill_streaks": {
+            str(skill_id): int(count)
+            for skill_id, count in dict(memory.get("skill_streaks") or {}).items()
+        },
+        "used_variant_ids": list(
+            dict.fromkeys(str(item) for item in memory.get("used_variant_ids") or [])
+        ),
+        "served_activity_ids": list(
+            dict.fromkeys(
+                str(item) for item in memory.get("served_activity_ids") or []
+            )
+        )[-40:],
+        "passage_fingerprints": list(
+            dict.fromkeys(
+                str(item) for item in memory.get("passage_fingerprints") or []
+            )
+        ),
+        "prompt_fingerprints": list(
+            dict.fromkeys(
+                str(item) for item in memory.get("prompt_fingerprints") or []
+            )
+        ),
+        "recent_evidence_ids": list(
+            dict.fromkeys(
+                str(item) for item in memory.get("recent_evidence_ids") or []
+            )
+        )[-12:],
+        "recent_criterion_gaps": recent_criterion_gaps,
+        "support_history": support_history,
+        "unresolved_misconception_tags": list(
+            dict.fromkeys(
+                str(item)
+                for item in memory.get("unresolved_misconception_tags") or []
+            )
+        ),
+        "active_support_count": max(
+            0,
+            int(memory.get("active_support_count") or 0),
+        ),
+        "last_activity_id": memory.get("last_activity_id"),
+        "last_response_language": memory.get("last_response_language"),
+        "unresolved_outcome_id": memory.get("unresolved_outcome_id"),
+        "next_instructional_action": memory.get("next_instructional_action"),
+    }
+
+
+def _public_hot_session_memory(value: Any) -> dict[str, Any]:
+    memory = _normalize_hot_session_memory(value)
+    next_instructional_action = memory["next_instructional_action"]
+    return {
+        "recent_outcomes": [
+            {
+                key: item.get(key)
+                for key in (
+                    "activity_id",
+                    "phase",
+                    "skill_ids",
+                    "correct",
+                    "scored",
+                    "score",
+                    "outcome",
+                    "support_mode",
+                )
+            }
+            for item in memory["recent_outcomes"]
+        ],
+        "skill_streaks": memory["skill_streaks"],
+        "unresolved_misconception_tags": [],
+        "active_support_count": memory["active_support_count"],
+        "last_activity_id": memory["last_activity_id"],
+        "last_response_language": memory["last_response_language"],
+        "unresolved_outcome_id": None,
+        "next_instructional_action": (
+            next_instructional_action
+            if next_instructional_action in _PUBLIC_RETRY_POLICIES
+            or next_instructional_action == "answer_next_activity"
+            else None
+        ),
     }
 
 
@@ -1457,6 +3676,7 @@ def _public_level(level: dict[str, Any]) -> dict[str, Any]:
         "focus": level["focus"],
         "skill_ids": list(level.get("skill_ids") or []),
         "status": level.get("status") or "not_started",
+        "entry_mode": level.get("entry_mode") or "full_cycle",
         "teaching_goal": level.get("teaching_goal") or "",
         "guided_check_label": "Learn with a worked clue",
         "bridge_label": "Slow support if the clue is missed",
@@ -1466,10 +3686,578 @@ def _public_level(level: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _v2_step(level: dict[str, Any]) -> dict[str, Any] | None:
+    steps = list(level.get("teaching_steps") or [])
+    index = int(level.get("v2_step_index") or 0)
+    if index < 0 or index >= len(steps):
+        return None
+    step = steps[index]
+    return dict(step) if isinstance(step, dict) else None
+
+
+def _v2_step_has_unused_variant(level: dict[str, Any]) -> bool:
+    step = _v2_step(level)
+    if not step:
+        return False
+    used = {str(item) for item in level.get("used_variant_ids") or []}
+    return any(
+        str(item.get("variant_id") or "")
+        and str(item.get("variant_id")) not in used
+        for item in step.get("variant_pool") or []
+        if isinstance(item, dict)
+    )
+
+
+def _v2_step_activity(
+    state: dict[str, Any],
+    level: dict[str, Any],
+    step: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None, bool]:
+    memory = _normalize_hot_session_memory(state.get("hot_session_memory"))
+    used = set(str(item) for item in level.get("used_variant_ids") or [])
+    seen_passages = set(memory["passage_fingerprints"])
+    seen_prompts = set(memory["prompt_fingerprints"])
+
+    def is_fresh(variant_id: str) -> bool:
+        return variant_id not in used
+
+    def has_fresh_content(activity: dict[str, Any]) -> bool:
+        return (
+            _content_fingerprint(activity.get("passage")) not in seen_passages
+            and _content_fingerprint(activity.get("prompt")) not in seen_prompts
+        )
+
+    if isinstance(step.get("activity"), dict):
+        activity = dict(step["activity"])
+        variant_id = str(activity.get("variant_id") or f"{step['step_id']}:single")
+        if not is_fresh(variant_id) or not has_fresh_content(activity):
+            return None, variant_id, False
+        return activity, variant_id, True
+
+    variants = [
+        dict(item)
+        for item in step.get("variant_pool") or []
+        if isinstance(item, dict)
+    ]
+    unused = [
+        item
+        for item in variants
+        if is_fresh(str(item.get("variant_id") or ""))
+        and has_fresh_content(item)
+    ]
+    if not unused:
+        return None, None, False
+    unresolved_tags = set(memory["unresolved_misconception_tags"])
+    targeted = [
+        item
+        for item in unused
+        if unresolved_tags.intersection(item.get("target_misconception_tags") or [])
+    ]
+    selected = (targeted or unused)[0]
+    return selected, str(selected.get("variant_id") or ""), True
+
+
+def _v2_assessed_skill_ids(
+    authored: dict[str, Any],
+    level: dict[str, Any],
+) -> list[str]:
+    """Return only skills for which this activity can create evidence."""
+
+    level_skill_ids = list(
+        dict.fromkeys(str(item) for item in level.get("skill_ids") or [])
+    )
+    authored_skill_ids = list(
+        dict.fromkeys(
+            str(item) for item in authored.get("knowledge_components") or []
+        )
+    )
+    unknown = [
+        skill_id for skill_id in authored_skill_ids if skill_id not in level_skill_ids
+    ]
+    if unknown:
+        raise ValueError(
+            "authored_activity_skill_outside_level:"
+            + ",".join(sorted(unknown))
+        )
+    if (
+        authored.get("interaction_type") == "continue"
+        or authored.get("evidence_role") == "experience"
+    ):
+        return []
+    if not authored_skill_ids:
+        raise ValueError("authored_activity_assessed_skills_missing")
+    return authored_skill_ids
+
+
+def _fresh_v2_targeted_support_kinds(
+    state: dict[str, Any],
+    level: dict[str, Any],
+    *,
+    trigger_skill_ids: list[str],
+    active_tags: list[str],
+) -> list[str]:
+    """Return only fresh authored support that addresses the active mistake."""
+
+    if not active_tags:
+        return []
+    support_kinds = _V2_SUPPORT_KINDS + (
+        ("masterclass",) if state.get("phase") == "remediation" else ()
+    )
+    support_attempt_records = [
+        attempt
+        for attempt in level.get("attempts") or []
+        if attempt.get("kind") == "v2_support"
+    ]
+    used_support_kinds = {
+        str(attempt.get("variant_id") or "")
+        for attempt in support_attempt_records
+        if str(attempt.get("variant_id") or "")
+    }
+    legacy_attempt_count = sum(
+        1 for attempt in support_attempt_records if not attempt.get("variant_id")
+    )
+    used_support_kinds.update(support_kinds[:legacy_attempt_count])
+    checks = level.get("checks") or {}
+    trigger_skill_set = {str(skill_id) for skill_id in trigger_skill_ids}
+    active_tag_set = {str(tag) for tag in active_tags}
+    return [
+        kind
+        for kind in support_kinds
+        if isinstance(checks.get(kind), dict)
+        and kind not in used_support_kinds
+        and _activity_content_is_fresh(
+            state.get("hot_session_memory"), checks.get(kind) or {}
+        )
+        and trigger_skill_set.intersection(
+            str(skill_id)
+            for skill_id in (checks.get(kind) or {}).get(
+                "knowledge_components"
+            )
+            or []
+        )
+        and active_tag_set.intersection(
+            str(tag)
+            for tag in (checks.get(kind) or {}).get(
+                "target_misconception_tags"
+            )
+            or []
+        )
+    ]
+
+
+def _semantic_support_kind(
+    level: dict[str, Any],
+    support_kinds: list[str],
+) -> str:
+    """Prefer an authored support whose text names the failed task's anchor."""
+
+    trigger_terms = [
+        " ".join(str(term).casefold().split())
+        for term in level.get("v2_trigger_relevance_terms") or []
+        if len(" ".join(str(term).split())) >= 4
+    ]
+    if not trigger_terms:
+        return support_kinds[0]
+    checks = level.get("checks") or {}
+    for kind in support_kinds:
+        check = checks.get(kind) or {}
+        support_text = " ".join(
+            str(check.get(field) or "")
+            for field in ("teaching_block", "passage", "prompt", "model_answer")
+        ).casefold()
+        if any(term in support_text for term in trigger_terms):
+            return kind
+    return support_kinds[0]
+
+
+def _source_semantic_support_kinds(
+    level: dict[str, Any],
+    support_kinds: list[str],
+) -> list[str]:
+    """Return support whose authored text contains the failed source anchor."""
+
+    trigger_terms = [
+        " ".join(str(term).casefold().split())
+        for term in level.get("v2_trigger_relevance_terms") or []
+        if len(" ".join(str(term).split())) >= 4
+    ]
+    if not trigger_terms:
+        return []
+    checks = level.get("checks") or {}
+    return [
+        kind
+        for kind in support_kinds
+        if any(
+            term
+            in " ".join(
+                str((checks.get(kind) or {}).get(field) or "")
+                for field in (
+                    "teaching_block",
+                    "passage",
+                    "prompt",
+                    "model_answer",
+                )
+            ).casefold()
+            for term in trigger_terms
+        )
+    ]
+
+
+def _is_legacy_empty_tag_semantic_review_support(level: dict[str, Any]) -> bool:
+    """Identify a persisted review failure that predates misconception tags."""
+
+    trigger_activity_id = str(level.get("v2_trigger_activity_id") or "")
+    return bool(
+        level.get("v2_support_mode") == "bridge"
+        and not level.get("v2_active_misconception_tags")
+        and level.get("v2_trigger_relevance_terms")
+        and any(
+            str(attempt.get("activity_id") or "") == trigger_activity_id
+            and str(attempt.get("phase") or "") == "review"
+            and attempt.get("correct") is False
+            for attempt in level.get("attempts") or []
+            if isinstance(attempt, dict)
+        )
+    )
+
+
+def _v2_support_activity(
+    state: dict[str, Any],
+    level: dict[str, Any],
+    *,
+    level_index: int,
+) -> dict[str, Any]:
+    support_kinds = _V2_SUPPORT_KINDS + (
+        ("masterclass",) if state.get("phase") == "remediation" else ()
+    )
+    support_attempt_records = [
+        attempt
+        for attempt in level.get("attempts") or []
+        if attempt.get("kind") == "v2_support"
+    ]
+    used_support_kinds = {
+        str(attempt.get("variant_id") or "")
+        for attempt in support_attempt_records
+        if str(attempt.get("variant_id") or "")
+    }
+    legacy_attempt_count = sum(
+        1 for attempt in support_attempt_records if not attempt.get("variant_id")
+    )
+    used_support_kinds.update(support_kinds[:legacy_attempt_count])
+    checks = level.get("checks") or {}
+    active_tags = set(level.get("v2_active_misconception_tags") or [])
+    forced_support_kind = str(level.get("v2_forced_support_kind") or "")
+    if forced_support_kind and active_tags and not active_tags.intersection(
+        (checks.get(forced_support_kind) or {}).get(
+            "target_misconception_tags"
+        )
+        or []
+    ):
+        forced_support_kind = ""
+    candidate_support_kinds = (
+        (forced_support_kind,) if forced_support_kind else support_kinds
+    )
+    authored_support_kinds = [
+        kind
+        for kind in candidate_support_kinds
+        if isinstance(checks.get(kind), dict)
+    ]
+    available_support_kinds = [
+        kind
+        for kind in authored_support_kinds
+        if kind not in used_support_kinds
+        and _activity_content_is_fresh(
+            state.get("hot_session_memory"), checks.get(kind) or {}
+        )
+    ]
+    if not available_support_kinds:
+        raise ValueError("authored_support_pool_exhausted")
+    trigger_skill_ids = list(
+        dict.fromkeys(
+            str(item) for item in level.get("v2_trigger_skill_ids") or []
+        )
+    )
+    trigger_skill_set = set(trigger_skill_ids)
+    compatible_support_kinds = []
+    for kind in available_support_kinds:
+        authored_skill_ids = {
+            str(item)
+            for item in (checks.get(kind) or {}).get("knowledge_components") or []
+        }
+        if authored_skill_ids.intersection(trigger_skill_set):
+            compatible_support_kinds.append(kind)
+    if not compatible_support_kinds:
+        raise ValueError("authored_support_not_available_for_trigger")
+    targeted_support_kinds = [
+        kind
+        for kind in compatible_support_kinds
+        if active_tags.intersection(
+            (checks.get(kind) or {}).get("target_misconception_tags") or []
+        )
+    ]
+    if active_tags and not targeted_support_kinds:
+        raise ValueError("authored_targeted_support_unavailable")
+    if active_tags:
+        support_kind = _semantic_support_kind(level, targeted_support_kinds)
+    elif _is_legacy_empty_tag_semantic_review_support(level):
+        source_semantic_support_kinds = _source_semantic_support_kinds(
+            level,
+            compatible_support_kinds,
+        )
+        if not source_semantic_support_kinds:
+            raise ValueError("authored_source_semantic_support_unavailable")
+        support_kind = source_semantic_support_kinds[0]
+    else:
+        support_kind = _semantic_support_kind(level, compatible_support_kinds)
+    raw_check = (level.get("checks") or {}).get(support_kind)
+    check = dict(raw_check)
+    attempt_no = len(support_attempt_records) + 1
+    authored_skill_ids = list(
+        dict.fromkeys(
+            str(item) for item in check.get("knowledge_components") or []
+        )
+    )
+    unknown_assessed_skill_ids = [
+        skill_id
+        for skill_id in authored_skill_ids
+        if skill_id not in set(level.get("skill_ids") or [])
+    ]
+    if unknown_assessed_skill_ids:
+        raise ValueError(
+            "support_skill_outside_level:"
+            + ",".join(sorted(unknown_assessed_skill_ids))
+        )
+    assessed_skill_ids = [
+        skill_id for skill_id in authored_skill_ids if skill_id in trigger_skill_set
+    ]
+    if not assessed_skill_ids:
+        raise ValueError("support_assessed_skills_missing")
+    language_support = localized_teaching_support(
+        preferred_language=str(state.get("preferred_teaching_language") or "en"),
+        skill_ids=assessed_skill_ids,
+        stage="bridge",
+        en_production_confidence=float(
+            state.get("en_production_confidence") or 0.0
+        ),
+    )
+    return {
+        "activity_id": f"{level['level_id']}:v2_support:{attempt_no}:{support_kind}",
+        "level_id": level["level_id"],
+        "level_index": level_index,
+        "kind": "v2_support",
+        "title": f"Support: {level['title']}",
+        "focus": level.get("focus") or "",
+        "skill_ids": assessed_skill_ids,
+        "assessed_skill_ids": assessed_skill_ids,
+        "teaching_block": " ".join(
+            part for part in (language_support, check["teaching_block"]) if part
+        ),
+        "passage": check["passage"],
+        "prompt": check["prompt"],
+        "options": list(check.get("options") or []),
+        "grading_mode": check.get("grading_mode"),
+        "certifying_language": check.get("certifying_language"),
+        "response_mode": check.get("response_mode") or "short",
+        "answer_rule": check.get("answer_rule"),
+        "evaluation_mode": check.get("evaluation_mode"),
+        "preflight_rule": check.get("preflight_rule"),
+        "pass_score": check.get("pass_score"),
+        "rubric_criteria": [
+            dict(item) for item in check.get("rubric_criteria") or []
+        ],
+        "concept_slots": [dict(item) for item in check.get("concept_slots") or []],
+        "forbidden_phrases": list(check.get("forbidden_phrases") or []),
+        "relevance_terms": list(check.get("relevance_terms") or []),
+        "model_answer": check.get("model_answer"),
+        "target_misconception_tags": list(
+            check.get("target_misconception_tags") or []
+        ),
+        "min_response_words": check.get("min_response_words"),
+        "ordered_concept_slot_ids": list(
+            check.get("ordered_concept_slot_ids") or []
+        ),
+        "accepted_answers": list(check.get("accepted_answers") or []),
+        "attempt_no": attempt_no,
+        "schema_version": "school-activity-v2",
+        "phase": "guided_practice",
+        "interaction_type": (
+            "single_choice" if check.get("options") else "short_text"
+        ),
+        "evidence_role": "supported",
+        "source_anchor_ids": list(level.get("source_anchor_ids") or []),
+        "knowledge_components": assessed_skill_ids,
+        "support_mode": "bridge",
+        "variant": {
+            "pool_id": f"{level['level_id']}:support",
+            "variant_id": support_kind,
+            "ordinal": attempt_no,
+            "fresh": support_kind not in used_support_kinds,
+        },
+        "lineage": {
+            "parent_activity_id": _normalize_hot_session_memory(
+                state.get("hot_session_memory")
+            ).get("last_activity_id"),
+            "trigger_activity_id": level.get("v2_trigger_activity_id"),
+            "interrupt_id": None,
+            "return_activity_id": level.get("v2_return_activity_id"),
+            "masterclass_session_id": None,
+        },
+    }
+
+
+def _ensure_v2_support_availability_contract(
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    """Turn exhausted authored support into an explicit, safe learner state."""
+
+    if state.get("phase") in {"needs_support", "capped_support"}:
+        return state
+    levels = list(state.get("levels") or [])
+    level_index = int(state.get("current_level_index") or 0)
+    if level_index < 0 or level_index >= len(levels):
+        return state
+    level = levels[level_index]
+    if level.get("v2_support_mode") != "bridge":
+        return state
+    legacy_empty_tag_support = _is_legacy_empty_tag_semantic_review_support(level)
+    try:
+        _v2_support_activity(state, level, level_index=level_index)
+    except ValueError as exc:
+        reason = str(exc)
+        support_unavailable = {
+            "authored_support_pool_exhausted",
+            "authored_support_not_available_for_trigger",
+            "authored_targeted_support_unavailable",
+        }
+        if reason not in support_unavailable and not (
+            legacy_empty_tag_support
+            and reason == "authored_source_semantic_support_unavailable"
+        ):
+            return state
+    else:
+        return state
+    trigger_skill_ids = list(
+        dict.fromkeys(
+            str(skill_id) for skill_id in level.get("v2_trigger_skill_ids") or []
+        )
+    )
+    return {
+        **state,
+        "status": "active",
+        "phase": "needs_support",
+        "active_interrupt": None,
+        "support_required": {
+            "reason": reason,
+            "attempt_count": len(level.get("attempts") or []),
+            "weak_skill_ids": trigger_skill_ids,
+            "remediation_skill_ids": trigger_skill_ids,
+            "focus": str(level.get("focus") or ""),
+        },
+    }
+
+
+def _current_v2_activity(
+    state: dict[str, Any],
+    level: dict[str, Any],
+    *,
+    level_index: int,
+) -> dict[str, Any] | None:
+    if level.get("v2_support_mode") == "bridge":
+        return _v2_support_activity(state, level, level_index=level_index)
+    step = _v2_step(level)
+    if step is None:
+        return None
+    authored, variant_id, fresh = _v2_step_activity(state, level, step)
+    if authored is None or not variant_id:
+        if step.get("variant_pool") and step.get("required", True):
+            raise ValueError("authored_variant_pool_exhausted")
+        raise ValueError("authored_activity_variant_unavailable")
+    attempt_no = 1 + sum(
+        1
+        for attempt in level.get("attempts") or []
+        if attempt.get("step_id") == step.get("step_id")
+    )
+    assessed_skill_ids = _v2_assessed_skill_ids(authored, level)
+    memory_note = _memory_support_note(
+        state,
+        level,
+        assessed_skill_ids=assessed_skill_ids,
+    )
+    language_support = localized_teaching_support(
+        preferred_language=str(state.get("preferred_teaching_language") or "en"),
+        skill_ids=level.get("skill_ids") or [],
+        stage=str(step.get("phase") or "guided_practice"),
+        en_production_confidence=float(
+            state.get("en_production_confidence") or 0.0
+        ),
+    )
+    phase = str(step.get("phase") or authored.get("teaching_phase") or "guided_practice")
+    return {
+        **authored,
+        "activity_id": f"{level['level_id']}:{step['step_id']}:{variant_id}:{attempt_no}",
+        "level_id": level["level_id"],
+        "level_index": level_index,
+        "step_id": str(step.get("step_id") or ""),
+        "kind": f"v2_{phase}",
+        "phase": phase,
+        "title": f"{phase.replace('_', ' ').title()}: {level['title']}",
+        "focus": level.get("focus") or "",
+        "skill_ids": assessed_skill_ids,
+        "assessed_skill_ids": assessed_skill_ids,
+        "teaching_block": " ".join(
+            part
+            for part in (
+                language_support,
+                memory_note,
+                authored.get("teaching_block"),
+            )
+            if part
+        ),
+        "options": list(authored.get("options") or []),
+        "rubric_criteria": [
+            dict(item) for item in authored.get("rubric_criteria") or []
+        ],
+        "concept_slots": [
+            dict(item) for item in authored.get("concept_slots") or []
+        ],
+        "forbidden_phrases": list(authored.get("forbidden_phrases") or []),
+        "ordered_concept_slot_ids": list(
+            authored.get("ordered_concept_slot_ids") or []
+        ),
+        "accepted_answers": list(authored.get("accepted_answers") or []),
+        "attempt_no": attempt_no,
+        "entry_mode": level.get("entry_mode") or "full_cycle",
+        "support_mode": None,
+        "variant": {
+            "pool_id": str(authored.get("pool_id") or step.get("pool_id") or step["step_id"]),
+            "variant_id": variant_id,
+            "ordinal": attempt_no,
+            "fresh": fresh,
+        },
+        "lineage": {
+            "parent_activity_id": _normalize_hot_session_memory(
+                state.get("hot_session_memory")
+            ).get("last_activity_id"),
+            "trigger_activity_id": level.get("v2_trigger_activity_id"),
+            "interrupt_id": (
+                (state.get("active_interrupt") or {}).get("interrupt_id")
+                if isinstance(state.get("active_interrupt"), dict)
+                else level.get("v2_last_interrupt_id")
+            ),
+            "return_activity_id": level.get("v2_return_activity_id"),
+            "masterclass_session_id": (
+                (state.get("active_interrupt") or {}).get("masterclass_session_id")
+                if isinstance(state.get("active_interrupt"), dict)
+                else level.get("v2_last_masterclass_session_id")
+            ),
+        },
+    }
+
+
 def _current_activity(state: dict[str, Any]) -> dict[str, Any] | None:
     if state.get("status") in {"complete", "paused_for_masterclass"} or state.get(
         "phase"
-    ) in {"paused_for_masterclass", "capped_support"}:
+    ) in {"paused_for_masterclass", "capped_support", "needs_support"}:
         return None
     if state.get("phase") == "chapter_check":
         return _current_chapter_check_activity(state)
@@ -1482,12 +4270,27 @@ def _current_activity(state: dict[str, Any]) -> dict[str, Any] | None:
     level = levels[level_index]
     if level.get("status") == "complete":
         return None
+    if level.get("teaching_steps"):
+        return _current_v2_activity(state, level, level_index=level_index)
     kind = str(level.get("current_step") or "guided_check")
     check = _check_for_level(level, kind)
+    repeated_kind = any(
+        previous.get("kind") == kind
+        for previous in level.get("attempts") or []
+        if isinstance(previous, dict)
+    )
+    if repeated_kind and not _activity_content_is_fresh(
+        state.get("hot_session_memory"), check
+    ):
+        raise ValueError("authored_activity_variant_unavailable")
     attempt_no = 1 + sum(
         1 for previous in level.get("attempts") or [] if previous.get("kind") == kind
     )
-    memory_note = _memory_support_note(state, level)
+    memory_note = _memory_support_note(
+        state,
+        level,
+        assessed_skill_ids=list(level.get("skill_ids") or []),
+    )
     language_support = localized_teaching_support(
         preferred_language=str(state.get("preferred_teaching_language") or "en"),
         skill_ids=level.get("skill_ids") or [],
@@ -1512,6 +4315,8 @@ def _current_activity(state: dict[str, Any]) -> dict[str, Any] | None:
         "passage": check["passage"],
         "prompt": check["prompt"],
         "options": list(check.get("options") or []),
+        "grading_mode": check.get("grading_mode"),
+        "certifying_language": check.get("certifying_language"),
         "response_mode": check.get("response_mode") or "short",
         "answer_rule": check.get("answer_rule"),
         "evaluation_mode": check.get("evaluation_mode"),
@@ -1520,6 +4325,11 @@ def _current_activity(state: dict[str, Any]) -> dict[str, Any] | None:
         "rubric_criteria": [dict(criterion) for criterion in check.get("rubric_criteria") or []],
         "concept_slots": [dict(slot) for slot in check.get("concept_slots") or []],
         "forbidden_phrases": list(check.get("forbidden_phrases") or []),
+        "relevance_terms": list(check.get("relevance_terms") or []),
+        "model_answer": check.get("model_answer"),
+        "target_misconception_tags": list(
+            check.get("target_misconception_tags") or []
+        ),
         "min_response_words": check.get("min_response_words"),
         "ordered_concept_slot_ids": list(
             check.get("ordered_concept_slot_ids") or []
@@ -1529,8 +4339,15 @@ def _current_activity(state: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def _memory_support_note(state: dict[str, Any], level: dict[str, Any]) -> str:
-    skill_ids = set(level.get("skill_ids") or [])
+def _memory_support_note(
+    state: dict[str, Any],
+    level: dict[str, Any],
+    *,
+    assessed_skill_ids: list[str],
+) -> str:
+    skill_ids = set(assessed_skill_ids)
+    if not skill_ids:
+        return ""
     memory = state.get("learner_memory")
     if not isinstance(memory, dict):
         return ""
@@ -1538,11 +4355,15 @@ def _memory_support_note(state: dict[str, Any], level: dict[str, Any]) -> str:
         for item in memory.get(bucket) or []:
             if not isinstance(item, dict) or item.get("skill_id") not in skill_ids:
                 continue
-            action = str(item.get("recommended_next_action") or "").strip()
-            gap = str(item.get("gap") or level.get("focus") or "this skill").strip()
+            focus = str(level.get("focus") or "this chapter skill").strip()
+            status_copy = (
+                "this skill needs another careful try"
+                if bucket == "active_gaps"
+                else "you are building confidence in this skill"
+            )
             return (
-                f"Zidd remembers that you are building {gap}. "
-                f"{action}".strip()
+                f"Zidd remembers that {status_copy}. "
+                f"In this lesson, focus on {focus}."
             )
     return ""
 
@@ -1558,6 +4379,7 @@ def _new_chapter_assessment_state(definition: dict[str, Any] | None) -> dict[str
         "responses": [],
         "attempt_history": [],
         "used_item_ids": [],
+        "planned_form_item_ids": [],
     }
 
 
@@ -1569,21 +4391,50 @@ def _begin_chapter_assessment(state: dict[str, Any]) -> dict[str, Any]:
     if attempt_no > max_attempts:
         raise ValueError("chapter_assessment_attempt_limit_exhausted")
     item_count = int(assessment.get("items_per_attempt") or 12)
-    items = list(assessment.get("items") or [])
+    items = [
+        dict(item)
+        for item in assessment.get("items") or []
+        if isinstance(item, dict)
+        and _activity_content_is_fresh(state.get("hot_session_memory"), item)
+    ]
     used_item_ids = list(assessment.get("used_item_ids") or [])
     used_item_ids = list(
         dict.fromkeys(used_item_ids + list(assessment.get("selected_item_ids") or []))
     )
-    selected_items = _select_chapter_assessment_items(
-        items,
-        item_count=item_count,
-        attempt_no=attempt_no,
-        used_item_ids=set(used_item_ids),
-    )
+    planned_forms = list(assessment.get("planned_form_item_ids") or [])
+    if (
+        max_attempts == 2
+        and attempt_no == 1
+        and len(items) == item_count * max_attempts
+    ):
+        planned_forms = _plan_two_fresh_assessment_forms(
+            items,
+            item_count=item_count,
+        )
+    if len(planned_forms) >= attempt_no:
+        items_by_id = {str(item["item_id"]): item for item in items}
+        selected_items = [
+            items_by_id[item_id]
+            for item_id in planned_forms[attempt_no - 1]
+            if item_id in items_by_id
+        ]
+    else:
+        selected_items = _select_chapter_assessment_items(
+            items,
+            item_count=item_count,
+            attempt_no=attempt_no,
+            used_item_ids=set(used_item_ids),
+        )
     selected_item_ids = [str(item["item_id"]) for item in selected_items]
-    if max_attempts >= 3 and (
+    requires_fresh_form = (
+        max_attempts >= 3 or len(items) >= item_count * max_attempts
+    )
+    if (
         len(selected_item_ids) != item_count
-        or set(selected_item_ids).intersection(used_item_ids)
+        or (
+            requires_fresh_form
+            and set(selected_item_ids).intersection(used_item_ids)
+        )
     ):
         raise ValueError("chapter_assessment_fresh_form_unavailable")
     required_skill_ids = {
@@ -1603,14 +4454,137 @@ def _begin_chapter_assessment(state: dict[str, Any]) -> dict[str, Any]:
             "current_index": 0,
             "responses": [],
             "used_item_ids": used_item_ids,
+            "planned_form_item_ids": planned_forms,
         }
     )
     updated["chapter_assessment"] = assessment
     updated["remediation_queue"] = []
     updated.pop("remediation_mode", None)
+    updated.pop("assessment_remediation_remaining_skill_ids", None)
     updated["phase"] = "chapter_check"
     updated["status"] = "active"
     return updated
+
+
+def _plan_two_fresh_assessment_forms(
+    items: list[dict[str, Any]],
+    *,
+    item_count: int,
+) -> list[list[str]]:
+    """Partition a two-attempt bank into fresh forms that each cover every skill."""
+
+    if len(items) != item_count * 2:
+        raise ValueError("chapter_assessment_two_form_bank_size_invalid")
+
+    item_skill_ids = [
+        {
+            str(skill_id)
+            for skill_id in item.get("skill_ids") or []
+            if str(skill_id)
+        }
+        for item in items
+    ]
+    required_skill_ids = set().union(*item_skill_ids) if item_skill_ids else set()
+    remaining_counts = {
+        skill_id: sum(skill_id in skills for skills in item_skill_ids)
+        for skill_id in required_skill_ids
+    }
+    if any(count < 2 for count in remaining_counts.values()):
+        raise ValueError("chapter_assessment_fresh_form_unavailable")
+
+    selected: list[int] = []
+    selected_set: set[int] = set()
+    dead_ends: set[tuple[int, ...]] = set()
+
+    def can_select(index: int) -> bool:
+        return all(
+            remaining_counts[skill_id] > 1
+            for skill_id in item_skill_ids[index]
+        )
+
+    def search(covered_skill_ids: set[str]) -> tuple[int, ...] | None:
+        state_key = tuple(sorted(selected_set))
+        if state_key in dead_ends:
+            return None
+        if len(selected) == item_count:
+            if covered_skill_ids == required_skill_ids:
+                return tuple(selected)
+            dead_ends.add(state_key)
+            return None
+
+        available = [
+            index
+            for index in range(len(items))
+            if index not in selected_set and can_select(index)
+        ]
+        slots_left = item_count - len(selected)
+        if len(available) < slots_left:
+            dead_ends.add(state_key)
+            return None
+
+        missing_skill_ids = required_skill_ids - covered_skill_ids
+        if missing_skill_ids:
+            candidates_by_skill = {
+                skill_id: [
+                    index
+                    for index in available
+                    if skill_id in item_skill_ids[index]
+                ]
+                for skill_id in missing_skill_ids
+            }
+            if any(not candidates for candidates in candidates_by_skill.values()):
+                dead_ends.add(state_key)
+                return None
+            next_skill_id = min(
+                missing_skill_ids,
+                key=lambda skill_id: (
+                    len(candidates_by_skill[skill_id]),
+                    skill_id,
+                ),
+            )
+            candidates = candidates_by_skill[next_skill_id]
+        else:
+            candidates = available
+
+        def priority(index: int) -> tuple[int, int, str]:
+            skills = item_skill_ids[index]
+            coverage_gain = len(skills.intersection(missing_skill_ids))
+            reserve = min(
+                (remaining_counts[skill_id] - 1 for skill_id in skills),
+                default=len(items),
+            )
+            return (-coverage_gain, -reserve, str(items[index]["item_id"]))
+
+        for index in sorted(candidates, key=priority):
+            selected.append(index)
+            selected_set.add(index)
+            for skill_id in item_skill_ids[index]:
+                remaining_counts[skill_id] -= 1
+            result = search(covered_skill_ids | item_skill_ids[index])
+            if result is not None:
+                return result
+            for skill_id in item_skill_ids[index]:
+                remaining_counts[skill_id] += 1
+            selected_set.remove(index)
+            selected.pop()
+
+        dead_ends.add(state_key)
+        return None
+
+    first_form_indices = search(set())
+    if first_form_indices is None:
+        raise ValueError("chapter_assessment_fresh_form_unavailable")
+    first_form_set = set(first_form_indices)
+    second_form_indices = [
+        index for index in range(len(items)) if index not in first_form_set
+    ]
+    if len(second_form_indices) != item_count:
+        raise ValueError("chapter_assessment_fresh_form_unavailable")
+
+    return [
+        [str(items[index]["item_id"]) for index in first_form_indices],
+        [str(items[index]["item_id"]) for index in second_form_indices],
+    ]
 
 
 def _select_chapter_assessment_items(
@@ -1679,6 +4653,8 @@ def _current_chapter_check_activity(state: dict[str, Any]) -> dict[str, Any] | N
     )
     if not item:
         raise ValueError("chapter_assessment_item_missing")
+    if not _activity_content_is_fresh(state.get("hot_session_memory"), item):
+        raise ValueError("chapter_assessment_fresh_form_unavailable")
     attempt_no = int(assessment.get("attempt_no") or 1)
     return {
         **item,
@@ -1711,12 +4687,11 @@ def _apply_chapter_check_answer(
     response = {
         "activity_id": activity["activity_id"],
         "item_id": activity["authored_item_id"],
-        "answer": answer,
         "skill_ids": list(activity.get("skill_ids") or []),
         "correct": bool(answer_evaluation["correct"]),
         "score": float(answer_evaluation["score"]),
         "confidence": float(answer_evaluation["confidence"]),
-        "criteria": list(answer_evaluation["criteria"]),
+        "criteria": _sanitize_persisted_criteria(answer_evaluation["criteria"]),
         "blockers": list(answer_evaluation["blockers"]),
         "evaluation_mode": (
             answer_evaluation.get("_evaluation_mode")
@@ -1728,6 +4703,9 @@ def _apply_chapter_check_answer(
     assessment["responses"] = responses
     assessment["current_index"] = int(assessment.get("current_index") or 0) + 1
     updated["chapter_assessment"] = assessment
+    updated["hot_session_memory"] = _remember_activity_fingerprints(
+        updated.get("hot_session_memory"), activity
+    )
 
     selected_ids = list(assessment.get("selected_item_ids") or [])
     if int(assessment["current_index"]) < len(selected_ids):
@@ -1836,8 +4814,6 @@ def _chapter_assessment_result(assessment: dict[str, Any]) -> dict[str, Any]:
     ]
     passed = (
         score >= float(assessment.get("pass_score") or 0.8)
-        and all(skill_score >= 0.6 for skill_score in skill_scores.values())
-        and not failed_rubric_item_ids
         and not failed_hard_blocker_item_ids
     )
     return {
@@ -1948,6 +4924,50 @@ def _finish_chapter_assessment_attempt(state: dict[str, Any]) -> dict[str, Any]:
     return updated
 
 
+def _v2_authored_remediation_skill_ids(level: dict[str, Any]) -> set[str]:
+    checks = level.get("checks") or {}
+    return {
+        str(skill_id)
+        for kind in _V2_SUPPORT_KINDS + ("masterclass",)
+        if isinstance(checks.get(kind), dict)
+        for skill_id in (checks[kind].get("knowledge_components") or [])
+    }
+
+
+def _assessment_remediation_skill_ids(level: dict[str, Any]) -> set[str]:
+    if level.get("teaching_steps"):
+        return _v2_authored_remediation_skill_ids(level)
+    return {str(skill_id) for skill_id in level.get("skill_ids") or []}
+
+
+def _assessment_remediation_support_plan(
+    state: dict[str, Any],
+    skill_ids: list[str],
+) -> dict[str, Any]:
+    updated = dict(state)
+    remediation_skill_ids = list(dict.fromkeys(str(item) for item in skill_ids))
+    assessment = updated.get("chapter_assessment")
+    attempt_count = (
+        int(assessment.get("attempt_no") or 0)
+        if isinstance(assessment, dict)
+        else 0
+    )
+    updated["phase"] = "needs_support"
+    updated["status"] = "active"
+    updated["remediation_queue"] = []
+    updated.pop("remediation_mode", None)
+    updated.pop("assessment_remediation_remaining_skill_ids", None)
+    updated["support_required"] = {
+        "reason": "authored_remediation_unavailable",
+        "attempt_count": attempt_count,
+        "weak_skill_ids": remediation_skill_ids,
+        "remediation_skill_ids": remediation_skill_ids,
+        "focus": _assessment_support_focus(updated, remediation_skill_ids),
+        "history": list(updated.get("assessment_support_history") or []),
+    }
+    return updated
+
+
 def _start_assessment_remediation(
     state: dict[str, Any],
     weak_skill_ids: list[str],
@@ -1959,12 +4979,23 @@ def _start_assessment_remediation(
     updated = dict(state)
     levels = [dict(level) for level in updated.get("levels") or []]
     if mode == "expanded_revision":
-        plan, targeted_skill_ids, deferred_skill_ids = _build_assessment_revision_plan(
-            levels,
-            weak_skill_ids,
-            skill_scores=skill_scores,
-            priority_skill_ids=priority_skill_ids,
-        )
+        try:
+            plan, targeted_skill_ids, deferred_skill_ids = (
+                _build_assessment_revision_plan(
+                    levels,
+                    weak_skill_ids,
+                    skill_scores=skill_scores,
+                    priority_skill_ids=priority_skill_ids,
+                )
+            )
+        except ValueError as exc:
+            if (
+                str(exc) != "chapter_assessment_remediation_level_missing"
+                and not str(exc).startswith("chapter_assessment_revision_")
+            ):
+                raise
+            updated["levels"] = levels
+            return _assessment_remediation_support_plan(updated, weak_skill_ids)
         updated["levels"] = levels
         updated["assessment_revision_plan"] = plan
         updated["assessment_revision_index"] = 0
@@ -1978,20 +5009,36 @@ def _start_assessment_remediation(
         updated["status"] = "active"
         return _activate_assessment_revision_entry(updated, plan_index=0)
 
+    weak_skill_ids = list(dict.fromkeys(str(item) for item in weak_skill_ids))
     weak = set(weak_skill_ids)
-    remediation_queue = [
-        str(level["level_id"])
-        for level in levels
-        if weak.intersection(level.get("skill_ids") or [])
-    ]
-    if not remediation_queue:
-        raise ValueError("chapter_assessment_remediation_level_missing")
+    remediation_queue = []
+    uncovered = set(weak)
+    for level in levels:
+        covered_here = uncovered.intersection(
+            _assessment_remediation_skill_ids(level)
+        )
+        if not covered_here:
+            continue
+        remediation_queue.append(str(level["level_id"]))
+        uncovered.difference_update(covered_here)
+    if not remediation_queue or uncovered:
+        updated["levels"] = levels
+        return _assessment_remediation_support_plan(updated, weak_skill_ids)
     start_step = "revision_level_1" if mode == "expanded_revision" else "masterclass"
+    updated["assessment_remediation_remaining_skill_ids"] = weak_skill_ids
     for level in levels:
         if level["level_id"] == remediation_queue[0]:
-            level["status"] = "in_progress"
-            level["current_step"] = start_step
-            level["return_step"] = "independent_check"
+            if level.get("teaching_steps"):
+                configured = _configure_v2_assessment_remediation(
+                    level,
+                    targeted_skill_ids=weak_skill_ids,
+                )
+                level.clear()
+                level.update(configured)
+            else:
+                level["status"] = "in_progress"
+                level["current_step"] = start_step
+                level["return_step"] = "independent_check"
     updated["levels"] = levels
     updated["current_level_index"] = next(
         index
@@ -2125,9 +5172,16 @@ def _activate_assessment_revision_entry(
             "chapter_assessment_revision_activity_missing:"
             f"{entry.get('level_id')}:{entry.get('kind')}"
         )
-    level["status"] = "in_progress"
-    level["current_step"] = str(entry["kind"])
-    level["return_step"] = "independent_check"
+    if level.get("teaching_steps"):
+        level = _configure_v2_assessment_remediation(
+            level,
+            targeted_skill_ids=list(entry.get("targeted_skill_ids") or []),
+            forced_support_kind=str(entry["kind"]),
+        )
+    else:
+        level["status"] = "in_progress"
+        level["current_step"] = str(entry["kind"])
+        level["return_step"] = "independent_check"
     levels[level_index] = level
     updated["levels"] = levels
     updated["current_level_index"] = level_index
@@ -2320,10 +5374,52 @@ def _complete_chapter(state: dict[str, Any]) -> dict[str, Any]:
     return updated
 
 
-def _public_activity(activity: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not activity:
+def _public_source_reference(
+    chapter: dict[str, Any],
+    anchor_ids: list[str],
+) -> dict[str, Any] | None:
+    """Expose source location metadata without ever exposing textbook text."""
+
+    wanted = {str(anchor_id) for anchor_id in anchor_ids if str(anchor_id)}
+    if not wanted:
+        return None
+    anchors_by_id = {
+        str(anchor.get("anchor_id") or ""): anchor
+        for anchor in chapter.get("source_anchors") or []
+        if isinstance(anchor, dict) and str(anchor.get("anchor_id") or "")
+    }
+    public_anchors = []
+    for anchor_id in anchor_ids:
+        anchor = anchors_by_id.get(str(anchor_id))
+        if not anchor:
+            continue
+        public_anchors.append(
+            {
+                "anchor_id": str(anchor["anchor_id"]),
+                "section_label": str(anchor.get("section_label") or ""),
+                "page_start": int(anchor.get("page_start") or 0),
+                "page_end": int(anchor.get("page_end") or 0),
+                "source_url": str(anchor.get("source_url") or ""),
+                "coverage_treatment": str(anchor.get("coverage_treatment") or ""),
+            }
+        )
+    if not public_anchors:
         return None
     return {
+        "book_title": str(chapter.get("book_title") or ""),
+        "chapter_title": str(chapter.get("title") or ""),
+        "anchors": public_anchors,
+    }
+
+
+def _public_activity(
+    activity: dict[str, Any] | None,
+    *,
+    chapter: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    if not activity:
+        return None
+    public = {
         "activity_id": activity["activity_id"],
         "level_id": activity["level_id"],
         "kind": activity["kind"],
@@ -2333,11 +5429,47 @@ def _public_activity(activity: dict[str, Any] | None) -> dict[str, Any] | None:
         "teaching_block": activity["teaching_block"],
         "passage": activity["passage"],
         "prompt": activity["prompt"],
-        "options": list(activity.get("options") or []) or None,
+        "options": _stable_public_options(
+            str(activity["activity_id"]),
+            list(activity.get("options") or []),
+        ) or None,
         "response_mode": activity.get("response_mode") or "short",
         "attempt_no": int(activity.get("attempt_no") or 1),
         "can_answer": True,
     }
+    if activity.get("schema_version") == "school-activity-v2":
+        public.update(
+            schema_version="school-activity-v2",
+            phase=activity.get("phase") or activity.get("teaching_phase"),
+            entry_mode=activity.get("entry_mode") or "full_cycle",
+            support_mode=activity.get("support_mode"),
+            interaction_type=activity.get("interaction_type"),
+            evidence_role=activity.get("evidence_role"),
+            source_anchor_ids=list(activity.get("source_anchor_ids") or []),
+            knowledge_components=list(
+                activity.get("knowledge_components") or []
+            ),
+            assessed_skill_ids=list(activity.get("assessed_skill_ids") or []),
+            variant=dict(activity.get("variant") or {}),
+            lineage=dict(activity.get("lineage") or {}),
+        )
+        source_reference = _public_source_reference(
+            chapter or {},
+            list(activity.get("source_anchor_ids") or []),
+        )
+        if source_reference is not None:
+            public["source_reference"] = source_reference
+    return public
+
+
+def _stable_public_options(activity_id: str, options: list[str]) -> list[str]:
+    indexed_options = list(enumerate(str(option) for option in options))
+    indexed_options.sort(
+        key=lambda item: hashlib.sha256(
+            f"{activity_id}\0{item[0]}\0{item[1]}".encode("utf-8")
+        ).digest()
+    )
+    return [option for _, option in indexed_options]
 
 
 def _check_for_level(level: dict[str, Any], kind: str) -> dict[str, Any]:
@@ -2384,9 +5516,9 @@ def _answer_matches(activity: dict[str, Any], answer: str) -> bool:
         return _matches_release_opinion_reason(cleaned)
     if activity.get("answer_rule") == "bird_feeder_procedure":
         return _matches_bird_feeder_procedure(cleaned)
-    return any(
-        _accepted_phrase_matches(cleaned, _normalize(expected))
-        for expected in activity.get("accepted_answers") or []
+    return accepted_answer_matches(
+        answer,
+        list(activity.get("accepted_answers") or []),
     )
 
 
@@ -2394,6 +5526,47 @@ def evaluate_deterministic_answer(
     activity: dict[str, Any],
     answer: str,
 ) -> dict[str, Any]:
+    if (
+        activity.get("schema_version") == "school-activity-v2"
+        and activity.get("interaction_type") == "continue"
+    ):
+        return {
+            "correct": True,
+            "score": 0.0,
+            "confidence": 1.0,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+            "blockers": [],
+            "language_detected": _detect_answer_language(answer),
+            "model_score": None,
+            "scored": False,
+        }
+    if activity.get("grading_mode") in {
+        "selected_option",
+        "exact_text",
+        "punctuation_symbol",
+        "ordered_slots",
+    }:
+        result = grade_typed_school_answer(activity, answer)
+        mapped_misconceptions = (
+            _wrong_answer_misconception_tags(activity, answer)
+            if not result.correct
+            else []
+        )
+        return {
+            "correct": result.correct,
+            "score": result.score,
+            "confidence": result.confidence,
+            "criteria": [criterion.model_dump() for criterion in result.criteria],
+            "missing_criteria": list(result.missing_criteria),
+            "misconception_tags": mapped_misconceptions,
+            "blockers": list(result.blockers)
+            if result.blockers
+            else ([] if result.correct else ["curriculum_gap"]),
+            "language_detected": _detect_answer_language(answer),
+            "model_score": None,
+        }
     if activity.get("answer_rule") != "concept_slots":
         correct = _answer_matches(activity, answer)
         return {
@@ -2534,6 +5707,49 @@ def evaluate_deterministic_answer(
 _evaluate_deterministic_answer = evaluate_deterministic_answer
 
 
+def _wrong_answer_misconception_tags(
+    activity: dict[str, Any],
+    answer: str,
+) -> list[str]:
+    normalized_answer = _normalize(answer)
+    for option, tags in (
+        activity.get("wrong_answer_misconception_tags") or {}
+    ).items():
+        if _normalize(str(option)) == normalized_answer:
+            return list(dict.fromkeys(str(tag) for tag in tags))
+    return []
+
+
+def _bounded_remediation_tags(
+    activity: dict[str, Any],
+    answer_evaluation: dict[str, Any],
+    *,
+    correct: bool,
+) -> list[str]:
+    if correct:
+        return []
+    authored_tags = [
+        str(tag) for tag in activity.get("target_misconception_tags") or []
+    ]
+    allowed_tags = set(authored_tags)
+    evaluated_tags = [
+        str(tag)
+        for tag in answer_evaluation.get("misconception_tags") or []
+        if str(tag) in allowed_tags
+    ]
+    criterion_mapping = activity.get("criterion_misconception_tags") or {}
+    criterion_tags = [
+        str(tag)
+        for criterion_id in answer_evaluation.get("missing_criteria") or []
+        for tag in criterion_mapping.get(str(criterion_id), [])
+        if str(tag) in allowed_tags
+    ]
+    specific_tags = list(dict.fromkeys(evaluated_tags + criterion_tags))
+    if specific_tags:
+        return specific_tags
+    return authored_tags if len(authored_tags) == 1 else []
+
+
 def _detect_answer_language(answer: str) -> str:
     if re.search(r"[\u0900-\u097f]", answer):
         return "hi"
@@ -2600,6 +5816,75 @@ _NEGATION_WORDS = {
     "won",
     "wouldn",
 }
+_AUTHORED_PREFIX_NEGATION_WORDS = frozenset(
+    _NEGATION_WORDS
+    | {
+        "hadn",
+        "hasn",
+        "haven",
+        "mightn",
+        "mustn",
+        "needn",
+        "shan",
+        "shouldn",
+    }
+)
+_AUTHORED_HARD_BOUNDARY_RE = re.compile(r"[.!?;]+")
+_AUTHORED_CONTINUATION_BOUNDARY_RE = re.compile(r"[:\n]+")
+_AUTHORED_COMMA_RE = re.compile(",")
+_AUTHORED_COORDINATORS = frozenset(
+    {"and", "but", "however", "then", "yet"}
+)
+_AUTHORED_PREDICATE_COORDINATORS = frozenset(
+    {"but", "however", "then", "yet"}
+)
+_AUTHORED_CLAUSE_SUBJECT_CONNECTORS = frozenset(
+    {"although", "and", "because", "whereas", "while"}
+)
+_AUTHORED_PROPOSITION_CONNECTORS = (
+    _AUTHORED_CLAUSE_SUBJECT_CONNECTORS | _AUTHORED_PREDICATE_COORDINATORS
+)
+_AUTHORED_CLAUSE_LEADERS = frozenset(
+    {"also", "instead", "now", "still", "then"}
+)
+_AUTHORED_SUBJECT_PRONOUNS = frozenset(
+    {"he", "i", "it", "she", "they", "we", "you"}
+)
+_AUTHORED_KNOWN_PROPER_SUBJECTS = frozenset({"isha"})
+_AUTHORED_SUBJECT_DETERMINERS = frozenset(
+    {"a", "an", "that", "the", "these", "this", "those"}
+)
+_AUTHORED_FINITE_AUXILIARIES = frozenset(
+    {
+        "am",
+        "are",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "had",
+        "has",
+        "have",
+        "is",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "should",
+        "was",
+        "were",
+        "will",
+        "would",
+    }
+)
+_AUTHORED_WITHOUT_MODIFIERS = frozenset(
+    {"actually", "completely", "even", "ever", "fully", "properly", "really"}
+)
+_AUTHORED_POSTPOSED_DENIAL_RE = re.compile(
+    r"\b(?:assertion|claim|idea|report|statement)\s+that\b.*"
+    r"\b(?:(?:is|was)\s+not|(?:isn|wasn)\s+t)\s+true\b"
+)
 _CONCEPT_TOKEN_ALIASES = {
     "blended": "blend",
     "blending": "blend",
@@ -2637,6 +5922,10 @@ _CONCEPT_TOKEN_ALIASES = {
     "uses": "use",
     "used": "use",
     "using": "use",
+    "wipe": "clean",
+    "wiped": "clean",
+    "wipes": "clean",
+    "wiping": "clean",
 }
 
 
@@ -2651,7 +5940,12 @@ def _concept_token(word: str) -> str:
     return word
 
 
-def _concept_phrase_spans(text: str, phrase: str) -> list[tuple[int, int]]:
+def _concept_phrase_spans(
+    text: str,
+    phrase: str,
+    *,
+    enforce_polarity: bool = True,
+) -> list[tuple[int, int]]:
     answer_words = text.split()
     phrase_words = phrase.split()
     expected_has_negation = _has_negation(phrase_words)
@@ -2662,7 +5956,7 @@ def _concept_phrase_spans(text: str, phrase: str) -> list[tuple[int, int]]:
     ]
 
     def allowed(span: tuple[int, int]) -> bool:
-        if expected_has_negation:
+        if not enforce_polarity or expected_has_negation:
             return True
         start, end = span
         if _has_negation(answer_words[max(0, start - 3) : end]):
@@ -2748,6 +6042,384 @@ def _concept_phrase_spans(text: str, phrase: str) -> list[tuple[int, int]]:
     return []
 
 
+def _first_word_at_or_after(
+    source_words: list[re.Match[str]],
+    offset: int,
+) -> int:
+    return next(
+        (
+            index
+            for index, word_match in enumerate(source_words)
+            if word_match.start() >= offset
+        ),
+        len(source_words),
+    )
+
+
+def _authored_clause_lookahead_limit(
+    answer: str,
+    source_words: list[re.Match[str]],
+    offset: int,
+) -> int:
+    boundary_offsets = [len(answer)]
+    for pattern in (
+        _AUTHORED_HARD_BOUNDARY_RE,
+        _AUTHORED_CONTINUATION_BOUNDARY_RE,
+    ):
+        if match := pattern.search(answer, offset):
+            boundary_offsets.append(match.start())
+    return _first_word_at_or_after(source_words, min(boundary_offsets))
+
+
+def _starts_authored_clause(
+    source_words: list[re.Match[str]],
+    word_values: list[str],
+    start: int,
+    subject_limit: int,
+    *,
+    predicate_limit: int | None = None,
+) -> bool:
+    if predicate_limit is None:
+        predicate_limit = subject_limit
+    cursor = start
+    while (
+        cursor < subject_limit
+        and word_values[cursor] in _AUTHORED_CLAUSE_LEADERS
+    ):
+        cursor += 1
+    if cursor >= subject_limit:
+        return False
+    if word_values[cursor] in _AUTHORED_SUBJECT_PRONOUNS:
+        return True
+    if word_values[cursor] in _AUTHORED_SUBJECT_DETERMINERS:
+        if cursor + 1 >= subject_limit:
+            return False
+        for index in range(cursor + 2, predicate_limit):
+            if word_values[index] in _AUTHORED_PROPOSITION_CONNECTORS:
+                return False
+            surface = word_values[index]
+            separator = source_words[index].string[
+                source_words[index - 1].end() : source_words[index].start()
+            ]
+            if surface in _AUTHORED_FINITE_AUXILIARIES or (
+                surface.endswith("ed") and separator != "-"
+            ):
+                return True
+        return False
+    if source_words[cursor].group(0)[:1].isupper():
+        return True
+    return word_values[cursor] in _AUTHORED_KNOWN_PROPER_SUBJECTS
+
+
+def _authored_clause_subject_boundary_count(
+    source_words: list[re.Match[str]],
+    word_values: list[str],
+    start: int,
+    end: int,
+    *,
+    predicate_limit: int | None = None,
+) -> int:
+    return sum(
+        word_values[index] in _AUTHORED_CLAUSE_SUBJECT_CONNECTORS
+        and _starts_authored_clause(
+            source_words,
+            word_values,
+            index + 1,
+            end,
+            predicate_limit=predicate_limit,
+        )
+        for index in range(start + 1, end)
+    )
+
+
+def _has_authored_negation(words: list[str]) -> bool:
+    return bool(
+        _AUTHORED_PREFIX_NEGATION_WORDS.intersection(words)
+        or any(left == "can" and right == "t" for left, right in zip(words, words[1:]))
+    )
+
+
+def _authored_target_surface_is_finite(
+    source_words: list[re.Match[str]],
+    target_start: int,
+) -> bool:
+    surface = source_words[target_start].group(0).casefold()
+    return surface.endswith("ed") or (
+        len(surface) > 3 and surface.endswith("s") and not surface.endswith("ss")
+    )
+
+
+def _authored_coordinator_starts_predicate(
+    source_words: list[re.Match[str]],
+    word_values: list[str],
+    index: int,
+    limit: int,
+    *,
+    scope_start: int,
+    concept_spans: list[tuple[int, int]],
+    target_start: int,
+) -> bool:
+    coordinator = word_values[index]
+    if coordinator in _AUTHORED_PREDICATE_COORDINATORS:
+        return True
+    if coordinator != "and":
+        return False
+    if _starts_authored_clause(
+        source_words,
+        word_values,
+        index + 1,
+        limit,
+        predicate_limit=(
+            min(limit + 1, len(source_words))
+            if target_start == limit
+            else limit
+        ),
+    ):
+        return True
+    target_started_before_coordinator = any(
+        scope_start <= span_start < index for span_start, _ in concept_spans
+    )
+    return (
+        _has_authored_negation(word_values[scope_start:index])
+        and not target_started_before_coordinator
+        and target_start > index
+        and _authored_target_surface_is_finite(source_words, target_start)
+    )
+
+
+def _authored_proposition_bounds(
+    answer: str,
+    source_words: list[re.Match[str]],
+    start: int,
+    end: int,
+    *,
+    concept_spans: list[tuple[int, int]],
+) -> tuple[int, int, int, int]:
+    word_values = [word.group(0).casefold() for word in source_words]
+    concept_start = source_words[start].start()
+    concept_end = source_words[end - 1].end()
+    hard_start = max(
+        (
+            match.end()
+            for match in _AUTHORED_HARD_BOUNDARY_RE.finditer(
+                answer,
+                0,
+                concept_start,
+            )
+        ),
+        default=0,
+    )
+    hard_end_match = next(
+        _AUTHORED_HARD_BOUNDARY_RE.finditer(answer, concept_end),
+        None,
+    )
+    hard_end = hard_end_match.start() if hard_end_match else len(answer)
+    scope_start = _first_word_at_or_after(source_words, hard_start)
+    scope_end = _first_word_at_or_after(source_words, hard_end)
+
+    start_candidates = [scope_start]
+    for boundary in _AUTHORED_CONTINUATION_BOUNDARY_RE.finditer(
+        answer,
+        hard_start,
+        concept_start,
+    ):
+        candidate = _first_word_at_or_after(source_words, boundary.end())
+        if candidate < start and _starts_authored_clause(
+            source_words,
+            word_values,
+            candidate,
+            start,
+            predicate_limit=min(start + 1, len(source_words)),
+        ):
+            start_candidates.append(candidate)
+    for comma in _AUTHORED_COMMA_RE.finditer(answer, hard_start, concept_start):
+        candidate = _first_word_at_or_after(source_words, comma.end())
+        if candidate < start and _starts_authored_clause(
+            source_words,
+            word_values,
+            candidate,
+            start,
+            predicate_limit=min(start + 1, len(source_words)),
+        ):
+            start_candidates.append(candidate)
+    for index in range(scope_start, start):
+        if (
+            word_values[index] in _AUTHORED_COORDINATORS
+            and _authored_coordinator_starts_predicate(
+                source_words,
+                word_values,
+                index,
+                start,
+                scope_start=max(start_candidates),
+                concept_spans=concept_spans,
+                target_start=start,
+            )
+        ):
+            start_candidates.append(index + 1)
+    scope_start = max(start_candidates)
+
+    end_candidates: list[tuple[int, int]] = []
+    for boundary in _AUTHORED_CONTINUATION_BOUNDARY_RE.finditer(
+        answer,
+        concept_end,
+        hard_end,
+    ):
+        candidate = _first_word_at_or_after(source_words, boundary.end())
+        if candidate < scope_end and _starts_authored_clause(
+            source_words,
+            word_values,
+            candidate,
+            scope_end,
+        ):
+            end_candidates.append((boundary.start(), candidate))
+    for comma in _AUTHORED_COMMA_RE.finditer(answer, concept_end, hard_end):
+        candidate = _first_word_at_or_after(source_words, comma.end())
+        if candidate < scope_end and _starts_authored_clause(
+            source_words,
+            word_values,
+            candidate,
+            scope_end,
+        ):
+            end_candidates.append((comma.start(), candidate))
+    for index in range(end, scope_end):
+        if (
+            word_values[index] in _AUTHORED_COORDINATORS
+            and _authored_coordinator_starts_predicate(
+                source_words,
+                word_values,
+                index,
+                scope_end,
+                scope_start=scope_start,
+                concept_spans=concept_spans,
+                target_start=start,
+            )
+        ):
+            end_candidates.append((source_words[index].start(), index))
+    if end_candidates:
+        hard_end, scope_end = min(end_candidates)
+
+    scope_start_char = (
+        source_words[scope_start].start() if scope_start < len(source_words) else 0
+    )
+    return scope_start, scope_end, scope_start_char, hard_end
+
+
+def _authored_concept_span_is_affirmative(
+    answer: str,
+    source_words: list[re.Match[str]],
+    start: int,
+    end: int,
+    *,
+    allowed_clause_subject_boundaries: int,
+    concept_spans: list[tuple[int, int]],
+) -> bool:
+    word_values = [word.group(0).casefold() for word in source_words]
+    span_content_start = source_words[start].end()
+    span_content_end = source_words[end - 1].start()
+    predicate_limit = _authored_clause_lookahead_limit(
+        answer,
+        source_words,
+        source_words[end - 1].end(),
+    )
+    if (
+        _AUTHORED_HARD_BOUNDARY_RE.search(
+            answer,
+            span_content_start,
+            span_content_end,
+        )
+        or _AUTHORED_CONTINUATION_BOUNDARY_RE.search(
+            answer,
+            span_content_start,
+            span_content_end,
+        )
+        or any(
+            word_values[index] in _AUTHORED_PREDICATE_COORDINATORS
+            for index in range(start + 1, end)
+        )
+        or _authored_clause_subject_boundary_count(
+            source_words,
+            word_values,
+            start,
+            end,
+            predicate_limit=predicate_limit,
+        )
+        > allowed_clause_subject_boundaries
+    ):
+        return False
+    scope_start, scope_end, scope_start_char, scope_end_char = (
+        _authored_proposition_bounds(
+            answer,
+            source_words,
+            start,
+            end,
+            concept_spans=concept_spans,
+        )
+    )
+    prefix = word_values[scope_start:start]
+    matched_words = word_values[start:end]
+    proposition = word_values[scope_start:scope_end]
+    if _has_authored_negation(prefix) or _has_authored_negation(matched_words):
+        return False
+    if "neither" in prefix and "nor" in proposition:
+        return False
+
+    concept_word = word_values[start]
+    without_index = next(
+        (
+            index
+            for index in range(start - 1, scope_start - 1, -1)
+            if word_values[index] == "without"
+        ),
+        None,
+    )
+    if (
+        concept_word.endswith("ing")
+        and without_index is not None
+        and all(
+            word in _AUTHORED_WITHOUT_MODIFIERS
+            for word in word_values[without_index + 1 : start]
+        )
+    ):
+        return False
+
+    proposition_text = _normalize(answer[scope_start_char:scope_end_char])
+    return not _AUTHORED_POSTPOSED_DENIAL_RE.search(proposition_text)
+
+
+def _authored_concept_evidence_quote(answer: str, alias: str) -> str | None:
+    normalized_answer = _normalize(answer)
+    spans = _concept_phrase_spans(
+        normalized_answer,
+        _normalize(alias),
+        enforce_polarity=False,
+    )
+    if not spans:
+        return None
+    raw_words = list(re.finditer(r"[a-z0-9]+", answer, flags=re.IGNORECASE))
+    alias_words = list(re.finditer(r"[a-z0-9]+", alias, flags=re.IGNORECASE))
+    alias_word_values = [word.group(0).casefold() for word in alias_words]
+    allowed_clause_subject_boundaries = _authored_clause_subject_boundary_count(
+        alias_words,
+        alias_word_values,
+        0,
+        len(alias_words),
+    )
+    for start, end in sorted(spans, key=lambda span: (span[1] - span[0], span[0])):
+        if start < 0 or end <= start or end > len(raw_words):
+            continue
+        if not _authored_concept_span_is_affirmative(
+            answer,
+            raw_words,
+            start,
+            end,
+            allowed_clause_subject_boundaries=allowed_clause_subject_boundaries,
+            concept_spans=spans,
+        ):
+            continue
+        return answer[raw_words[start].start() : raw_words[end - 1].end()]
+    return None
+
+
 def _has_negation(words: list[str]) -> bool:
     return bool(
         _NEGATION_WORDS.intersection(words)
@@ -2777,7 +6449,20 @@ def _accepted_phrase_matches(cleaned_answer: str, expected: str) -> bool:
     return False
 
 
+def accepted_answer_matches(answer: str, accepted_answers: list[str]) -> bool:
+    """Accept an authored answer phrase inside a non-negated full response."""
+
+    cleaned_answer = _normalize(answer)
+    return any(
+        _accepted_phrase_matches(cleaned_answer, _normalize(expected))
+        for expected in accepted_answers
+    )
+
+
 def _open_answer_preflight(activity: dict[str, Any], answer: str) -> bool:
+    min_response_words = int(activity.get("min_response_words") or 0)
+    if min_response_words and len(_normalize(answer).split()) < min_response_words:
+        return False
     rule = activity.get("preflight_rule")
     if rule == "journey_paragraph_80_100":
         return _matches_journey_paragraph(answer)
@@ -2874,12 +6559,31 @@ def decide_open_answer_evaluation(
             else raw_evaluation.model_dump()
         )
     )
+    strict_open = activity.get("grading_mode") == "strict_open_rubric"
+    strict_validated = (
+        validate_school_open_evaluation(
+            evaluation,
+            context=school_open_context_from_activity(activity, answer),
+        )
+        if strict_open
+        else None
+    )
+    initial_backend_blockers = set(
+        strict_validated.backend_blockers if strict_validated is not None else ()
+    )
+    if strict_validated is not None:
+        evaluation = strict_validated.evaluation
     authored_criteria = list(activity.get("rubric_criteria") or [])
     authored_ids = [str(criterion.get("id") or "") for criterion in authored_criteria]
     evaluated_ids = [criterion.id for criterion in evaluation.criteria]
     if (
         activity.get("evaluation_mode") != "llm_rubric"
-        or evaluation.schema_version != RUBRIC_SCHEMA_VERSION
+        or evaluation.schema_version
+        != (
+            OPEN_RUBRIC_SCHEMA_VERSION
+            if strict_open
+            else RUBRIC_SCHEMA_VERSION
+        )
         or evaluation.item_id != activity.get("activity_id")
         or set(evaluation.skill_ids) != set(activity.get("skill_ids") or [])
         or len(evaluation.skill_ids) != len(set(evaluation.skill_ids))
@@ -2890,30 +6594,31 @@ def decide_open_answer_evaluation(
     ):
         raise ValueError("invalid_open_answer_evaluation_contract")
 
-    normalized_answer = _normalize(answer)
-    canonical_criteria = []
-    for criterion in evaluation.criteria:
-        quote = _normalize(criterion.evidence_quote)
-        traceable = bool(
-            quote
-            and quote not in {"empty answer", "(empty answer)"}
-            and quote in normalized_answer
-        )
-        if traceable:
-            canonical_criteria.append(criterion)
-            continue
-        canonical_criteria.append(
-            criterion.model_copy(
-                update={
-                    "evidence_quote": (
-                        answer.strip()
-                        if criterion.met and answer.strip()
-                        else "(empty answer)"
-                    )
-                }
+    if not strict_open:
+        normalized_answer = _normalize(answer)
+        canonical_criteria = []
+        for criterion in evaluation.criteria:
+            quote = _normalize(criterion.evidence_quote)
+            traceable = bool(
+                quote
+                and quote not in {"empty answer", "(empty answer)"}
+                and quote in normalized_answer
             )
-        )
-    evaluation = evaluation.model_copy(update={"criteria": canonical_criteria})
+            if traceable:
+                canonical_criteria.append(criterion)
+                continue
+            canonical_criteria.append(
+                criterion.model_copy(
+                    update={
+                        "evidence_quote": (
+                            answer.strip()
+                            if criterion.met and answer.strip()
+                            else "(empty answer)"
+                        )
+                    }
+                )
+            )
+        evaluation = evaluation.model_copy(update={"criteria": canonical_criteria})
 
     required = [criterion for criterion in authored_criteria if criterion.get("required", True)]
     model_failed_criterion_ids = {
@@ -2938,6 +6643,7 @@ def decide_open_answer_evaluation(
                 "criteria": [
                     _backend_owned_open_answer_criterion(
                         criterion,
+                        activity=activity,
                         passage=passage,
                         answer=answer,
                         criterion_by_id=canonical_by_id,
@@ -2946,6 +6652,12 @@ def decide_open_answer_evaluation(
                 ]
             }
         )
+        if strict_open:
+            strict_validated = validate_school_open_evaluation(
+                evaluation,
+                context=school_open_context_from_activity(activity, answer),
+            )
+            evaluation = strict_validated.evaluation
 
     criterion_by_id = {criterion.id: criterion for criterion in evaluation.criteria}
     scored_ids = [str(criterion["id"]) for criterion in required] or authored_ids
@@ -2962,15 +6674,21 @@ def decide_open_answer_evaluation(
     blockers = [
         blocker
         for blocker in evaluation.blockers
-        if blocker != "needs_human_review" or not human_review_resolved
+        if blocker not in initial_backend_blockers
+        and (blocker != "needs_human_review" or not human_review_resolved)
     ]
+    if strict_validated is not None:
+        blockers.extend(strict_validated.backend_blockers)
     if (
         evaluation.needs_human_review
         and not human_review_resolved
         and "needs_human_review" not in blockers
     ):
         blockers.append("needs_human_review")
-    if evaluation.language_detected.strip().lower() not in {"en", "english"}:
+    if (
+        activity.get("certifying_language") == "en"
+        and evaluation.language_detected != "en"
+    ):
         blockers.append("language_mismatch")
     if evaluation.confidence < 0.65:
         blockers.append("low_evaluator_confidence")
@@ -2996,10 +6714,37 @@ def decide_open_answer_evaluation(
 def _backend_owned_open_answer_criterion(
     criterion: Any,
     *,
+    activity: dict[str, Any],
     passage: str,
     answer: str,
     criterion_by_id: dict[str, Any],
 ) -> Any:
+    if criterion.id == "complete_response":
+        inference = criterion_by_id.get("plausible_inference")
+        clue = criterion_by_id.get("relevant_text_clue")
+        complete_inference = bool(
+            inference
+            and clue
+            and inference.met
+            and clue.met
+            and len(_normalize(answer).split()) >= 5
+            and _open_answer_preflight(activity, answer)
+            and inference_clue_is_explicitly_linked(
+                passage=passage,
+                answer=answer,
+                inference_quote=inference.evidence_quote,
+                clue_quote=clue.evidence_quote,
+            )
+        )
+        if complete_inference:
+            return criterion.model_copy(
+                update={
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": answer.strip(),
+                }
+            )
+        return criterion
     if criterion.id == "clue_supports_inference":
         inference = criterion_by_id.get("plausible_inference")
         clue = criterion_by_id.get("relevant_text_clue")
@@ -3042,6 +6787,85 @@ def _backend_owned_open_answer_criterion(
                 }
             )
         return criterion
+    detail_match = re.fullmatch(r"(.+):detail_[0-9]+", criterion.id)
+    if detail_match and not criterion.met:
+        parent = criterion_by_id.get(detail_match.group(1))
+        normalized_answer = _normalize(answer)
+        concept_slots = [
+            slot
+            for slot in activity.get("concept_slots") or []
+            if isinstance(slot, dict) and slot.get("id")
+        ]
+        all_authored_slots_visible = bool(concept_slots) and all(
+            any(
+                _concept_phrase_spans(normalized_answer, _normalize(str(alias)))
+                for alias in slot.get("any_of") or []
+                if str(alias).strip()
+            )
+            for slot in concept_slots
+        )
+        if (
+            parent is not None
+            and parent.met
+            and parent.quality >= 0.6
+            and all_authored_slots_visible
+            and _open_answer_preflight(activity, answer)
+        ):
+            return criterion.model_copy(
+                update={
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": answer.strip(),
+                }
+            )
+        return criterion
+    authored_criterion = next(
+        (
+            item
+            for item in activity.get("rubric_criteria") or []
+            if isinstance(item, dict)
+            and str(item.get("id") or "") == criterion.id
+        ),
+        None,
+    )
+    authored_min_quality = float(
+        (authored_criterion or {}).get("min_quality", 0.6)
+    )
+    if not criterion.met or criterion.quality < authored_min_quality:
+        authored_slot = next(
+            (
+                slot
+                for slot in activity.get("concept_slots") or []
+                if isinstance(slot, dict) and str(slot.get("id") or "") == criterion.id
+            ),
+            None,
+        )
+        authored_evidence_quote = next(
+            (
+                quote
+                for alias in (authored_slot or {}).get("any_of") or []
+                if str(alias).strip()
+                and authored_evidence_can_prove_criterion(
+                    str((authored_slot or {}).get("description") or ""),
+                    str(alias),
+                )
+                and (
+                    quote := _authored_concept_evidence_quote(
+                        answer,
+                        str(alias),
+                    )
+                )
+            ),
+            None,
+        )
+        if authored_evidence_quote and _open_answer_preflight(activity, answer):
+            return criterion.model_copy(
+                update={
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": authored_evidence_quote,
+                }
+            )
     if criterion.id != "own_words":
         return criterion
     if len(_normalize(answer).split()) < 4 or len(_normalize(passage).split()) < 4:
@@ -3165,7 +6989,7 @@ def _open_answer_preflight_failure(activity: dict[str, Any]) -> dict[str, Any]:
         ],
         "misconception_tags": ["open_answer_structure_incomplete"],
         "blockers": ["open_answer_preflight_failed"],
-        "language_detected": "undetermined",
+        "language_detected": "unknown",
     }
 
 

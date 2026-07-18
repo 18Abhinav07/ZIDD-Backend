@@ -7,7 +7,11 @@ from fastapi.testclient import TestClient
 
 from app.api import school_rebuild_routes
 from app.main import app
-from app.services.school.evaluator_contract import RUBRIC_SCHEMA_VERSION
+from app.services import school_rebuild_recap as recap
+from app.services.school.evaluator_contract import (
+    OPEN_RUBRIC_SCHEMA_VERSION,
+    RUBRIC_SCHEMA_VERSION,
+)
 
 AUTH = {"Authorization": "Bearer test_token"}
 
@@ -19,7 +23,11 @@ def _trusted_open_answer_evaluator(monkeypatch):
         answer = kwargs["answer"]
         passed = answer != "wrong"
         return {
-            "schema_version": RUBRIC_SCHEMA_VERSION,
+            "schema_version": (
+                OPEN_RUBRIC_SCHEMA_VERSION
+                if activity.get("grading_mode") == "strict_open_rubric"
+                else RUBRIC_SCHEMA_VERSION
+            ),
             "item_id": activity["activity_id"],
             "skill_ids": activity["skill_ids"],
             "score": 1.0 if passed else 0.0,
@@ -121,6 +129,18 @@ def _start_recap(client: TestClient) -> dict:
     return response.json()
 
 
+def _passing_answer(store, session_id: str, activity_id: str) -> str:
+    row = _run(store.get_school_session("test_user", session_id))
+    activity = recap.recap_activity_for_answer(
+        row["state_json"],
+        activity_id=activity_id,
+    )
+    accepted_answers = list(activity.get("accepted_answers") or [])
+    if accepted_answers:
+        return str(accepted_answers[0])
+    return "The passage gives a clear clue, so this answer is supported."
+
+
 def _assert_no_hidden_keys(payload: Any) -> None:
     forbidden = {"answer_key", "accepted_answers", "model_answer", "rubric", "threshold"}
     if isinstance(payload, dict):
@@ -142,15 +162,22 @@ def test_school_recap_wrong_guided_answer_opens_bridge_support(store):
     response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": guided["activity_id"], "answer": "reads"},
+        json={"activity_id": guided["activity_id"], "answer": "wrong"},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["last_feedback"]["correct"] is False
+    assert body["last_feedback"]["next_move"] == {
+        "stage": "bridge",
+        "focus": guided["focus"],
+        "strategy": "Answer the exact question first, then add the passage detail that makes the answer complete.",
+    }
     assert body["current_activity"]["kind"] == "bridge"
     assert body["current_activity"]["module_id"] == guided["module_id"]
-    assert "Slow down" in body["current_activity"]["teaching_block"]
+    teaching_block = body["current_activity"]["teaching_block"]
+    assert teaching_block.startswith("Question ke main words pakdo")
+    assert "Use this clue before trying again:" in teaching_block
     assert body["modules"][0]["status"] == "in_progress"
     _assert_no_hidden_keys(body)
 
@@ -165,7 +192,7 @@ def test_school_recap_repeated_miss_opens_masterclass_and_correct_answer_returns
     bridge_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": guided["activity_id"], "answer": "reads"},
+        json={"activity_id": guided["activity_id"], "answer": "wrong"},
     )
     assert bridge_response.status_code == 200
     bridge = bridge_response.json()["current_activity"]
@@ -173,7 +200,7 @@ def test_school_recap_repeated_miss_opens_masterclass_and_correct_answer_returns
     masterclass_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": bridge["activity_id"], "answer": "tells"},
+        json={"activity_id": bridge["activity_id"], "answer": "wrong"},
     )
 
     assert masterclass_response.status_code == 200
@@ -188,7 +215,14 @@ def test_school_recap_repeated_miss_opens_masterclass_and_correct_answer_returns
     recovered_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": masterclass["activity_id"], "answer": "teacher"},
+        json={
+            "activity_id": masterclass["activity_id"],
+            "answer": _passing_answer(
+                store,
+                session_id,
+                masterclass["activity_id"],
+            ),
+        },
     )
 
     assert recovered_response.status_code == 200
@@ -211,7 +245,7 @@ def test_school_recap_repeated_miss_opens_masterclass_and_correct_answer_returns
     assert [float(event["score"]) for event in events] == [0.0, 0.0, 1.0]
 
 
-def test_school_recap_masterclass_miss_stays_in_masterclass_and_records_each_attempt(store):
+def test_school_recap_masterclass_miss_opens_bounded_revision_and_records_each_attempt(store):
     _seed_school_profile(store)
     client = TestClient(app)
     body = _start_recap(client)
@@ -221,37 +255,44 @@ def test_school_recap_masterclass_miss_stays_in_masterclass_and_records_each_att
     bridge = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": guided["activity_id"], "answer": "reads"},
+        json={"activity_id": guided["activity_id"], "answer": "wrong"},
     ).json()["current_activity"]
     masterclass = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": bridge["activity_id"], "answer": "tells"},
+        json={"activity_id": bridge["activity_id"], "answer": "wrong"},
     ).json()["current_activity"]
 
     still_learning_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": masterclass["activity_id"], "answer": "book"},
+        json={"activity_id": masterclass["activity_id"], "answer": "wrong"},
     )
 
     assert still_learning_response.status_code == 200
     still_learning = still_learning_response.json()
     assert still_learning["last_feedback"]["correct"] is False
-    assert still_learning["current_activity"]["kind"] == "masterclass"
+    assert still_learning["current_activity"]["kind"] == "revision_level_1"
     assert still_learning["current_activity"]["activity_id"] != masterclass["activity_id"]
-    assert still_learning["current_activity"]["attempt_no"] == 2
+    assert still_learning["current_activity"]["attempt_no"] == 1
     _assert_no_hidden_keys(still_learning)
 
     recovered_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": still_learning["current_activity"]["activity_id"], "answer": "teacher"},
+        json={
+            "activity_id": still_learning["current_activity"]["activity_id"],
+            "answer": _passing_answer(
+                store,
+                session_id,
+                still_learning["current_activity"]["activity_id"],
+            ),
+        },
     )
 
     assert recovered_response.status_code == 200
     recovered = recovered_response.json()
-    assert recovered["current_activity"]["kind"] == "independent_check"
+    assert recovered["current_activity"]["kind"] == "revision_level_2"
 
     events = [
         row
@@ -263,7 +304,7 @@ def test_school_recap_masterclass_miss_stays_in_masterclass_and_records_each_att
         "guided_check",
         "bridge",
         "masterclass",
-        "masterclass",
+        "revision_level_1",
     ]
     assert [float(event["score"]) for event in events] == [0.0, 0.0, 0.0, 1.0]
 
@@ -272,41 +313,48 @@ def _open_revision_levels(client: TestClient, session_id: str, guided: dict) -> 
     bridge = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": guided["activity_id"], "answer": "reads"},
+        json={"activity_id": guided["activity_id"], "answer": "wrong"},
     ).json()["current_activity"]
     masterclass = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": bridge["activity_id"], "answer": "tells"},
-    ).json()["current_activity"]
-    still_masterclass = client.post(
-        f"/school/recap/{session_id}/answer",
-        headers=AUTH,
-        json={"activity_id": masterclass["activity_id"], "answer": "book"},
+        json={"activity_id": bridge["activity_id"], "answer": "wrong"},
     ).json()["current_activity"]
     response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": still_masterclass["activity_id"], "answer": "book"},
+        json={"activity_id": masterclass["activity_id"], "answer": "wrong"},
     )
     assert response.status_code == 200
     return response.json()
 
 
-def test_school_recap_second_masterclass_miss_expands_revision_levels(store):
+def test_school_recap_revision_miss_stays_on_current_revision_level(store):
     _seed_school_profile(store)
     client = TestClient(app)
     body = _start_recap(client)
     session_id = body["session_id"]
     guided = body["current_activity"]
+    focus = guided["focus"]
 
     body = _open_revision_levels(client, session_id, guided)
 
+    revision = body["current_activity"]
+    assert revision["kind"] == "revision_level_1"
+
+    response = client.post(
+        f"/school/recap/{session_id}/answer",
+        headers=AUTH,
+        json={"activity_id": revision["activity_id"], "answer": "wrong"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
     assert body["last_feedback"]["correct"] is False
-    assert body["last_feedback"]["message"] == "This needs a short revision run before trying again."
+    assert body["last_feedback"]["message"] == "Not yet. Stay on this revision level and rebuild the clue."
     assert body["current_activity"]["kind"] == "revision_level_1"
     assert body["current_activity"]["module_id"] == guided["module_id"]
-    assert body["current_activity"]["title"] == "Revision 1: Recognize naming words"
+    assert body["current_activity"]["title"] == f"Revision 1: {focus}"
     assert "Revision level 1" in body["current_activity"]["teaching_block"]
     assert body["modules"][0]["status"] == "in_progress"
     _assert_no_hidden_keys(body)
@@ -321,7 +369,7 @@ def test_school_recap_second_masterclass_miss_expands_revision_levels(store):
         "guided_check",
         "bridge",
         "masterclass",
-        "masterclass",
+        "revision_level_1",
     ]
     assert [float(event["score"]) for event in events] == [0.0, 0.0, 0.0, 0.0]
 
@@ -331,6 +379,7 @@ def test_school_recap_revision_levels_return_to_independent_check(store):
     client = TestClient(app)
     body = _start_recap(client)
     session_id = body["session_id"]
+    focus = body["current_activity"]["focus"]
 
     body = _open_revision_levels(client, session_id, body["current_activity"])
     revision_1 = body["current_activity"]
@@ -338,28 +387,49 @@ def test_school_recap_revision_levels_return_to_independent_check(store):
     revision_2_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": revision_1["activity_id"], "answer": "teacher"},
+        json={
+            "activity_id": revision_1["activity_id"],
+            "answer": _passing_answer(
+                store,
+                session_id,
+                revision_1["activity_id"],
+            ),
+        },
     )
     assert revision_2_response.status_code == 200
     revision_2_body = revision_2_response.json()
     assert revision_2_body["last_feedback"]["correct"] is True
     assert revision_2_body["current_activity"]["kind"] == "revision_level_2"
-    assert revision_2_body["current_activity"]["title"] == "Revision 2: Recognize naming words"
+    assert revision_2_body["current_activity"]["title"] == f"Revision 2: {focus}"
 
     revision_3_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": revision_2_body["current_activity"]["activity_id"], "answer": "flower"},
+        json={
+            "activity_id": revision_2_body["current_activity"]["activity_id"],
+            "answer": _passing_answer(
+                store,
+                session_id,
+                revision_2_body["current_activity"]["activity_id"],
+            ),
+        },
     )
     assert revision_3_response.status_code == 200
     revision_3_body = revision_3_response.json()
     assert revision_3_body["current_activity"]["kind"] == "revision_level_3"
-    assert revision_3_body["current_activity"]["title"] == "Revision 3: Recognize naming words"
+    assert revision_3_body["current_activity"]["title"] == f"Revision 3: {focus}"
 
     independent_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": revision_3_body["current_activity"]["activity_id"], "answer": "teacher"},
+        json={
+            "activity_id": revision_3_body["current_activity"]["activity_id"],
+            "answer": _passing_answer(
+                store,
+                session_id,
+                revision_3_body["current_activity"]["activity_id"],
+            ),
+        },
     )
     assert independent_response.status_code == 200
     independent = independent_response.json()
@@ -378,9 +448,8 @@ def test_school_recap_revision_levels_return_to_independent_check(store):
         "guided_check",
         "bridge",
         "masterclass",
-        "masterclass",
         "revision_level_1",
         "revision_level_2",
         "revision_level_3",
     ]
-    assert [float(event["score"]) for event in events] == [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+    assert [float(event["score"]) for event in events] == [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]

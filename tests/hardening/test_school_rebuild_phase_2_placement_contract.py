@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -9,8 +10,11 @@ from fastapi.testclient import TestClient
 
 from app.api import school_rebuild_routes
 from app.content.school_rebuild_placement_bank import PlacementBand, placement_tracks_for
+from app.db import repo as db_repo
 from app.main import app
 from app.services import school_rebuild_placement as placement
+from app.services import school_rebuild_state as school_state_service
+from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 
 AUTH = {"Authorization": "Bearer test_token"}
 
@@ -83,7 +87,7 @@ def _stub_failing_open_placement_evaluator(monkeypatch) -> None:
         activity = kwargs["activity"]
         answer = kwargs["answer"]
         return {
-            "schema_version": "school-v3-rubric-1",
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
             "item_id": activity["activity_id"],
             "skill_ids": list(activity["skill_ids"]),
             "score": 0.0,
@@ -115,8 +119,17 @@ def _stub_passing_open_placement_evaluator(monkeypatch) -> None:
     async def evaluate(**kwargs):
         activity = kwargs["activity"]
         answer = kwargs["answer"]
+        inference, separator, clue = answer.partition(" because ")
+
+        def evidence_quote(criterion_id: str) -> str:
+            if separator and criterion_id == "plausible_inference":
+                return inference.strip()
+            if separator and criterion_id == "relevant_text_clue":
+                return clue.strip()
+            return answer.strip()
+
         return {
-            "schema_version": "school-v3-rubric-1",
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
             "item_id": activity["activity_id"],
             "skill_ids": list(activity["skill_ids"]),
             "score": 1.0,
@@ -127,7 +140,7 @@ def _stub_passing_open_placement_evaluator(monkeypatch) -> None:
                     "id": criterion["id"],
                     "met": True,
                     "quality": 1.0,
-                    "evidence_quote": answer.strip(),
+                    "evidence_quote": evidence_quote(criterion["id"]),
                 }
                 for criterion in activity["rubric_criteria"]
             ],
@@ -142,6 +155,52 @@ def _stub_passing_open_placement_evaluator(monkeypatch) -> None:
         "_evaluate_school_open_answer_with_claim_heartbeat",
         evaluate,
     )
+
+
+def _strong_open_placement_answer(item) -> str:
+    answers = {
+        "spv_c05_t03_v01": (
+            "It probably rained while Ira was outside because her wet shoes "
+            "and dripping umbrella are clear clues."
+        ),
+        "spv_c05_t03_v02": (
+            "The puppy probably ate the food because only crumbs remained and "
+            "it was licking its lips."
+        ),
+        "spv_c05_t03_v03": (
+            "The residents are probably away because newspapers collected and "
+            "no lights appeared for several evenings."
+        ),
+        "spv_c05_t03_v04": (
+            "The team became quiet because it needed one run and the bowler was "
+            "about to begin."
+        ),
+        "spv_c05_t03_v05": (
+            "The plants most likely lacked water because the soil was dry and "
+            "the watering can had been empty for days."
+        ),
+        "spv_c05_t08_v01": (
+            "After the storm blocked the lane with broken branches, residents "
+            "cut them up and reopened a path."
+        ),
+        "spv_c05_t08_v02": (
+            "The school installed solar panels after comparing bills, then used "
+            "the savings to buy library books."
+        ),
+        "spv_c05_t08_v03": (
+            "The children called rescuers for an injured bird and kept the area "
+            "quiet until help arrived."
+        ),
+        "spv_c05_t08_v04": (
+            "Students investigated unsafe bus stops and submitted three practical "
+            "improvements to the transport office."
+        ),
+        "spv_c05_t08_v05": (
+            "Testing found harmful bacteria in one clear-looking water sample, "
+            "so that sample needed treatment."
+        ),
+    }
+    return answers[item.item_id]
 
 
 def _pure_profile(*, target_class_no: int = 3) -> dict[str, Any]:
@@ -396,6 +455,49 @@ def test_school_state_resumes_active_placement_after_start(store):
     assert state["unlock_state"] == "locked"
 
 
+def test_school_state_resumes_time_capped_evidence_despite_stale_report_action():
+    profile_version_id = str(uuid4())
+    school_profile = {
+        **_profile_payload(target_class_no=5, prior_difficulty_signals=[]),
+        "profile_version_id": profile_version_id,
+    }
+    envelope = placement.new_placement_envelope(school_profile)
+    first_item = placement.next_item(envelope)
+    assert first_item is not None
+    envelope = placement.apply_evaluated_attempt(
+        envelope,
+        first_item,
+        evaluator_score=0.7,
+        evaluator_confidence=0.9,
+        elapsed_seconds_delta=placement.PLACEMENT_LEARNER_TIME_BUDGET_SECONDS,
+    )
+    assert placement.placement_status(envelope) == "insufficient_evidence"
+
+    placement_session_id = str(uuid4())
+    state = school_state_service.school_state_for_profile(
+        learner_profile={"name": "Open Assets"},
+        school_profile=school_profile,
+        placement_session={
+            "session_id": placement_session_id,
+            "status": "insufficient_evidence",
+            "state_json": placement.envelope_to_json(envelope),
+        },
+        placement_report={
+            "placement_session_id": placement_session_id,
+            "placement_status": "insufficient_evidence",
+            "unlock_state": "locked",
+            "evaluated_class_no": 4,
+            "allowed_next_actions": ["start_placement"],
+        },
+    )
+
+    assert state["next_action"] == "resume_placement"
+    assert state["allowed_next_actions"] == ["resume_placement"]
+    assert state["next_action_url"] == (
+        f"/school/readiness/{placement_session_id}"
+    )
+
+
 def test_school_placement_answer_persists_progress_and_rejects_wrong_item(store):
     _seed_school_profile(store)
     client = TestClient(app)
@@ -433,7 +535,35 @@ def test_school_placement_answer_persists_progress_and_rejects_wrong_item(store)
     assert event["score"] == 1.0
     assert event["evidence_json"]["target_class_no"] == 3
     assert event["evidence_json"]["diagnostic_stage"] == "snapshot"
+    assert event["evidence_json"]["learner_response_excerpt"] == "mat"
+    assert event["evidence_json"]["learner_response_truncated"] is False
+    assert event["evidence_json"]["evaluation_evidence"]["score"] == 1.0
+    assert event["evidence_json"]["evaluation_evidence"]["confidence"] == 1.0
+    assert event["evidence_json"]["evaluation_evidence"]["criteria"]
+    assert "answer_key" not in repr(event["evidence_json"])
     _assert_no_hidden_keys(body)
+
+
+def test_placement_learning_event_bounds_the_exact_learner_response(store):
+    _seed_school_profile(store, signals=[])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    learner_answer = "x" * 500
+
+    response = client.post(
+        f"/school/placement/{started['session_id']}/answer",
+        headers=AUTH,
+        json={
+            "item_id": started["next_item"]["item_id"],
+            "answer": learner_answer,
+        },
+    )
+
+    assert response.status_code == 200
+    evidence = store.learning_events[-1]["evidence_json"]
+    assert evidence["learner_response_excerpt"] == learner_answer[:320]
+    assert len(evidence["learner_response_excerpt"]) == 320
+    assert evidence["learner_response_truncated"] is True
 
 
 def test_school_placement_answer_replay_is_payload_bound(store):
@@ -717,16 +847,240 @@ def test_terminal_insufficient_evidence_creates_locked_report(store, monkeypatch
     report = next(iter(store.school_placement_reports.values()))
     assert report["placement_status"] == "insufficient_evidence"
     assert report["unlock_state"] == "locked"
-    assert report["allowed_next_actions"] == ["resume_placement"]
+    assert report["allowed_next_actions"] == ["start_placement"]
+    assert report["evidence_summary"]["track_verdicts"]
 
     state = client.get("/school/state", headers=AUTH).json()
     assert state["placement_status"] == "insufficient_evidence"
     assert state["unlock_state"] == "locked"
-    assert state["next_action"] == "resume_placement"
-    assert state["next_action_url"] == f"/school/readiness/{session_id}"
-    assert state["allowed_next_actions"] == ["resume_placement"]
+    assert state["active_flow"] == "placement_report"
+    assert state["next_action"] == "start_placement"
+    assert state["next_action_url"] == "/school/readiness"
+    assert state["allowed_next_actions"] == [
+        "view_placement_report",
+        "start_placement",
+    ]
+
+    restarted = client.post("/school/placement/start", headers=AUTH)
+    assert restarted.status_code == 200
+    assert restarted.json()["session_id"] != session_id
     _assert_no_hidden_keys(report)
     _assert_no_hidden_keys(state)
+
+
+def test_store_resumes_only_the_same_insufficient_placement_session(store):
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = started["session_id"]
+    row = _run(store.get_school_session("test_user", session_id))
+    envelope = placement.envelope_from_json(row["state_json"])
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            terminal_status="insufficient_evidence",
+            terminal_reason="placement_window_ended",
+        ),
+    )
+    terminal_json = {
+        **row["state_json"],
+        **placement.envelope_to_json(terminal),
+    }
+    _run(store.upsert_school_session(
+        session_id=session_id,
+        user_id="test_user",
+        api_version="rebuild",
+        flow_type="placement",
+        subject_id="english",
+        class_no=5,
+        status="insufficient_evidence",
+        current_stage=terminal.state.stage,
+        profile_version_id=row["profile_version_id"],
+        source_placement_report_id=None,
+        state_json=terminal_json,
+    ))
+    resumable = placement.resume_placement(terminal)
+    resumed_json = {
+        **terminal_json,
+        **placement.envelope_to_json(resumable),
+    }
+
+    resumed = _run(store.resume_school_placement_session(
+        user_id="test_user",
+        session_id=session_id,
+        profile_version_id=row["profile_version_id"],
+        current_stage=resumable.state.stage,
+        state_json=resumed_json,
+    ))
+
+    assert resumed["session_id"] == session_id
+    assert resumed["status"] == "active"
+    assert resumed["completed_at"] is None
+    assert resumed["state_json"] == resumed_json
+
+    replay = _run(store.resume_school_placement_session(
+        user_id="test_user",
+        session_id=session_id,
+        profile_version_id=row["profile_version_id"],
+        current_stage=resumable.state.stage,
+        state_json=resumed_json,
+    ))
+    assert replay == resumed
+
+
+def test_store_rejects_resume_state_that_deletes_or_rewrites_evidence(store):
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = started["session_id"]
+    row = _run(store.get_school_session("test_user", session_id))
+    envelope = placement.envelope_from_json(row["state_json"])
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            terminal_status="insufficient_evidence",
+            terminal_reason="placement_window_ended",
+        ),
+    )
+    terminal_json = {
+        **row["state_json"],
+        **placement.envelope_to_json(terminal),
+    }
+    _run(store.upsert_school_session(
+        session_id=session_id,
+        user_id="test_user",
+        api_version="rebuild",
+        flow_type="placement",
+        subject_id="english",
+        class_no=5,
+        status="insufficient_evidence",
+        current_stage=terminal.state.stage,
+        profile_version_id=row["profile_version_id"],
+        source_placement_report_id=None,
+        state_json=terminal_json,
+    ))
+    resumed = placement.resume_placement(terminal)
+    invalid = {
+        **terminal_json,
+        **placement.envelope_to_json(resumed),
+    }
+    invalid["placement_state"] = {
+        **invalid["placement_state"],
+        "total_items": 1,
+        "answered_item_ids": ["fabricated-placement-item"],
+    }
+
+    with pytest.raises(ValueError, match="placement_session_resume_conflict"):
+        _run(store.resume_school_placement_session(
+            user_id="test_user",
+            session_id=session_id,
+            profile_version_id=row["profile_version_id"],
+            current_stage=resumed.state.stage,
+            state_json=invalid,
+        ))
+
+
+def test_resume_validation_is_shared_by_postgres_and_in_memory_stores(store):
+    postgres_source = inspect.getsource(db_repo.resume_school_placement_session)
+    memory_source = inspect.getsource(store.resume_school_placement_session)
+
+    assert "validate_placement_resume_state_json" in postgres_source
+    assert "validate_placement_resume_state_json" in memory_source
+    assert "FOR UPDATE" in postgres_source
+
+
+def test_placement_start_resumes_the_same_insufficient_session_via_canonical_state(
+    store,
+):
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = started["session_id"]
+    row = _run(store.get_school_session("test_user", session_id))
+    envelope = placement.envelope_from_json(row["state_json"])
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            terminal_status="insufficient_evidence",
+            terminal_reason="placement_window_ended",
+        ),
+    )
+    terminal_json = {
+        **row["state_json"],
+        **placement.envelope_to_json(terminal),
+    }
+    _run(store.upsert_school_session(
+        session_id=session_id,
+        user_id="test_user",
+        api_version="rebuild",
+        flow_type="placement",
+        subject_id="english",
+        class_no=5,
+        status="insufficient_evidence",
+        current_stage=terminal.state.stage,
+        profile_version_id=row["profile_version_id"],
+        source_placement_report_id=None,
+        state_json=terminal_json,
+    ))
+    report = client.get("/school/placement/report", headers=AUTH)
+    canonical = client.get("/school/state", headers=AUTH)
+
+    assert report.status_code == 200
+    assert canonical.status_code == 200
+    assert canonical.json()["next_action"] == "resume_placement"
+    assert canonical.json()["active_session_id"] == session_id
+
+    resumed = client.post("/school/placement/start", headers=AUTH)
+
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["session_id"] == session_id
+    assert resumed.json()["status"] == "in_progress"
+    assert resumed.json()["answered_count"] == started["answered_count"]
+    assert resumed.json()["next_item"]["item_id"] == started["next_item"]["item_id"]
+    saved = _run(store.get_school_session("test_user", session_id))
+    assert saved["status"] == "active"
+    assert saved["completed_at"] is None
+    assert len(store.school_sessions) == 1
+
+    # The completed insufficient-evidence report remains historical evidence,
+    # but it must no longer mask the resumed active placement.
+    assert len(store.school_placement_reports) == 1
+    resumed_state = client.get("/school/state", headers=AUTH)
+    assert resumed_state.status_code == 200
+    assert resumed_state.json()["status"] == "in_progress"
+    assert resumed_state.json()["placement_status"] == "in_progress"
+    assert resumed_state.json()["active_session_id"] == session_id
+    assert resumed_state.json()["next_action"] == "resume_placement"
+
+    stale_report = client.get("/school/placement/report", headers=AUTH)
+    assert stale_report.status_code == 409
+    assert stale_report.json()["detail"]["code"] == "placement_in_progress"
+
+
+def test_postgres_start_retires_conflicting_legacy_placement_before_insert():
+    source = inspect.getsource(db_repo.get_or_create_active_school_placement_session)
+    helper_source = inspect.getsource(
+        db_repo._retire_conflicting_legacy_school_placement_sessions
+    )
+
+    assert "_retire_conflicting_legacy_school_placement_sessions" in source
+    assert source.index("_retire_conflicting_legacy_school_placement_sessions") < source.index(
+        "await upsert_school_session"
+    )
+    assert "api_version <> 'rebuild'" in helper_source
+    assert "status = 'abandoned'" in helper_source
+    assert "legacy_runtime_retired_for_canonical_placement" in helper_source
+    assert "completed_at" in helper_source
+
+
+def test_postgres_placement_presentation_types_jsonb_variadic_binds():
+    source = inspect.getsource(db_repo.present_school_placement_item)
+
+    assert "CAST(:timing_key AS text)" in source
+    assert "'item_id', CAST(:item_id AS text)" in source
 
 
 def test_canonical_placement_engine_has_no_v3_runtime_dependency():
@@ -787,7 +1141,7 @@ def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
         answer = (
             private_item.accepted_answers[0]
             if private_item.accepted_answers
-            else "The passage clue supports this answer in a complete sentence."
+            else _strong_open_placement_answer(private_item)
         )
         last_request = {
             "item_id": current["next_item"]["item_id"],
@@ -801,7 +1155,29 @@ def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
         assert response.status_code == 200
         current = response.json()
 
-    assert current["status"] == "target_ready"
+    final_row = _run(store.get_school_session("test_user", session_id))
+    final_envelope = placement.envelope_from_json(final_row["state_json"])
+    diagnostic = {
+        "terminal_reason": final_envelope.state.terminal_reason,
+        "tracks": {
+            track_id: {
+                "status": track.status,
+                "evidence": [
+                    {
+                        "item_id": evidence.item_id,
+                        "classification": evidence.classification,
+                        "score": evidence.evaluator_score,
+                        "confidence": evidence.evaluator_confidence,
+                        "blockers": evidence.certifying_blockers,
+                    }
+                    for evidence in track.evidence
+                ],
+            }
+            for track_id, track in final_envelope.state.track_states.items()
+            if track.status not in {"provisional_ready", "resolved_ready"}
+        },
+    }
+    assert current["status"] == "target_ready", diagnostic
     assert current["answered_count"] == 8
     graph = _run(store.get_school_learning_graph("test_user"))
     profiles = [
@@ -1075,6 +1451,328 @@ def test_school_placement_abandon_persists_locked_report_and_allows_clean_restar
     assert state["allowed_next_actions"] == ["view_placement_report", "start_placement"]
     _assert_no_hidden_keys(response.json())
     _assert_no_hidden_keys(report)
+
+
+def test_school_placement_abandon_cas_preserves_a_concurrent_answer_commit(
+    store,
+    monkeypatch,
+):
+    _seed_school_profile(store, target_class_no=3, signals=[])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = started["session_id"]
+    original_get = store.get_school_session
+    raced = False
+    committed_item_id: str | None = None
+
+    async def get_with_concurrent_answer(user_id: str, requested_session_id: str):
+        nonlocal raced, committed_item_id
+        row = await original_get(user_id, requested_session_id)
+        if raced or requested_session_id != session_id or row is None:
+            return row
+        raced = True
+        stale_row = dict(row)
+        envelope = placement.envelope_from_json(row["state_json"])
+        item = placement.next_item(envelope)
+        assert item is not None
+        committed_item_id = item.item_id
+        advanced = placement.apply_evaluated_attempt(
+            envelope,
+            item,
+            evaluator_score=1.0,
+            evaluator_confidence=1.0,
+        )
+        concurrent_state = {
+            **row["state_json"],
+            **placement.envelope_to_json(advanced),
+        }
+        await store.upsert_school_session(
+            session_id=row["session_id"],
+            user_id=row["user_id"],
+            api_version=row["api_version"],
+            flow_type=row["flow_type"],
+            subject_id=row["subject_id"],
+            class_no=int(row["class_no"]),
+            status="active",
+            current_stage=advanced.state.stage,
+            linked_session_id=row.get("linked_session_id"),
+            profile_version_id=row.get("profile_version_id"),
+            source_placement_report_id=row.get("source_placement_report_id"),
+            state_json=concurrent_state,
+        )
+        return stale_row
+
+    monkeypatch.setattr(store, "get_school_session", get_with_concurrent_answer)
+
+    response = client.post(
+        f"/school/placement/{session_id}/abandon",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "placement_abandon_conflict"
+    saved = _run(original_get("test_user", session_id))
+    restored = placement.envelope_from_json(saved["state_json"])
+    assert saved["status"] == "active"
+    assert restored.state.answered_item_ids == (committed_item_id,)
+    assert _run(store.get_school_placement_report("test_user", session_id)) is None
+
+
+def test_shuffled_public_mcq_answer_is_graded_by_backend_text_authority(store):
+    _seed_school_profile(store, target_class_no=3, signals=["vocabulary"])
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    row = _run(store.get_school_session("test_user", started["session_id"]))
+    envelope = placement.envelope_from_json(row["state_json"])
+    item = placement.find_item(envelope, started["next_item"]["item_id"])
+
+    response = client.post(
+        f"/school/placement/{started['session_id']}/answer",
+        headers=AUTH,
+        json={"item_id": item.item_id, "answer": item.answer_key},
+    )
+
+    assert response.status_code == 200
+    assert store.learning_events[-1]["score"] == 1.0
+    assert store.learning_events[-1]["node_id"] == item.item_id
+
+
+def test_placement_persists_private_server_presentation_time_without_leaking_it(
+    store,
+    monkeypatch,
+):
+    presented_at = datetime(2026, 7, 14, 9, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        store,
+        "_school_placement_presented_at",
+        lambda: presented_at,
+    )
+    _seed_school_profile(store, signals=[])
+    client = TestClient(app)
+
+    response = client.post("/school/placement/start", headers=AUTH)
+
+    assert response.status_code == 200
+    public = response.json()
+    row = _run(store.get_school_session("test_user", public["session_id"]))
+    timing = row["state_json"]["_placement_item_timing"]
+    assert timing == {
+        "item_id": public["next_item"]["item_id"],
+        "presented_at": presented_at.isoformat(),
+    }
+    assert "_placement_item_timing" not in public
+    _assert_no_hidden_keys(public)
+
+
+def test_placement_start_stamps_presentation_after_session_write_latency(
+    store,
+    monkeypatch,
+):
+    original_create = store.get_or_create_active_school_placement_session
+    write_completed_at: datetime | None = None
+
+    async def delayed_create(**kwargs):
+        nonlocal write_completed_at
+        await asyncio.sleep(0.03)
+        row = await original_create(**kwargs)
+        write_completed_at = datetime.now(timezone.utc)
+        return row
+
+    monkeypatch.setattr(
+        store,
+        "get_or_create_active_school_placement_session",
+        delayed_create,
+    )
+    _seed_school_profile(store, signals=[])
+    client = TestClient(app)
+
+    response = client.post("/school/placement/start", headers=AUTH)
+    response_completed_at = datetime.now(timezone.utc)
+
+    assert response.status_code == 200
+    assert write_completed_at is not None
+    row = _run(
+        store.get_school_session("test_user", response.json()["session_id"])
+    )
+    presented_at = datetime.fromisoformat(
+        row["state_json"]["_placement_item_timing"]["presented_at"]
+    )
+    assert write_completed_at <= presented_at <= response_completed_at
+
+
+def test_placement_answer_records_learner_elapsed_and_evaluator_wait_separately(
+    store,
+    monkeypatch,
+):
+    started_at = datetime(2026, 7, 14, 9, 0, tzinfo=timezone.utc)
+    answer_arrived_at = started_at + timedelta(seconds=11)
+    next_presented_at = answer_arrived_at + timedelta(seconds=4)
+    presentation_times = iter((started_at, next_presented_at))
+    monotonic_times = iter((100.0, 104.0))
+    monkeypatch.setattr(
+        store,
+        "_school_placement_presented_at",
+        lambda: next(presentation_times),
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_placement_server_now",
+        lambda: answer_arrived_at,
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_placement_monotonic",
+        lambda: next(monotonic_times),
+    )
+    _stub_passing_open_placement_evaluator(monkeypatch)
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    current = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = current["session_id"]
+    row = _run(store.get_school_session("test_user", session_id))
+    envelope = placement.envelope_from_json(row["state_json"])
+    item = placement.find_item(envelope, current["next_item"]["item_id"])
+    answer = (
+        item.accepted_answers[0]
+        if item.accepted_answers
+        else "The passage evidence supports this complete answer."
+    )
+
+    response = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json={"item_id": item.item_id, "answer": answer},
+    )
+
+    assert response.status_code == 200
+    saved = _run(store.get_school_session("test_user", session_id))
+    restored = placement.envelope_from_json(saved["state_json"])
+    assert restored.state.elapsed_seconds == 11
+    assert restored.state.evaluator_wait_seconds == 4
+    timing = saved["state_json"]["_placement_item_timing"]
+    assert timing["item_id"] == response.json()["next_item"]["item_id"]
+    assert timing["presented_at"] == next_presented_at.isoformat()
+    assert "_placement_item_timing" not in response.json()
+    _assert_no_hidden_keys(response.json())
+
+
+def test_placement_answer_captures_arrival_before_any_awaited_profile_work(
+    store,
+    monkeypatch,
+):
+    _seed_school_profile(store, target_class_no=5, signals=[])
+    client = TestClient(app)
+    current = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = current["session_id"]
+    item_id = current["next_item"]["item_id"]
+    row = _run(store.get_school_session("test_user", session_id))
+    item = placement.find_item(
+        placement.envelope_from_json(row["state_json"]),
+        item_id,
+    )
+    answer = item.accepted_answers[0]
+    call_order: list[str] = []
+    answer_arrived_at = datetime(2026, 7, 14, 9, 0, 5, tzinfo=timezone.utc)
+    original_learner_profile = school_rebuild_routes._learner_profile
+
+    def server_now():
+        call_order.append("answer_arrived")
+        return answer_arrived_at
+
+    async def learner_profile(user_id: str):
+        call_order.append("profile_read")
+        return await original_learner_profile(user_id)
+
+    monkeypatch.setattr(school_rebuild_routes, "_placement_server_now", server_now)
+    monkeypatch.setattr(school_rebuild_routes, "_learner_profile", learner_profile)
+
+    response = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json={"item_id": item_id, "answer": answer},
+    )
+
+    assert response.status_code == 200
+    assert call_order[:2] == ["answer_arrived", "profile_read"]
+
+
+def test_failed_evaluator_retry_excludes_provider_and_retry_wall_time(
+    store,
+    monkeypatch,
+):
+    started_at = datetime(2026, 7, 14, 9, 0, tzinfo=timezone.utc)
+    route_times = iter(
+        (
+            started_at + timedelta(seconds=10),
+            started_at + timedelta(seconds=14),
+            started_at + timedelta(seconds=100),
+        )
+    )
+    presentation_times = iter(
+        (started_at, started_at + timedelta(seconds=104))
+    )
+    monotonic_times = iter((200.0, 300.0, 304.0))
+    monkeypatch.setattr(
+        store,
+        "_school_placement_presented_at",
+        lambda: next(presentation_times),
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_placement_server_now",
+        lambda: next(route_times),
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_placement_monotonic",
+        lambda: next(monotonic_times),
+    )
+    original = school_rebuild_routes.placement_evaluator.evaluate_school_placement_item
+    calls = 0
+
+    async def flaky_evaluator(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise school_rebuild_routes.placement_evaluator.SchoolPlacementEvaluatorUnavailableError(
+                school_rebuild_routes.placement_evaluator.EVALUATOR_UNAVAILABLE_CODE
+            )
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        school_rebuild_routes.placement_evaluator,
+        "evaluate_school_placement_item",
+        flaky_evaluator,
+    )
+    _seed_school_profile(store, target_class_no=3, signals=[])
+    client = TestClient(app)
+    current = client.post("/school/placement/start", headers=AUTH).json()
+    session_id = current["session_id"]
+    item_id = current["next_item"]["item_id"]
+
+    failed = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json={"item_id": item_id, "answer": "mat"},
+    )
+    assert failed.status_code == 503
+    after_failure = _run(store.get_school_session("test_user", session_id))
+    timing = after_failure["state_json"]["_placement_item_timing"]
+    assert timing["item_id"] == item_id
+    assert timing["retry_pending"] is True
+    assert timing["accrued_learner_seconds"] == 10
+
+    retried = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json={"item_id": item_id, "answer": "mat"},
+    )
+
+    assert retried.status_code == 200
+    saved = _run(store.get_school_session("test_user", session_id))
+    restored = placement.envelope_from_json(saved["state_json"])
+    assert restored.state.elapsed_seconds == 10
+    assert restored.state.evaluator_wait_seconds == 4
 
 
 def test_canonical_serialization_round_trip_preserves_track_boundaries_queues_and_timing():

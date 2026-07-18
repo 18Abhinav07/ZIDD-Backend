@@ -18,6 +18,8 @@ def _assessment_item(index: int, skill_id: str) -> dict:
 
 
 def _correct_answer(activity: dict) -> str:
+    if activity.get("interaction_type") == "continue":
+        return "continue"
     accepted = list(activity.get("accepted_answers") or [])
     if accepted:
         return accepted[0]
@@ -47,12 +49,35 @@ def _correct_answer(activity: dict) -> str:
     return answers_by_rule[str(activity.get("answer_rule") or "")]
 
 
+def _as_legacy_level(level: dict) -> dict:
+    level.pop("teaching_steps", None)
+    for check in (level.get("checks") or {}).values():
+        check["options"] = ["correct", "incorrect"]
+        check["accepted_answers"] = ["correct"]
+        for key in (
+            "answer_rule",
+            "certifying_language",
+            "concept_slots",
+            "evaluation_mode",
+            "forbidden_phrases",
+            "grading_mode",
+            "min_response_words",
+            "ordered_concept_slot_ids",
+            "pass_score",
+            "preflight_rule",
+            "rubric_criteria",
+        ):
+            check.pop(key, None)
+    return level
+
+
 def _chapter_with_assessment() -> dict:
     chapter = copy.deepcopy(curriculum.CLASS_5_WISE_PARROT_CHAPTER)
     chapter["chapter_id"] = "eng_c5_test_assessment"
     chapter["chapter_no"] = 99
     chapter["content_version"] = "test-assessment-1"
     chapter["levels"] = chapter["levels"][:1]
+    _as_legacy_level(chapter["levels"][0])
     chapter["levels"][0]["checks"].pop("transfer_check", None)
     skills = list(chapter["levels"][0]["skill_ids"])
     chapter["chapter_assessment"] = {
@@ -97,6 +122,7 @@ def _multi_level_chapter_with_extended_revision() -> dict:
     chapter["content_version"] = "bounded-revision-1"
     chapter["levels"] = chapter["levels"][:3]
     for level_index, level in enumerate(chapter["levels"], start=1):
+        _as_legacy_level(level)
         level["checks"].pop("transfer_check", None)
         for revision_no in range(1, 4):
             revision = copy.deepcopy(level["checks"]["masterclass"])
@@ -620,6 +646,33 @@ def test_second_failed_check_pauses_for_support_without_unlock_or_loop(monkeypat
     assert state["support_required"]["attempt_count"] == 2
     assert state["chapter_assessment"]["attempt_history"][-1]["passed"] is False
 
+    public = curriculum.public_curriculum_response(
+        {
+            "session_id": "curriculum-session-1",
+            "status": state["status"],
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": state,
+        }
+    )
+    assert public["support_required"] == {
+        "reason": "chapter_check_attempts_exhausted",
+        "attempt_count": 2,
+        "weak_skill_ids": state["support_required"]["weak_skill_ids"],
+        "remediation_skill_ids": state["support_required"][
+            "remediation_skill_ids"
+        ],
+        "focus": state["support_required"]["focus"],
+        "cap": {"used": 2, "limit": 2, "scope": "chapter_check"},
+        "history": state["support_required"]["history"],
+    }
+    assert public["next_action"] == {
+        "action": "view_support_plan",
+        "next_action_url": "/school/support/curriculum-session-1",
+        "reason": "chapter_check_attempts_exhausted",
+        "requires_explicit_confirmation": False,
+    }
+
 
 def test_second_failed_check_opens_three_authored_revision_levels_before_final_form(
     monkeypatch,
@@ -760,7 +813,7 @@ def test_expanded_revision_is_bounded_to_three_activities_across_many_levels(
     assert state["assessment_revision_deferred_skill_ids"] == []
 
 
-def test_live_class5_chapter1_has_bounded_revisions_and_three_fresh_forms():
+def test_live_class5_chapter1_has_bounded_revisions_and_two_fresh_forms():
     state = curriculum.new_curriculum_state(
         school_profile={"subject_ids": ["english"], "target_class_no": 5},
         placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
@@ -794,7 +847,7 @@ def test_live_class5_chapter1_has_bounded_revisions_and_three_fresh_forms():
     selecting = state
     forms = []
     taught_skills = set(skill_ids)
-    for _ in range(3):
+    for _ in range(2):
         selecting = curriculum._begin_chapter_assessment(selecting)
         selected_ids = set(selecting["chapter_assessment"]["selected_item_ids"])
         selected_items = [
@@ -816,6 +869,130 @@ def test_live_class5_chapter1_has_bounded_revisions_and_three_fresh_forms():
     )
 
 
+def test_live_class5_chapter1_main_idea_miss_routes_to_matching_revision():
+    state = curriculum.new_curriculum_state(
+        school_profile={"subject_ids": ["english"], "target_class_no": 5},
+        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
+        recap_session=None,
+    )
+
+    remediating = curriculum._start_assessment_remediation(
+        state,
+        ["reading.paragraph_main_idea"],
+        mode="focused_revision",
+        skill_scores={"reading.paragraph_main_idea": 0.0},
+    )
+    activity = curriculum._current_activity(remediating)
+
+    assert activity is not None
+    assert activity["kind"] == "v2_support"
+    assert activity["variant"]["variant_id"] == "revision_level_3"
+    assert activity["assessed_skill_ids"] == ["reading.paragraph_main_idea"]
+    assert activity["target_misconception_tags"] == [
+        "main_idea_replaced_by_detail"
+    ]
+
+
+def test_live_class5_reason_answer_miss_uses_coauthored_support_without_helper_credit():
+    state = curriculum.new_curriculum_state(
+        school_profile={"subject_ids": ["english"], "target_class_no": 5},
+        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
+        recap_session=None,
+    )
+
+    remediating = curriculum._start_assessment_remediation(
+        state,
+        ["writing.reason_answer"],
+        mode="focused_revision",
+        skill_scores={"writing.reason_answer": 0.0},
+    )
+    activity = curriculum._current_activity(remediating)
+
+    assert activity is not None
+    assert activity["kind"] == "v2_support"
+    assert activity["assessed_skill_ids"] == ["writing.reason_answer"]
+    assert "grammar.connectors_because_and_but" not in activity["skill_ids"]
+
+
+def test_live_class5_focused_remediation_selects_levels_with_authored_skill_support():
+    state = curriculum.new_curriculum_state(
+        school_profile={"subject_ids": ["english"], "target_class_no": 5},
+        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
+        recap_session=None,
+    )
+
+    remediating = curriculum._start_assessment_remediation(
+        state,
+        ["vocab.chapter_word_usage", "writing.complete_sentence"],
+        mode="focused_revision",
+        skill_scores={
+            "vocab.chapter_word_usage": 0.0,
+            "writing.complete_sentence": 0.0,
+        },
+    )
+
+    assert remediating["phase"] == "remediation"
+    assert remediating["remediation_queue"] == [
+        "papas_spectacles_order_and_pairs",
+    ]
+    remediation_level = next(
+        item
+        for item in remediating["levels"]
+        if item["level_id"] == "papas_spectacles_order_and_pairs"
+    )
+    assert {
+        "vocab.chapter_word_usage",
+        "writing.complete_sentence",
+    }.issubset(curriculum._v2_authored_remediation_skill_ids(remediation_level))
+
+    observed = []
+    while remediating["phase"] == "remediation":
+        activity = curriculum._current_activity(remediating)
+        assert activity is not None
+        observed.append((activity["level_id"], activity["assessed_skill_ids"]))
+        open_answer_evaluation = None
+        if activity.get("grading_mode") == "strict_open_rubric":
+            answer = activity["model_answer"]
+            open_answer_evaluation = {
+                "schema_version": "school.open.v1",
+                "item_id": activity["activity_id"],
+                "skill_ids": activity["skill_ids"],
+                "score": 1.0,
+                "confidence": 0.95,
+                "language_detected": "en",
+                "criteria": [
+                    {
+                        "id": criterion["id"],
+                        "met": True,
+                        "quality": 1.0,
+                        "evidence_quote": answer,
+                    }
+                    for criterion in activity["rubric_criteria"]
+                ],
+                "misconception_tags": [],
+                "blockers": [],
+                "needs_human_review": False,
+                "feedback_to_learner": "The response meets both criteria.",
+            }
+        else:
+            answer = _correct_answer(activity)
+        remediating, _ = curriculum.apply_curriculum_answer(
+            remediating,
+            activity_id=activity["activity_id"],
+            answer=answer,
+            open_answer_evaluation=open_answer_evaluation,
+        )
+
+    assert observed == [
+        (
+            "papas_spectacles_order_and_pairs",
+            ["vocab.chapter_word_usage", "writing.complete_sentence"],
+        ),
+    ]
+    assert remediating["phase"] == "chapter_check"
+    assert remediating["chapter_assessment"]["attempt_no"] == 1
+
+
 def test_each_selected_check_covers_every_taught_skill_even_when_bank_is_clustered(
     monkeypatch,
 ):
@@ -823,14 +1000,11 @@ def test_each_selected_check_covers_every_taught_skill_even_when_bank_is_cluster
     taught_skills = list(chapter["levels"][0]["skill_ids"]) + ["writing.short_answer"]
     chapter["levels"][0]["skill_ids"] = taught_skills
     chapter["chapter_assessment"]["items"] = [
-        _assessment_item(index, taught_skills[0])
-        for index in range(1, 8)
-    ] + [
-        _assessment_item(index, taught_skills[1])
-        for index in range(8, 15)
-    ] + [
-        _assessment_item(index, taught_skills[2])
-        for index in range(15, 21)
+        _assessment_item(index, skill_id)
+        for index, skill_id in enumerate(
+            [skill_id for skill_id in taught_skills for _ in range(5)],
+            start=1,
+        )
     ]
     monkeypatch.setattr(
         curriculum,
@@ -869,6 +1043,7 @@ def test_multi_skill_remediation_follows_weak_level_queue_before_retest(monkeypa
     chapter["content_version"] = "multi-remediation-1"
     chapter["levels"] = chapter["levels"][:2]
     for level in chapter["levels"]:
+        _as_legacy_level(level)
         level["checks"].pop("transfer_check", None)
     first_skill = chapter["levels"][0]["skill_ids"][0]
     second_skill = next(
@@ -2003,7 +2178,7 @@ def test_reconcile_curriculum_state_does_not_certify_an_invented_summary_detail(
     )
 
 
-def test_failed_required_production_skill_cannot_be_averaged_away():
+def test_high_chapter_score_passes_and_keeps_the_weak_skill_visible():
     skill_ids = [f"test.skill.{index}" for index in range(12)] + [
         "writing.compare_contrast"
     ]
@@ -2047,13 +2222,13 @@ def test_failed_required_production_skill_cannot_be_averaged_away():
 
     result = updated["chapter_assessment"]["attempt_history"][-1]
     assert result["score"] > 0.9
-    assert result["passed"] is False
+    assert result["passed"] is True
     assert result["weak_skill_ids"] == ["writing.compare_contrast"]
-    assert updated["phase"] == "remediation"
-    assert updated["completed_chapter_ids"] == []
+    assert updated["phase"] == "complete"
+    assert updated["completed_chapter_ids"] == ["production-gate"]
 
 
-def test_rubric_item_below_its_own_pass_mark_blocks_chapter_completion():
+def test_rubric_item_below_its_own_pass_mark_does_not_override_chapter_score():
     skill_ids = [f"test.skill.{index}" for index in range(12)] + [
         "writing.friendly_message"
     ]
@@ -2102,91 +2277,60 @@ def test_rubric_item_below_its_own_pass_mark_blocks_chapter_completion():
     result = updated["chapter_assessment"]["attempt_history"][-1]
     assert result["score"] > 0.95
     assert result["skill_scores"]["writing.friendly_message"] == 0.7
-    assert result["passed"] is False
+    assert result["passed"] is True
     assert result["failed_rubric_item_ids"] == ["item-12"]
-    assert updated["completed_chapter_ids"] == []
+    assert updated["completed_chapter_ids"] == ["rubric-item-gate"]
 
 
-def test_persisted_llm_item_failure_cannot_be_averaged_into_chapter_pass(monkeypatch):
-    chapter = _chapter_with_assessment()
-    skill_id = chapter["levels"][0]["skill_ids"][0]
-    chapter["levels"][0]["skill_ids"] = [skill_id]
-    for item in chapter["chapter_assessment"]["items"]:
-        item["skill_ids"] = [skill_id]
-    rubric_item = chapter["chapter_assessment"]["items"][0]
-    rubric_item.update(
+def test_persisted_llm_item_failure_remains_visible_without_hidden_veto():
+    skill_id = "writing.friendly_message"
+    responses = [
         {
-            "options": [],
-            "accepted_answers": [],
-            "response_mode": "paragraph",
+            "activity_id": "chapter_check:1:item-0",
+            "item_id": "item-0",
+            "skill_ids": [skill_id],
+            "score": 0.7,
+            "correct": False,
             "evaluation_mode": "llm_rubric",
-            "preflight_rule": "Require relevant evidence.",
-            "pass_score": 0.8,
-            "rubric_criteria": [
-                {
-                    "id": "relevance",
-                    "description": "Gives relevant evidence.",
-                    "required": True,
-                    "min_quality": 0.6,
-                }
-            ],
-        }
-    )
-    state = _enter_chapter_check_for(monkeypatch, chapter)
-
-    for item_number in range(12):
-        activity = curriculum._current_activity(state)
-        assert activity is not None
-        if item_number == 0:
-            answer = "Relevant evidence supports the answer."
-            open_evaluation = {
-                "schema_version": "school-v3-rubric-1",
-                "item_id": activity["activity_id"],
+            "blockers": [],
+        },
+        *[
+            {
+                "activity_id": f"chapter_check:1:item-{index}",
+                "item_id": f"item-{index}",
                 "skill_ids": [skill_id],
-                "score": 0.7,
-                "confidence": 0.9,
-                "language_detected": "en",
-                "criteria": [
-                    {
-                        "id": "relevance",
-                        "met": True,
-                        "quality": 0.7,
-                        "evidence_quote": "Relevant evidence",
-                    }
-                ],
-                "misconception_tags": [],
+                "score": 1.0,
+                "correct": True,
+                "evaluation_mode": "deterministic",
                 "blockers": [],
-                "needs_human_review": False,
-                "feedback_to_learner": "Add stronger evidence.",
             }
-        else:
-            answer = "correct"
-            open_evaluation = None
-        state, _ = curriculum.apply_curriculum_answer(
-            state,
-            activity_id=activity["activity_id"],
-            answer=answer,
-            open_answer_evaluation=open_evaluation,
-        )
+            for index in range(1, 12)
+        ],
+    ]
+    assessment = {
+        "attempt_no": 1,
+        "pass_score": 0.8,
+        "selected_item_ids": [response["item_id"] for response in responses],
+        "current_index": len(responses),
+        "responses": responses,
+        "attempt_history": [],
+    }
 
-    result = state["chapter_assessment"]["attempt_history"][-1]
-    first_response = state["chapter_assessment"]["responses"][0]
-    assert first_response["evaluation_mode"] == "llm_rubric"
-    assert first_response["correct"] is False
+    result = curriculum._chapter_assessment_result(assessment)
+
     assert result["score"] > 0.95
     assert result["skill_scores"][skill_id] > 0.95
-    assert result["failed_rubric_item_ids"] == [rubric_item["item_id"]]
-    assert result["passed"] is False
-    assert state["completed_chapter_ids"] == []
-    public = curriculum.public_curriculum_response(
+    assert result["failed_rubric_item_ids"] == ["item-0"]
+    assert result["passed"] is True
+    public = curriculum._public_chapter_assessment_progress(
         {
-            "session_id": "curriculum-session",
-            "status": "active",
-            "subject_id": "english",
-            "class_no": 5,
-            "state_json": state,
+            "phase": "complete",
+            "chapter_assessment": {
+                **assessment,
+                "attempt_history": [result],
+            },
         }
     )
     serialized = json.dumps(public)
-    assert "rubric_criteria" not in serialized
-    assert "Relevant evidence" not in serialized
+    assert "failed_rubric_item_ids" not in serialized
+    assert "item-0" not in serialized

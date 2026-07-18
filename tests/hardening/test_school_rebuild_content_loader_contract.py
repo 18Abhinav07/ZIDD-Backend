@@ -162,6 +162,26 @@ def _activity_payload() -> dict:
     return copy.deepcopy(payload["levels"][0]["checks"]["guided_check"])
 
 
+def _legacy_activity_grading_payload(payload: dict) -> dict:
+    payload = copy.deepcopy(payload)
+    for field in (
+        "schema_version",
+        "episode_kind",
+        "teaching_phase",
+        "interaction_type",
+        "evidence_role",
+        "certifying_language",
+        "source_anchor_ids",
+        "knowledge_components",
+        "target_misconception_tags",
+        "relevance_terms",
+        "model_answer",
+        "grading_mode",
+    ):
+        payload.pop(field, None)
+    return payload
+
+
 def _grading_model(kind: str):
     if kind == "activity":
         return LiveChapterActivity
@@ -176,6 +196,13 @@ def _grading_payload(kind: str) -> dict:
 
 def _concept_grading_payload(kind: str) -> dict:
     payload = _grading_payload(kind)
+    if kind == "activity":
+        payload = _legacy_activity_grading_payload(payload)
+    payload.pop("grading_mode", None)
+    payload.pop("evaluation_mode", None)
+    payload.pop("certifying_language", None)
+    payload.pop("relevance_terms", None)
+    payload.pop("model_answer", None)
     payload["accepted_answers"] = []
     payload["answer_rule"] = " concept_slots "
     payload["concept_slots"] = [
@@ -208,6 +235,13 @@ def _ordered_concept_grading_payload(kind: str) -> dict:
 
 def _llm_grading_payload(kind: str) -> dict:
     payload = _grading_payload(kind)
+    if kind == "activity":
+        payload = _legacy_activity_grading_payload(payload)
+    payload.pop("grading_mode", None)
+    payload.pop("certifying_language", None)
+    payload.pop("relevance_terms", None)
+    payload.pop("model_answer", None)
+    payload["options"] = []
     payload["accepted_answers"] = []
     payload.pop("answer_rule", None)
     payload.update(
@@ -239,8 +273,10 @@ def _taught_skill_ids(payload: dict) -> list[str]:
 
 def _valid_assessment(payload: dict) -> dict:
     skill_ids = _taught_skill_ids(payload)
+    items_per_attempt = max(12, len(skill_ids))
+    max_attempts = 2
     items = []
-    for index in range(20):
+    for index in range(items_per_attempt * max_attempts):
         answer = f"answer {index + 1}"
         item = {
             "item_id": f"wise_parrot_assessment_{index + 1:02d}",
@@ -274,11 +310,21 @@ def _valid_assessment(payload: dict) -> dict:
                 }
             )
         items.append(item)
-    return {"items": items}
+    return {
+        "items_per_attempt": items_per_attempt,
+        "max_attempts": max_attempts,
+        "items": items,
+    }
+
+
+def _remove_authored_revision_levels(checks: dict) -> None:
+    for revision_no in range(1, 4):
+        checks.pop(f"revision_level_{revision_no}", None)
 
 
 def _author_three_revision_levels(payload: dict) -> None:
     for level in payload["levels"]:
+        _remove_authored_revision_levels(level["checks"])
         for revision_no in range(1, 4):
             revision = copy.deepcopy(level["checks"]["masterclass"])
             revision["passage"] = (
@@ -292,7 +338,7 @@ def _author_three_revision_levels(payload: dict) -> None:
 
 def _three_attempt_assessment(payload: dict) -> dict:
     assessment = _valid_assessment(payload)
-    assessment.update({"items_per_attempt": 10, "max_attempts": 3})
+    assessment["max_attempts"] = 3
     skill_ids = _taught_skill_ids(payload)
     required_item_count = (
         assessment["items_per_attempt"] * assessment["max_attempts"]
@@ -366,7 +412,12 @@ def test_all_source_map_chapters_are_live_and_hash_verified():
         counts[class_no] = counts.get(class_no, 0) + 1
 
         assert chapter.chapter_id == relative_path.rsplit("/", 1)[-1].removesuffix(".json")
-        assert chapter.approval_status in {"qa_approved", "human_approved"}
+        assert chapter.approval_status in {
+            "qa_approved",
+            "agent_reviewed",
+            "release_approved",
+            "human_approved",
+        }
         assert _runtime_sha256(chapter.runtime_dict()) == chapter.runtime_sha256
         assert chapter.chapter_assessment is not None
         assert len(chapter.chapter_assessment.items) >= 20
@@ -434,12 +485,12 @@ def test_option_backed_concept_response_may_omit_minimum_words(kind):
     [
         pytest.param(
             "activity",
-            "ca27d9edf95b0a8c9940f31db798c3e7e3a2bc9225a02a78cf2bf6af5a7d87f5",
+            "79c81079af163c4f02d5b745217cf31349c9fc1caff7c353427893fd47786ff9",
             id="activity",
         ),
         pytest.param(
             "assessment_item",
-            "91510104a14fa1d4ed55294d61585fa45620782a3a30cf256410b9fd89dc3de5",
+            "a930c4eb2dc6c5436244eee393befc42ffa9c2b49a2b089a68290e6dcf40beb7",
             id="assessment-item",
         ),
     ],
@@ -618,18 +669,25 @@ def test_non_concept_answer_rule_rejects_concept_fields(kind, field):
 
 def test_bridge_and_masterclass_allow_constructed_response_without_options():
     checks = copy.deepcopy(_wise_parrot_payload()["levels"][0]["checks"])
-    checks["bridge"]["options"] = []
-    checks["masterclass"]["options"] = []
+    for stage in ("bridge", "masterclass"):
+        checks[stage]["options"] = []
+        checks[stage]["interaction_type"] = "short_text"
+        checks[stage]["grading_mode"] = "exact_text"
+        checks[stage]["response_mode"] = "short"
+        checks[stage].pop("evaluation_mode", None)
 
     parsed = LiveChapterChecks.model_validate(checks)
 
     assert parsed.bridge.options == []
     assert parsed.masterclass.options == []
+    assert parsed.bridge.interaction_type == "short_text"
+    assert parsed.masterclass.interaction_type == "short_text"
 
 
 @pytest.mark.parametrize("stage", ["bridge", "masterclass"])
 def test_bridge_and_masterclass_reject_exactly_one_option(stage):
     checks = copy.deepcopy(_wise_parrot_payload()["levels"][0]["checks"])
+    checks[stage] = _legacy_activity_grading_payload(checks[stage])
     checks[stage]["options"] = ["only option"]
 
     with pytest.raises(
@@ -641,6 +699,9 @@ def test_bridge_and_masterclass_reject_exactly_one_option(stage):
 
 def test_guided_check_still_requires_at_least_two_options():
     checks = copy.deepcopy(_wise_parrot_payload()["levels"][0]["checks"])
+    checks["guided_check"] = _legacy_activity_grading_payload(
+        checks["guided_check"]
+    )
     checks["guided_check"]["options"] = []
 
     with pytest.raises(ValidationError, match="guided_check_requires_options"):
@@ -667,6 +728,7 @@ def test_live_checks_preserve_three_distinct_authored_revision_levels():
 
 def test_live_checks_reject_a_partial_authored_revision_sequence():
     checks = copy.deepcopy(_wise_parrot_payload()["levels"][0]["checks"])
+    _remove_authored_revision_levels(checks)
     revision = copy.deepcopy(checks["masterclass"])
     revision["passage"] = "Only one revision passage."
     revision["prompt"] = "Only one revision prompt."
@@ -678,6 +740,8 @@ def test_live_checks_reject_a_partial_authored_revision_sequence():
 
 def test_third_chapter_check_requires_authored_revision_levels_for_every_level():
     payload = copy.deepcopy(_wise_parrot_payload())
+    for level in payload["levels"]:
+        _remove_authored_revision_levels(level["checks"])
     payload["chapter_assessment"] = _three_attempt_assessment(payload)
 
     with pytest.raises(
@@ -842,13 +906,14 @@ def test_live_authoring_rejects_coerced_string_booleans_and_numbers(case):
 def test_valid_chapter_assessment_round_trips_hidden_grading_and_hash(tmp_path):
     payload = _wise_parrot_payload()
     payload["chapter_assessment"] = _valid_assessment(payload)
+    expected_items_per_attempt = len(_taught_skill_ids(payload))
     path = _write_hashed_chapter(tmp_path, payload)
 
     chapter = load_live_chapter_file(path)
     runtime = chapter.runtime_dict()
     assessment = runtime["chapter_assessment"]
 
-    assert assessment["items_per_attempt"] == 12
+    assert assessment["items_per_attempt"] == expected_items_per_attempt
     assert assessment["pass_score"] == 0.8
     assert assessment["max_attempts"] == 2
     assert assessment["items"][0]["accepted_answers"] == ["answer 1"]
@@ -953,7 +1018,7 @@ def test_live_chapter_assessment_item_rejects_one_option():
 def test_live_chapter_assessment_rejects_fewer_than_twenty_items(tmp_path):
     payload = _wise_parrot_payload()
     assessment = _valid_assessment(payload)
-    assessment["items"].pop()
+    assessment["items"] = assessment["items"][:19]
     payload["chapter_assessment"] = assessment
     malformed = tmp_path / "short-assessment.json"
     malformed.write_text(json.dumps(payload), encoding="utf-8")
@@ -984,11 +1049,15 @@ def test_three_attempt_assessment_requires_one_fresh_full_form_per_attempt():
     payload = _wise_parrot_payload()
     _author_three_revision_levels(payload)
     assessment = _valid_assessment(payload)
-    assessment.update({"items_per_attempt": 10, "max_attempts": 3})
+    assessment["max_attempts"] = 3
     payload["chapter_assessment"] = assessment
 
-    assert len({item["item_id"] for item in assessment["items"]}) == 20
-    assert assessment["max_attempts"] * assessment["items_per_attempt"] == 30
+    authored_item_count = len({item["item_id"] for item in assessment["items"]})
+    required_item_count = (
+        assessment["max_attempts"] * assessment["items_per_attempt"]
+    )
+    assert authored_item_count == assessment["items_per_attempt"] * 2
+    assert required_item_count == assessment["items_per_attempt"] * 3
     with pytest.raises(
         ValidationError,
         match="third_attempt_requires_fresh_assessment_item_bank",
@@ -1002,9 +1071,10 @@ def test_three_attempt_assessment_requires_fresh_item_for_each_taught_skill():
     assessment = _three_attempt_assessment(payload)
     taught_skill_ids = _taught_skill_ids(payload)
     undercovered_skill_id = taught_skill_ids[0]
+    third_attempt_start = assessment["items_per_attempt"] * 2
     third_item = next(
         item
-        for item in assessment["items"][20:]
+        for item in assessment["items"][third_attempt_start:]
         if undercovered_skill_id in item["skill_ids"]
     )
     third_item["skill_ids"] = [taught_skill_ids[1]]
@@ -1169,7 +1239,12 @@ def test_live_loader_rejects_unknown_taught_level_taxonomy_skill(tmp_path):
         LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch04.json"
     )
     payload = json.loads(source.read_text(encoding="utf-8"))
-    payload["levels"][0]["skill_ids"] = ["reading.not_a_real_skill"]
+    unknown_skill_id = "reading.not_a_real_skill"
+    payload["levels"][0]["skill_ids"].append(unknown_skill_id)
+    assessment = payload["chapter_assessment"]
+    for attempt_no in range(assessment["max_attempts"]):
+        item_index = attempt_no * assessment["items_per_attempt"]
+        assessment["items"][item_index]["skill_ids"].append(unknown_skill_id)
     malformed = tmp_path / "unknown-skill.json"
     malformed.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -1269,9 +1344,96 @@ def test_qa_content_explicit_override_is_deliberate(monkeypatch, app_env):
     assert qa_live_content_enabled() is True
 
 
-def test_production_fails_closed_for_qa_only_chapter(monkeypatch):
+@pytest.mark.parametrize(
+    "approval_status",
+    ["qa_approved", "human_approved"],
+)
+def test_production_fails_closed_for_non_reviewed_chapter(
+    monkeypatch,
+    tmp_path,
+    approval_status,
+):
     monkeypatch.setenv("APP_ENV", "prod")
     monkeypatch.delenv("SCHOOL_REBUILD_ALLOW_QA_CONTENT", raising=False)
+    source = (
+        LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch04.json"
+    )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["approval_status"] = approval_status
+    target = tmp_path / "english" / "class_5" / "eng_c5_ch04.json"
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(live_content, "LIVE_CHAPTER_ROOT", tmp_path)
 
-    with pytest.raises(ValueError, match="live_chapter_not_human_approved"):
+    with pytest.raises(
+        ValueError,
+        match="live_chapter_not_production_reviewed",
+    ):
         load_approved_live_chapter("english", 5, "eng_c5_ch04")
+
+
+def test_production_serves_agent_reviewed_chapter_without_human_approval(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("SCHOOL_REBUILD_ALLOW_QA_CONTENT", raising=False)
+    source = (
+        LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch04.json"
+    )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    assert payload["approval_status"] == "agent_reviewed"
+    target = tmp_path / "english" / "class_5" / "eng_c5_ch04.json"
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(live_content, "LIVE_CHAPTER_ROOT", tmp_path)
+
+    runtime = load_approved_live_chapter("english", 5, "eng_c5_ch04")
+
+    assert runtime["chapter_id"] == "eng_c5_ch04"
+
+
+def test_production_serves_release_approved_chapter_without_qa_override(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("SCHOOL_REBUILD_ALLOW_QA_CONTENT", raising=False)
+    source = (
+        LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch04.json"
+    )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["approval_status"] = "release_approved"
+    payload["reviewed_by"] = "school-release-review/2026-07-15"
+    payload["reviewed_at"] = "2026-07-15T12:00:00+05:30"
+    payload["review_evidence"] = [
+        "agent content review",
+        "release integrity review",
+    ]
+    target = tmp_path / "english" / "class_5" / "eng_c5_ch04.json"
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(live_content, "LIVE_CHAPTER_ROOT", tmp_path)
+
+    runtime = load_approved_live_chapter("english", 5, "eng_c5_ch04")
+
+    assert runtime["chapter_id"] == "eng_c5_ch04"
+
+
+def test_release_approved_status_requires_reviewer_timestamp_and_evidence(tmp_path):
+    source = (
+        LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch04.json"
+    )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["approval_status"] = "release_approved"
+    payload["reviewed_by"] = None
+    payload["reviewed_at"] = None
+    payload["review_evidence"] = []
+    target = tmp_path / "release-without-evidence.json"
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        ValidationError,
+        match="reviewed_live_chapter_requires_review_evidence",
+    ):
+        load_live_chapter_file(target)

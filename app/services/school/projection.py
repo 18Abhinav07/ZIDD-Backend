@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,11 +16,112 @@ from app.services.school_core.readiness import (
 )
 
 
+_RECONCILIATION_CERTIFICATION_LEDGER_KEY = "reconciliation_certification_ledger"
+_RECONCILIATION_CERTIFICATION_LEDGER_LIMIT = 64
+
+
 def _score(value: object) -> float:
     try:
         return max(0.0, min(1.0, float(value or 0.0)))
     except (TypeError, ValueError):
         return 0.0
+
+
+def _certification_identity(
+    *,
+    session_id: str,
+    chapter_id: str,
+    score: float,
+) -> dict[str, str | float]:
+    return {
+        "session_id": session_id,
+        "chapter_id": chapter_id,
+        "score": _score(score),
+    }
+
+
+def _certification_identity_key(*, session_id: str, chapter_id: str) -> str:
+    return f"{session_id}:{chapter_id}"
+
+
+def _reconciliation_certification_ledger(
+    evidence_json: dict[str, Any],
+    identity: dict[str, str | float],
+) -> dict[str, dict[str, str | float]]:
+    raw_ledger = evidence_json.get(_RECONCILIATION_CERTIFICATION_LEDGER_KEY)
+    ledger = {
+        str(key): {
+            "session_id": str(value.get("session_id") or ""),
+            "chapter_id": str(value.get("chapter_id") or ""),
+            "score": _score(value.get("score")),
+        }
+        for key, value in (raw_ledger.items() if isinstance(raw_ledger, dict) else [])
+        if isinstance(value, dict)
+        and str(value.get("session_id") or "")
+        and str(value.get("chapter_id") or "")
+    }
+    key = _certification_identity_key(
+        session_id=str(identity["session_id"]),
+        chapter_id=str(identity["chapter_id"]),
+    )
+    ledger.pop(key, None)
+    ledger[key] = identity
+    while len(ledger) > _RECONCILIATION_CERTIFICATION_LEDGER_LIMIT:
+        ledger.pop(next(iter(ledger)))
+    return ledger
+
+
+def enrich_school_projection_evidence(
+    raw: dict[str, Any],
+    *,
+    learning_event: dict[str, Any],
+    user_id: str,
+    session_id: str,
+    activity_id: str | None,
+    answer_hash: str | None,
+) -> dict[str, Any]:
+    """Join the profile projection to the immutable committed-event identity."""
+
+    event_evidence = (
+        learning_event.get("evidence_json")
+        if isinstance(learning_event.get("evidence_json"), dict)
+        else {}
+    )
+    event_identity = str(learning_event.get("source_event_key") or "")
+    identity_material = {
+        "user_id": str(user_id),
+        "session_id": str(session_id),
+        "activity_id": str(activity_id or ""),
+        "answer_hash": str(answer_hash or ""),
+        "task_type": str(learning_event.get("task_type") or raw.get("task_type") or ""),
+        "event_identity": event_identity,
+    }
+    request_identity_hash = hashlib.sha256(
+        json.dumps(
+            identity_material,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    explicit_support = list(raw.get("support_used") or [])
+    support_mode = str(event_evidence.get("support_mode") or "").strip()
+    if support_mode and support_mode not in explicit_support:
+        explicit_support.append(support_mode)
+    return {
+        **raw,
+        "event_identity": event_identity,
+        "request_identity_hash": request_identity_hash,
+        "misconception_tags": list(
+            raw.get("misconception_tags")
+            or event_evidence.get("misconception_tags")
+            or []
+        ),
+        "support_used": explicit_support,
+        "language_detected": (
+            raw.get("language_detected")
+            or event_evidence.get("language_detected")
+        ),
+    }
 
 
 @dataclass(frozen=True)
@@ -37,9 +140,15 @@ class SchoolAttemptEvidence:
     blockers: tuple[str, ...]
     answer_excerpt: str
     attempt_passed: bool
+    event_identity: str = ""
+    request_identity_hash: str = ""
+    misconception_tags: tuple[str, ...] = ()
+    support_used: tuple[str, ...] = ()
+    language_detected: str | None = None
     certified_skill_scores: dict[str, float] = field(default_factory=dict)
     placement_ready_skill_confidence: dict[str, float] = field(default_factory=dict)
     preserve_latest_evidence: bool = False
+    reconciliation_certification: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "SchoolAttemptEvidence":
@@ -58,6 +167,29 @@ class SchoolAttemptEvidence:
             blockers=tuple(str(value) for value in raw.get("blockers") or [] if str(value)),
             answer_excerpt=str(raw.get("answer_excerpt") or "")[:320],
             attempt_passed=bool(raw.get("attempt_passed")),
+            event_identity=str(
+                raw.get("event_identity")
+                or raw.get("source_event_key")
+                or ""
+            ),
+            request_identity_hash=str(raw.get("request_identity_hash") or ""),
+            misconception_tags=tuple(
+                dict.fromkeys(
+                    str(value)
+                    for value in raw.get("misconception_tags") or []
+                    if str(value)
+                )
+            ),
+            support_used=tuple(
+                dict.fromkeys(
+                    str(value)
+                    for value in raw.get("support_used") or []
+                    if str(value)
+                )
+            ),
+            language_detected=(
+                str(raw.get("language_detected") or "").strip() or None
+            ),
             certified_skill_scores={
                 str(key): _score(value)
                 for key, value in dict(raw.get("certified_skill_scores") or {}).items()
@@ -71,6 +203,7 @@ class SchoolAttemptEvidence:
                 if str(key)
             },
             preserve_latest_evidence=bool(raw.get("preserve_latest_evidence")),
+            reconciliation_certification=bool(raw.get("reconciliation_certification")),
         )
 
 
@@ -119,7 +252,7 @@ def derive_school_projection_delta(
                     if _canonical_attempt_type(evidence.attempt_type)
                     in {"independent_check", "transfer_check", "chapter_check"}
                     else None,
-                    language_detected="en",
+                    language_detected=evidence.language_detected,
                     blockers=effective_blockers,
                 ),
             )
@@ -163,20 +296,35 @@ def derive_school_projection_delta(
                 "attempt_type": evidence.attempt_type,
                 "latest_quote": evidence.answer_excerpt,
                 "criteria": list(evidence.criteria),
+                "misconception_tags": list(evidence.misconception_tags),
                 "blockers": list(effective_blockers),
+                "support_used": list(evidence.support_used),
+                "language_detected": evidence.language_detected,
+                "event_identity": evidence.event_identity,
+                "request_identity_hash": evidence.request_identity_hash,
                 "evaluator_score": evidence.score,
                 "attempt_passed": evidence.attempt_passed,
                 "school_readiness_state": profile_fields["school_readiness_state"],
                 "skill_status": status,
             }
         if certified_score is not None:
-            evidence_json.update({
-                "latest_certification": {
-                    "session_id": evidence.session_id,
-                    "chapter_id": evidence.chapter_id,
-                    "score": certified_score,
-                },
-            })
+            certification = _certification_identity(
+                session_id=evidence.session_id,
+                chapter_id=evidence.chapter_id,
+                score=certified_score,
+            )
+            if evidence.reconciliation_certification:
+                evidence_json[_RECONCILIATION_CERTIFICATION_LEDGER_KEY] = (
+                    _reconciliation_certification_ledger(
+                        previous_evidence,
+                        certification,
+                    )
+                )
+                previous_latest = previous_evidence.get("latest_certification")
+                if not isinstance(previous_latest, dict) or previous_latest == certification:
+                    evidence_json["latest_certification"] = certification
+            else:
+                evidence_json["latest_certification"] = certification
         strong = is_strong
         delta.append({
             "user_id": "",
@@ -238,6 +386,14 @@ def derive_school_projection_delta(
 
 
 def _canonical_attempt_type(attempt_type: str) -> str:
+    v2_attempt_types = {
+        "v2_independent_application": "independent_check",
+        "v2_transfer": "transfer_check",
+        "v2_review": "review_check",
+        "v2_support": "bridge",
+    }
+    if attempt_type in v2_attempt_types:
+        return v2_attempt_types[attempt_type]
     if attempt_type == "guided_check" or attempt_type.startswith("revision_level_"):
         return "guided"
     if attempt_type in {"snapshot", "targeted_diagnostic", "confirmatory"}:
@@ -270,4 +426,8 @@ def _support_level(attempt_type: str) -> str:
     return "guided"
 
 
-__all__ = ["SchoolAttemptEvidence", "derive_school_projection_delta"]
+__all__ = [
+    "SchoolAttemptEvidence",
+    "derive_school_projection_delta",
+    "enrich_school_projection_evidence",
+]

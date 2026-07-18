@@ -79,10 +79,34 @@ def build_school_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
         if not skill_id:
             continue
         canonical_profile = to_profile_upsert(from_profile_row(raw))
+        readiness_state = dict(canonical_profile["school_readiness_state"])
         readiness = _score(canonical_profile["readiness"])
         mastery = _score(canonical_profile["mastery"])
         gaps = [str(value).strip() for value in raw.get("gaps_json") or [] if str(value).strip()]
         evidence = raw.get("evidence_json") if isinstance(raw.get("evidence_json"), dict) else {}
+        misconception_tags = list(
+            dict.fromkeys(
+                str(value).strip()
+                for value in evidence.get("misconception_tags") or []
+                if str(value).strip()
+            )
+        )
+        criterion_gap_ids = list(
+            dict.fromkeys(
+                str(criterion.get("id") or "").strip()
+                for criterion in evidence.get("criteria") or []
+                if isinstance(criterion, dict)
+                and str(criterion.get("id") or "").strip()
+                and not bool(criterion.get("met"))
+            )
+        )
+        support_used = list(
+            dict.fromkeys(
+                str(value).strip()
+                for value in evidence.get("support_used") or []
+                if str(value).strip()
+            )
+        )
         latest_evidence = ledger_evidence.get(skill_id) or {}
         skill_status = str(canonical_profile["skill_status"])
         if skill_status == "mastered":
@@ -99,6 +123,17 @@ def build_school_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
             "mastery": mastery,
             "confidence": _score(raw.get("confidence")),
             "attempts": int(raw.get("attempts") or 0),
+            "skill_status": skill_status,
+            "certifying_attempts": int(readiness_state.get("certified_attempts") or 0),
+            "independent_passes": int(readiness_state.get("independent_passes") or 0),
+            "transfer_passes": int(readiness_state.get("transfer_passes") or 0),
+            "review_passes": int(readiness_state.get("review_passes") or 0),
+            "chapter_passes": int(readiness_state.get("chapter_passes") or 0),
+            "active_blockers": [
+                str(value)
+                for value in readiness_state.get("active_blockers") or []
+                if str(value)
+            ],
             "gap": gaps[0] if gaps else "",
             "latest_evidence": str(
                 latest_evidence.get("latest_evidence")
@@ -116,6 +151,9 @@ def build_school_memory_context(graph: dict[str, Any]) -> dict[str, Any]:
                 or evidence.get("chapter_id")
                 or ""
             ),
+            "misconception_tags": misconception_tags[:8],
+            "criterion_gap_ids": criterion_gap_ids[:8],
+            "support_used": support_used[:8],
         })
     for values in buckets.values():
         values.sort(key=lambda row: (row["readiness"], -row["attempts"], row["skill_id"]))
@@ -223,26 +261,39 @@ class SchoolLearningProfileService:
         }
         if not certified_skill_scores:
             return
+        projection_evidence = {
+            "session_id": session_id,
+            "chapter_id": chapter_id,
+            "level_id": "chapter_assessment",
+            "module_id": chapter_id,
+            "task_type": "school_rebuild_curriculum",
+            "focus": "chapter assessment reconciliation",
+            "skill_ids": [],
+            "attempt_type": "chapter_check",
+            "score": 0.0,
+            "confidence": 1.0,
+            "criteria": [],
+            "blockers": [],
+            "answer_excerpt": "",
+            "attempt_passed": False,
+            "certified_skill_scores": certified_skill_scores,
+            "preserve_latest_evidence": True,
+            "reconciliation_certification": True,
+        }
+        atomic_projection = getattr(
+            self.store,
+            "reconcile_school_chapter_certification_projection",
+            None,
+        )
+        if callable(atomic_projection):
+            await atomic_projection(
+                user_id=user_id,
+                projection_evidence=projection_evidence,
+            )
+            return
         graph = await self.store.get_school_learning_graph(user_id)
         projection = derive_school_projection_delta(
-            SchoolAttemptEvidence(
-                session_id=session_id,
-                chapter_id=chapter_id,
-                level_id="chapter_assessment",
-                module_id=chapter_id,
-                task_type="school_rebuild_curriculum",
-                focus="chapter assessment reconciliation",
-                skill_ids=(),
-                attempt_type="chapter_check",
-                score=0.0,
-                confidence=1.0,
-                criteria=(),
-                blockers=(),
-                answer_excerpt="",
-                attempt_passed=False,
-                certified_skill_scores=certified_skill_scores,
-                preserve_latest_evidence=True,
-            ),
+            SchoolAttemptEvidence.from_dict(projection_evidence),
             [
                 profile
                 for profile in graph.get("profiles") or []

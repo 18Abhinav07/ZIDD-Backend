@@ -15,7 +15,8 @@ def _chapter_with_transfer() -> dict:
     chapter["chapter_id"] = "transfer-contract-chapter"
     chapter["levels"] = chapter["levels"][:1]
     level = chapter["levels"][0]
-    for kind in ("guided_check", "bridge", "independent_check"):
+    level.pop("teaching_steps", None)
+    for kind in ("guided_check", "bridge", "masterclass", "independent_check"):
         level["checks"][kind] = {
             "teaching_block": "Show that sharing solves the problem.",
             "passage": "Two learners each have something the other needs.",

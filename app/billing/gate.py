@@ -3,14 +3,16 @@ is free or must be paid. The brain (graph/services) stays credit-blind; the
 /session/start route guard consults this BEFORE svc.start_session.
 
 Decision order (judges hit zero paywalls):
-  1. demo_unlimited  -> free            (XPRIZE judge bypass, checked FIRST)
-  2. school_english  -> free            (teaching is the funnel)
-  3. communication   -> owned? free : first-node free-taste : 40cr ACCESS unlock
-  4. interview / gd  -> first 2 attempts free, then 50cr ATTEMPT meter
+  0. billing disabled -> free            (free beta, no credit storage access)
+  1. demo_unlimited   -> free            (XPRIZE judge bypass, checked FIRST)
+  2. school_english   -> free            (teaching is the funnel)
+  3. communication    -> owned? free : first-node free-taste : 40cr ACCESS unlock
+  4. interview / gd   -> first 2 attempts free, then 50cr ATTEMPT meter
 """
 from dataclasses import dataclass
 
 from app.billing import pricing
+from app.config import get_settings
 from app.content.registry import (
     COMM_ID,
     GD_ID,
@@ -43,6 +45,10 @@ async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
 
     Raises KeyError if the node id is unknown (the route maps that to 404).
     """
+    if get_settings().billing_mode == "disabled":
+        module_of(node_id)  # Preserve the unknown-node contract without storage.
+        return GateDecision(True, 0, "", "", False, False, "billing_disabled")
+
     # 1. Judge/demo bypass — checked FIRST, before any module logic.
     if await store.is_demo(user_id):
         return GateDecision(True, 0, "", "", False, False, "demo_unlimited")
@@ -93,6 +99,9 @@ async def charge(
     paid without the unlock recorded. ATTEMPT meters (record_unlock=False) are a
     pure debit — already atomic — so they stay on deduct_credits.
     """
+    if get_settings().billing_mode == "disabled":
+        return ChargeOutcome(True, False)
+
     if decision.record_unlock:
         allowed, charged = await store.charge_and_unlock(
             user_id, decision.cost, decision.reason, decision.scope, decision.ref_id

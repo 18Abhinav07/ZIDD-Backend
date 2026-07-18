@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.content.registry import module_of
 from app.services.learning_profile import CareerLearningProfileService, build_career_memory_context
+from app.services.school_rebuild_learning import build_school_memory_context
 from app.storage import get_storage
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -202,19 +203,74 @@ async def activity(request: Request) -> dict:
         logger.exception("activity snapshot unavailable for user=%s", user_id)
         snapshot = {}
 
-    school_results = _activity_rows(snapshot.get("school_results"))
-    school_mastery = _activity_rows(snapshot.get("school_skill_mastery"))
-    school_weak = [str(skill) for skill in _activity_list(snapshot.get("school_weak_skills")) if skill]
+    try:
+        school_graph = await store.get_school_learning_graph(user_id)
+    except Exception:
+        degraded = True
+        logger.exception("school activity unavailable for user=%s", user_id)
+        school_graph = {"profiles": [], "reports": [], "events": [], "sessions": []}
+
+    school_profiles = [
+        row
+        for row in _activity_rows(school_graph.get("profiles"))
+        if row.get("domain") == "school"
+    ]
+    school_events = [
+        row
+        for row in _activity_rows(school_graph.get("events"))
+        if row.get("domain") == "school"
+    ]
+    school_sessions = [
+        row
+        for row in _activity_rows(school_graph.get("sessions"))
+        if row.get("api_version") == "rebuild"
+        and row.get("domain") in (None, "school")
+    ]
+    school_reports = [
+        row
+        for row in _activity_rows(school_graph.get("reports"))
+        if row.get("domain") in (None, "school")
+    ]
+    school_memory = build_school_memory_context(
+        {"profiles": school_profiles, "events": school_events}
+    )
+    school_weak = list(
+        dict.fromkeys(
+            str(row.get("skill_id"))
+            for bucket in ("active_gaps", "improving_gaps")
+            for row in _activity_rows(school_memory.get(bucket))
+            if row.get("skill_id")
+        )
+    )
     progression = _activity_rows(snapshot.get("progression"))
     weaknesses = _activity_rows(snapshot.get("weaknesses"))
 
-    scores = [_float_or_zero(r.get("score")) for r in school_results]
+    school_test_events = [
+        row
+        for row in school_events
+        if row.get("attempt_type") == "chapter_check" and row.get("session_id")
+    ]
+    scores = [_float_or_zero(row.get("score")) for row in school_test_events]
     average = round(sum(scores) / len(scores), 4) if scores else 0.0
-    recent_classes = sorted({
-        _int_or_zero(r.get("class_no"))
-        for r in school_results
-        if _int_or_zero(r.get("class_no")) > 0
-    })
+    school_test_session_ids = {
+        str(row["session_id"])
+        for row in school_test_events
+        if str(row.get("session_id") or "")
+    }
+    recent_class_values = [row.get("class_no") for row in school_sessions]
+    recent_class_values.extend(
+        report.get("active_learning_class_no")
+        or report.get("evaluated_class_no")
+        or report.get("target_class_no")
+        for report in school_reports
+    )
+    recent_classes = sorted(
+        {
+            _int_or_zero(class_no)
+            for class_no in recent_class_values
+            if _int_or_zero(class_no) > 0
+        }
+    )
     career_progression = [p for p in progression if _is_career_progression_row(p)]
     career_weaknesses = [w for w in weaknesses if w.get("task_type") in CAREER_TASK_TYPES]
     completed_nodes = [
@@ -254,7 +310,7 @@ async def activity(request: Request) -> dict:
                 "body": "Set up your class and start with a readiness check.",
                 "href": "/school",
             })
-    if not career_ready:
+    if profile.get("primary_motive") != "school" and not career_ready:
         recommendations.append({
             "kind": "career",
             "title": "Complete career personalization",
@@ -264,17 +320,18 @@ async def activity(request: Request) -> dict:
 
     return {
         "school": {
-            "results_count": len(school_results),
+            "results_count": len(school_test_session_ids),
             "recent_classes": recent_classes,
             "average_score": average,
             "weak_skills": school_weak,
             "skill_mastery": [
                 {
-                    "skill": m.get("skill"),
-                    "mastery": round(_float_or_zero(m.get("ema")), 4),
+                    "skill": m.get("skill_id"),
+                    "mastery": round(_float_or_zero(m.get("mastery")), 4),
                     "attempts": _int_or_zero(m.get("attempts")),
                 }
-                for m in school_mastery
+                for m in school_profiles
+                if m.get("skill_id")
             ],
         },
         "career": {

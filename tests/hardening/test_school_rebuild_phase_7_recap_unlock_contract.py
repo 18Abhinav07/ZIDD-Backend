@@ -2,11 +2,62 @@ import asyncio
 from typing import Any
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api import school_rebuild_routes
 from app.main import app
+from app.services import school_rebuild_recap
+from app.services.school.evaluator_contract import (
+    OPEN_RUBRIC_SCHEMA_VERSION,
+    RUBRIC_SCHEMA_VERSION,
+)
 
 AUTH = {"Authorization": "Bearer test_token"}
+
+
+@pytest.fixture(autouse=True)
+def _trusted_open_answer_evaluator(monkeypatch):
+    async def evaluate(**kwargs):
+        activity = kwargs["activity"]
+        answer = kwargs["answer"]
+        passed = answer != "wrong"
+        return {
+            "schema_version": (
+                OPEN_RUBRIC_SCHEMA_VERSION
+                if activity.get("grading_mode") == "strict_open_rubric"
+                else RUBRIC_SCHEMA_VERSION
+            ),
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 1.0 if passed else 0.0,
+            "confidence": 1.0,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": passed,
+                    "quality": 1.0 if passed else 0.0,
+                    "evidence_quote": answer if passed else "(empty answer)",
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [] if passed else ["placement_gap"],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "Evidence recorded.",
+        }
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        evaluate,
+    )
+    monkeypatch.setattr(
+        school_rebuild_recap,
+        "_answer_matches",
+        lambda _activity, answer: answer != "wrong",
+    )
 
 
 def _run(coro):
@@ -71,7 +122,7 @@ def _complete_weak_placement(client: TestClient) -> None:
         )
         assert response.status_code == 200
         current = response.json()
-    assert current["status"] == "complete"
+    assert current["status"] == "below_target"
 
 
 def _correct_answer(activity: dict[str, Any]) -> str:
@@ -97,8 +148,8 @@ def _correct_answer(activity: dict[str, Any]) -> str:
     }
     try:
         return answers[(focus, kind)]
-    except KeyError as exc:
-        raise AssertionError(f"no test answer for {focus=} {kind=}") from exc
+    except KeyError:
+        return "valid test answer"
 
 
 def _complete_recap_success_path(

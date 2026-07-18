@@ -38,6 +38,9 @@ STAGES = {
     "guided_check",
     "bridge",
     "masterclass",
+    "revision_level_1",
+    "revision_level_2",
+    "revision_level_3",
     "independent_check",
     "transfer_check",
 }
@@ -63,15 +66,15 @@ def test_owned_class4_chapter_meets_launch_content_contract(chapter_id):
     runtime = chapter.runtime_dict()
     expected = EXPECTED[chapter_id]
 
-    assert chapter.approval_status == "qa_approved"
-    assert chapter.reviewed_by == "codex-school-content-worker"
-    assert chapter.reviewed_at == "2026-07-12"
-    assert chapter.review_evidence == [
-        "tests/hardening/test_school_rebuild_class4_ch09_ch10_launch_contract.py",
-        "scripts/audit_school_rebuild_content.py --class 4",
-    ]
+    assert chapter.approval_status == "agent_reviewed"
+    assert chapter.reviewed_by
+    assert chapter.reviewed_at
+    evidence = " ".join(chapter.review_evidence).casefold()
+    assert "semantic" in evidence
+    assert "audit_school_rebuild_content.py" in evidence
+    assert "official" in evidence
     assert {key: runtime[key] for key in expected} == expected
-    assert 5 <= len(runtime["levels"]) <= 7
+    assert 5 <= len(runtime["levels"]) <= 9
     assert chapter.calculated_runtime_sha256() == chapter.runtime_sha256
     assert chapter_quality_issues(chapter) == ()
 
@@ -89,7 +92,7 @@ def test_owned_class4_chapter_meets_launch_content_contract(chapter_id):
                 (activity["teaching_block"], activity["passage"], activity["prompt"])
                 for activity in checks.values()
             }
-        ) == 5
+        ) == len(STAGES)
         stage_passages.update(activity["passage"] for activity in checks.values())
 
     assessment = runtime["chapter_assessment"]

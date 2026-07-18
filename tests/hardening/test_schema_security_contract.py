@@ -585,6 +585,30 @@ def test_every_required_migration_is_in_the_default_sequence():
     assert set(REQUIRED_MIGRATION_FILES) <= defaults
 
 
+def test_class5_release_metadata_correction_is_guarded_and_registered():
+    from app.db.schema_guard import REQUIRED_MIGRATION_FILES
+
+    migration = MIGRATIONS / "2026-07-14-school-release-metadata-correction.sql"
+    assert migration.exists()
+    assert migration.resolve() in {path.resolve() for path in DEFAULT_MIGRATIONS}
+    assert (
+        "app/db/migrations/2026-07-14-school-release-metadata-correction.sql"
+        in REQUIRED_MIGRATION_FILES
+    )
+
+    sql = _sql(migration)
+    assert "english_cbse_2026_27_c5_eesa1" in sql
+    assert "b2af0483dd918273dc2d5c6c9fb785da1063a33fa69ca7d628a6cf5f4950bf6b" in sql
+    assert "e7524ce60fa8d8cd4e40c8e0b5170047d085e0a42311831d4fc5637caec7a83b" in sql
+    assert "school_curriculum_release_correction_preimage_mismatch" in sql
+    assert "disable trigger school_curriculum_releases_immutable" in sql
+    assert "enable trigger school_curriculum_releases_immutable" in sql
+
+    schema = _sql(SCHEMA)
+    assert '"source_genre":"poem","title":"papa\'s spectacles"' in schema
+    assert "e7524ce60fa8d8cd4e40c8e0b5170047d085e0a42311831d4fc5637caec7a83b" in schema
+
+
 def test_full_schema_includes_school_answer_request_rls_contract():
     sql = _sql(SCHEMA)
     assert "create table if not exists school_answer_requests" in sql

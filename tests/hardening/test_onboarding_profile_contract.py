@@ -225,7 +225,7 @@ def test_onboarding_state_round_trips_drafts(store):
     }
 
 
-def test_me_activity_summarizes_empty_and_school_progress(store):
+def test_me_activity_ignores_legacy_school_progress(store):
     _run(store.ensure_profile("test_user"))
     client = TestClient(app)
 
@@ -255,13 +255,16 @@ def test_me_activity_summarizes_empty_and_school_progress(store):
     assert activity.status_code == 200
     body = activity.json()
     assert store.activity_snapshot_calls == 2
-    assert body["school"]["results_count"] == 1
-    assert body["school"]["recent_classes"] == [2]
-    assert body["school"]["weak_skills"] == ["new_words"]
-    assert body["school"]["average_score"] == 0.5
+    assert body["school"] == {
+        "results_count": 0,
+        "recent_classes": [],
+        "average_score": 0.0,
+        "weak_skills": [],
+        "skill_mastery": [],
+    }
 
 
-def test_me_activity_accepts_json_string_snapshot(monkeypatch, store):
+def test_me_activity_keeps_career_json_snapshot_compatibility(monkeypatch, store):
     _run(store.ensure_profile("test_user"))
 
     async def _json_snapshot(user_id: str) -> dict:
@@ -281,13 +284,13 @@ def test_me_activity_accepts_json_string_snapshot(monkeypatch, store):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["school"]["results_count"] == 1
-    assert body["school"]["recent_classes"] == [3]
-    assert body["school"]["average_score"] == 0.75
-    assert body["school"]["weak_skills"] == ["grammar"]
-    assert body["school"]["skill_mastery"] == [
-        {"skill": "grammar", "mastery": 0.45, "attempts": 2}
-    ]
+    assert body["school"] == {
+        "results_count": 0,
+        "recent_classes": [],
+        "average_score": 0.0,
+        "weak_skills": [],
+        "skill_mastery": [],
+    }
     assert body["career"]["attempts"] == 4
     assert body["career"]["weaknesses"] == [
         {

@@ -17,7 +17,9 @@ class PlacementBankValidationError(ValueError):
     """Raised when placement content cannot satisfy the diagnostic contract."""
 
 
-_OPAQUE_ITEM_ID = re.compile(r"^spv_c0[2-5]_t0[1-8]_v0[1-5]$")
+_OPAQUE_ITEM_ID = re.compile(
+    r"^(?:spv_c0[2-5]_t0[1-8]_v0[1-5]|spv_c05_t03_v06)$"
+)
 _REVIEW_MANIFEST_REFERENCE = "app/content/school_rebuild_placement_review_manifest.json"
 _REVIEW_MANIFEST_PATH = Path(__file__).with_name(
     "school_rebuild_placement_review_manifest.json"
@@ -168,6 +170,10 @@ def _normalized_identifier_part(value: str) -> str:
     return "".join(character for character in value.casefold() if character.isalnum())
 
 
+def _normalize_public_surface(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", str(value)).casefold().split())
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise PlacementBankValidationError(message)
@@ -181,15 +187,15 @@ def _validate_approval(approval: Any, owner: str) -> None:
         f"{owner} has an inaccurate engineering-QA status",
     )
     _require(
-        getattr(approval, "human_review_status", None)
-        == _REVIEW_MANIFEST["human_pedagogical_review_status"]
-        == "pending",
-        f"{owner} has an inaccurate human-review status",
+        getattr(approval, "content_review_status", None)
+        == _REVIEW_MANIFEST["content_review_status"]
+        == "agent_reviewed",
+        f"{owner} has an inaccurate content-review status",
     )
     _require(
         getattr(approval, "launch_status", None)
         == _REVIEW_MANIFEST["launch_status"]
-        == "blocked_pending_human_review",
+        == "qa_only",
         f"{owner} has an inaccurate launch status",
     )
     _require(bool(getattr(approval, "reviewed_by", "").strip()), f"{owner} has no QA reviewer")
@@ -220,7 +226,14 @@ def _contains_public_scoring_leak(value: str, item: Any) -> bool:
     return False
 
 
-def _validate_item(item: Any, track: Any, item_ids: set[str], prompt_keys: set[tuple[str, str]]) -> None:
+def _validate_item(
+    item: Any,
+    track: Any,
+    item_ids: set[str],
+    prompt_keys: set[tuple[str, str]],
+    track_prompt_surfaces: set[str],
+    track_passage_surfaces: set[str],
+) -> None:
     owner = f"item {item.item_id!r}"
     _require(bool(item.item_id.strip()), "placement item ID is empty")
     _require(bool(_OPAQUE_ITEM_ID.fullmatch(item.item_id)), f"{owner} does not use an opaque stable ID")
@@ -275,6 +288,19 @@ def _validate_item(item: Any, track: Any, item_ids: set[str], prompt_keys: set[t
     prompt_key = (item.passage.strip().casefold(), item.prompt.strip().casefold())
     _require(prompt_key not in prompt_keys, f"{owner} repeats another placement prompt")
     prompt_keys.add(prompt_key)
+    prompt_surface = _normalize_public_surface(item.prompt)
+    _require(
+        prompt_surface not in track_prompt_surfaces,
+        f"{owner} repeats a prompt surface within {track.track_id}",
+    )
+    track_prompt_surfaces.add(prompt_surface)
+    passage_surface = _normalize_public_surface(item.passage)
+    if passage_surface:
+        _require(
+            passage_surface not in track_passage_surfaces,
+            f"{owner} repeats a passage within {track.track_id}",
+        )
+        track_passage_surfaces.add(passage_surface)
 
     _require(set(item.localized_copy) == {"en", "hi", "hi_en"}, f"{owner} is missing en/hi/hi_en localizations")
     for language, learner_copy in item.localized_copy.items():
@@ -432,13 +458,22 @@ def validate_placement_bank(tracks_by_class: Mapping[int, Sequence[Any]]) -> boo
             _require(track.primary_skill_id in locked_skills, f"{owner} uses an unlocked primary skill")
             _require(bool(track.learner_skill_label.strip()), f"{owner} has no learner-safe label")
             _validate_approval(track.approval, owner)
+            track_prompt_surfaces: set[str] = set()
+            track_passage_surfaces: set[str] = set()
 
             expected_bands = {max(1, class_no - 1), class_no}
             actual_bands = {band.source_class_no for band in track.bands}
             _require(actual_bands == expected_bands, f"{owner} source bands must be {sorted(expected_bands)}")
             _require(track.snapshot_item.stage == "snapshot", f"{owner} has no snapshot item")
             _require(track.snapshot_item.source_class_no in expected_bands, f"{owner} snapshot uses an unreachable source band")
-            _validate_item(track.snapshot_item, track, item_ids, prompt_keys)
+            _validate_item(
+                track.snapshot_item,
+                track,
+                item_ids,
+                prompt_keys,
+                track_prompt_surfaces,
+                track_passage_surfaces,
+            )
 
             for band in track.bands:
                 _require(len(band.variants) >= 2, f"{owner} source band {band.source_class_no} needs two unused variants")
@@ -446,6 +481,13 @@ def validate_placement_bank(tracks_by_class: Mapping[int, Sequence[Any]]) -> boo
                 _require({"targeted_diagnostic", "confirmatory"} <= stages, f"{owner} source band {band.source_class_no} lacks targeted/confirmatory variants")
                 for item in band.variants:
                     _require(item.source_class_no == band.source_class_no, f"{owner} variant is stored in the wrong source band")
-                    _validate_item(item, track, item_ids, prompt_keys)
+                    _validate_item(
+                        item,
+                        track,
+                        item_ids,
+                        prompt_keys,
+                        track_prompt_surfaces,
+                        track_passage_surfaces,
+                    )
 
     return True

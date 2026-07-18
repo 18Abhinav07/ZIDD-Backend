@@ -1,5 +1,6 @@
 from typing import Any
 
+from app.services import school_rebuild_placement as placement
 from app.services.school_rebuild_profile import (
     school_catalog_selection_available,
     school_coach_identity,
@@ -315,27 +316,84 @@ def _insufficient_evidence_state(
     display_name: str,
     placement_session_id: str,
     evaluated_class_no: int | None,
+    resumable: bool,
 ) -> dict[str, Any]:
+    next_action = "resume_placement" if resumable else "start_placement"
+    allowed_next_actions = (
+        ["resume_placement"]
+        if resumable
+        else ["view_placement_report", "start_placement"]
+    )
     return _build_state(
         **profile_fields,
-        active_flow="placement",
+        active_flow="placement" if resumable else "placement_report",
         active_session_id=placement_session_id,
         placement_status="insufficient_evidence",
         unlock_state="locked",
         evaluated_class_no=evaluated_class_no,
         active_learning_class_no=None,
         status="insufficient_evidence",
-        next_action="resume_placement",
-        next_action_url=f"{SCHOOL_READINESS_URL}/{placement_session_id}",
-        allowed_next_actions=["resume_placement"],
+        next_action=next_action,
+        next_action_url=(
+            f"{SCHOOL_READINESS_URL}/{placement_session_id}"
+            if resumable
+            else SCHOOL_READINESS_URL
+        ),
+        allowed_next_actions=allowed_next_actions,
         learner_message=(
             f"{display_name}, finish the readiness check so there is enough evidence."
+            if resumable
+            else (
+                f"{display_name}, there are no more useful questions in this check. "
+                "Review the saved report or begin a fresh check."
+            )
         ),
         parent_message=(
-            "The readiness check needs more evidence before a learning path can be set."
+            "The readiness check ended without enough consistent evidence for a safe "
+            "placement. The saved report explains what was observed and offers a fresh check."
         ),
         blocked_reason="insufficient_evidence",
     )
+
+
+def _terminal_placement_envelope(
+    placement_session: dict[str, Any],
+) -> placement.PlacementEnvelope | None:
+    state_json = placement_session.get("state_json")
+    if not isinstance(state_json, dict):
+        return None
+    placement_state = state_json.get("placement_state")
+    if not isinstance(placement_state, dict):
+        return None
+    track_states = placement_state.get("track_states")
+    if not isinstance(track_states, dict) or not track_states:
+        return None
+
+    queued_track_ids: list[str] = []
+    for queue_key in ("pending_track_ids", "confirmatory_track_ids"):
+        queue = placement_state.get(queue_key)
+        if not isinstance(queue, list) or any(
+            not isinstance(track_id, str) or not track_id for track_id in queue
+        ):
+            return None
+        queued_track_ids.extend(queue)
+
+    try:
+        envelope = placement.envelope_from_json(state_json)
+    except (AttributeError, KeyError, OverflowError, TypeError, ValueError):
+        return None
+
+    envelope_track_ids = set(envelope.state.track_states)
+    if (
+        envelope.state.terminal_status != "insufficient_evidence"
+        or any(track_id not in envelope_track_ids for track_id in queued_track_ids)
+        or any(
+            track_id != track_state.track_id
+            for track_id, track_state in envelope.state.track_states.items()
+        )
+    ):
+        return None
+    return envelope
 
 
 def school_state_for_profile(
@@ -349,6 +407,7 @@ def school_state_for_profile(
     processing_answer_request: dict[str, Any] | None = None,
     active_masterclass_session: dict[str, Any] | None = None,
     active_support_session: dict[str, Any] | None = None,
+    resumable_masterclass_session: dict[str, Any] | None = None,
     linked_session: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if school_profile is None:
@@ -387,6 +446,19 @@ def school_state_for_profile(
             profile_fields=profile_fields,
             display_name=str(display_name),
         )
+
+    placement_session_status = (
+        str(placement_session.get("status") or "") if placement_session else ""
+    )
+    if (
+        placement_session_status in ACTIVE_PLACEMENT_STATUSES
+        and placement_report
+        and str(placement_report.get("placement_session_id") or "")
+        == _session_id(placement_session)
+    ):
+        # The report remains immutable historical evidence, but resuming the
+        # same placement supersedes it as the source of live navigation truth.
+        placement_report = None
 
     if (active_recap_session or active_curriculum_session) and not placement_report:
         return _recoverable_state(
@@ -595,6 +667,29 @@ def school_state_for_profile(
             and isinstance(curriculum_state.get("active_interrupt"), dict)
         ):
             curriculum_session_id = _session_id(active_curriculum_session)
+            if resumable_masterclass_session:
+                return _build_state(
+                    **profile_fields,
+                    active_flow="curriculum",
+                    active_session_id=curriculum_session_id,
+                    placement_status=report_status,
+                    unlock_state=report_unlock,
+                    evaluated_class_no=evaluated_class_no,
+                    active_learning_class_no=target_class_no,
+                    status="needs_action",
+                    next_action="resume_masterclass",
+                    next_action_url=curriculum_url,
+                    allowed_next_actions=["resume_masterclass"],
+                    learner_message=(
+                        f"{display_name}, return to your chapter now that the focused "
+                        "coach session is complete."
+                    ),
+                    parent_message=(
+                        "The focused coach session is complete and the learner can "
+                        "return to the chapter."
+                    ),
+                    blocked_reason=None,
+                )
             return _build_state(
                 **profile_fields,
                 active_flow="masterclass",
@@ -834,18 +929,25 @@ def school_state_for_profile(
             display_name=str(display_name),
         )
 
-    placement_session_status = (
-        str(placement_session.get("status") or "") if placement_session else ""
-    )
     if placement_session and (
         placement_session_status == "insufficient_evidence"
         or report_status == "insufficient_evidence"
     ):
+        # Reports are historical and may advertise stale actions. Once a
+        # placement row exists, its persisted envelope owns resumability.
+        terminal_envelope = _terminal_placement_envelope(placement_session)
+        if terminal_envelope is None:
+            return _recoverable_state(
+                profile_fields=profile_fields,
+                display_name=str(display_name),
+            )
+        resumable = placement.can_resume_placement(terminal_envelope)
         return _insufficient_evidence_state(
             profile_fields=profile_fields,
             display_name=str(display_name),
             placement_session_id=_session_id(placement_session),
             evaluated_class_no=evaluated_class_no,
+            resumable=resumable,
         )
 
     if placement_session and placement_session_status in ACTIVE_PLACEMENT_STATUSES:

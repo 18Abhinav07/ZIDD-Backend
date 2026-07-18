@@ -250,6 +250,46 @@ LOCKED_ENGLISH_TAXONOMY_ENTRIES: tuple[CompetencyFamilyRef, ...] = (
         prerequisite_skill_ids=("reading.sentence_comprehension",),
     ),
     CompetencyFamilyRef(
+        skill_id="reading.event_sequence",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Sequence events and processes",
+        description=(
+            "Place connected events or process steps in a supported order using "
+            "time, cause, and transition clues."
+        ),
+        prerequisite_skill_ids=("reading.sentence_comprehension",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="reading.dialogue_attribution",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Track speakers and dialogue",
+        description=(
+            "Identify who is speaking, who is being addressed, and what the "
+            "utterance contributes to the event."
+        ),
+        prerequisite_skill_ids=("reading.sentence_comprehension",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="reading.poetic_language",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Interpret poetic language",
+        description=(
+            "Use context to interpret imagery, comparison, repetition, rhyme, "
+            "and a poem's speaker or mood without treating poetic exaggeration "
+            "as literal fact."
+        ),
+        prerequisite_skill_ids=(
+            "reading.word_meaning_context",
+            "reading.sentence_comprehension",
+        ),
+    ),
+    CompetencyFamilyRef(
         skill_id="vocab.chapter_word_usage",
         subject_id="english",
         class_min=2,
@@ -378,6 +418,222 @@ LOCKED_ENGLISH_TAXONOMY_ENTRIES: tuple[CompetencyFamilyRef, ...] = (
             "question or response, and a closing."
         ),
         prerequisite_skill_ids=("writing.complete_sentence",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="vocab.attribute_ordering",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Order objects by an attribute",
+        description=(
+            "Arrange familiar words by a stated quality such as size, weight, "
+            "length, or intensity and explain the ordering rule."
+        ),
+        prerequisite_skill_ids=("reading.word_meaning_context",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="vocab.spelling",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Recognize and produce standard spellings",
+        description=(
+            "Choose or write the standard spelling of familiar curriculum words "
+            "using letter-pattern and word-family knowledge."
+        ),
+        prerequisite_skill_ids=("reading.word_meaning_context",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="vocab.antonyms",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Use words with opposite meanings",
+        description=(
+            "Recognize and use an antonym that fits the meaning and grammar of a "
+            "sentence."
+        ),
+        prerequisite_skill_ids=("reading.word_meaning_context",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="vocab.word_formation",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Build and explain related words",
+        description=(
+            "Form compounds or add a taught prefix or suffix, then verify that "
+            "the resulting word has the intended meaning in context."
+        ),
+        prerequisite_skill_ids=("reading.word_meaning_context",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.prepositions",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Use prepositions in context",
+        description=(
+            "Select and use position, direction, and time prepositions to express "
+            "clear relationships in a sentence."
+        ),
+        prerequisite_skill_ids=("reading.sentence_comprehension",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.adverbs",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Use adverbs in context",
+        description=(
+            "Recognize and use words or phrases that answer when, how often, "
+            "where, or how an action happens."
+        ),
+        prerequisite_skill_ids=("grammar.noun_verb_adjective",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.pronouns",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Track and use pronouns",
+        description=(
+            "Connect pronouns to clear referents and choose subject, object, or "
+            "possessive forms that fit the sentence."
+        ),
+        prerequisite_skill_ids=("reading.sentence_comprehension",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.question_formation",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Form answerable questions",
+        description=(
+            "Choose an appropriate question word and arrange a complete, "
+            "relevant question with correct punctuation."
+        ),
+        prerequisite_skill_ids=("grammar.sentence_order",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.punctuation_capitalization",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Use capitals and punctuation",
+        description=(
+            "Mark names, sentence boundaries, questions, lists, and dialogue so "
+            "the reader can follow the intended meaning."
+        ),
+        prerequisite_skill_ids=("writing.complete_sentence",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="grammar.subject_verb_agreement",
+        subject_id="english",
+        class_min=3,
+        class_max=5,
+        name="Match subjects and verbs",
+        description=(
+            "Choose a verb form that agrees with the sentence subject in number "
+            "and person."
+        ),
+        prerequisite_skill_ids=("grammar.noun_verb_adjective",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="writing.paragraph",
+        subject_id="english",
+        class_min=4,
+        class_max=5,
+        name="Develop an organised paragraph",
+        description=(
+            "Write a focused paragraph with an opening idea, connected supporting "
+            "details, and a closing or concluding idea."
+        ),
+        prerequisite_skill_ids=(
+            "writing.complete_sentence",
+            "writing.short_answer",
+        ),
+    ),
+    CompetencyFamilyRef(
+        skill_id="writing.dialogue",
+        subject_id="english",
+        class_min=4,
+        class_max=5,
+        name="Write a coherent dialogue",
+        description=(
+            "Write a brief exchange in which each turn has a clear speaker, "
+            "responds to the previous turn, and uses readable punctuation."
+        ),
+        prerequisite_skill_ids=(
+            "writing.complete_sentence",
+            "grammar.punctuation_capitalization",
+        ),
+    ),
+    CompetencyFamilyRef(
+        skill_id="writing.procedure",
+        subject_id="english",
+        class_min=4,
+        class_max=5,
+        name="Explain a procedure",
+        description=(
+            "Present materials, ordered actions, and an intended result using "
+            "clear sequence language and necessary safety details."
+        ),
+        prerequisite_skill_ids=(
+            "reading.event_sequence",
+            "writing.complete_sentence",
+        ),
+    ),
+    CompetencyFamilyRef(
+        skill_id="research.information_selection",
+        subject_id="english",
+        class_min=4,
+        class_max=5,
+        name="Select and report supplied facts",
+        description=(
+            "Choose relevant facts from a bounded, attributed source packet and "
+            "report them accurately without inventing unsupported details."
+        ),
+        prerequisite_skill_ids=(
+            "reading.paragraph_main_idea",
+            "writing.short_answer",
+        ),
+    ),
+    CompetencyFamilyRef(
+        skill_id="speaking.recitation",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Recite with phrasing and expression",
+        description=(
+            "Recite a short age-appropriate text with audible phrasing, pace, and "
+            "expression when a teacher or facilitator can observe performance."
+        ),
+        prerequisite_skill_ids=("reading.sentence_comprehension",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="speaking.multilingual_expression",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Share language knowledge across languages",
+        description=(
+            "Explain a familiar word or expression from another known language "
+            "during an observed conversation without treating translation alone "
+            "as English mastery."
+        ),
+        prerequisite_skill_ids=("speaking.recitation",),
+    ),
+    CompetencyFamilyRef(
+        skill_id="listening.sound_discrimination",
+        subject_id="english",
+        class_min=2,
+        class_max=5,
+        name="Distinguish contrasting speech sounds",
+        description=(
+            "Distinguish spoken word pairs that differ by one sound when verified "
+            "audio or a live facilitator supplies the listening evidence."
+        ),
     ),
 )
 

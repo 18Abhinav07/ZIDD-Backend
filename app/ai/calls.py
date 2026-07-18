@@ -42,7 +42,7 @@ from app.ai.schemas import (
     SelectionDecision,
     SimulationReport,
 )
-from app.ai.structured import call_with_structured_output
+from app.ai.provider import get_ai_provider, structured_generate
 from app.config import get_settings
 from app.content.schema import Concept
 from app.content.task_types import TaskType
@@ -57,7 +57,7 @@ from app.services.rubrics import get_rubric
 
 GROQ_70B = "llama-3.3-70b-versatile"
 GROQ_8B = "llama-3.1-8b-instant"
-GEMINI_FLASH = "gemini-flash-latest"  # 2.0-flash free tier zeroed; 2.5-flash stream 503s (2026)
+GEMINI_FLASH = "gemini-2.5-flash-lite"
 
 
 def _local() -> bool:
@@ -84,6 +84,7 @@ class PrepEvaluationRetryRequired(RuntimeError):
 
 
 _DETERMINISTIC_PREP_REPAIR_NODES = frozenset({
+    "int_01_elevator_pitch",
     "int_07_clarify_before_answering",
     "int_08_quantify_impact",
     "int_09_diplomatic_pushback",
@@ -93,6 +94,12 @@ _DETERMINISTIC_PREP_REPAIR_NODES = frozenset({
     "gd_04_build_on_others",
     "gd_05_disagree_respectfully",
 })
+
+# A schema-valid response can still omit an expected rubric row or fabricate a
+# required evidence quote. That is a provider-output defect, not a learner
+# mistake. Give non-deterministically repairable nodes one extra, bounded repair
+# before surfacing an unscored retry to the learner.
+_MAX_PREP_STRUCTURAL_REPAIR_CALLS = 2
 
 
 from app.middleware.rate_limit import llm_semaphore
@@ -140,11 +147,11 @@ def _ordered_valid_first_response(packet, raw: PrepRubricEval) -> PrepRubricEval
 
 def _merge_structural_repair(
     packet,
-    first: PrepRubricEval,
+    base: PrepRubricEval,
     repair: PrepRubricEval,
     target_ids: list[str],
 ) -> PrepRubricEval:
-    first_rows = _rows_by_id(first)
+    base_rows = _rows_by_id(base)
     repair_rows = _rows_by_id(repair)
     invalid_repair_targets = [
         criterion_id
@@ -158,7 +165,7 @@ def _merge_structural_repair(
     ordered = [
         repair_rows[criterion_id][0]
         if criterion_id in targets
-        else first_rows[criterion_id][0]
+        else base_rows[criterion_id][0]
         for criterion_id in _expected_criterion_ids(packet)
     ]
     repaired_met = {
@@ -168,7 +175,7 @@ def _merge_structural_repair(
     }
     required_missing = [
         criterion_id
-        for criterion_id in (first.required_missing or [])
+        for criterion_id in (base.required_missing or [])
         if str(criterion_id) not in repaired_met
     ]
     required_ids = {
@@ -180,15 +187,15 @@ def _merge_structural_repair(
     pass_eligible = bool(
         not required_missing
         and required_ids.issubset(met_ids)
-        and first.on_task
-        and first.english
-        and float(first.effective_score or first.raw_score) >= float(packet.pass_score)
+        and base.on_task
+        and base.english
+        and float(base.effective_score or base.raw_score) >= float(packet.pass_score)
     )
-    return first.model_copy(update={
+    return base.model_copy(update={
         "criteria": ordered,
         "required_missing": required_missing,
         "pass_eligible": pass_eligible,
-        "mastery_eligible": bool(first.mastery_eligible and pass_eligible),
+        "mastery_eligible": bool(base.mastery_eligible and pass_eligible),
     })
 
 
@@ -253,8 +260,7 @@ def _prep_repair_prompt(
 async def _call_prep_structured(prompt: str) -> PrepRubricEval:
     if _local():
         return await ollama_structured(prompt, PrepRubricEval)
-    client = get_gemini_client()
-    return await call_with_structured_output(client, prompt, PrepRubricEval)
+    return await structured_generate("prep_evaluation", prompt, PrepRubricEval)
 
 
 async def evaluate_answer(
@@ -281,8 +287,7 @@ async def evaluate_answer(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, DiagnosisEval)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, DiagnosisEval)
+        return await structured_generate("diagnosis", prompt, DiagnosisEval)
 
 
 async def evaluate_prep_answer(
@@ -304,26 +309,36 @@ async def evaluate_prep_answer(
         first = await _call_prep_structured(prompt)
         invalid_ids = _structurally_invalid_criterion_ids(packet, first)
         if invalid_ids:
-            repair_prompt = _prep_repair_prompt(prompt, first, invalid_ids)
-            try:
-                repair = await _call_prep_structured(repair_prompt)
-            except Exception as exc:
-                if not _allows_deterministic_prep_repair(packet):
-                    raise PrepEvaluationRetryRequired(invalid_ids) from exc
-                raw = _merge_structural_fallback(packet, first, invalid_ids)
-            else:
+            raw = first
+            for repair_number in range(_MAX_PREP_STRUCTURAL_REPAIR_CALLS):
+                repair_prompt = _prep_repair_prompt(prompt, raw, invalid_ids)
                 try:
-                    raw = _merge_structural_repair(packet, first, repair, invalid_ids)
-                except PrepEvaluationRetryRequired:
+                    repair = await _call_prep_structured(repair_prompt)
+                except Exception as exc:
                     if not _allows_deterministic_prep_repair(packet):
-                        raise
-                    raw = _merge_structural_fallback(packet, first, invalid_ids)
+                        raise PrepEvaluationRetryRequired(invalid_ids) from exc
+                    raw = _merge_structural_fallback(packet, raw, invalid_ids)
+                    break
+                try:
+                    raw = _merge_structural_repair(packet, raw, repair, invalid_ids)
+                except PrepEvaluationRetryRequired as exc:
+                    if _allows_deterministic_prep_repair(packet):
+                        raw = _merge_structural_fallback(packet, raw, invalid_ids)
+                        break
+                    invalid_ids = exc.criterion_ids or invalid_ids
+                    if repair_number + 1 == _MAX_PREP_STRUCTURAL_REPAIR_CALLS:
+                        raise PrepEvaluationRetryRequired(invalid_ids) from exc
+                    continue
                 else:
                     invalid_repair_ids = _structurally_invalid_criterion_ids(packet, raw)
-                    if invalid_repair_ids:
-                        if not _allows_deterministic_prep_repair(packet):
-                            raise PrepEvaluationRetryRequired(invalid_repair_ids)
+                    if not invalid_repair_ids:
+                        break
+                    if _allows_deterministic_prep_repair(packet):
                         raw = _merge_structural_fallback(packet, raw, invalid_repair_ids)
+                        break
+                    invalid_ids = invalid_repair_ids
+                    if repair_number + 1 == _MAX_PREP_STRUCTURAL_REPAIR_CALLS:
+                        raise PrepEvaluationRetryRequired(invalid_repair_ids)
         else:
             raw = _ordered_valid_first_response(packet, first)
     result = apply_caps(packet, raw)
@@ -343,8 +358,7 @@ async def evaluate_placement(module_title: str, writing_sample: str) -> Placemen
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, PlacementEval)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, PlacementEval)
+        return await structured_generate("career_placement", prompt, PlacementEval)
 
 
 async def evaluate_simulation(
@@ -369,8 +383,7 @@ async def evaluate_simulation(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, SimulationReport)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, SimulationReport)
+        return await structured_generate("simulation_report", prompt, SimulationReport)
 
 
 async def direct_simulation(
@@ -401,8 +414,7 @@ async def direct_simulation(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, DirectorDecision)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, DirectorDecision)
+        return await structured_generate("simulation_director", prompt, DirectorDecision)
 
 
 async def evaluate_assessment_turn(
@@ -424,8 +436,7 @@ async def evaluate_assessment_turn(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, AssessmentTurnCall)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, AssessmentTurnCall)
+        return await structured_generate("assessment_turn", prompt, AssessmentTurnCall)
 
 
 async def select_next_content(
@@ -441,8 +452,7 @@ async def select_next_content(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, SelectionDecision)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, SelectionDecision)
+        return await structured_generate("content_selection", prompt, SelectionDecision)
 
 
 async def generate_game_item(
@@ -459,8 +469,7 @@ async def generate_game_item(
     async with llm_semaphore:
         if _local():
             return await ollama_structured(prompt, FillBlankGame)
-        client = get_gemini_client()
-        return await call_with_structured_output(client, prompt, FillBlankGame)
+        return await structured_generate("fill_blank_game", prompt, FillBlankGame)
 
 
 async def stream_generation(spec: GenSpec) -> AsyncIterator[str]:
@@ -470,14 +479,13 @@ async def stream_generation(spec: GenSpec) -> AsyncIterator[str]:
             async for chunk in ollama_stream(spec.prompt):
                 yield chunk
             return
-        if spec.provider == "groq":
-            async for chunk in _stream_groq(spec.model, spec.prompt):
-                yield chunk
-        elif spec.provider == "gemini":
-            async for chunk in _stream_gemini(spec.model, spec.prompt):
-                yield chunk
-        else:  # pragma: no cover - guard
-            raise ValueError(f"unknown provider: {spec.provider}")
+        async for chunk in get_ai_provider().stream(
+            spec.kind,
+            spec.prompt,
+            legacy_provider=spec.provider,
+            legacy_model=spec.model,
+        ):
+            yield chunk
 
 
 async def _stream_groq(model: str, prompt: str) -> AsyncIterator[str]:
@@ -510,10 +518,9 @@ async def summarize_session(node: Concept, messages: list[dict]) -> str:
     async with llm_semaphore:
         if _local():
             return await ollama_complete(prompt)
-        client = get_groq_client()
-        resp = await client.chat.completions.create(
-            model=GROQ_70B,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+        return await get_ai_provider().complete(
+            "summary",
+            prompt,
+            legacy_provider="groq",
+            legacy_model=GROQ_70B,
         )
-        return resp.choices[0].message.content or ""

@@ -139,6 +139,7 @@ EXPECTED_CATALOG = {
 def _fake_release_closure(monkeypatch, tmp_path: Path, chapter_count: int):
     from app.content.school import source_map_compat
     from app.content import school_rebuild_content
+    from app.content import school_rebuild_quality
     from app.services.school import availability
 
     chapter_ids_by_class: dict[int, list[str]] = {class_no: [] for class_no in range(2, 6)}
@@ -157,10 +158,10 @@ def _fake_release_closure(monkeypatch, tmp_path: Path, chapter_count: int):
             chapters[chapter_id] = SimpleNamespace(
                 chapter_id=chapter_id,
                 runtime_sha256=hashlib.sha256(chapter_id.encode("ascii")).hexdigest(),
-                approval_status="human_approved",
-                reviewed_by="reviewer@example.com",
+                approval_status="release_approved",
+                reviewed_by="school-release-review/2026-07-15",
                 reviewed_at="2026-07-14T00:00:00Z",
-                review_evidence=["manual pedagogy review", "assessment review"],
+                review_evidence=["pedagogy review", "assessment review"],
             )
     assert remaining == 0
 
@@ -180,6 +181,11 @@ def _fake_release_closure(monkeypatch, tmp_path: Path, chapter_count: int):
             ]
         },
     )
+    monkeypatch.setattr(
+        school_rebuild_quality,
+        "corpus_quality_issues",
+        lambda _chapters: (),
+    )
     settings = SimpleNamespace(
         school_enabled=True,
         app_env="production",
@@ -187,6 +193,8 @@ def _fake_release_closure(monkeypatch, tmp_path: Path, chapter_count: int):
     )
     monkeypatch.setattr(availability, "get_settings", lambda: settings)
     return availability, settings, chapters
+PLACEMENT_FIXTURE_SESSION_ID = "placement-fixture"
+PLACEMENT_ALTERNATE_SESSION_ID = "placement-fixture-alternate"
 EXPECTED_PLACEMENT_ITEM = {
     "item_id": "spv_c03_t04_v01",
     "stage": "snapshot",
@@ -198,13 +206,13 @@ EXPECTED_PLACEMENT_ITEM = {
     "support": "Blank ya diye gaye word ke aas-paas ke words padho.",
     "prompt": "What does tiny mean?",
     "passage": "The tiny seed was small enough to rest on one finger.",
-    "options": ["small", "heavy", "angry"],
+    "options": ["angry", "heavy", "small"],
 }
 EXPECTED_PLACEMENT_RESPONSE_SHA256 = (
-    "ccde9e8abb2d3041c302eb5c3af8e9a66525f4637814ef9fc5bf186048445d8a"
+    "0eb2f368f562f4a5445987b591c8bd361b3deb32adca1d6b53b65620d5f36c9a"
 )
 EXPECTED_CURRICULUM_RESPONSE_SHA256 = (
-    "e064ab5ab34e9133ad647e6f77863a5bdf6efb6ca95ad3360e86d194ece4f480"
+    "b8bf95a609f999b50e768d2b5c0eb86f1beb8e42340cb01867e44980f812e4f5"
 )
 
 
@@ -251,7 +259,7 @@ def test_app_mounts_one_complete_canonical_school_authority():
         if method not in {"HEAD", "OPTIONS"}
     ]
 
-    expected_route_count = 26 + len(RETIRED_SCHOOL_ENDPOINT_SPECS)
+    expected_route_count = 27 + len(RETIRED_SCHOOL_ENDPOINT_SPECS)
     assert len(CANONICAL_SCHOOL_AUTHORITY) == expected_route_count
     assert len(registrations) == expected_route_count
     assert registrations.count(("GET", "/school/state", "school_state")) == 1
@@ -319,7 +327,78 @@ def test_production_release_closure_requires_exactly_47_chapters(
     assert result.reason == "school_release_chapter_closure_incomplete"
     assert result.expected_chapters == 42
     assert result.authored_chapters == 42
-    assert result.human_approved_chapters == 42
+    assert result.release_approved_chapters == 42
+    assert "human_approved_chapters" not in result.public_dict()
+
+
+@pytest.mark.parametrize("non_release_status", ["qa_approved", "human_approved"])
+def test_production_release_closure_rejects_non_reviewed_statuses(
+    monkeypatch,
+    tmp_path,
+    non_release_status,
+):
+    availability, _settings, chapters = _fake_release_closure(
+        monkeypatch,
+        tmp_path,
+        47,
+    )
+    chapters["eng_c2_ch01"].approval_status = non_release_status
+
+    result = availability._release_closure()
+
+    assert result.available is False
+    assert result.reason == "school_release_approval_incomplete"
+    assert result.release_approved_chapters == 46
+
+
+def test_production_release_closure_accepts_agent_review_without_human_step(
+    monkeypatch,
+    tmp_path,
+):
+    availability, settings, chapters = _fake_release_closure(
+        monkeypatch,
+        tmp_path,
+        47,
+    )
+    for chapter in chapters.values():
+        chapter.approval_status = "agent_reviewed"
+
+    first = availability._release_closure()
+    settings.school_release_attestation_sha256 = first.release_digest
+
+    result = availability._release_closure()
+
+    assert result.available is True
+    assert result.release_approved_chapters == 0
+    assert result.agent_reviewed_chapters == 47
+    assert result.production_eligible_chapters == 47
+
+
+def test_production_release_closure_rejects_agent_reviewed_quality_failures(
+    monkeypatch,
+    tmp_path,
+):
+    from app.content import school_rebuild_quality
+
+    availability, settings, chapters = _fake_release_closure(
+        monkeypatch,
+        tmp_path,
+        47,
+    )
+    for chapter in chapters.values():
+        chapter.approval_status = "agent_reviewed"
+    first = availability._release_closure()
+    settings.school_release_attestation_sha256 = first.release_digest
+    monkeypatch.setattr(
+        school_rebuild_quality,
+        "corpus_quality_issues",
+        lambda _chapters: ("eng_c5_ch10:near_duplicate_assessment_task",),
+    )
+
+    result = availability._release_closure()
+
+    assert result.available is False
+    assert result.reason == "school_release_quality_gate_failed"
 
 
 @pytest.mark.parametrize(
@@ -330,7 +409,7 @@ def test_production_release_closure_requires_exactly_47_chapters(
         ("review_evidence", ["different signed review evidence"]),
     ],
 )
-def test_release_attestation_binds_human_approval_evidence(
+def test_release_attestation_binds_release_review_evidence(
     monkeypatch,
     tmp_path,
     field,
@@ -829,10 +908,23 @@ def test_current_public_state_catalog_and_placement_json_are_unchanged(monkeypat
 
     envelope = placement.new_placement_envelope(_fixture_profile())
     response = placement.placement_response(
-        session_id="placement-fixture",
+        session_id=PLACEMENT_FIXTURE_SESSION_ID,
+        envelope=envelope,
+    )
+    replayed = placement.placement_response(
+        session_id=PLACEMENT_FIXTURE_SESSION_ID,
+        envelope=envelope,
+    )
+    alternate = placement.placement_response(
+        session_id=PLACEMENT_ALTERNATE_SESSION_ID,
         envelope=envelope,
     )
     assert response["next_item"] == EXPECTED_PLACEMENT_ITEM
+    assert replayed == response
+    assert alternate["next_item"] == {
+        **EXPECTED_PLACEMENT_ITEM,
+        "options": ["heavy", "small", "angry"],
+    }
     assert _sha256(response) == EXPECTED_PLACEMENT_RESPONSE_SHA256
     assert not (_walk_keys(response) & FORBIDDEN_PUBLIC_KEYS)
 
@@ -859,7 +951,7 @@ def test_current_curriculum_and_language_confidence_json_are_exact():
 
     assert _sha256(response) == EXPECTED_CURRICULUM_RESPONSE_SHA256
     assert response["current_activity"]["teaching_block"].startswith(
-        "Kyun ka jawab seedha na mile"
+        "Mushkil word ke aas-paas ke words padho"
     )
     assert not (_walk_keys(response) & FORBIDDEN_PUBLIC_KEYS)
 

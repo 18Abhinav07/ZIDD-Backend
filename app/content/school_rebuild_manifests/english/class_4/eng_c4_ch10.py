@@ -1,0 +1,295 @@
+"""Deep authored manifest for Class 4 English Chapter 10.
+
+The source poem and exercise pages were consulted only for structure and skill
+families. Runtime poetry, prose, questions, and answer authority are original
+Zidd writing and never require unseen recitation, audio, or pictures.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from app.content.school_rebuild_manifests.english.class_4.eng_c4_ch07 import (
+    _case,
+    build_manifest,
+    synchronize_manifest_semantics,
+)
+
+
+CHAPTER_ID = "eng_c4_ch10"
+SOURCE_URL = "https://ncert.nic.in/textbook/pdf/desa110.pdf"
+
+
+def _anchor(
+    suffix: str,
+    label: str,
+    start: int,
+    end: int,
+    treatment: str,
+    required: bool,
+) -> dict[str, Any]:
+    return {
+        "anchor_id": f"{CHAPTER_ID}:{suffix}",
+        "section_label": label,
+        "page_start": start,
+        "page_end": end,
+        "source_url": f"{SOURCE_URL}#page={start}",
+        "coverage_treatment": treatment,
+        "required_for_chapter_certification": required,
+    }
+
+
+SOURCE_ANCHORS = [
+    _anchor("recite:1", "Poem structure: swing viewpoint and imagery", 1, 1, "zidd_equivalent", True),
+    _anchor("performance:1", "Let us Recite: classroom performance companion", 1, 1, "textbook_companion", False),
+    _anchor("think:2", "Let us Think: visible details, feeling, and inference", 2, 2, "taught_and_assessed", True),
+    _anchor("expansion:2", "Let us Learn: sentence expansion", 2, 2, "taught_and_assessed", True),
+    _anchor("noun-verb:3-4", "Let us Learn: one word used as noun and verb", 3, 4, "taught_and_assessed", True),
+    _anchor("speak-listen:5", "Let us Speak and Listen: sound and rhyme companion", 5, 5, "offline_group_activity", False),
+    _anchor("write-prepositions:6-7", "Let us Write: paragraph and prepositions", 6, 7, "taught_and_assessed", True),
+    _anchor("draw-explore:8", "Let us Do and Explore: drawing and festival project companion", 8, 8, "optional_creative", False),
+]
+
+
+LEVEL_SPECS: list[dict[str, Any]] = [
+    {
+        "level_id": "swing_context_vocabulary",
+        "title": "Read height and motion words",
+        "focus": "infer and use swing-scene vocabulary in context",
+        "outcome": "Infer a motion, place, or feeling word from nearby clues and apply it accurately in a new complete response.",
+        "skill_ids": ["reading.word_meaning_context", "vocab.chapter_word_usage"],
+        "episode_kind": "meaning_encounter",
+        "source_anchor_ids": [f"{CHAPTER_ID}:recite:1", f"{CHAPTER_ID}:think:2"],
+        "principle": "Use direction, visible change, and feeling clues around a word before deciding its meaning or reusing it.",
+        "connect": {
+            "teaching_block": "Motion words become precise when the passage shows a starting point, direction, and changed view.",
+            "passage": "The seat rose above the hedge, paused for a heartbeat, and returned toward the shaded ground.",
+            "prompt": "Use the upward change in position to understand rose in this motion scene.",
+        },
+        "guided_prompt": "Explain the key word from its movement or feeling clues and reuse it accurately.",
+        "independent_prompt": "Infer the precise meaning and demonstrate it in a complete contextual sentence.",
+        "transfer_prompt": "Apply context reasoning to this new height or movement setting.",
+        "review_prompt": "State the word meaning and cite the clue that rules out a vague alternative.",
+        "support_action": "explain and accurately reuse the movement word",
+        "interaction_type": "evidence_text",
+        "cluster_id": "swing-motion-word-vagueness",
+        "misconception": "The learner selects any movement-related meaning, ignores direction or feeling clues, or reuses the word in an unrelated sense.",
+        "remediation": "Draw a start-arrow-end map, add the visible feeling or result, replace the target with plain wording, and test that wording in context.",
+        "cases": [
+            _case("wide viewpoint", "{actor} reaches a height where several lanes and rooftops fit into one view instead of one nearby wall.", "Wide means covering a broad view, and {actor} can see a wide area from the higher point."),
+            _case("gentle sway", "{actor} moves slowly from side to side while the hanging seat remains close to its resting point.", "Sway means move gently from side to side, which {actor} does near the resting point."),
+            _case("distant ridge", "{actor} can identify a pale ridge far beyond the nearest trees and houses.", "Distant means far away, and {actor} notices the distant ridge beyond the nearby trees."),
+            _case("pleasant ride", "{actor} relaxes, smiles, and asks for one more slow turn after the seat stops.", "Pleasant means enjoyable and comfortable, so {actor} describes the slow ride as pleasant."),
+            _case("descending seat", "{actor} passes the tree crown and moves lower until both feet touch the ground.", "Descending means moving downward, and {actor} is descending from the tree crown to the ground."),
+        ],
+    },
+    {
+        "level_id": "swing_poetic_viewpoint",
+        "title": "Interpret the changing viewpoint",
+        "focus": "interpret poetic imagery and identify the viewpoint main idea",
+        "outcome": "Explain how an original image transforms a changing view and state the central idea without treating poetic comparison as fact.",
+        "skill_ids": ["reading.poetic_language", "reading.paragraph_main_idea"],
+        "episode_kind": "comprehension_studio",
+        "source_anchor_ids": [f"{CHAPTER_ID}:recite:1", f"{CHAPTER_ID}:think:2"],
+        "principle": "Use shape, movement, and mood clues to interpret an image, then connect that image to the whole viewpoint message.",
+        "connect": {
+            "teaching_block": "A poetic viewpoint shows an ordinary place differently. The comparison guides imagination but does not become a literal event.",
+            "passage": "At the highest point, the lane became a silver thread between green squares. The image turns a familiar neighbourhood into a pattern.",
+            "prompt": "Interpret thread and squares as a high viewpoint rather than literal objects.",
+        },
+        "guided_prompt": "Explain the poetic image and state what it contributes to the changing-view message.",
+        "independent_prompt": "Interpret the comparison and write the central idea in fresh wording.",
+        "transfer_prompt": "Apply viewpoint reading to this new elevated scene without making the image literal.",
+        "review_prompt": "Name the compared things, shared feature, and overall viewpoint message.",
+        "support_action": "interpret the image and state its central viewpoint idea",
+        "interaction_type": "summary",
+        "cluster_id": "swing-image-literal-or-detail-only",
+        "misconception": "The learner treats an image as physical fact or repeats one object from the view without explaining the central change in perspective.",
+        "remediation": "Name both compared things, circle their shared feature, label the comparison nonliteral, and connect it to one central idea.",
+        "cases": [
+            _case("silver-thread lane", "{actor} reads that the lane below became a silver thread stitched between gardens. The image depends on distance and narrow shape.", "The silver-thread image shows the lane looking narrow from above, so {actor} identifies changed viewpoint as the main idea."),
+            _case("patchwork fields", "{actor} reads that distant fields formed a green patchwork quilt. Their borders create the shared block pattern.", "The quilt comparison turns bordered fields into a pattern, so {actor} identifies a high view reorganising familiar land."),
+            _case("rooftop stepping stones", "{actor} reads that red roofs became stepping stones across the town. The image connects separated shapes in the viewer's sight.", "The stepping-stone image links separated rooftops visually, and {actor} explains that height changes how the town appears."),
+            _case("cloud doorway", "{actor} reads that an opening between clouds looked like a bright doorway. No actual door stands in the sky.", "The doorway image suggests an inviting bright opening, and {actor} keeps the comparison nonliteral."),
+            _case("wind-written path", "{actor} reads that bending grass showed a path written by wind. Movement creates a visible line across the ground.", "The wind-written path is an image for bending grass, and {actor} identifies movement revealing a new pattern."),
+        ],
+    },
+    {
+        "level_id": "swing_motion_sequence",
+        "title": "Track one complete arc",
+        "focus": "sequence position and viewpoint changes during movement",
+        "outcome": "Order rise, highest point, return, and changed view using explicit position and transition clues.",
+        "skill_ids": ["reading.event_sequence"],
+        "episode_kind": "application_mission",
+        "source_anchor_ids": [f"{CHAPTER_ID}:recite:1", f"{CHAPTER_ID}:think:2"],
+        "principle": "Track position and view together: what becomes visible on the rise, at the highest point, and during the return.",
+        "connect": {
+            "teaching_block": "Movement creates an ordered view. Near objects disappear behind the rider, distant objects appear higher up, and the ground returns last.",
+            "passage": "The seat left the shade, rose past a branch, revealed the pond, and returned until the branch hid the pond again.",
+            "prompt": "Follow the seat and pond visibility through rise and return.",
+        },
+        "guided_prompt": "Retell the complete movement and viewpoint sequence in order.",
+        "independent_prompt": "Write the rise-to-return event sequence with clear position clues.",
+        "transfer_prompt": "Apply the ordered-view strategy to this unfamiliar moving platform.",
+        "review_prompt": "Restore the sequence and explain which visibility clue fixes the highest point.",
+        "support_action": "rebuild the movement and changing-view sequence",
+        "interaction_type": "summary",
+        "ordered": True,
+        "cluster_id": "swing-sequence-high-point-first",
+        "misconception": "The learner begins with the widest view, ignores the rising path that produced it, or confuses what appears during ascent and return.",
+        "remediation": "Place position cards beside matching view cards, order ground-rise-high-return, and justify each pair with one visible clue.",
+        "cases": [
+            _case("garden arc", "{actor} leaves the flower-bed level, rises above the fence, sees a pond, and loses that pond view while returning.", "{actor} first leaves ground level, then rises above the fence, sees the pond, and loses the view on return."),
+            _case("terrace lift", "{actor} starts beside a low wall, moves above the terrace rail, notices the market roof, and descends behind the rail.", "{actor} moves from wall level to above the rail, sees the market roof, and descends until the rail hides it."),
+            _case("hill cart rise", "{actor} rides upward past shrubs, reaches an open bend, sees the valley road, and rolls lower behind the shrubs again.", "{actor} passes shrubs, reaches the open bend, sees the valley road, and returns behind the shrubs."),
+            _case("observation wheel turn", "{actor} boards near the gate, rises over nearby trees, views the river at the top, and approaches the gate again.", "{actor} begins near the gate, rises above trees, sees the river at the top, and returns toward the gate."),
+            _case("rope-seat pause", "{actor} pushes away from the platform, moves forward, pauses near the far point, and travels backward to the start.", "{actor} leaves the platform, travels forward, pauses at the far point, and returns backward to the start."),
+        ],
+    },
+    {
+        "level_id": "swing_feeling_reason",
+        "title": "Infer the rider's feeling",
+        "focus": "infer a feeling and support it with visible evidence",
+        "outcome": "Use action and response clues to infer a feeling or preference and explain the conclusion with a relevant reason.",
+        "skill_ids": ["reading.inference_reason", "writing.reason_answer"],
+        "episode_kind": "comprehension_studio",
+        "source_anchor_ids": [f"{CHAPTER_ID}:recite:1", f"{CHAPTER_ID}:think:2"],
+        "principle": "Infer feeling from what the rider does or asks for; a reason answer cites that behaviour instead of naming an unsupported emotion.",
+        "connect": {
+            "teaching_block": "A passage may not name a feeling directly. Requests, facial responses, careful choices, and repeated actions supply evidence.",
+            "passage": "When the ride ended, Ishan laughed and asked to join the queue again. He described the high view to everyone nearby.",
+            "prompt": "Use laughter, another-turn request, and eager sharing to infer enjoyment.",
+        },
+        "guided_prompt": "Infer the feeling and support it with one exact behaviour clue.",
+        "independent_prompt": "Write a claim-and-reason answer about the rider's response.",
+        "transfer_prompt": "Use visible behaviour to explain the feeling in this new movement scene.",
+        "review_prompt": "Name the inference, add because, and cite the decisive action.",
+        "support_action": "write the feeling inference with a visible reason",
+        "interaction_type": "evidence_text",
+        "cluster_id": "swing-feeling-without-clue",
+        "misconception": "The learner chooses a likely emotion from personal experience but ignores contradictory or supporting behaviour in the passage.",
+        "remediation": "List two observed behaviours, label what each suggests, reject feelings that conflict, and form a because sentence.",
+        "cases": [
+            _case("eager second turn", "{actor} smiles after landing, keeps the ticket safely, and joins the queue for another gentle turn.", "{actor} enjoys the ride because smiling and joining the queue show eagerness for another turn."),
+            _case("cautious first rise", "{actor} grips the side rope, asks for a slower push, and relaxes only after the motion becomes gentle.", "{actor} feels cautious at first because the tight grip and slower-push request show concern."),
+            _case("curious high view", "{actor} points toward three distant roofs and asks what lies beyond them before the seat returns.", "{actor} feels curious because pointing and asking about distant places show a wish to learn more."),
+            _case("calm evening motion", "{actor} breathes evenly, watches the changing sky, and chooses one final slow arc before leaving.", "{actor} feels calm because the even breathing and quiet sky watching show a peaceful response."),
+            _case("proud independent ride", "{actor} follows every safety step without help and tells a caregiver about completing the ride alone.", "{actor} feels proud because completing the safety routine independently becomes an achievement worth sharing."),
+        ],
+    },
+    {
+        "level_id": "swing_noun_verb_sentences",
+        "title": "Use one word as noun and verb",
+        "focus": "distinguish noun and verb roles in complete sentences",
+        "outcome": "Use sentence position and meaning to identify a word role, then write two complete sentences showing the same word as thing and action.",
+        "skill_ids": ["grammar.noun_verb_adjective", "writing.complete_sentence"],
+        "episode_kind": "language_lab",
+        "source_anchor_ids": [f"{CHAPTER_ID}:noun-verb:3-4", f"{CHAPTER_ID}:expansion:2"],
+        "principle": "A word's role depends on its job in the sentence: a noun names, while a verb expresses the subject's action.",
+        "connect": {
+            "teaching_block": "Do not label a word from memory alone. Find the subject, ask what it does, and check whether the target names a thing or supplies the action.",
+            "passage": "The children plan a short play. Their play begins after lunch.",
+            "prompt": "Compare plan as action with play as a named performance in the second sentence.",
+        },
+        "guided_prompt": "Identify the target word's role and write a complete sentence showing the other role.",
+        "independent_prompt": "Write two complete sentences that use the same word once as noun and once as verb.",
+        "transfer_prompt": "Apply sentence-position clues to this new dual-role word.",
+        "review_prompt": "Find the subject and action, label the target role, and check both sentence boundaries.",
+        "support_action": "distinguish the noun and verb roles in complete sentences",
+        "interaction_type": "short_text",
+        "cluster_id": "swing-word-role-from-spelling",
+        "misconception": "The learner assumes a word always has one role, labels the first occurrence by spelling alone, or writes fragments that hide the role.",
+        "remediation": "Underline each subject, circle its action, box named things, and rebuild two subject-action sentences with the target in different positions.",
+        "cases": [
+            _case("park swing pair", "{actor} will swing gently after checking the swing. The first target is an action and the second names the seat.", "{actor} uses swing as a verb in We swing gently and as a noun in The swing is secure."),
+            _case("dance pair", "{actor} will dance after watching the folk dance. Position shows the first use as action and the second as event.", "{actor} uses dance as a verb in We dance together and as a noun in The dance begins soon."),
+            _case("answer pair", "{actor} can answer the question after checking the written answer. One use performs an action and one names a response.", "{actor} uses answer as a verb in I answer carefully and as a noun in My answer is complete."),
+            _case("wave pair", "{actor} will wave from the platform while a small wave crosses the pond. One is action and one is moving water.", "{actor} uses wave as a verb in I wave goodbye and as a noun in A wave reached the bank."),
+            _case("turn pair", "{actor} will turn at the marker and wait for the next turn. One use describes movement and one names an opportunity.", "{actor} uses turn as a verb in I turn safely and as a noun in My turn comes next."),
+        ],
+    },
+    {
+        "level_id": "swing_view_summary",
+        "title": "Summarise a changing view",
+        "focus": "understand viewpoint sentences and summarise the visual change",
+        "outcome": "Resolve the observer, position, and visible change across a short passage, then compress them into an accurate own-words summary.",
+        "skill_ids": ["reading.sentence_comprehension", "writing.summary_own_words"],
+        "episode_kind": "expression_workshop",
+        "source_anchor_ids": [f"{CHAPTER_ID}:recite:1", f"{CHAPTER_ID}:think:2"],
+        "principle": "Track who is viewing, from where, and what changes; keep those essentials while removing decorative detail.",
+        "connect": {
+            "teaching_block": "A viewpoint summary identifies the observer's movement and the main visual change, not a list of every object seen.",
+            "passage": "As Lata rose above the wall, the narrow garden view widened to include the lane and pond. On return, the wall filled her view again.",
+            "prompt": "Track Lata's position and the widening-then-narrowing view.",
+        },
+        "guided_prompt": "Identify who sees the change and summarise the viewpoint shift in fresh wording.",
+        "independent_prompt": "Write a concise summary of observer, movement, and changed view.",
+        "transfer_prompt": "Compress this unfamiliar elevated viewpoint into an own-words summary.",
+        "review_prompt": "Resolve the observer and remove object lists while preserving the visual change.",
+        "support_action": "track the observer and summarise the viewpoint change",
+        "interaction_type": "summary",
+        "cluster_id": "swing-summary-object-list",
+        "misconception": "The learner lists visible objects without explaining the position change or loses who is viewing them.",
+        "remediation": "Fill observer-position-view boxes for beginning and highest point, cover the passage, and state only the transformation.",
+        "cases": [
+            _case("wall-to-pond view", "{actor} begins beside a wall, rises until a pond appears beyond it, and returns until only the wall is visible again.", "{actor} summarises a rise that reveals the pond beyond the wall before the return hides it again."),
+            _case("trees-to-river view", "{actor} first sees nearby trunks, then rises above their leaves and notices a river bend in the distance.", "{actor} summarises how gaining height changes a close tree view into a wider river view."),
+            _case("courtyard-to-town view", "{actor} moves from a small courtyard view to a broad pattern of roofs, roads, and one distant tower.", "{actor} summarises how upward movement expands a courtyard view into a broad town viewpoint."),
+            _case("shade-to-sunset view", "{actor} leaves the shade below a roof, rises into orange light, and sees the sunset line before descending.", "{actor} summarises a movement from roof shade into a brief open sunset view and back."),
+            _case("near-to-far focus", "{actor} notices flowers near the seat at the start but distant hills at the highest point.", "{actor} summarises how the ride shifts attention from nearby flowers to distant hills."),
+        ],
+    },
+    {
+        "level_id": "swing_expanded_paragraph",
+        "title": "Expand a precise adventure paragraph",
+        "focus": "use prepositions and sentence expansion in an organised paragraph",
+        "outcome": "Expand a basic sentence with accurate position details, then organise the result into a focused imaginative paragraph with a clear ending.",
+        "skill_ids": ["grammar.prepositions", "writing.paragraph"],
+        "episode_kind": "expression_workshop",
+        "source_anchor_ids": [f"{CHAPTER_ID}:expansion:2", f"{CHAPTER_ID}:write-prepositions:6-7"],
+        "principle": "Add details that answer where, when, and why; prepositions must express real relationships, and the expanded sentences must serve one paragraph focus.",
+        "connect": {
+            "teaching_block": "Sentence expansion adds useful information rather than random length. Position words place objects clearly within the imagined journey.",
+            "passage": "Base sentence: The seat travelled. Added details: above the garden, between two branches, and toward the bright hill.",
+            "prompt": "Notice how each preposition adds a precise relationship to the sentence expansion.",
+        },
+        "guided_prompt": "Add accurate position details and connect them to one focused adventure idea.",
+        "independent_prompt": "Write an organised paragraph using at least two precise prepositions and a clear conclusion.",
+        "transfer_prompt": "Expand this new journey setting into a coherent paragraph without adding events that are not in the story.",
+        "review_prompt": "Check every preposition, remove unrelated detail, and confirm opening, support, and ending.",
+        "support_action": "repair the position words and organise the expanded paragraph",
+        "interaction_type": "paragraph_text",
+        "cluster_id": "swing-expansion-random-details",
+        "misconception": "The learner adds unrelated phrases for length, chooses a preposition that reverses position, or produces disconnected sentences without a paragraph focus.",
+        "remediation": "Sketch a simple text map from the supplied words, test each preposition against it, and use opening-detail-ending boxes before writing.",
+        "cases": [
+            _case("garden-to-hill route", "{actor} imagines travelling above a garden, between two branches, and toward a sunlit hill before returning home.", "{actor} writes a focused paragraph that moves above the garden, between branches, toward the hill, and safely home."),
+            _case("library-roof journey", "{actor} imagines rising over the library roof, beside a clock tower, and under a band of clouds.", "{actor} expands the journey into a paragraph using over, beside, and under to place each stage clearly."),
+            _case("river-bridge adventure", "{actor} imagines moving along the river, above a footbridge, and beyond a line of reeds before turning back.", "{actor} organises a river adventure with accurate movement along, above, and beyond the visible landmarks."),
+            _case("festival-lane flight", "{actor} imagines passing over a festival lane, between hanging flags, and around a quiet square.", "{actor} writes a connected festival paragraph that uses over, between, and around for precise position."),
+            _case("book-world voyage", "{actor} imagines entering through a paper gate, travelling across an ink river, and resting beside a giant bookmark.", "{actor} develops a book-world paragraph with through, across, and beside supporting one imaginative route."),
+        ],
+    },
+]
+
+
+MANIFEST = synchronize_manifest_semantics(build_manifest(
+    chapter={
+        "chapter_id": CHAPTER_ID,
+        "chapter_no": 10,
+        "title": "The Swing",
+        "book_title": "Santoor",
+        "unit_title": "Up High",
+        "source_url": SOURCE_URL,
+        "source_note": "NCERT structural alignment only. Every learner-facing passage, prompt, option, rubric, and answer is original Zidd content.",
+        "content_version": "2026-07-16.1",
+        "certification_version": "2026-07-16.1",
+        "authorship": {
+            "zidd_authored_original": True,
+            "textbook_body_or_questions_copied": False,
+            "source_analysis_reference": "/tmp/zidd-ncert-class4/eng_c4_ch10.txt structural exercise review",
+        },
+    },
+    source_anchors=SOURCE_ANCHORS,
+    level_specs=LEVEL_SPECS,
+))

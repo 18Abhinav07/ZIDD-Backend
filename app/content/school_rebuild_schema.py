@@ -18,6 +18,19 @@ LiveDeterministicAnswerRule = Literal[
     "bird_feeder_procedure",
 ]
 
+GradingMode = Literal[
+    "selected_option",
+    "exact_text",
+    "punctuation_symbol",
+    "ordered_slots",
+    "strict_open_rubric",
+]
+
+SchoolOpenSemanticValidatorId = Literal[
+    "evidence_over_unsupported_guess_v1",
+    "affirmative_support_or_no_mocking_v1",
+]
+
 LiveEpisodeKind = Literal[
     "meaning_encounter",
     "comprehension_studio",
@@ -34,6 +47,16 @@ LiveTeachingPhase = Literal[
     "guided_practice",
     "feedback",
     "independent_application",
+    "transfer",
+    "review",
+]
+
+LiveChapterApprovalStatus = Literal[
+    "draft",
+    "qa_approved",  # Legacy QA status; never sufficient for production release.
+    "agent_reviewed",
+    "release_approved",
+    "human_approved",  # Legacy parse compatibility only.
 ]
 LiveInteractionType = Literal[
     "continue",
@@ -153,6 +176,88 @@ class LiveConceptSlot(BaseModel):
         return cleaned
 
 
+_PUNCTUATION_ANSWERS = frozenset(
+    {"?", ".", "!", ",", '"', "'", "“”", "‘’"}
+)
+_SEMANTIC_GRADING_MARKERS = (
+    "inference",
+    "reason",
+    "summary",
+    "relationship",
+    "comparison",
+    "own_words",
+    "own-words",
+)
+
+
+def _validate_typed_grading_contract(
+    *,
+    grading_mode: GradingMode | None,
+    options: list[str],
+    accepted_answers: list[str],
+    concept_slots: list[LiveConceptSlot] | None,
+    ordered_concept_slot_ids: list[str] | None,
+    semantic_identifiers: list[str],
+    require_explicit_mode: bool = False,
+    require_semantic_open: bool = True,
+) -> None:
+    """Validate opt-in grading modes without invalidating legacy authoring."""
+
+    semantic = any(
+        marker in identifier.casefold()
+        for identifier in semantic_identifiers
+        for marker in _SEMANTIC_GRADING_MARKERS
+    )
+    if grading_mode is None:
+        if require_explicit_mode:
+            raise ValueError("typed_activity_requires_grading_mode")
+        return
+    if semantic and require_semantic_open and grading_mode != "strict_open_rubric":
+        raise ValueError("semantic_activity_requires_strict_open")
+    if grading_mode == "strict_open_rubric":
+        if options:
+            raise ValueError("strict_open_rubric_forbids_options")
+        role_sensitive = any(
+            "relationship" in identifier.casefold()
+            for identifier in semantic_identifiers
+        )
+        if role_sensitive:
+            slot_ids = [slot.id for slot in concept_slots or []]
+            if len(slot_ids) < 3 or ordered_concept_slot_ids != slot_ids:
+                raise ValueError(
+                    "role_sensitive_open_requires_ordered_slots"
+                )
+        return
+    if grading_mode == "selected_option":
+        if len(options) < 2 or not accepted_answers or not set(
+            accepted_answers
+        ).issubset(set(options)):
+            raise ValueError("selected_option_requires_authored_options")
+        return
+    if grading_mode == "exact_text":
+        if options or not accepted_answers or any(
+            len(answer.split()) > 12 or "\n" in answer
+            for answer in accepted_answers
+        ):
+            raise ValueError("exact_text_requires_short_facts")
+        return
+    if grading_mode == "punctuation_symbol":
+        if options or not accepted_answers or not set(accepted_answers).issubset(
+            _PUNCTUATION_ANSWERS
+        ):
+            raise ValueError("punctuation_symbol_requires_literal_marks")
+        return
+    if grading_mode == "ordered_slots":
+        slot_ids = [slot.id for slot in concept_slots or []]
+        if (
+            options
+            or accepted_answers
+            or len(slot_ids) < 2
+            or ordered_concept_slot_ids != slot_ids
+        ):
+            raise ValueError("ordered_slots_require_all_slot_ids")
+
+
 class LiveChapterActivity(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
@@ -161,9 +266,14 @@ class LiveChapterActivity(BaseModel):
     prompt: str
     options: list[str]
     accepted_answers: list[str]
+    grading_mode: GradingMode | None = None
+    certifying_language: Literal["en"] | None = None
+    pool_id: str | None = None
+    variant_id: str | None = None
     response_mode: Literal["short", "paragraph"] | None = None
     answer_rule: LiveDeterministicAnswerRule | None = None
     evaluation_mode: Literal["llm_rubric"] | None = None
+    semantic_validator_id: SchoolOpenSemanticValidatorId | None = None
     preflight_rule: str | None = None
     pass_score: float | None = Field(default=None, ge=0.0, le=1.0)
     rubric_criteria: list[LiveRubricCriterion] | None = None
@@ -186,6 +296,11 @@ class LiveChapterActivity(BaseModel):
     evidence_role: LiveEvidenceRole | None = None
     source_anchor_ids: list[str] | None = None
     knowledge_components: list[str] | None = None
+    target_misconception_tags: list[str] | None = None
+    wrong_answer_misconception_tags: dict[str, list[str]] | None = None
+    criterion_misconception_tags: dict[str, list[str]] | None = None
+    relevance_terms: list[str] | None = None
+    model_answer: str | None = None
 
     @field_validator("teaching_block", "passage", "prompt")
     @classmethod
@@ -195,7 +310,14 @@ class LiveChapterActivity(BaseModel):
             raise ValueError("live_activity_text_empty")
         return cleaned
 
-    @field_validator("answer_rule", "preflight_rule", mode="before")
+    @field_validator(
+        "answer_rule",
+        "preflight_rule",
+        "pool_id",
+        "variant_id",
+        "model_answer",
+        mode="before",
+    )
     @classmethod
     def _clean_optional_text(cls, value: object) -> object:
         if value is None:
@@ -217,7 +339,12 @@ class LiveChapterActivity(BaseModel):
             raise ValueError("live_activity_list_value_duplicate")
         return cleaned
 
-    @field_validator("source_anchor_ids", "knowledge_components")
+    @field_validator(
+        "source_anchor_ids",
+        "knowledge_components",
+        "target_misconception_tags",
+        "relevance_terms",
+    )
     @classmethod
     def _clean_v2_identifiers(
         cls,
@@ -286,6 +413,20 @@ class LiveChapterActivity(BaseModel):
 
     @model_validator(mode="after")
     def _valid_grading_contract(self) -> "LiveChapterActivity":
+        if (
+            self.semantic_validator_id is not None
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError(
+                "semantic_validator_requires_strict_open_rubric"
+            )
+        if self.grading_mode == "ordered_slots" and self.answer_rule is None:
+            self.answer_rule = "concept_slots"
+        if (
+            self.grading_mode == "strict_open_rubric"
+            and self.evaluation_mode is None
+        ):
+            self.evaluation_mode = "llm_rubric"
         v2_fields = (
             self.episode_kind,
             self.teaching_phase,
@@ -307,14 +448,62 @@ class LiveChapterActivity(BaseModel):
                 raise ValueError("incomplete_live_activity_v2_contract")
         elif self.schema_version is not None:
             raise ValueError("empty_live_activity_v2_contract")
+        if self.evidence_role == "certifying":
+            if self.certifying_language != "en":
+                raise ValueError("certifying_activity_requires_english")
+        elif self.certifying_language is not None:
+            raise ValueError("noncertifying_activity_forbids_certifying_language")
+        if self.wrong_answer_misconception_tags is not None:
+            if self.grading_mode != "selected_option" or not self.options:
+                raise ValueError("wrong_answer_mapping_requires_selected_options")
+            authored_options = set(self.options)
+            mapped_options = set(self.wrong_answer_misconception_tags)
+            if not mapped_options.issubset(authored_options):
+                raise ValueError("wrong_answer_mapping_key_not_authored")
+            wrong_options = authored_options.difference(self.accepted_answers)
+            if mapped_options != wrong_options:
+                raise ValueError("wrong_answer_mapping_requires_every_wrong_option")
+            allowed_tags = set(self.target_misconception_tags or ())
+            if any(
+                not tags or not set(tags).issubset(allowed_tags)
+                for tags in self.wrong_answer_misconception_tags.values()
+            ):
+                raise ValueError("wrong_answer_mapping_tag_not_authored")
+        if self.criterion_misconception_tags is not None:
+            authored_criteria = {
+                criterion.id for criterion in self.rubric_criteria or ()
+            }
+            if not authored_criteria:
+                raise ValueError("criterion_mapping_requires_authored_rubric")
+            if not set(self.criterion_misconception_tags).issubset(
+                authored_criteria
+            ):
+                raise ValueError("criterion_mapping_key_not_authored")
+            allowed_tags = set(self.target_misconception_tags or ())
+            if any(
+                not tags or not set(tags).issubset(allowed_tags)
+                for tags in self.criterion_misconception_tags.values()
+            ):
+                raise ValueError("criterion_mapping_tag_not_authored")
+            if "clear_relevant_english" in self.criterion_misconception_tags:
+                raise ValueError(
+                    "generic_criterion_cannot_map_to_semantic_misconception"
+                )
         has_concept_fields = (
             self.concept_slots is not None
             or self.forbidden_phrases is not None
             or self.min_response_words is not None
             or self.ordered_concept_slot_ids is not None
         )
+        non_scored_continue = (
+            self.schema_version == "school-activity-v2"
+            and self.interaction_type == "continue"
+            and self.evidence_role == "experience"
+        )
+        if (self.pool_id is None) != (self.variant_id is None):
+            raise ValueError("live_activity_variant_identity_incomplete")
         if self.evaluation_mode == "llm_rubric":
-            if has_concept_fields:
+            if has_concept_fields and self.grading_mode != "strict_open_rubric":
                 raise ValueError("live_concept_fields_require_concept_slots_rule")
             if (
                 self.response_mode != "paragraph"
@@ -325,17 +514,44 @@ class LiveChapterActivity(BaseModel):
                 or self.accepted_answers
             ):
                 raise ValueError("invalid_live_open_answer_contract")
+            if self.grading_mode == "strict_open_rubric":
+                if (
+                    len(self.relevance_terms or ()) < 2
+                    or not self.forbidden_phrases
+                    or not self.model_answer
+                ):
+                    raise ValueError("strict_open_requires_semantic_authority")
+                slot_ids = {slot.id for slot in self.concept_slots or ()}
+                if self.ordered_concept_slot_ids and not set(
+                    self.ordered_concept_slot_ids
+                ).issubset(slot_ids):
+                    raise ValueError("unknown_live_ordered_concept_slot_id")
         else:
+            if self.model_answer is not None:
+                raise ValueError("deterministic_activity_forbids_semantic_authority")
             if (
                 self.preflight_rule is not None
                 or self.pass_score is not None
                 or self.rubric_criteria is not None
             ):
                 raise ValueError("live_activity_deterministic_forbids_llm_fields")
-            if self.answer_rule == "concept_slots":
+            if non_scored_continue:
+                if (
+                    self.options
+                    or self.accepted_answers
+                    or self.answer_rule is not None
+                    or self.grading_mode is not None
+                    or has_concept_fields
+                ):
+                    raise ValueError("continue_activity_must_be_non_scored")
+            elif self.answer_rule == "concept_slots":
                 if not self.concept_slots or self.accepted_answers:
                     raise ValueError("live_concept_slots_rule_requires_slots")
-                if not self.options and self.min_response_words is None:
+                if (
+                    not self.options
+                    and self.min_response_words is None
+                    and self.grading_mode != "ordered_slots"
+                ):
                     raise ValueError(
                         "live_constructed_concept_response_requires_min_words"
                     )
@@ -348,10 +564,26 @@ class LiveChapterActivity(BaseModel):
                 raise ValueError("live_concept_fields_require_concept_slots_rule")
             has_accepted_answers = bool(self.accepted_answers)
             has_answer_rule = self.answer_rule is not None
-            if has_accepted_answers == has_answer_rule:
+            if (
+                not non_scored_continue
+                and has_accepted_answers == has_answer_rule
+            ):
                 raise ValueError(
                     "live_activity_deterministic_grading_requires_exactly_one"
                 )
+        _validate_typed_grading_contract(
+            grading_mode=self.grading_mode,
+            options=self.options,
+            accepted_answers=self.accepted_answers,
+            concept_slots=self.concept_slots,
+            ordered_concept_slot_ids=self.ordered_concept_slot_ids,
+            semantic_identifiers=self.knowledge_components or [],
+            require_explicit_mode=(
+                self.schema_version == "school-activity-v2"
+                and self.interaction_type != "continue"
+            ),
+            require_semantic_open=self.evidence_role == "certifying",
+        )
         return self
 
     def runtime_dict(self) -> dict:
@@ -364,7 +596,9 @@ class LiveTeachingStep(BaseModel):
     step_id: str
     phase: LiveTeachingPhase
     required: bool = True
-    activity: LiveChapterActivity
+    activity: LiveChapterActivity | None = None
+    pool_id: str | None = None
+    variant_pool: list[LiveChapterActivity] | None = None
 
     @field_validator("step_id")
     @classmethod
@@ -376,17 +610,53 @@ class LiveTeachingStep(BaseModel):
 
     @model_validator(mode="after")
     def _phase_matches_activity(self) -> "LiveTeachingStep":
-        if self.activity.teaching_phase != self.phase:
+        has_activity = self.activity is not None
+        has_pool = self.variant_pool is not None
+        if has_activity == has_pool:
+            raise ValueError("live_teaching_step_requires_activity_or_pool")
+        activities = (
+            [self.activity]
+            if self.activity is not None
+            else list(self.variant_pool or ())
+        )
+        if not activities:
+            raise ValueError("live_teaching_variant_pool_empty")
+        if any(activity.teaching_phase != self.phase for activity in activities):
             raise ValueError("live_teaching_step_phase_mismatch")
+        if self.variant_pool is not None:
+            if not self.pool_id or any(
+                activity.pool_id != self.pool_id or not activity.variant_id
+                for activity in activities
+            ):
+                raise ValueError("live_teaching_variant_pool_identity_invalid")
+            variant_ids = [str(activity.variant_id) for activity in activities]
+            signatures = [
+                (activity.teaching_block, activity.passage, activity.prompt)
+                for activity in activities
+            ]
+            if (
+                len(variant_ids) != len(set(variant_ids))
+                or len(signatures) != len(set(signatures))
+            ):
+                raise ValueError("duplicate_live_teaching_variant")
+        elif self.pool_id is not None:
+            raise ValueError("single_live_teaching_activity_forbids_pool_id")
         return self
 
     def runtime_dict(self) -> dict:
-        return {
+        payload = {
             "step_id": self.step_id,
             "phase": self.phase,
             "required": self.required,
-            "activity": self.activity.runtime_dict(),
         }
+        if self.activity is not None:
+            payload["activity"] = self.activity.runtime_dict()
+        else:
+            payload["pool_id"] = self.pool_id
+            payload["variant_pool"] = [
+                activity.runtime_dict() for activity in self.variant_pool or ()
+            ]
+        return payload
 
 
 class LiveChapterAssessmentItem(BaseModel):
@@ -398,9 +668,12 @@ class LiveChapterAssessmentItem(BaseModel):
     skill_ids: list[str] = Field(min_length=1)
     options: list[str]
     accepted_answers: list[str]
+    grading_mode: GradingMode | None = None
+    certifying_language: Literal["en"] | None = None
     response_mode: Literal["short", "paragraph"] | None = None
     answer_rule: LiveDeterministicAnswerRule | None = None
     evaluation_mode: Literal["llm_rubric"] | None = None
+    semantic_validator_id: SchoolOpenSemanticValidatorId | None = None
     preflight_rule: str | None = None
     pass_score: float | None = Field(default=None, ge=0.0, le=1.0)
     rubric_criteria: list[LiveRubricCriterion] | None = None
@@ -416,6 +689,8 @@ class LiveChapterAssessmentItem(BaseModel):
         default=None,
         min_length=2,
     )
+    relevance_terms: list[str] | None = None
+    model_answer: str | None = None
 
     @field_validator("item_id", "passage", "prompt")
     @classmethod
@@ -425,7 +700,12 @@ class LiveChapterAssessmentItem(BaseModel):
             raise ValueError("live_assessment_item_text_empty")
         return cleaned
 
-    @field_validator("answer_rule", "preflight_rule", mode="before")
+    @field_validator(
+        "answer_rule",
+        "preflight_rule",
+        "model_answer",
+        mode="before",
+    )
     @classmethod
     def _clean_optional_text(cls, value: object) -> object:
         if value is None:
@@ -445,6 +725,19 @@ class LiveChapterAssessmentItem(BaseModel):
             raise ValueError("live_assessment_item_list_value_empty")
         if len(cleaned) != len(set(cleaned)):
             raise ValueError("live_assessment_item_list_value_duplicate")
+        return cleaned
+
+    @field_validator("relevance_terms")
+    @classmethod
+    def _clean_relevance_terms(
+        cls,
+        values: list[str] | None,
+    ) -> list[str] | None:
+        if values is None:
+            return None
+        cleaned = [value.strip() for value in values]
+        if any(not value for value in cleaned) or len(cleaned) != len(set(cleaned)):
+            raise ValueError("invalid_live_assessment_relevance_terms")
         return cleaned
 
     @field_validator("forbidden_phrases")
@@ -503,6 +796,20 @@ class LiveChapterAssessmentItem(BaseModel):
 
     @model_validator(mode="after")
     def _valid_options_and_grading_contract(self) -> "LiveChapterAssessmentItem":
+        if (
+            self.semantic_validator_id is not None
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError(
+                "semantic_validator_requires_strict_open_rubric"
+            )
+        if self.grading_mode == "ordered_slots" and self.answer_rule is None:
+            self.answer_rule = "concept_slots"
+        if (
+            self.grading_mode == "strict_open_rubric"
+            and self.evaluation_mode is None
+        ):
+            self.evaluation_mode = "llm_rubric"
         if 0 < len(self.options) < 2:
             raise ValueError("live_assessment_item_options_require_two")
         has_concept_fields = (
@@ -512,7 +819,7 @@ class LiveChapterAssessmentItem(BaseModel):
             or self.ordered_concept_slot_ids is not None
         )
         if self.evaluation_mode == "llm_rubric":
-            if has_concept_fields:
+            if has_concept_fields and self.grading_mode != "strict_open_rubric":
                 raise ValueError("live_concept_fields_require_concept_slots_rule")
             if (
                 self.response_mode != "paragraph"
@@ -523,7 +830,25 @@ class LiveChapterAssessmentItem(BaseModel):
                 or self.accepted_answers
             ):
                 raise ValueError("invalid_live_assessment_open_answer_contract")
+            if self.grading_mode == "strict_open_rubric":
+                if self.certifying_language != "en":
+                    raise ValueError("certifying_assessment_requires_english")
+                if (
+                    len(self.relevance_terms or ()) < 2
+                    or not self.forbidden_phrases
+                    or not self.model_answer
+                ):
+                    raise ValueError("strict_open_requires_semantic_authority")
+                slot_ids = {slot.id for slot in self.concept_slots or ()}
+                if self.ordered_concept_slot_ids and not set(
+                    self.ordered_concept_slot_ids
+                ).issubset(slot_ids):
+                    raise ValueError("unknown_live_ordered_concept_slot_id")
         else:
+            if self.model_answer is not None:
+                raise ValueError("deterministic_assessment_forbids_semantic_authority")
+            if self.certifying_language is not None:
+                raise ValueError("deterministic_assessment_forbids_certifying_language")
             if (
                 self.preflight_rule is not None
                 or self.pass_score is not None
@@ -535,7 +860,11 @@ class LiveChapterAssessmentItem(BaseModel):
             if self.answer_rule == "concept_slots":
                 if not self.concept_slots or self.accepted_answers:
                     raise ValueError("live_concept_slots_rule_requires_slots")
-                if not self.options and self.min_response_words is None:
+                if (
+                    not self.options
+                    and self.min_response_words is None
+                    and self.grading_mode != "ordered_slots"
+                ):
                     raise ValueError(
                         "live_constructed_concept_response_requires_min_words"
                     )
@@ -552,6 +881,15 @@ class LiveChapterAssessmentItem(BaseModel):
                 raise ValueError(
                     "live_assessment_deterministic_grading_requires_exactly_one"
                 )
+        _validate_typed_grading_contract(
+            grading_mode=self.grading_mode,
+            options=self.options,
+            accepted_answers=self.accepted_answers,
+            concept_slots=self.concept_slots,
+            ordered_concept_slot_ids=self.ordered_concept_slot_ids,
+            semantic_identifiers=self.skill_ids,
+            require_semantic_open=True,
+        )
         return self
 
     def runtime_dict(self) -> dict:
@@ -604,6 +942,7 @@ class LiveChapterChecks(BaseModel):
     revision_level_1: LiveChapterActivity | None = None
     revision_level_2: LiveChapterActivity | None = None
     revision_level_3: LiveChapterActivity | None = None
+    revision_level_4: LiveChapterActivity | None = None
     independent_check: LiveChapterActivity
     transfer_check: LiveChapterActivity | None = None
 
@@ -615,15 +954,20 @@ class LiveChapterChecks(BaseModel):
             self.masterclass,
             self.independent_check,
         ]
-        revisions = [
+        required_revisions = [
             self.revision_level_1,
             self.revision_level_2,
             self.revision_level_3,
         ]
-        if any(stage is not None for stage in revisions) and not all(
-            stage is not None for stage in revisions
+        if any(stage is not None for stage in required_revisions) and not all(
+            stage is not None for stage in required_revisions
         ):
             raise ValueError("authored_revision_sequence_incomplete")
+        if self.revision_level_4 is not None and not all(
+            stage is not None for stage in required_revisions
+        ):
+            raise ValueError("authored_revision_sequence_incomplete")
+        revisions = required_revisions + [self.revision_level_4]
         stages.extend(stage for stage in revisions if stage is not None)
         if self.transfer_check is not None:
             stages.append(self.transfer_check)
@@ -660,6 +1004,7 @@ class LiveChapterChecks(BaseModel):
                 self.revision_level_1,
                 self.revision_level_2,
                 self.revision_level_3,
+                self.revision_level_4,
             ),
             start=1,
         ):
@@ -681,6 +1026,7 @@ class LiveChapterLevel(BaseModel):
     checks: LiveChapterChecks
     episode_kind: LiveEpisodeKind | None = None
     source_anchor_ids: list[str] | None = None
+    companion_source_anchor_ids: list[str] | None = None
     teaching_steps: list[LiveTeachingStep] | None = None
 
     @field_validator("level_id", "title", "focus", "teaching_goal")
@@ -699,7 +1045,7 @@ class LiveChapterLevel(BaseModel):
             raise ValueError("invalid_live_level_skill_ids")
         return cleaned
 
-    @field_validator("source_anchor_ids")
+    @field_validator("source_anchor_ids", "companion_source_anchor_ids")
     @classmethod
     def _clean_source_anchor_ids(
         cls,
@@ -732,7 +1078,7 @@ class LiveChapterLevel(BaseModel):
             raise ValueError("duplicate_live_teaching_step_id")
 
         required_phases = [step.phase for step in self.teaching_steps if step.required]
-        expected_phases: list[LiveTeachingPhase] = [
+        full_phases: list[LiveTeachingPhase] = [
             "connect",
             "explain",
             "model",
@@ -740,24 +1086,51 @@ class LiveChapterLevel(BaseModel):
             "guided_practice",
             "feedback",
             "independent_application",
+            "transfer",
+            "review",
         ]
-        if required_phases != expected_phases:
+        compact_phases: tuple[LiveTeachingPhase, ...] = (
+            "connect",
+            "co_construct",
+            "guided_practice",
+            "independent_application",
+            "transfer",
+            "review",
+        )
+        if tuple(required_phases) not in {tuple(full_phases), compact_phases}:
             raise ValueError("invalid_live_teaching_phase_sequence")
-        phase_order = {phase: index for index, phase in enumerate(expected_phases)}
+        phase_order = {phase: index for index, phase in enumerate(full_phases)}
         all_phase_indexes = [phase_order[step.phase] for step in self.teaching_steps]
         if all_phase_indexes != sorted(all_phase_indexes):
             raise ValueError("invalid_live_teaching_phase_sequence")
 
         anchor_ids = set(self.source_anchor_ids)
+        companion_anchor_ids = set(self.companion_source_anchor_ids or ())
+        if anchor_ids & companion_anchor_ids:
+            raise ValueError("live_level_source_anchor_role_overlap")
+        allowed_anchor_ids = anchor_ids | companion_anchor_ids
         skill_ids = set(self.skill_ids)
         for step in self.teaching_steps:
-            activity = step.activity
-            if activity.episode_kind != self.episode_kind:
-                raise ValueError("live_teaching_step_episode_mismatch")
-            if not set(activity.source_anchor_ids or ()).issubset(anchor_ids):
-                raise ValueError("unknown_live_teaching_step_source_anchor")
-            if not set(activity.knowledge_components or ()).issubset(skill_ids):
-                raise ValueError("unknown_live_teaching_step_knowledge_component")
+            activities = (
+                [step.activity]
+                if step.activity is not None
+                else list(step.variant_pool or ())
+            )
+            for activity in activities:
+                if activity.episode_kind != self.episode_kind:
+                    raise ValueError("live_teaching_step_episode_mismatch")
+                activity_anchor_ids = set(activity.source_anchor_ids or ())
+                if not activity_anchor_ids.issubset(allowed_anchor_ids):
+                    raise ValueError("unknown_live_teaching_step_source_anchor")
+                if (
+                    activity.evidence_role == "certifying"
+                    and activity_anchor_ids & companion_anchor_ids
+                ):
+                    raise ValueError(
+                        "certifying_activity_uses_companion_source_anchor"
+                    )
+                if not set(activity.knowledge_components or ()).issubset(skill_ids):
+                    raise ValueError("unknown_live_teaching_step_knowledge_component")
         return self
 
     def runtime_dict(self) -> dict:
@@ -772,6 +1145,10 @@ class LiveChapterLevel(BaseModel):
         if self.episode_kind is not None:
             level["episode_kind"] = self.episode_kind
             level["source_anchor_ids"] = list(self.source_anchor_ids or ())
+            if self.companion_source_anchor_ids:
+                level["companion_source_anchor_ids"] = list(
+                    self.companion_source_anchor_ids
+                )
             level["teaching_steps"] = [
                 step.runtime_dict() for step in self.teaching_steps or ()
             ]
@@ -781,7 +1158,7 @@ class LiveChapterLevel(BaseModel):
 class LiveSchoolChapter(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
-    approval_status: Literal["draft", "qa_approved", "human_approved"]
+    approval_status: LiveChapterApprovalStatus
     reviewed_by: str | None = None
     reviewed_at: str | None = None
     review_evidence: list[str] = Field(default_factory=list)
@@ -840,11 +1217,17 @@ class LiveSchoolChapter(BaseModel):
         ]
         if len(source_anchor_ids) != len(set(source_anchor_ids)):
             raise ValueError("duplicate_live_source_anchor_id")
-        referenced_anchor_ids = {
+        certifying_anchor_ids = {
             anchor_id
             for level in self.levels
             for anchor_id in level.source_anchor_ids or ()
         }
+        companion_anchor_ids = {
+            anchor_id
+            for level in self.levels
+            for anchor_id in level.companion_source_anchor_ids or ()
+        }
+        referenced_anchor_ids = certifying_anchor_ids | companion_anchor_ids
         unknown_anchor_ids = referenced_anchor_ids - set(source_anchor_ids)
         if unknown_anchor_ids:
             raise ValueError(
@@ -856,7 +1239,13 @@ class LiveSchoolChapter(BaseModel):
             for anchor in self.source_anchors or ()
             if anchor.required_for_chapter_certification
         }
-        uncovered_required_anchor_ids = required_anchor_ids - referenced_anchor_ids
+        invalid_companion_anchor_ids = companion_anchor_ids & required_anchor_ids
+        if invalid_companion_anchor_ids:
+            raise ValueError(
+                "required_live_source_anchor_marked_companion:"
+                + ",".join(sorted(invalid_companion_anchor_ids))
+            )
+        uncovered_required_anchor_ids = required_anchor_ids - certifying_anchor_ids
         if uncovered_required_anchor_ids:
             raise ValueError(
                 "uncovered_required_live_source_anchor:"

@@ -1,3 +1,4 @@
+from app.content.school.standards import locked_english_taxonomy
 from app.services.school_rebuild_language import localized_teaching_support
 
 
@@ -52,6 +53,18 @@ def test_language_scaffold_is_meta_support_not_a_readiness_signal():
     assert "English" in support
 
 
+def test_v2_certifying_phases_keep_the_english_response_requirement():
+    for stage in ("independent_application", "transfer", "review"):
+        support = localized_teaching_support(
+            preferred_language="hi_en",
+            skill_ids=["reading.event_sequence"],
+            stage=stage,
+            en_production_confidence=0.95,
+        )
+
+        assert "answer English mein likho" in support
+
+
 def test_strong_english_evidence_reduces_support_without_changing_certification_copy():
     guided = localized_teaching_support(
         preferred_language="hi_en",
@@ -68,3 +81,21 @@ def test_strong_english_evidence_reduces_support_without_changing_certification_
 
     assert guided == ""
     assert "English" in certifying
+
+
+def test_every_live_english_skill_has_hindi_and_hinglish_strategy_support():
+    skill_ids = locked_english_taxonomy().skill_ids()
+
+    unsupported = [
+        (language, skill_id)
+        for language in ("hi", "hi_en")
+        for skill_id in skill_ids
+        if not localized_teaching_support(
+            preferred_language=language,
+            skill_ids=[skill_id],
+            stage="guided_practice",
+            en_production_confidence=0.0,
+        )
+    ]
+
+    assert unsupported == []

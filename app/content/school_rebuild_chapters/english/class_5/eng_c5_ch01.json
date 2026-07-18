@@ -17,11 +17,11 @@
     "Authenticated browser QA: a valid give-the-bottle-to-a-teacher response exposed and removed first-person answer-stem semantic slots",
     "Authenticated browser QA: valid route, night-meaning, safe-handoff, and returned-it paraphrases now pass backend-owned semantic checks"
   ],
-  "runtime_sha256": "0f9249cc282342ecabf1ba3b1c62e40fdd20c366d30333c19708e679405ac07f",
+  "runtime_sha256": "e150e64a2fc4aa4f194c0805c5d6425de9322e3cfae97a9704058b84bcbbf9ce",
   "chapter_id": "eng_c5_ch01",
   "chapter_no": 1,
-  "content_version": "2026-07-16.ch1-gold.14",
-  "certification_version": "2026-07-16.ch1-gold.12",
+  "content_version": "2026-07-17.ch1-gold.15",
+  "certification_version": "2026-07-17.ch1-gold.13",
   "title": "Papa's Spectacles",
   "book_title": "Santoor",
   "unit_title": "Let's Have Fun",
@@ -2201,6 +2201,36 @@
             "context_ignored"
           ]
         },
+        "revision_level_4": {
+          "schema_version": "school-activity-v2",
+          "episode_kind": "language_lab",
+          "teaching_phase": "guided_practice",
+          "interaction_type": "single_choice",
+          "evidence_role": "supported",
+          "source_anchor_ids": [
+            "eng_c5_ch01:new_words"
+          ],
+          "teaching_block": "Use the time clue to separate a quick look from a long stare.",
+          "passage": "Rina glanced at the rain clouds for a second, then kept walking instead of watching them for a long time.",
+          "prompt": "Which choice correctly explains how glanced differs from stared here?",
+          "options": [
+            "Glanced means looked quickly; stared means looked for a long time.",
+            "Glanced means shouted; stared means whispered.",
+            "Glanced means closed both eyes; stared means ran away.",
+            "Glanced means carried clouds; stared means drew clouds."
+          ],
+          "accepted_answers": [
+            "Glanced means looked quickly; stared means looked for a long time."
+          ],
+          "grading_mode": "selected_option",
+          "response_mode": "short",
+          "knowledge_components": [
+            "reading.word_meaning_context"
+          ],
+          "target_misconception_tags": [
+            "context_ignored"
+          ]
+        },
         "independent_check": {
           "schema_version": "school-activity-v2",
           "episode_kind": "language_lab",
@@ -3352,6 +3382,14 @@
                 "stared"
               ],
               "model_answer": "Glanced means looked briefly, while stared means looked for longer without turning away. I glanced at the timetable before packing my books.",
+              "criterion_misconception_tags": {
+                "chapter_words_target": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_2": [
+                  "context_ignored"
+                ]
+              },
               "target_misconception_tags": [
                 "context_ignored",
                 "incomplete_phrase"
@@ -3437,6 +3475,17 @@
                 "cheers"
               ],
               "model_answer": "A wave of cheers means many cheers spreading through a group; a wave of applause filled the hall.",
+              "criterion_misconception_tags": {
+                "chapter_words_target": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_2": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_3": [
+                  "context_ignored"
+                ]
+              },
               "target_misconception_tags": [
                 "context_ignored",
                 "incomplete_phrase"
@@ -3523,6 +3572,14 @@
                 "quick"
               ],
               "model_answer": "Bounded means moved in quick leaps; the excited calf bounded across the field.",
+              "criterion_misconception_tags": {
+                "chapter_words_target": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_2": [
+                  "context_ignored"
+                ]
+              },
               "target_misconception_tags": [
                 "context_ignored",
                 "incomplete_phrase"
@@ -3608,6 +3665,17 @@
                 "lanterns"
               ],
               "model_answer": "A cluster of lanterns is a close group of lanterns; a cluster of stars appeared above the hill.",
+              "criterion_misconception_tags": {
+                "chapter_words_target": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_2": [
+                  "context_ignored"
+                ],
+                "chapter_words_target:detail_3": [
+                  "context_ignored"
+                ]
+              },
               "target_misconception_tags": [
                 "context_ignored",
                 "incomplete_phrase"
@@ -4728,8 +4796,8 @@
                 "grammar.connectors_because_and_but"
               ],
               "teaching_block": "Before you try it alone: Check that the answer is yours and still fits the situation. A strong response names an action, gives a reason, and avoids inventing new facts.\n\nGive a relevant personal response with a clear reason and situation detail.",
-              "passage": "A notebook was last used in the reading room. A friend only guesses that it may be in the art room.",
-              "prompt": "Which clue would you test first? Use because for your reason and but to explain why the other clue is weaker.",
+              "passage": "A pencil was last used in the reading room. A friend only guesses that it may be in the art room.",
+              "prompt": "Which clue would you test first? Use because to connect your choice to the pencil's last-use fact and but to explain why the art-room claim is unsupported.",
               "options": [],
               "accepted_answers": [],
               "grading_mode": "strict_open_rubric",
@@ -4740,13 +4808,19 @@
               "rubric_criteria": [
                 {
                   "id": "personal_response_target",
-                  "description": "States a relevant choice, gives its reason with because, and adds a safe or thoughtful contrast with but.",
+                  "description": "Explicitly chooses the pencil's reading-room last-use clue as the first clue to test, uses because for the evidence, and uses but for the unsupported art-room claim.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "personal_response_target:detail_2",
-                  "description": "Distinguishes the last-use reading-room clue from the unsupported art-room guess.",
+                  "description": "States both the pencil and its last-use reading-room fact as evidence for the choice.",
+                  "required": true,
+                  "min_quality": 0.7
+                },
+                {
+                  "id": "personal_response_target:detail_3",
+                  "description": "Explicitly gives both the art-room claim and its unsupported polarity by calling it only a guess or unsupported.",
                   "required": true,
                   "min_quality": 0.7
                 },
@@ -4772,15 +4846,20 @@
               "min_response_words": 7,
               "forbidden_phrases": [
                 "No reason is needed",
-                "The situation details do not matter"
+                "The situation details do not matter",
+                "art-room guess is best",
+                "art room guess is best",
+                "reading-room clue first seems useless",
+                "reading room clue first seems useless"
               ],
               "relevance_terms": [
+                "pencil",
                 "reading room",
                 "last used",
                 "art room",
-                "guess"
+                "only a guess"
               ],
-              "model_answer": "I would test the reading-room clue first because it comes from the notebook's last use, but the art-room clue is only a guess.",
+              "model_answer": "I would test the reading-room clue first because the pencil was last used there, but the art-room clue is only a guess.",
               "target_misconception_tags": [
                 "unsupported_opinion",
                 "situation_ignored",
@@ -4793,18 +4872,47 @@
               "concept_slots": [
                 {
                   "id": "personal_response_target",
-                  "description": "States a relevant choice, gives its reason with because, and adds a safe or thoughtful contrast with but.",
+                  "description": "Explicitly chooses the pencil's reading-room last-use clue as the first clue to test, uses because for the evidence, and uses but for the unsupported art-room claim.",
                   "any_of": [
-                    "guess"
+                    "test the reading-room clue first",
+                    "test the reading room clue first",
+                    "choose the reading-room clue first",
+                    "choose the reading room clue first",
+                    "check the reading-room clue first",
+                    "check the reading room clue first",
+                    "start with the reading-room clue",
+                    "start with the reading room clue"
                   ]
                 },
                 {
                   "id": "personal_response_target:detail_2",
-                  "description": "Distinguishes the last-use reading-room clue from the unsupported art-room guess.",
+                  "description": "States both the pencil and its last-use reading-room fact as evidence for the choice.",
                   "any_of": [
-                    "last used",
-                    "art room",
-                    "art-room clue"
+                    "pencil was last used in the reading room",
+                    "pencil was last used there",
+                    "pencil's last use was in the reading room",
+                    "last used the pencil in the reading room",
+                    "pencil was used last in the reading room"
+                  ]
+                },
+                {
+                  "id": "personal_response_target:detail_3",
+                  "description": "Explicitly gives both the art-room claim and its unsupported polarity by calling it only a guess or unsupported.",
+                  "any_of": [
+                    "art-room clue is only a guess",
+                    "art room clue is only a guess",
+                    "art-room claim is only a guess",
+                    "art room claim is only a guess",
+                    "art-room claim is unsupported",
+                    "art room claim is unsupported",
+                    "art-room clue is unsupported",
+                    "art room clue is unsupported",
+                    "unsupported art-room claim",
+                    "unsupported art room claim",
+                    "unsupported art-room clue",
+                    "unsupported art room clue",
+                    "art-room guess is unsupported",
+                    "art room guess is unsupported"
                   ]
                 },
                 {
@@ -4821,7 +4929,8 @@
                     "but"
                   ]
                 }
-              ]
+              ],
+              "semantic_validator_id": "evidence_over_unsupported_guess_v1"
             }
           ]
         },
@@ -5395,7 +5504,7 @@
               ],
               "teaching_block": "Give a relevant personal response with a clear reason and situation detail.",
               "passage": "During a classroom search, Kabir keeps asking where his pencil is while holding it in the same hand as his notebook. A child notices the mix-up and laughs, but Kabir looks embarrassed.",
-              "prompt": "How can you explain the humour kindly? Use because for the reason and but for the respectful limit.",
+              "prompt": "How can you explain the humour and respond kindly? Use because for the reason and but for the kind, helpful, or no-mocking response.",
               "options": [],
               "accepted_answers": [],
               "grading_mode": "strict_open_rubric",
@@ -5406,13 +5515,13 @@
               "rubric_criteria": [
                 {
                   "id": "personal_response_target",
-                  "description": "States a relevant choice, gives its reason with because, and adds a safe or thoughtful contrast with but.",
+                  "description": "Explains both sides of the visible pencil-search mix-up: Kabir is searching for the pencil while already holding it, uses because for the reason, and uses but for the kind limit.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "personal_response_target:detail_2",
-                  "description": "Explains the visible mix-up kindly and avoids mocking the embarrassed learner.",
+                  "description": "States one of three explicit positive responses: helps Kabir notice the pencil, explains the mix-up kindly, or refuses to mock him.",
                   "required": true,
                   "min_quality": 0.7
                 },
@@ -5438,16 +5547,25 @@
               "min_response_words": 7,
               "forbidden_phrases": [
                 "No reason is needed",
-                "The situation details do not matter"
+                "The situation details do not matter",
+                "not be kind to him",
+                "never be kind to him",
+                "refuse to be kind to him",
+                "never treat him kindly",
+                "never respond kindly",
+                "respond without kindness",
+                "would respond rudely",
+                "be rude to him"
               ],
               "relevance_terms": [
                 "holding the pencil",
                 "searching for",
                 "because",
                 "but",
-                "embarrassed"
+                "help him notice",
+                "without mocking"
               ],
-              "model_answer": "I would explain that the moment is funny because Kabir is already holding the pencil he is searching for, but I would not mock him.",
+              "model_answer": "I would explain that the moment is funny because Kabir is already holding the pencil he is searching for, but I would help him notice the pencil without mocking him.",
               "target_misconception_tags": [
                 "unsupported_opinion",
                 "situation_ignored",
@@ -5460,20 +5578,37 @@
               "concept_slots": [
                 {
                   "id": "personal_response_target",
-                  "description": "States a relevant choice, gives its reason with because, and adds a safe or thoughtful contrast with but.",
+                  "description": "Explains both sides of the visible pencil-search mix-up: Kabir is searching for the pencil while already holding it, uses because for the reason, and uses but for the kind limit.",
                   "any_of": [
-                    "holding the pencil"
+                    "already holding the pencil he is searching for",
+                    "holding the pencil while searching for it",
+                    "holding the pencil while searching",
+                    "searching for the pencil he is holding",
+                    "pencil he is searching for",
+                    "pencil-search mix-up"
                   ]
                 },
                 {
                   "id": "personal_response_target:detail_2",
-                  "description": "Explains the visible mix-up kindly and avoids mocking the embarrassed learner.",
+                  "description": "States one of three explicit positive responses: helps Kabir notice the pencil, explains the mix-up kindly, or refuses to mock him.",
                   "any_of": [
-                    "pencil in his hand",
-                    "already holding",
-                    "searching for",
-                    "not mock",
-                    "embarrassed"
+                    "help him",
+                    "help Kabir",
+                    "explain kindly",
+                    "point out the pencil",
+                    "point him",
+                    "show him the pencil",
+                    "show the pencil",
+                    "guide him",
+                    "guide Kabir",
+                    "not mock him",
+                    "never mock him",
+                    "wouldn't mock him",
+                    "won't mock him",
+                    "no mocking",
+                    "not make fun of him",
+                    "never make fun of him",
+                    "no making fun of him"
                   ]
                 },
                 {
@@ -5490,7 +5625,8 @@
                     "but"
                   ]
                 }
-              ]
+              ],
+              "semantic_validator_id": "affirmative_support_or_no_mocking_v1"
             },
             {
               "schema_version": "school-activity-v2",

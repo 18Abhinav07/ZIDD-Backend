@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from app.content.school_rebuild_placement_bank import placement_bank_for
 from app.services import school_rebuild_placement as placement
-from app.services.school_core.readiness import classify_skill_status
 from app.services.school_rebuild_profile import school_coach_identity
 
 
@@ -26,12 +25,20 @@ def build_placement_report(
     metadata = _skill_metadata(state.subject_id, state.class_no)
     events = _placement_events(learning_events, placement_session_id)
     evidence_summary = _evidence_summary(events, len(state.answered_item_ids))
-    skill_statuses = {
-        skill_id: classify_skill_status(skill_state)
-        for skill_id, skill_state in sorted(state.skill_states.items())
-    }
+    evidence_summary["track_verdicts"] = placement.public_track_verdicts(state)
+    # Placement track verdicts own placement. Generic readiness EMA is useful
+    # longitudinally, but it cannot turn a resolved placement track into a
+    # prerequisite gap or promote an unresolved track to a confirmed gap.
     blocking_skill_ids = [
-        skill_id for skill_id, status in skill_statuses.items() if status == "weak"
+        track.primary_skill_id
+        for track in state.track_states.values()
+        if track.status == "confirmed_weak"
+    ]
+    watchlist_tracks = [
+        track
+        for track in state.track_states.values()
+        if track.status in {"ambiguous", "provisional_weak", "unresolved"}
+        and track.primary_skill_id not in blocking_skill_ids
     ]
 
     if effective_status == "abandoned":
@@ -42,8 +49,12 @@ def build_placement_report(
     elif effective_status == "insufficient_evidence":
         placement_status = "insufficient_evidence"
         unlock_state = "locked"
-        allowed_next_actions = ["resume_placement"]
-    elif blocking_skill_ids:
+        allowed_next_actions = [
+            "resume_placement"
+            if placement.can_resume_placement(envelope)
+            else "start_placement"
+        ]
+    elif effective_status == "below_target":
         placement_status = "below_target"
         unlock_state = "recap_required"
         allowed_next_actions = ["start_recap"]
@@ -52,20 +63,22 @@ def build_placement_report(
         unlock_state = "target_unlocked"
         allowed_next_actions = ["start_curriculum"]
 
-    evaluated_class_no = (
-        state.class_no
-        if placement_status == "abandoned"
-        else _evaluated_class_no(
-            target_class_no=state.class_no,
-            blocking_skill_ids=blocking_skill_ids,
-            metadata=metadata,
-            placement_status=placement_status,
-        )
+    evaluated_class_no = _evaluated_class_no(
+        state=state,
+        placement_status=placement_status,
     )
     blocking_skills = _public_blocking_skills(
         blocking_skill_ids=blocking_skill_ids,
         metadata=metadata,
         events=events,
+    )
+    watchlist_skills = (
+        []
+        if placement_status in {"abandoned", "insufficient_evidence"}
+        else _public_watchlist_skills(
+            tracks=watchlist_tracks,
+            metadata=metadata,
+        )
     )
     modules = (
         []
@@ -74,6 +87,11 @@ def build_placement_report(
             state,
             blocking_skill_ids=blocking_skill_ids,
         )
+    )
+    active_learning_class_no = _active_learning_class_no(
+        state=state,
+        placement_status=placement_status,
+        evaluated_class_no=evaluated_class_no,
     )
     learner_summary = _learner_summary(placement_status, evaluated_class_no, state.class_no)
     parent_summary = _parent_summary(placement_status, evidence_summary, modules)
@@ -87,10 +105,10 @@ def build_placement_report(
         "subject_id": state.subject_id,
         "target_class_no": state.class_no,
         "evaluated_class_no": evaluated_class_no,
-        "active_learning_class_no": evaluated_class_no,
+        "active_learning_class_no": active_learning_class_no,
         "unlock_state": unlock_state,
         "blocking_skills": blocking_skills,
-        "watchlist_skills": [],
+        "watchlist_skills": watchlist_skills,
         "evidence_summary": evidence_summary,
         "recommended_recap_modules": modules,
         "learner_summary": learner_summary,
@@ -112,18 +130,24 @@ def public_placement_report(
         "placement_status": row["placement_status"],
         "subject_id": row["subject_id"],
         "target_class_no": int(row["target_class_no"]),
-        "evaluated_class_no": int(row["evaluated_class_no"]),
-        "active_learning_class_no": int(row["active_learning_class_no"]),
+        "evaluated_class_no": _optional_class_no(row.get("evaluated_class_no")),
+        "active_learning_class_no": _optional_class_no(
+            row.get("active_learning_class_no")
+        ),
         "unlock_state": row["unlock_state"],
         "blocking_skills": list(row.get("blocking_skills") or []),
         "watchlist_skills": list(row.get("watchlist_skills") or []),
         "evidence_summary": dict(row.get("evidence_summary") or {}),
+        "track_verdicts": list(
+            (row.get("evidence_summary") or {}).get("track_verdicts") or []
+        ),
         "recommended_recap_modules": [
             _public_recap_module(module)
             for module in row.get("recommended_recap_modules") or []
         ],
         "learner_summary": row.get("learner_summary") or "",
         "parent_summary": row.get("parent_summary") or "",
+        "allowed_next_actions": list(row.get("allowed_next_actions") or []),
     }
 
 
@@ -150,8 +174,7 @@ def _evidence_summary(events: list[dict[str, Any]], fallback_total: int) -> dict
     correct = sum(
         1
         for event in rows
-        if float(event.get("score") or 0.0) >= 0.8
-        and not event.get("blockers")
+        if _is_clear_placement_pass(event)
     )
     return {
         "total_attempts": total,
@@ -187,20 +210,73 @@ def _skill_metadata(subject_id: str, target_class_no: int) -> dict[str, dict[str
 
 def _evaluated_class_no(
     *,
-    target_class_no: int,
-    blocking_skill_ids: list[str],
-    metadata: dict[str, dict[str, Any]],
+    state: placement.PlacementSessionState,
     placement_status: str,
-) -> int:
+) -> int | None:
     if placement_status == "target_ready":
-        return target_class_no
-    source_classes = [
-        int(metadata.get(skill_id, {}).get("source_class_no") or target_class_no)
-        for skill_id in blocking_skill_ids
+        return state.class_no
+
+    anchor_bands = sorted(
+        band
+        for track in state.track_states.values()
+        if track.snapshot_source_band == state.class_no
+        for band in [_confirmed_highest_safe_band(track, state.class_no)]
+        if band is not None
+    )
+    agreeing_windows = [
+        anchor_bands[start:end]
+        for start in range(len(anchor_bands))
+        for end in range(start + 3, len(anchor_bands) + 1)
+        if anchor_bands[end - 1] - anchor_bands[start] <= 1
     ]
-    if not source_classes:
-        return max(2, target_class_no - 1)
-    return max(2, min(source_classes))
+    if not agreeing_windows:
+        return None
+    strongest = max(agreeing_windows, key=lambda values: (len(values), -values[0]))
+    return min(strongest)
+
+
+def _confirmed_highest_safe_band(
+    track: placement.PlacementTrackState,
+    target_class_no: int,
+) -> int | None:
+    if track.highest_passed_band is None:
+        return None
+    if track.status in {"resolved_ready", "confirmed_weak"}:
+        return int(track.highest_passed_band)
+    if track.status != "provisional_ready":
+        return None
+    clean_target_anchor = any(
+        evidence.stage == "snapshot"
+        and evidence.source_class_no == target_class_no
+        and evidence.classification == "pass"
+        and evidence.evaluator_score >= 0.85
+        and evidence.evaluator_confidence >= 0.85
+        and not evidence.certifying_blockers
+        for evidence in track.evidence
+    )
+    return int(track.highest_passed_band) if clean_target_anchor else None
+
+
+def _active_learning_class_no(
+    *,
+    state: placement.PlacementSessionState,
+    placement_status: str,
+    evaluated_class_no: int | None,
+) -> int | None:
+    if placement_status in {"abandoned", "insufficient_evidence"}:
+        return None
+    if placement_status == "target_ready":
+        return state.class_no
+    confirmed_bands = [
+        int(track.boundary_band)
+        for track in state.track_states.values()
+        if track.status == "confirmed_weak" and track.boundary_band is not None
+    ]
+    return evaluated_class_no if evaluated_class_no is not None else min(confirmed_bands)
+
+
+def _optional_class_no(value: Any) -> int | None:
+    return int(value) if value is not None else None
 
 
 def _public_blocking_skills(
@@ -216,7 +292,11 @@ def _public_blocking_skills(
     for skill_id in blocking_skill_ids:
         info = metadata.get(skill_id, {})
         attempts = attempts_by_skill.get(skill_id) or []
-        passes = sum(1 for event in attempts if float(event.get("score") or 0.0) >= 0.8)
+        passes = sum(
+            1
+            for event in attempts
+            if _is_clear_placement_pass(event)
+        )
         label = info.get("learner_skill_label") or _label_from_skill_id(skill_id)
         source_class_no = int(info.get("source_class_no") or 2)
         key = (label, source_class_no)
@@ -238,6 +318,52 @@ def _public_blocking_skills(
     return rows
 
 
+def _is_clear_placement_pass(event: dict[str, Any]) -> bool:
+    blockers = event.get("blockers") or ()
+    if isinstance(blockers, (list, tuple, set)):
+        certifying_blockers = tuple(str(blocker) for blocker in blockers)
+    else:
+        certifying_blockers = (str(blockers),)
+    return placement.classify_placement_evidence(
+        evaluator_score=float(event.get("score") or 0.0),
+        evaluator_confidence=float(event.get("confidence") or 0.0),
+        scorable=bool(event.get("scorable", True)),
+        certifying_blockers=certifying_blockers,
+    ) == "pass"
+
+
+def _public_watchlist_skills(
+    *,
+    tracks: list[placement.PlacementTrackState],
+    metadata: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    for track in tracks:
+        info = metadata.get(track.primary_skill_id, {})
+        label = info.get("learner_skill_label") or track.learner_skill_label
+        source_class_no = int(
+            track.boundary_band
+            if track.boundary_band is not None
+            else track.highest_passed_band
+            if track.highest_passed_band is not None
+            else info.get("source_class_no") or 2
+        )
+        key = (str(label), source_class_no)
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(
+            {
+                "label": str(label),
+                "source_class_no": source_class_no,
+                "status": "needs_confirmation",
+            }
+        )
+    rows.sort(key=lambda row: (row["source_class_no"], row["label"]))
+    return rows
+
+
 def _recommended_modules_from_tracks(
     state: placement.PlacementSessionState,
     *,
@@ -247,7 +373,8 @@ def _recommended_modules_from_tracks(
     weak_tracks = [
         track
         for track in state.track_states.values()
-        if track.primary_skill_id in blocking_skill_ids
+        if track.status == "confirmed_weak"
+        and track.primary_skill_id in blocking_skill_ids
     ]
     weak_tracks.sort(
         key=lambda track: (
@@ -299,13 +426,22 @@ def _public_recap_module(module: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _learner_summary(placement_status: str, evaluated_class_no: int, target_class_no: int) -> str:
+def _learner_summary(
+    placement_status: str,
+    evaluated_class_no: int | None,
+    target_class_no: int,
+) -> str:
     if placement_status == "target_ready":
         return "You are ready to begin your target class chapters."
     if placement_status == "abandoned":
         return "Your readiness check stopped before a starting point was decided."
     if placement_status == "insufficient_evidence":
         return "We need a few more answers before deciding your starting point."
+    if evaluated_class_no is None:
+        return (
+            "We will first rebuild the confirmed foundations, "
+            f"then move you toward Class {target_class_no} English."
+        )
     return (
         f"We will first build your Class {evaluated_class_no} foundations, "
         f"then move you toward Class {target_class_no} English."

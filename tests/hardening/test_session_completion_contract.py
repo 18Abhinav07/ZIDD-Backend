@@ -8,6 +8,7 @@ from app.services import session_service as svc
 
 AUTH = {"Authorization": "Bearer test_token"}
 NODE = "comm_00_greetings"
+LEGACY_SCHOOL_NODE = "c5_tenses_mix"
 
 
 def _run(coro):
@@ -28,6 +29,49 @@ def test_session_routes_reject_stale_token_without_recreating_profile(store):
 
     assert [progress.status_code, start.status_code, placement.status_code] == [401, 401, 401]
     assert _run(store.get_profile("test_user")) is None
+
+
+def test_shared_learning_routes_retire_the_legacy_school_module(store):
+    _run(store.ensure_profile("test_user"))
+    client = TestClient(app)
+
+    modules = client.get("/modules", headers=AUTH)
+    assert modules.status_code == 200
+    assert {module["id"] for module in modules.json()} == {
+        "communication",
+        "interview",
+        "group_discussion",
+    }
+
+    placement = client.post(
+        "/onboarding/placement",
+        json={
+            "module_id": "school_english",
+            "writing_sample": "",
+            "self_report": "beginner",
+            "grade": 5,
+        },
+        headers=AUTH,
+    )
+    assert placement.status_code == 410
+    assert placement.json()["detail"] == {
+        "code": "legacy_school_module_retired",
+        "replacement": "/school",
+    }
+
+    start = client.post(
+        "/session/start",
+        json={
+            "competency_node": LEGACY_SCHOOL_NODE,
+            "client_start_id": "legacy-school-start",
+        },
+        headers=AUTH,
+    )
+    assert start.status_code == 410
+    assert start.json()["detail"] == {
+        "code": "legacy_school_module_retired",
+        "replacement": "/school",
+    }
 
 
 def test_completed_node_requires_explicit_reattempt(monkeypatch, store):

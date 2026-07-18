@@ -33,6 +33,11 @@ def _uid(request: Request) -> str:
     return getattr(request.state, "user_id", None) or ""
 
 
+def _require_billing_enabled() -> None:
+    if get_settings().billing_mode == "disabled":
+        raise HTTPException(status_code=404, detail="Not found")
+
+
 def _is_local_dev_grant_enabled(request: Request) -> bool:
     settings = get_settings()
     if settings.app_env.lower() not in {"dev", "test", "local"}:
@@ -94,6 +99,7 @@ async def dev_grant(request: Request, amount: int = 500) -> dict:
     funded in dev. This grants the authenticated user credits directly. Hard
     404 outside non-prod so it can never exist on a real deployment.
     """
+    _require_billing_enabled()
     if not _is_local_dev_grant_enabled(request):
         raise HTTPException(status_code=404, detail="Not found")
     user_id = _uid(request)
@@ -107,6 +113,7 @@ async def dev_grant(request: Request, amount: int = 500) -> dict:
 
 @router.get("/packs", response_model=PackListResponse)
 async def packs() -> PackListResponse:
+    _require_billing_enabled()
     return PackListResponse(packs=pricing.pack_list())
 
 
@@ -148,6 +155,7 @@ async def unlocks(request: Request) -> UnlockListResponse:
 
 @router.post("/purchase/order", response_model=OrderResponse)
 async def create_purchase_order(req: OrderRequest, request: Request) -> OrderResponse:
+    _require_billing_enabled()
     user_id = _uid(request)
     pack = pricing.get_pack(req.pack_id)
     if pack is None:
@@ -180,6 +188,7 @@ async def create_purchase_order(req: OrderRequest, request: Request) -> OrderRes
 
 @router.post("/razorpay/webhook")
 async def razorpay_webhook(request: Request) -> dict:
+    _require_billing_enabled()
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature", "")
     if not razorpay_client.verify_webhook_signature(body, signature):
@@ -278,6 +287,7 @@ async def razorpay_verify(request: Request, body: dict = Body(...)) -> dict:
     authenticated buyer, reconcile the amount, then grant via the SAME idempotent
     latch the webhook uses — so a later webhook for the same order never
     double-grants. Also a useful safety net in prod when a webhook is delayed."""
+    _require_billing_enabled()
     user_id = _uid(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")

@@ -8,11 +8,23 @@ from fastapi.testclient import TestClient
 from app.api import school_rebuild_routes
 from app.content.school_rebuild_placement_bank import placement_tracks_for
 from app.main import app
-from app.services.school.evaluator_contract import RUBRIC_SCHEMA_VERSION
+from app.services.school.evaluator_contract import (
+    OPEN_RUBRIC_SCHEMA_VERSION,
+    RUBRIC_SCHEMA_VERSION,
+)
+from app.services.school.language_confidence import LanguageConfidenceState
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_recap as recap
 
 AUTH = {"Authorization": "Bearer test_token"}
+
+
+def _schema_version_for(activity: dict[str, Any]) -> str:
+    return (
+        OPEN_RUBRIC_SCHEMA_VERSION
+        if activity.get("grading_mode") == "strict_open_rubric"
+        else RUBRIC_SCHEMA_VERSION
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +34,7 @@ def _trusted_open_answer_evaluator(monkeypatch):
         answer = kwargs["answer"]
         passed = answer != "wrong"
         return {
-            "schema_version": RUBRIC_SCHEMA_VERSION,
+            "schema_version": _schema_version_for(activity),
             "item_id": activity["activity_id"],
             "skill_ids": activity["skill_ids"],
             "score": 1.0 if passed else 0.0,
@@ -136,6 +148,88 @@ def _assert_no_hidden_keys(payload: Any) -> None:
             _assert_no_hidden_keys(value)
 
 
+def _passing_recap_answer(store, session_id: str, activity_id: str) -> str:
+    row = _run(store.get_school_session("test_user", session_id))
+    activity = recap.recap_activity_for_answer(
+        row["state_json"],
+        activity_id=activity_id,
+    )
+    accepted_answers = list(activity.get("accepted_answers") or [])
+    if accepted_answers:
+        return str(accepted_answers[0])
+    return "The visible clue supports this answer because it directly explains the event."
+
+
+def _summary_recap_report() -> dict[str, Any]:
+    track = next(
+        track
+        for track in placement_tracks_for("english", 5)
+        if track.primary_skill_id == "writing.summary_own_words"
+    )
+    return {
+        "profile_version_id": "profile-version",
+        "report_id": "report-id",
+        "placement_session_id": "placement-session",
+        "subject_id": "english",
+        "target_class_no": 5,
+        "active_learning_class_no": 4,
+        "recommended_recap_modules": [{
+            "module_id": "summary-foundation",
+            "title": f"Recap: {track.learner_skill_label}",
+            "source_class_no": 4,
+            "target_class_no": 5,
+            "focus": track.learner_skill_label,
+            "placement_track_id": track.track_id,
+            "primary_skill_id": track.primary_skill_id,
+        }],
+    }
+
+
+def test_recap_detail_check_accepts_a_complete_sentence_around_the_answer():
+    activity = recap.RECAP_TRACK_CHECK_BANK[
+        "english.c5.sentence_detail"
+    ]["guided_check"]
+
+    assert recap._answer_matches(
+        activity,
+        "The art club meets in Room 6 on Wednesday afternoon.",
+    )
+    assert not recap._answer_matches(
+        activity,
+        "The art club does not meet in Room 6 on Wednesday afternoon.",
+    )
+
+
+def test_recap_carries_hinglish_support_through_guided_and_certifying_steps():
+    state = recap.new_recap_state(
+        _summary_recap_report(),
+        preferred_teaching_language="hi_en",
+        en_production_confidence=0.2,
+    )
+    guided = recap.public_recap_response({
+        "session_id": "recap-session",
+        "status": "active",
+        "subject_id": "english",
+        "class_no": 5,
+        "state_json": state,
+    })["current_activity"]
+
+    assert state["preferred_teaching_language"] == "hi_en"
+    assert "Sabse important event ya idea" in guided["teaching_block"]
+
+    state["en_production_confidence"] = 0.95
+    state["modules"][0]["current_step"] = "independent_check"
+    independent = recap.public_recap_response({
+        "session_id": "recap-session",
+        "status": "active",
+        "subject_id": "english",
+        "class_no": 5,
+        "state_json": state,
+    })["current_activity"]
+
+    assert "answer English mein likho" in independent["teaching_block"]
+
+
 def test_school_recap_open_response_uses_strict_rubric_evidence():
     track = next(
         track
@@ -175,7 +269,7 @@ def test_school_recap_open_response_uses_strict_rubric_evidence():
         "spent the savings on library books."
     )
     raw_evaluation = {
-        "schema_version": RUBRIC_SCHEMA_VERSION,
+        "schema_version": _schema_version_for(evaluator_activity),
         "item_id": activity["activity_id"],
         "skill_ids": activity["skill_ids"],
         "score": 1.0,
@@ -216,9 +310,138 @@ def test_school_recap_open_response_uses_strict_rubric_evidence():
     })["current_activity"]["kind"] == "independent_check"
 
 
+def test_school_recap_open_items_activate_the_strict_open_contract():
+    track = next(
+        track
+        for track in placement_tracks_for("english", 5)
+        if track.track_id == "english.c5.inference"
+    )
+    state = recap.new_recap_state({
+        "profile_version_id": "profile-version",
+        "report_id": "report-id",
+        "placement_session_id": "placement-session",
+        "subject_id": "english",
+        "target_class_no": 5,
+        "active_learning_class_no": 4,
+        "recommended_recap_modules": [{
+            "module_id": "inference-foundation",
+            "title": f"Recap: {track.learner_skill_label}",
+            "source_class_no": 4,
+            "target_class_no": 5,
+            "focus": track.learner_skill_label,
+            "placement_track_id": track.track_id,
+            "primary_skill_id": track.primary_skill_id,
+        }],
+    })
+    activity = recap.recap_activity_for_answer(
+        state,
+        activity_id=recap.public_recap_response({
+            "session_id": "recap-session",
+            "status": "active",
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": state,
+        })["current_activity"]["activity_id"],
+    )
+
+    evaluator_activity = recap.evaluator_activity_for_answer(activity)
+
+    assert evaluator_activity is not None
+    assert evaluator_activity["grading_mode"] == "strict_open_rubric"
+    assert OPEN_RUBRIC_SCHEMA_VERSION == "school.open.v1"
+
+
+def test_school_recap_does_not_remediate_a_backend_proven_complete_inference():
+    track = next(
+        track
+        for track in placement_tracks_for("english", 5)
+        if track.track_id == "english.c5.inference"
+    )
+    state = recap.new_recap_state({
+        "profile_version_id": "profile-version",
+        "report_id": "report-id",
+        "placement_session_id": "placement-session",
+        "subject_id": "english",
+        "target_class_no": 5,
+        "active_learning_class_no": 4,
+        "recommended_recap_modules": [{
+            "module_id": "inference-foundation",
+            "title": f"Recap: {track.learner_skill_label}",
+            "source_class_no": 4,
+            "target_class_no": 5,
+            "focus": track.learner_skill_label,
+            "placement_track_id": track.track_id,
+            "primary_skill_id": track.primary_skill_id,
+        }],
+    })
+    activity = recap.recap_activity_for_answer(
+        state,
+        activity_id=recap.public_recap_response({
+            "session_id": "recap-session",
+            "status": "active",
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": state,
+        })["current_activity"]["activity_id"],
+    )
+    answer = "It probably rained because his hair and raincoat were wet."
+    evidence_by_id = {
+        "plausible_inference": "It probably rained",
+        "relevant_text_clue": "his hair and raincoat were wet",
+        "clue_supports_inference": answer,
+        "complete_response": answer,
+        "english_response": answer,
+    }
+    raw_evaluation = {
+        "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+        "item_id": activity["activity_id"],
+        "skill_ids": activity["skill_ids"],
+        "score": 0.8,
+        "confidence": 0.95,
+        "language_detected": "en",
+        "criteria": [
+            {
+                "id": criterion_id,
+                "met": criterion_id != "complete_response",
+                "quality": 0.0 if criterion_id == "complete_response" else 1.0,
+                "evidence_quote": evidence_by_id[criterion_id],
+            }
+            for criterion_id in (
+                "plausible_inference",
+                "relevant_text_clue",
+                "clue_supports_inference",
+                "complete_response",
+                "english_response",
+            )
+        ],
+        "misconception_tags": [],
+        "blockers": [],
+        "needs_human_review": False,
+        "feedback_to_learner": "The inference and clue are connected.",
+    }
+
+    updated, evaluation = recap.apply_recap_answer(
+        state,
+        activity_id=activity["activity_id"],
+        answer=answer,
+        open_answer_evaluation=raw_evaluation,
+    )
+
+    assert evaluation["correct"] is True
+    assert evaluation["score"] == 1.0
+    assert evaluation["missing_criteria"] == []
+    assert recap.public_recap_response({
+        "session_id": "recap-session",
+        "status": "active",
+        "subject_id": "english",
+        "class_no": 5,
+        "state_json": updated,
+    })["current_activity"]["kind"] == "independent_check"
+
+
 def _summary_evaluation(*, activity: dict, answer: str, own_words_met: bool) -> dict:
     return {
-        "schema_version": RUBRIC_SCHEMA_VERSION,
+        "schema_version": _schema_version_for(activity),
         "item_id": activity["activity_id"],
         "skill_ids": activity["skill_ids"],
         "score": 0.84 if not own_words_met else 1.0,
@@ -353,7 +576,7 @@ def _inference_activity() -> dict:
 
 def _inference_evaluation(*, activity: dict, answer: str) -> dict:
     return {
-        "schema_version": RUBRIC_SCHEMA_VERSION,
+        "schema_version": _schema_version_for(activity),
         "item_id": activity["activity_id"],
         "skill_ids": activity["skill_ids"],
         "score": 0.9,
@@ -443,6 +666,7 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
             "primary_skill_id": track.primary_skill_id,
         }],
     })
+    state["modules"][0]["current_step"] = "independent_check"
     _run(store.upsert_school_session(**{
         **row,
         "state_json": {
@@ -460,7 +684,7 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
         activity = kwargs["activity"]
         evaluator_calls.append(activity["activity_id"])
         return {
-            "schema_version": RUBRIC_SCHEMA_VERSION,
+            "schema_version": _schema_version_for(activity),
             "item_id": activity["activity_id"],
             "skill_ids": activity["skill_ids"],
             "score": 1.0,
@@ -496,7 +720,7 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
     assert response.status_code == 200
     assert evaluator_calls == [activity_id]
     assert response.json()["last_feedback"]["correct"] is True
-    assert response.json()["current_activity"]["kind"] == "independent_check"
+    assert response.json()["current_activity"]["kind"] == "transfer_check"
 
 
 def test_school_recap_serves_current_activity_without_leaking_answers(store):
@@ -518,6 +742,42 @@ def test_school_recap_serves_current_activity_without_leaking_answers(store):
     _assert_no_hidden_keys(body)
 
 
+def test_school_recap_start_carries_saved_teaching_language_and_confidence(
+    store,
+    monkeypatch,
+):
+    _seed_school_profile(store)
+
+    async def load_confidence(_store, user_id):
+        return LanguageConfidenceState(
+            user_id=user_id,
+            en_production_confidence=0.42,
+            total_signals=7,
+        )
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "load_language_confidence",
+        load_confidence,
+    )
+
+    client = TestClient(app)
+    body = _start_recap(client)
+    row = _run(store.get_school_session("test_user", body["session_id"]))
+
+    assert row["state_json"]["preferred_teaching_language"] == "hi_en"
+    assert row["state_json"]["en_production_confidence"] == pytest.approx(0.42)
+    assert body["current_activity"]["teaching_block"] != (
+        recap.recap_activity_for_answer(
+            {
+                **row["state_json"],
+                "preferred_teaching_language": "en",
+            },
+            activity_id=body["current_activity"]["activity_id"],
+        )["teaching_block"]
+    )
+
+
 def test_school_recap_correct_answers_advance_module_and_record_evidence(store):
     _seed_school_profile(store)
     client = TestClient(app)
@@ -528,7 +788,14 @@ def test_school_recap_correct_answers_advance_module_and_record_evidence(store):
     guided_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": guided["activity_id"], "answer": "teacher"},
+        json={
+            "activity_id": guided["activity_id"],
+            "answer": _passing_recap_answer(
+                store,
+                session_id,
+                guided["activity_id"],
+            ),
+        },
     )
 
     assert guided_response.status_code == 200
@@ -542,7 +809,14 @@ def test_school_recap_correct_answers_advance_module_and_record_evidence(store):
     independent_response = client.post(
         f"/school/recap/{session_id}/answer",
         headers=AUTH,
-        json={"activity_id": independent["activity_id"], "answer": "flower"},
+        json={
+            "activity_id": independent["activity_id"],
+            "answer": _passing_recap_answer(
+                store,
+                session_id,
+                independent["activity_id"],
+            ),
+        },
     )
 
     assert independent_response.status_code == 200

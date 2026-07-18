@@ -4,12 +4,33 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 import os
 
-from app.config import get_jwt_secret
+from app.config import get_jwt_secret, get_settings
 
 ALGORITHM = "HS256"
 
+_PAYMENT_PATHS = (
+    "/billing/packs",
+    "/billing/dev/grant",
+    "/billing/purchase",
+    "/billing/razorpay",
+)
+
+
+def _is_payment_path(path: str) -> bool:
+    return any(
+        path == prefix or path.startswith(f"{prefix}/")
+        for prefix in _PAYMENT_PATHS
+    )
+
+
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if (
+            get_settings().billing_mode == "disabled"
+            and _is_payment_path(request.url.path)
+        ):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+
         # Exclude auth and health paths
         if (
             request.url.path.startswith("/auth")

@@ -191,10 +191,22 @@ def test_locked_english_taxonomy_has_one_ordered_authority_and_legacy_identity_p
 
     assert isinstance(canonical, SkillTaxonomy)
     assert all(isinstance(entry, SkillTaxonomyEntry) for entry in canonical.entries)
-    assert len(canonical.entries) == 15
+    assert len(canonical.entries) == 35
     assert locked_english_skill_ids() == LOCKED_ENGLISH_SKILL_IDS
     assert tuple(entry.skill_id for entry in canonical.entries) == LOCKED_ENGLISH_SKILL_IDS
     assert canonical_by_id == legacy_by_id
+    assert {
+        "reading.event_sequence",
+        "reading.dialogue_attribution",
+        "reading.poetic_language",
+        "vocab.word_formation",
+        "grammar.question_formation",
+        "grammar.punctuation_capitalization",
+        "writing.paragraph",
+        "writing.dialogue",
+        "writing.procedure",
+        "research.information_selection",
+    }.issubset(canonical_by_id)
 
 
 def test_family_registry_rejects_invalid_prerequisites_cycles_and_identity():

@@ -11,6 +11,9 @@ from app.config import get_settings
 
 
 EXPECTED_RELEASE_CHAPTERS = 47
+PRODUCTION_APPROVAL_STATUSES = frozenset(
+    {"agent_reviewed", "release_approved"}
+)
 logger = logging.getLogger("zidd.school.availability")
 
 
@@ -20,7 +23,9 @@ class SchoolAvailability:
     reason: str | None
     expected_chapters: int
     authored_chapters: int
-    human_approved_chapters: int
+    release_approved_chapters: int
+    agent_reviewed_chapters: int
+    production_eligible_chapters: int
     release_digest: str | None
 
     def public_dict(self) -> dict:
@@ -35,6 +40,7 @@ def _release_closure() -> SchoolAvailability:
         LIVE_CHAPTER_ROOT,
         load_live_chapter_file,
     )
+    from app.content.school_rebuild_quality import corpus_quality_issues
 
     expected_ids: set[str] = set()
     for class_no in range(2, 6):
@@ -48,10 +54,29 @@ def _release_closure() -> SchoolAvailability:
     authored_paths = sorted((LIVE_CHAPTER_ROOT / "english").glob("class_*/*.json"))
     authored = [load_live_chapter_file(path) for path in authored_paths]
     authored_ids = {chapter.chapter_id for chapter in authored}
-    approved_ids = {
+    release_approved_ids = {
         chapter.chapter_id
         for chapter in authored
-        if chapter.approval_status == "human_approved"
+        if chapter.approval_status == "release_approved"
+        and bool(chapter.reviewed_by and chapter.reviewed_by.strip())
+        and bool(chapter.reviewed_at and chapter.reviewed_at.strip())
+        and bool(chapter.review_evidence)
+    }
+    agent_reviewed_ids = {
+        chapter.chapter_id
+        for chapter in authored
+        if chapter.approval_status == "agent_reviewed"
+        and bool(chapter.reviewed_by and chapter.reviewed_by.strip())
+        and bool(chapter.reviewed_at and chapter.reviewed_at.strip())
+        and bool(chapter.review_evidence)
+    }
+    production_eligible_ids = {
+        chapter.chapter_id
+        for chapter in authored
+        if chapter.approval_status in PRODUCTION_APPROVAL_STATUSES
+        and bool(chapter.reviewed_by and chapter.reviewed_by.strip())
+        and bool(chapter.reviewed_at and chapter.reviewed_at.strip())
+        and bool(chapter.review_evidence)
     }
     closure_rows = sorted(
         (
@@ -70,6 +95,7 @@ def _release_closure() -> SchoolAvailability:
 
     if (
         len(expected_ids) != EXPECTED_RELEASE_CHAPTERS
+        or len(authored) != EXPECTED_RELEASE_CHAPTERS
         or len(authored_ids) != EXPECTED_RELEASE_CHAPTERS
         or authored_ids != expected_ids
     ):
@@ -78,19 +104,40 @@ def _release_closure() -> SchoolAvailability:
             "school_release_chapter_closure_incomplete",
             len(expected_ids),
             len(authored_ids),
-            len(approved_ids),
+            len(release_approved_ids),
+            len(agent_reviewed_ids),
+            len(production_eligible_ids),
             digest,
         )
     if (
-        len(approved_ids) != EXPECTED_RELEASE_CHAPTERS
-        or approved_ids != expected_ids
+        len(production_eligible_ids) != EXPECTED_RELEASE_CHAPTERS
+        or production_eligible_ids != expected_ids
     ):
         return SchoolAvailability(
             False,
-            "school_release_human_approval_incomplete",
+            "school_release_approval_incomplete",
             len(expected_ids),
             len(authored_ids),
-            len(approved_ids),
+            len(release_approved_ids),
+            len(agent_reviewed_ids),
+            len(production_eligible_ids),
+            digest,
+        )
+    quality_issues = corpus_quality_issues(authored)
+    if quality_issues:
+        logger.error(
+            "School release quality gate failed with %s issue(s): %s",
+            len(quality_issues),
+            "; ".join(quality_issues[:12]),
+        )
+        return SchoolAvailability(
+            False,
+            "school_release_quality_gate_failed",
+            len(expected_ids),
+            len(authored_ids),
+            len(release_approved_ids),
+            len(agent_reviewed_ids),
+            len(production_eligible_ids),
             digest,
         )
     trusted_digest = get_settings().school_release_attestation_sha256.strip().lower()
@@ -100,7 +147,9 @@ def _release_closure() -> SchoolAvailability:
             "school_release_attestation_mismatch",
             len(expected_ids),
             len(authored_ids),
-            len(approved_ids),
+            len(release_approved_ids),
+            len(agent_reviewed_ids),
+            len(production_eligible_ids),
             digest,
         )
     return SchoolAvailability(
@@ -108,7 +157,9 @@ def _release_closure() -> SchoolAvailability:
         None,
         len(expected_ids),
         len(authored_ids),
-        len(approved_ids),
+        len(release_approved_ids),
+        len(agent_reviewed_ids),
+        len(production_eligible_ids),
         digest,
     )
 
@@ -122,6 +173,8 @@ def school_availability() -> SchoolAvailability:
             EXPECTED_RELEASE_CHAPTERS,
             0,
             0,
+            0,
+            0,
             None,
         )
     if settings.app_env.strip().lower() not in {"prod", "production"}:
@@ -129,6 +182,8 @@ def school_availability() -> SchoolAvailability:
             True,
             None,
             EXPECTED_RELEASE_CHAPTERS,
+            0,
+            0,
             0,
             0,
             None,
@@ -141,6 +196,8 @@ def school_availability() -> SchoolAvailability:
             False,
             "school_release_validation_failed",
             EXPECTED_RELEASE_CHAPTERS,
+            0,
+            0,
             0,
             0,
             None,

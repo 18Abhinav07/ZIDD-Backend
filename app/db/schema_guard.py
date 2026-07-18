@@ -143,6 +143,10 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "model_name",
         "prompt_version",
     },
+    "memory_entries": {
+        "embedding_provider",
+        "embedding_model",
+    },
     "learning_events": {
         "source_event_key",
         "user_id",
@@ -370,6 +374,13 @@ REQUIRED_RUNTIME_COLUMN_TYPES: dict[tuple[str, str], str] = {
     ("school_sessions", "source_placement_report_id"): "uuid",
 }
 
+REQUIRED_RUNTIME_NULLABLE_COLUMNS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("school_placement_reports", "evaluated_class_no"),
+        ("school_placement_reports", "active_learning_class_no"),
+    }
+)
+
 REQUIRED_RUNTIME_FOREIGN_KEYS: tuple[tuple[str, str, str, str], ...] = (
     (
         "school_profile_draft_requests",
@@ -435,6 +446,56 @@ REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS: tuple[
 SENSITIVE_SCHOOL_TABLES: frozenset[str] = frozenset(
     table for table in REQUIRED_RUNTIME_COLUMNS if table.startswith("school_")
 )
+
+REQUIRED_RUNTIME_TRIGGER_GUARDS: dict[
+    str,
+    tuple[str, str, tuple[str, ...]],
+] = {
+    "sessions_reject_active_legacy_school": (
+        "sessions",
+        "reject_active_legacy_school_session_row",
+        (
+            "new.status is distinct from 'ended'",
+            "new.module_id = 'school_english'",
+            "new.task_type = 'school_english'",
+            "from public.session_runtime runtime",
+            "runtime.session_id = new.session_id",
+            "runtime.module_id = 'school_english'",
+            "runtime.task_type = 'school_english'",
+            "runtime.state_snapshot ->> 'module_id' = 'school_english'",
+            "runtime.state_snapshot ->> 'task_type' = 'school_english'",
+            (
+                "runtime.state_snapshot ->> 'block_reason' "
+                "= 'legacy_school_module_retired'"
+            ),
+            "runtime.last_error ->> 'code' = 'legacy_school_module_retired'",
+            "raise exception 'legacy_school_module_retired:%'",
+            "return new",
+        ),
+    ),
+    "session_runtime_reject_active_legacy_school": (
+        "session_runtime",
+        "reject_active_legacy_school_runtime_row",
+        (
+            "new.status is distinct from 'ended'",
+            "new.module_id = 'school_english'",
+            "new.task_type = 'school_english'",
+            "new.state_snapshot ->> 'module_id' = 'school_english'",
+            "new.state_snapshot ->> 'task_type' = 'school_english'",
+            (
+                "new.state_snapshot ->> 'block_reason' "
+                "= 'legacy_school_module_retired'"
+            ),
+            "new.last_error ->> 'code' = 'legacy_school_module_retired'",
+            "from public.sessions parent",
+            "parent.session_id = new.session_id",
+            "parent.module_id = 'school_english'",
+            "parent.task_type = 'school_english'",
+            "raise exception 'legacy_school_module_retired:%'",
+            "return new",
+        ),
+    ),
+}
 
 REQUIRED_RUNTIME_CHECKS: dict[tuple[str, str], tuple[str, ...]] = {
     (
@@ -757,7 +818,11 @@ REQUIRED_MIGRATION_FILES: tuple[str, ...] = (
     "app/db/migrations/2026-07-12-school-session-lineage.sql",
     "app/db/migrations/2026-07-12-school-onboarding-drafts.sql",
     "app/db/migrations/2026-07-13-001-school-release-authority.sql",
+    "app/db/migrations/2026-07-14-school-release-metadata-correction.sql",
     "app/db/migrations/2026-07-14-integrated-domain-contract.sql",
+    "app/db/migrations/2026-07-14-school-placement-report-nullable-classes.sql",
+    "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
+    "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
 )
 
 
@@ -780,6 +845,10 @@ def required_schema_points() -> list[str]:
         for (table, column), required_type in sorted(
             REQUIRED_RUNTIME_COLUMN_TYPES.items()
         )
+    )
+    points.extend(
+        f"public.{table}.{column}.nullable"
+        for table, column in sorted(REQUIRED_RUNTIME_NULLABLE_COLUMNS)
     )
     points.extend(
         f"public.foreign_key.{table}.{column}"
@@ -805,6 +874,13 @@ def required_schema_points() -> list[str]:
     points.append(
         "public.function.reject_school_curriculum_release_identity_change"
     )
+    for trigger_name, (
+        _table_name,
+        function_name,
+        _function_tokens,
+    ) in sorted(REQUIRED_RUNTIME_TRIGGER_GUARDS.items()):
+        points.append(f"public.trigger.{trigger_name}")
+        points.append(f"public.function.{function_name}")
     for table in sorted(SENSITIVE_SCHOOL_TABLES):
         points.append(f"public.rls.{table}.enabled")
         points.append(f"public.privileges.{table}.api_roles_none")
@@ -993,7 +1069,7 @@ async def validate_runtime_schema(connection=None) -> None:
     table_filter = ", ".join(f"'{table}'" for table in sorted(REQUIRED_RUNTIME_COLUMNS))
     query = text(
         f"""
-        SELECT table_name, column_name, data_type, udt_name
+        SELECT table_name, column_name, data_type, udt_name, is_nullable
         FROM information_schema.columns
         WHERE table_schema = 'public'
           AND table_name IN ({table_filter})
@@ -1112,7 +1188,10 @@ async def validate_runtime_schema(connection=None) -> None:
             text(
                 """
                 SELECT trigger_row.tgname AS trigger_name,
+                       table_row.relname AS table_name,
                        trigger_row.tgenabled::text AS tgenabled,
+                       function_namespace_row.nspname AS function_schema,
+                       function_row.proname AS function_name,
                        pg_get_triggerdef(trigger_row.oid, true)
                            AS trigger_definition,
                        pg_get_functiondef(function_row.oid)
@@ -1124,9 +1203,14 @@ async def validate_runtime_schema(connection=None) -> None:
                   ON namespace_row.oid = table_row.relnamespace
                 JOIN pg_proc AS function_row
                   ON function_row.oid = trigger_row.tgfoid
+                JOIN pg_namespace AS function_namespace_row
+                  ON function_namespace_row.oid = function_row.pronamespace
                 WHERE namespace_row.nspname = 'public'
-                  AND table_row.relname = 'school_curriculum_releases'
-                  AND trigger_row.tgname = 'school_curriculum_releases_immutable'
+                  AND trigger_row.tgname IN (
+                      'school_curriculum_releases_immutable',
+                      'sessions_reject_active_legacy_school',
+                      'session_runtime_reject_active_legacy_school'
+                  )
                   AND NOT trigger_row.tgisinternal
                 """
             )
@@ -1141,6 +1225,12 @@ async def validate_runtime_schema(connection=None) -> None:
         (str(row["table_name"]), str(row["column_name"])): str(
             row.get("udt_name") or row.get("data_type") or ""
         ).lower()
+        for row in column_rows
+    }
+    column_nullability = {
+        (str(row["table_name"]), str(row["column_name"])): str(
+            row.get("is_nullable") or ""
+        ).upper()
         for row in column_rows
     }
     indexes = {
@@ -1236,6 +1326,9 @@ async def validate_runtime_schema(connection=None) -> None:
     ):
         if column_types.get((table, column)) != required_type:
             missing.append(f"public.{table}.{column}.type.{required_type}")
+    for table, column in sorted(REQUIRED_RUNTIME_NULLABLE_COLUMNS):
+        if column_nullability.get((table, column)) != "YES":
+            missing.append(f"public.{table}.{column}.nullable")
     for table, column, foreign_table, foreign_column in sorted(
         REQUIRED_RUNTIME_FOREIGN_KEYS
     ):
@@ -1326,6 +1419,61 @@ async def validate_runtime_schema(connection=None) -> None:
         missing.append(
             "public.function.reject_school_curriculum_release_identity_change"
         )
+    for trigger_name, (
+        table_name,
+        function_name,
+        required_function_tokens,
+    ) in sorted(REQUIRED_RUNTIME_TRIGGER_GUARDS.items()):
+        guard = next(
+            (
+                row
+                for row in immutability_rows
+                if str(row.get("trigger_name") or "") == trigger_name
+                and str(row.get("table_name") or "") == table_name
+            ),
+            None,
+        )
+        guard_trigger_definition = _normalize_definition(
+            str(guard.get("trigger_definition") or "") if guard else ""
+        )
+        guard_trigger_enabled = str(guard.get("tgenabled") or "") if guard else ""
+        guard_function_schema = (
+            str(guard.get("function_schema") or "") if guard else ""
+        )
+        guard_function_name = str(guard.get("function_name") or "") if guard else ""
+        expected_trigger = (
+            rf"create trigger {re.escape(trigger_name)} before "
+            rf"(?:insert or update|update or insert) on "
+            rf"(?:public\.)?{re.escape(table_name)} for each row execute function "
+            rf"(?:public\.)?{re.escape(function_name)}\(\)"
+        )
+        trigger_is_exact = (
+            guard_trigger_enabled in {"O", "A"}
+            and guard_function_schema == "public"
+            and guard_function_name == function_name
+            and re.fullmatch(expected_trigger, guard_trigger_definition) is not None
+        )
+        if not trigger_is_exact:
+            missing.append(f"public.trigger.{trigger_name}")
+
+        guard_function_definition = _normalize_definition(
+            str(guard.get("function_definition") or "") if guard else ""
+        )
+        function_identity = (
+            rf"function (?:public\.)?{re.escape(function_name)}\(\)"
+        )
+        function_is_exact = (
+            guard_function_schema == "public"
+            and guard_function_name == function_name
+            and re.search(function_identity, guard_function_definition) is not None
+            and all(
+                token in guard_function_definition
+                for token in required_function_tokens
+            )
+            and "return old" not in guard_function_definition
+        )
+        if not function_is_exact:
+            missing.append(f"public.function.{function_name}")
     for table in sorted(SENSITIVE_SCHOOL_TABLES):
         if not rls_enabled.get(table, False):
             missing.append(f"public.rls.{table}.enabled")
@@ -1336,6 +1484,7 @@ async def validate_runtime_schema(connection=None) -> None:
         migrations = ", ".join(REQUIRED_MIGRATION_FILES)
         raise SchemaDriftError(
             "Supabase schema is missing required runtime schema points "
-            "(columns, types, foreign keys, checks, indexes, RLS, and/or privileges): "
+            "(columns, types, nullability, foreign keys, checks, indexes, triggers, "
+            "functions, RLS, and/or privileges): "
             f"{joined}. Run these migrations in order: {migrations}."
         )

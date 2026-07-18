@@ -2,9 +2,39 @@
 import os
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import parse_qsl, urlsplit
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
+
+
+def _postgres_url(
+    template: str,
+    password: str,
+    *,
+    async_driver: bool = True,
+) -> str:
+    """Rebuild a Supabase DSN without trusting an embedded raw password."""
+
+    if not template.strip():
+        return ""
+    parsed = urlsplit(template.strip())
+    if not parsed.hostname or not parsed.username:
+        raise ValueError("invalid_supabase_database_url")
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.pop("sslmode", None)
+    query.pop("ssl", None)
+    url = URL.create(
+        "postgresql+asyncpg" if async_driver else "postgresql",
+        username=parsed.username,
+        password=password or parsed.password,
+        host=parsed.hostname,
+        port=parsed.port,
+        database=parsed.path.lstrip("/") or "postgres",
+        query=query,
+    )
+    return url.render_as_string(hide_password=False)
 
 
 class Settings(BaseSettings):
@@ -19,11 +49,28 @@ class Settings(BaseSettings):
     # boot-time crash — only as a clear error when that provider is actually called.
     groq_api_key: str | None = None
     gemini_api_key: str | None = None
+    gemini_api_key_1: str | None = None
+    gemini_api_key_2: str | None = None
+    gemini_api_key_3: str | None = None
+    gemini_api_key_4: str | None = None
+    gemini_api_key_5: str | None = None
 
     # AI backend switch: "local" (Ollama, no quota — dev/build) | "cloud"
     # (Gemini + Groq — XPRIZE submission). Flip via AI_BACKEND in .env.
-    ai_backend: Literal["local", "cloud"] = "local"
+    ai_backend: Literal["local", "cloud", "gemini"] = "local"
     ollama_model: str = "qwen2.5:14b"
+    ollama_base_url: str = "http://localhost:11434"
+    # Keep the model chain explicit. 2.5 Flash-Lite is the economical primary;
+    # 3.1 Flash-Lite is used only when the primary model is unavailable.
+    gemini_text_model: str = "gemini-2.5-flash-lite"
+    gemini_text_fallback_model: str = "gemini-3.1-flash-lite"
+    gemini_structured_model: str = "gemini-2.5-flash-lite"
+    gemini_structured_fallback_model: str = "gemini-3.1-flash-lite"
+    gemini_embedding_model: str = "gemini-embedding-2"
+    gemini_request_timeout_seconds: float = 180.0
+    # School cloud evaluation is bounded independently of Career model calls.
+    # Local Qwen stays unbounded at the route layer.
+    school_open_answer_timeout_seconds: float = 20.0
 
     @field_validator("ai_backend", mode="before")
     @classmethod
@@ -51,14 +98,20 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
 
     # Supabase pooler
+    data_region: Literal["default", "india"] = "default"
     supabase_pooler_url: str = ""
     supabase_db_password: str = ""
     supabase_anon_key: str = ""
+    supabase_direct_url_ind: str = ""
+    supabase_session_pooler_url_ind: str = ""
+    supabase_transaction_pooler_url_ind: str = ""
+    supabase_db_password_ind: str = ""
 
     # App
     app_env: str = "dev"
     log_level: str = "info"
     zidd_jwt_secret: str = ""
+    zidd_jwt_secret_ind: str = ""
     school_enabled: bool = True
     # Pinned by deployment configuration after human review. Production School
     # remains unavailable unless this matches the exact 47-chapter release.
@@ -85,9 +138,17 @@ class Settings(BaseSettings):
         return self.db_pool_pre_ping or self.app_env.lower() == "prod"
 
     # ---------- payments (Razorpay) ----------
+    billing_mode: Literal["enabled", "disabled"] = "enabled"
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
+
+    @field_validator("billing_mode", mode="before")
+    @classmethod
+    def normalize_billing_mode(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
     # Credits granted once on signup, recorded as a "welcome" ledger row.
     welcome_credits: int = 50
@@ -98,18 +159,43 @@ class Settings(BaseSettings):
 
     @property
     def async_database_url(self) -> str:
-        """Convert raw pooler URL to asyncpg driver form with SSL.
+        """Runtime DSN: transaction pooler in the selected data region."""
 
-        Supabase gives `postgresql://...`; SQLAlchemy async needs
-        `postgresql+asyncpg://...`. SSL required on the pooler.
-        """
-        url = self.supabase_pooler_url
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if "ssl=" not in url and "sslmode=" not in url:
-            sep = "&" if "?" in url else "?"
-            url = f"{url}{sep}ssl=require"
-        return url
+        if self.data_region == "india":
+            return _postgres_url(
+                self.supabase_transaction_pooler_url_ind,
+                self.supabase_db_password_ind,
+            )
+        return _postgres_url(self.supabase_pooler_url, self.supabase_db_password)
+
+    @property
+    def migration_async_database_url(self) -> str:
+        """Migration DSN: direct India endpoint, legacy endpoint otherwise."""
+
+        if self.data_region == "india":
+            return _postgres_url(
+                self.supabase_direct_url_ind,
+                self.supabase_db_password_ind,
+            )
+        return _postgres_url(self.supabase_pooler_url, self.supabase_db_password)
+
+    @property
+    def runtime_database_configured(self) -> bool:
+        if self.data_region == "india":
+            return bool(
+                self.supabase_transaction_pooler_url_ind.strip()
+                and self.supabase_db_password_ind
+            )
+        return bool(self.supabase_pooler_url.strip())
+
+    @property
+    def migration_database_configured(self) -> bool:
+        if self.data_region == "india":
+            return bool(
+                self.supabase_direct_url_ind.strip()
+                and self.supabase_db_password_ind
+            )
+        return bool(self.supabase_pooler_url.strip())
 
 
 @lru_cache
@@ -125,17 +211,32 @@ def get_jwt_secret() -> str:
     runs with a forgeable, committed secret. Sign and verify both call this,
     so the secret VALUE is guaranteed identical across the process.
     """
-    secret = os.environ.get("ZIDD_JWT_SECRET") or get_settings().zidd_jwt_secret
+    settings = get_settings()
+    data_region = (
+        os.environ.get("DATA_REGION") or settings.data_region
+    ).strip().lower()
+    if data_region == "india":
+        secret_name = "ZIDD_JWT_SECRET_IND"
+        secret = (
+            os.environ.get(secret_name)
+            or settings.zidd_jwt_secret_ind
+        )
+    else:
+        secret_name = "ZIDD_JWT_SECRET"
+        secret = os.environ.get(secret_name) or settings.zidd_jwt_secret
     if not secret:
         raise RuntimeError(
-            "ZIDD_JWT_SECRET is not set; refusing to start without a JWT signing secret."
+            f"{secret_name} is not set; refusing to start without a JWT signing secret."
         )
     # In production, refuse a weak secret. A short HMAC key is brute-forceable, so
     # enforce a 32-byte floor when APP_ENV=prod. Non-prod (dev/test/ci) is left
     # permissive so the suite can run with a short fixture secret.
-    if os.environ.get("APP_ENV", "dev").lower() == "prod" and len(secret) < 32:
+    if (
+        os.environ.get("APP_ENV", settings.app_env).lower() == "prod"
+        or data_region == "india"
+    ) and len(secret) < 32:
         raise RuntimeError(
-            "ZIDD_JWT_SECRET must be at least 32 characters in production "
-            f"(APP_ENV=prod); got {len(secret)}."
+            f"{secret_name} must be at least 32 characters in production or India beta "
+            f"(APP_ENV=prod or DATA_REGION=india); got {len(secret)}."
         )
     return secret

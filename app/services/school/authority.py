@@ -65,6 +65,7 @@ CANONICAL_SCHOOL_AUTHORITY: tuple[SchoolEndpointAuthority, ...] = (
     SchoolEndpointAuthority("POST", "/school/masterclass/{session_id}/answer", "answer_school_masterclass", "app.services.school_rebuild_masterclass"),
     SchoolEndpointAuthority("POST", "/school/curriculum/{session_id}/resume-masterclass", "resume_school_curriculum_masterclass", "app.services.school_rebuild_masterclass"),
     SchoolEndpointAuthority("POST", "/school/curriculum/{session_id}/abandon-masterclass", "abandon_school_curriculum_masterclass", "app.services.school_rebuild_masterclass"),
+    SchoolEndpointAuthority("POST", "/school/curriculum/{session_id}/continue-after-support-cap", "continue_school_curriculum_after_support_cap", "app.services.school_rebuild_curriculum"),
     SchoolEndpointAuthority("GET", "/school/support/{session_id}", "get_school_support", "app.services.school_rebuild_support"),
     SchoolEndpointAuthority("GET", "/school/onboarding", "school_onboarding", "app.services.school_rebuild_profile"),
     SchoolEndpointAuthority("POST", "/school/onboarding", "save_school_onboarding", "app.services.school_rebuild_profile"),
