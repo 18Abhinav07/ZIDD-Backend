@@ -9,12 +9,14 @@ CURRENT_SCOPE = {
 }
 CURRENT_SESSION = {
     "session_id": CURRENT_SCOPE["session_id"],
+    "domain": "school",
     "api_version": "rebuild",
     "flow_type": "curriculum",
     "state_json": {"chapter": {"chapter_id": CURRENT_SCOPE["chapter_id"]}},
 }
 HISTORICAL_SESSION = {
     "session_id": "curriculum-session-historical",
+    "domain": "school",
     "api_version": "rebuild",
     "flow_type": "curriculum",
     "state_json": {"chapter": {"chapter_id": "eng_c5_ch01"}},
@@ -322,6 +324,27 @@ def test_untagged_or_non_rebuild_school_data_is_rejected():
         audience="learner",
     )
     assert legacy_report["insufficient_evidence"] == {
+        "reason": "invalid_current_scope"
+    }
+
+    untagged_session = {
+        key: value for key, value in CURRENT_SESSION.items() if key != "domain"
+    }
+    untagged_session_report = build_school_growth_report(
+        learning_events=[
+            _event(
+                event_id="event-untagged-session",
+                session_id=CURRENT_SCOPE["session_id"],
+                chapter_id=CURRENT_SCOPE["chapter_id"],
+                activity_id="untagged-session-activity",
+            )
+        ],
+        school_profiles=[],
+        school_sessions=[untagged_session],
+        current_scope=CURRENT_SCOPE,
+        audience="learner",
+    )
+    assert untagged_session_report["insufficient_evidence"] == {
         "reason": "invalid_current_scope"
     }
 

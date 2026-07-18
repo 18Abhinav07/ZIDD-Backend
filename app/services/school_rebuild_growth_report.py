@@ -187,10 +187,10 @@ def _valid_school_session_ids(
 
 
 def _is_school_session(session: Mapping[str, Any]) -> bool:
-    session_domain = _text(session.get("domain"))
-    if session_domain and session_domain != SCHOOL_DOMAIN:
-        return False
-    return _text(session.get("api_version")) == SCHOOL_REBUILD_API_VERSION
+    return (
+        _text(session.get("domain")) == SCHOOL_DOMAIN
+        and _text(session.get("api_version")) == SCHOOL_REBUILD_API_VERSION
+    )
 
 
 def _is_school_rebuild_event(event: Mapping[str, Any]) -> bool:
