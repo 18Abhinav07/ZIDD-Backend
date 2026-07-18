@@ -30,7 +30,14 @@ from app.services.school_core.readiness import (
 
 ENGINE_VERSION = "school-rebuild-placement-2"
 LEGACY_ENGINE_VERSION = "school-rebuild-placement-1"
-MAX_PLACEMENT_ITEMS = 18
+MAX_SNAPSHOT_ITEMS = 8
+MAX_TARGETED_DIAGNOSTIC_ITEMS = 4
+MAX_CONFIRMATORY_ITEMS = 2
+MAX_PLACEMENT_ITEMS = (
+    MAX_SNAPSHOT_ITEMS
+    + MAX_TARGETED_DIAGNOSTIC_ITEMS
+    + MAX_CONFIRMATORY_ITEMS
+)
 MIN_SCORABLE_FOR_TERMINAL_PLACEMENT = 8
 SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS = 240
 TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS = 300
@@ -171,6 +178,10 @@ def preflight_placement_track_plans(
             if track.snapshot_item.track_id != track.track_id:
                 raise ValueError(
                     f"placement_preflight_snapshot_track_mismatch:{track.track_id}"
+                )
+            if track.snapshot_item.evaluation_mode != "deterministic":
+                raise ValueError(
+                    f"placement_preflight_snapshot_requires_local_grading:{track.track_id}"
                 )
             authored_bands = tuple(
                 sorted({int(band.source_class_no) for band in track.bands})
@@ -767,6 +778,16 @@ def readiness_summary(
         "weak_skill_ids": [
             skill_id for skill_id, status in statuses.items() if status == "weak"
         ],
+        "watchlist_skill_ids": [
+            track.primary_skill_id
+            for track in state.track_states.values()
+            if track.status in {
+                "pending",
+                "provisional_weak",
+                "ambiguous",
+                "unresolved",
+            }
+        ],
         "skill_statuses": statuses,
         "track_verdicts": public_track_verdicts(state),
     }
@@ -870,18 +891,32 @@ def _finish_snapshot(
         for track in state.track_states.values()
     ):
         return _finalize_target_ready(state)
-    pending = tuple(
+    candidates = tuple(
         track_id
         for track_id, track in state.track_states.items()
         if track.status in {
             "provisional_weak",
             "ambiguous",
-            *(("pending",) if include_unseen else ()),
         }
     )
+    pending = candidates[:MAX_TARGETED_DIAGNOSTIC_ITEMS]
+    track_states = dict(state.track_states)
+    for track_id in candidates[MAX_TARGETED_DIAGNOSTIC_ITEMS:]:
+        track_states[track_id] = _as_watchlist(
+            track_states[track_id],
+            reason="stage_two_question_limit",
+        )
+    if include_unseen:
+        for track_id, track in state.track_states.items():
+            if track.status == "pending":
+                track_states[track_id] = _as_watchlist(
+                    track,
+                    reason="snapshot_budget_unanswered",
+                )
     staged = replace(
         state,
         stage="targeted_diagnostic",
+        track_states=_frozen_mapping(track_states),
         pending_track_ids=pending,
         stage_items=0,
         stage_elapsed_seconds=0,
@@ -906,21 +941,27 @@ def _finish_targeted_on_budget(
         resolved, confirmation_reason = _resolve_targeted_track(
             track_states[track_id]
         )
-        if confirmation_reason or resolved.status in {
-            "pending",
-            "provisional_weak",
-            "ambiguous",
-        }:
+        if confirmation_reason == "contradictory_evidence":
             resolved = replace(
                 resolved,
                 status="ambiguous",
                 boundary_band=_confirmation_band(resolved),
-                unresolved_reason=(
-                    confirmation_reason
-                    or "targeted_stage_time_budget_exhausted"
-                ),
+                unresolved_reason=confirmation_reason,
             )
             confirmatory.append(track_id)
+        elif confirmation_reason or resolved.status in {
+            "pending",
+            "provisional_weak",
+            "ambiguous",
+            "unresolved",
+        }:
+            resolved = _as_watchlist(
+                resolved,
+                reason=(
+                    confirmation_reason
+                    or "stage_two_question_limit"
+                ),
+            )
         track_states[track_id] = resolved
 
     staged = replace(
@@ -930,10 +971,7 @@ def _finish_targeted_on_budget(
         confirmatory_track_ids=tuple(dict.fromkeys(confirmatory)),
     )
     if staged.confirmatory_track_ids:
-        advanced = _enter_confirmatory(staged)
-        if advanced.terminal_status == "insufficient_evidence":
-            return replace(advanced, terminal_reason=budget_reason)
-        return advanced
+        return _enter_confirmatory(staged)
     return _finalize_from_available_evidence(
         staged,
         budget_reason=budget_reason,
@@ -947,7 +985,7 @@ def _advance_targeted(state: PlacementSessionState, track_id: str) -> PlacementS
     track_states[track_id] = resolved
     pending = tuple(value for value in state.pending_track_ids if value != track_id)
     confirmatory = state.confirmatory_track_ids
-    if confirmation_reason:
+    if confirmation_reason == "contradictory_evidence":
         resolved = replace(
             resolved,
             status="ambiguous",
@@ -956,6 +994,9 @@ def _advance_targeted(state: PlacementSessionState, track_id: str) -> PlacementS
         )
         track_states[track_id] = resolved
         confirmatory = _append_unique(confirmatory, track_id)
+    elif confirmation_reason:
+        resolved = _as_watchlist(resolved, reason=confirmation_reason)
+        track_states[track_id] = resolved
     elif resolved.status in {"provisional_weak", "ambiguous"}:
         pending = (track_id,) + pending
     staged = replace(
@@ -990,7 +1031,10 @@ def _advance_confirmatory(state: PlacementSessionState, track_id: str) -> Placem
             if authored_track
             else None
         )
-        if fresh_item is not None:
+        if (
+            fresh_item is not None
+            and state.stage_items < MAX_CONFIRMATORY_ITEMS
+        ):
             confirmatory = confirmatory + (track_id,)
         else:
             track = replace(
@@ -1064,6 +1108,21 @@ def _resolve_targeted_track(
             return track, "insufficient_boundary_evidence"
         return replace(track, status="ambiguous"), None
     if fail_bands:
+        authored_floor = min(track.authored_bands, default=None)
+        if (
+            authored_floor is not None
+            and authored_floor in fail_bands
+            and len(_clear_evidence(track, "fail")) >= 2
+        ):
+            return (
+                replace(
+                    track,
+                    status="confirmed_weak",
+                    boundary_band=authored_floor,
+                    unresolved_reason="below_authored_floor",
+                ),
+                None,
+            )
         if _choose_targeted_band(track) is None:
             return track, "insufficient_boundary_evidence"
         return replace(track, status="provisional_weak"), None
@@ -1095,6 +1154,20 @@ def _resolve_confirmed_track(track: PlacementTrackState) -> PlacementTrackState:
         else "insufficient_boundary_evidence"
     )
     return replace(track, status="unresolved", unresolved_reason=reason)
+
+
+def _as_watchlist(
+    track: PlacementTrackState,
+    *,
+    reason: str,
+) -> PlacementTrackState:
+    if track.status == "confirmed_weak":
+        return track
+    return replace(
+        track,
+        status="unresolved",
+        unresolved_reason=track.unresolved_reason or reason,
+    )
 
 
 def _targeted_item(
@@ -1188,13 +1261,10 @@ def _drop_missing_targeted_items(state: PlacementSessionState) -> PlacementSessi
             pending.append(track_id)
             continue
         if _choose_targeted_band(track_state) is None and track_state.evidence:
-            track_states[track_id] = replace(
+            track_states[track_id] = _as_watchlist(
                 track_state,
-                status="ambiguous",
-                boundary_band=_confirmation_band(track_state),
-                unresolved_reason="insufficient_boundary_evidence",
+                reason="insufficient_boundary_evidence",
             )
-            confirmatory.append(track_id)
             continue
         track_states[track_id] = replace(
             track_state,
@@ -1243,9 +1313,18 @@ def _drop_missing_confirmatory_items(state: PlacementSessionState) -> PlacementS
 
 
 def _enter_confirmatory(state: PlacementSessionState) -> PlacementSessionState:
+    track_states = dict(state.track_states)
+    confirmatory = state.confirmatory_track_ids[:MAX_CONFIRMATORY_ITEMS]
+    for track_id in state.confirmatory_track_ids[MAX_CONFIRMATORY_ITEMS:]:
+        track_states[track_id] = _as_watchlist(
+            track_states[track_id],
+            reason="stage_three_question_limit",
+        )
     staged = replace(
         state,
         stage="confirmatory",
+        track_states=_frozen_mapping(track_states),
+        confirmatory_track_ids=confirmatory,
         stage_items=0,
         stage_elapsed_seconds=0,
     )
@@ -1275,6 +1354,13 @@ def _stage_budget_reason(state: PlacementSessionState) -> str | None:
     }
     if state.stage_elapsed_seconds >= stage_limits[state.stage]:
         return f"{state.stage}_learner_time_budget_exhausted"
+    item_limits = {
+        "snapshot": MAX_SNAPSHOT_ITEMS,
+        "targeted_diagnostic": MAX_TARGETED_DIAGNOSTIC_ITEMS,
+        "confirmatory": MAX_CONFIRMATORY_ITEMS,
+    }
+    if state.stage_items >= item_limits[state.stage]:
+        return f"{state.stage}_item_budget_exhausted"
     return None
 
 
@@ -1312,6 +1398,51 @@ def _finalize_target_ready(state: PlacementSessionState) -> PlacementSessionStat
     )
 
 
+def _finalize_with_watchlist(
+    state: PlacementSessionState,
+    *,
+    budget_reason: str | None,
+) -> PlacementSessionState:
+    track_states: dict[str, PlacementTrackState] = {}
+    skill_states = dict(state.skill_states)
+    seeded_ready_skills = False
+    for track_id, track in state.track_states.items():
+        if track.status in {"provisional_ready", "resolved_ready"}:
+            resolved = replace(
+                track,
+                status="resolved_ready",
+                unresolved_reason=None,
+            )
+            current = skill_states.get(resolved.primary_skill_id) or SkillReadinessState(
+                skill_id=resolved.primary_skill_id
+            )
+            skill_states[resolved.primary_skill_id] = apply_placement_ready_seed(
+                current,
+                confidence=1.0,
+            )
+            seeded_ready_skills = True
+        else:
+            resolved = _as_watchlist(
+                track,
+                reason="nonblocking_uncertainty_watchlist",
+            )
+        track_states[track_id] = resolved
+    return replace(
+        state,
+        track_states=_frozen_mapping(track_states),
+        skill_states=_frozen_mapping(skill_states),
+        pending_track_ids=(),
+        confirmatory_track_ids=(),
+        terminal_status="target_ready",
+        terminal_reason=(
+            f"watchlist_after_{budget_reason}"
+            if budget_reason
+            else "nonblocking_uncertainty_watchlist"
+        ),
+        readiness_seeds_applied=seeded_ready_skills,
+    )
+
+
 def _finalize_from_available_evidence(
     state: PlacementSessionState,
     *,
@@ -1341,13 +1472,9 @@ def _finalize_from_available_evidence(
             ),
             readiness_seeds_applied=False,
         )
-    return replace(
+    return _finalize_with_watchlist(
         state,
-        pending_track_ids=(),
-        confirmatory_track_ids=(),
-        terminal_status="insufficient_evidence",
-        terminal_reason=budget_reason or "required_tracks_unresolved",
-        readiness_seeds_applied=False,
+        budget_reason=budget_reason,
     )
 
 
@@ -1367,6 +1494,11 @@ def _resolve_authored_floor_failures(
 
     track_states = dict(state.track_states)
     changed = False
+    has_authored_floor_gap = any(
+        track.status == "confirmed_weak"
+        and track.unresolved_reason == "below_authored_floor"
+        for track in track_states.values()
+    )
     for track_id, track in track_states.items():
         if track.status == "confirmed_weak" or track.highest_passed_band is not None:
             continue
@@ -1391,10 +1523,14 @@ def _resolve_authored_floor_failures(
             unresolved_reason="below_authored_floor",
         )
         changed = True
+        has_authored_floor_gap = True
 
     if not changed:
-        return state, False
-    return replace(state, track_states=_frozen_mapping(track_states)), True
+        return state, has_authored_floor_gap
+    return (
+        replace(state, track_states=_frozen_mapping(track_states)),
+        has_authored_floor_gap,
+    )
 
 
 def _variant_for(

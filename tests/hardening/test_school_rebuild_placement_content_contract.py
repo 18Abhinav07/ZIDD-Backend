@@ -27,7 +27,7 @@ FORBIDDEN_PUBLIC_KEYS = {
     "scoring_criteria",
 }
 OPAQUE_ITEM_ID = re.compile(
-    r"^(?:spv_c0[2-5]_t0[1-8]_v0[1-5]|spv_c05_t03_v06)$"
+    r"^spv_c0[2-5]_t0[1-8]_v0[1-6]$"
 )
 
 
@@ -125,6 +125,16 @@ def test_each_target_class_has_exactly_eight_engineering_qa_snapshot_tracks(clas
         track.approval.reference == "app/content/school_rebuild_placement_review_manifest.json"
         for track in tracks
     )
+
+
+def test_snapshot_items_are_fast_provider_free_checks():
+    for track in _all_tracks():
+        item = track.snapshot_item
+
+        assert item.evaluation_mode == "deterministic"
+        assert item.answer_key
+        assert item.accepted_answers
+        assert item.rubric_ref is None
 
 
 def test_items_score_one_locked_primary_skill_and_only_telemetry_secondary_tags():
@@ -322,13 +332,14 @@ def test_public_item_ids_are_opaque_and_do_not_semantically_leak_answers():
                 assert normalized_answer not in normalized_id
 
 
-def test_opaque_item_id_contract_limits_v06_to_class_five_inference():
+def test_opaque_item_id_contract_allows_one_extra_authored_diagnostic_variant():
     assert OPAQUE_ITEM_ID.fullmatch("spv_c05_t03_v06")
     assert OPAQUE_ITEM_ID.fullmatch("spv_c02_t01_v05")
-    assert not OPAQUE_ITEM_ID.fullmatch("spv_c02_t01_v06")
+    assert OPAQUE_ITEM_ID.fullmatch("spv_c02_t07_v06")
+    assert not OPAQUE_ITEM_ID.fullmatch("spv_c02_t01_v07")
 
 
-def test_complete_sentence_tracks_require_authentic_production_and_band_rubrics():
+def test_complete_sentence_snapshots_are_fast_checks_and_diagnostics_keep_band_rubrics():
     rubric_contracts = getattr(
         placement_validation,
         "COMPLETE_SENTENCE_RUBRICS_BY_SOURCE_BAND",
@@ -345,12 +356,18 @@ def test_complete_sentence_tracks_require_authentic_production_and_band_rubrics(
     for item in complete_sentence_items:
         contract = rubric_contracts[item.source_class_no]
         assert item.item_type == "short_answer"
-        assert item.evaluation_mode == "strict_rubric"
-        assert item.answer_key is None
-        assert item.accepted_answers == ()
-        assert item.rubric_ref == contract["rubric_ref"]
-        assert "complete_idea" in contract["criteria"]
-        assert "english_response" in contract["criteria"]
+        if item.stage == "snapshot":
+            assert item.evaluation_mode == "deterministic"
+            assert item.answer_key
+            assert item.accepted_answers
+            assert item.rubric_ref is None
+        else:
+            assert item.evaluation_mode == "strict_rubric"
+            assert item.answer_key is None
+            assert item.accepted_answers == ()
+            assert item.rubric_ref == contract["rubric_ref"]
+            assert "complete_idea" in contract["criteria"]
+            assert "english_response" in contract["criteria"]
         assert "complete English sentence" in item.prompt
 
 
@@ -459,9 +476,9 @@ def test_known_fish_bird_and_connector_prompts_have_one_defensible_scoring_path(
     connector_item = next(item for item in _all_items() if "Leena wanted" in item.passage)
 
     for sentence_item in (fish_item, bird_item):
-        assert sentence_item.evaluation_mode == "strict_rubric"
+        assert sentence_item.evaluation_mode == "deterministic"
         assert sentence_item.item_type == "short_answer"
-        assert not sentence_item.accepted_answers
+        assert sentence_item.accepted_answers
         assert "complete English sentence" in sentence_item.prompt
 
     assert connector_item.answer_key == "but"
@@ -469,36 +486,28 @@ def test_known_fish_bird_and_connector_prompts_have_one_defensible_scoring_path(
     assert connector_item.options == ("but", "because", "so")
 
 
-def test_validator_rejects_deterministic_sentence_production_and_unscoped_connectors():
+def test_validator_rejects_deterministic_diagnostic_sentence_production_and_unscoped_connectors():
     from app.content.school_rebuild_placement_validation import (
         PlacementBankValidationError,
         validate_placement_bank,
     )
 
     valid = bank.PLACEMENT_TRACKS_BY_CLASS
-    sentence_track = next(
-        track
-        for track in valid[2]
-        if track.primary_skill_id == "writing.complete_sentence"
+    sentence_item = next(
+        item
+        for item in _all_items()
+        if item.primary_skill_id == "writing.complete_sentence"
+        and item.stage != "snapshot"
     )
     invalid_sentence = replace(
-        sentence_track.snapshot_item,
+        sentence_item,
         evaluation_mode="deterministic",
         answer_key="swims",
         accepted_answers=("swims",),
         rubric_ref=None,
     )
-    invalid_sentence_track = replace(sentence_track, snapshot_item=invalid_sentence)
     with pytest.raises(PlacementBankValidationError, match="sentence production"):
-        validate_placement_bank(
-            {
-                **valid,
-                2: tuple(
-                    invalid_sentence_track if track.track_id == sentence_track.track_id else track
-                    for track in valid[2]
-                ),
-            }
-        )
+        validate_placement_bank(_bank_with_replaced_item(sentence_item, invalid_sentence))
 
     connector_track = next(
         track
@@ -541,7 +550,7 @@ def test_deterministic_answer_keys_and_mcq_options_are_normalization_consistent(
     deterministic = tuple(
         item for item in _all_items() if item.evaluation_mode == "deterministic"
     )
-    assert len(deterministic) == 110
+    assert len(deterministic) == 120
     for item in deterministic:
         normalized_answers = {
             normalize_placement_answer(answer) for answer in item.accepted_answers
@@ -581,7 +590,7 @@ def test_runtime_answer_matching_uses_shared_punctuation_tolerant_normalization(
     deterministic = tuple(
         item for item in _all_items() if item.evaluation_mode == "deterministic"
     )
-    assert len(deterministic) == 110
+    assert len(deterministic) == 120
 
     for item in deterministic:
         assert placement_runtime.answer_matches(item, f"  {item.answer_key}.  ")

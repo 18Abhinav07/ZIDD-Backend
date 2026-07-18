@@ -295,6 +295,62 @@ def _inference_open(
     )
 
 
+_FAST_SNAPSHOT_ANSWERS_BY_TRACK: Mapping[str, tuple[str, ...]] = MappingProxyType({
+    "english.c2.complete_sentence_action": (
+        "The fish is swimming.",
+        "The fish moves through clear water.",
+    ),
+    "english.c2.complete_sentence_idea": (
+        "Rain is falling outside the classroom.",
+        "It is raining outside the classroom.",
+    ),
+    "english.c3.reason_inference": (
+        "Because the room was dark.",
+        "Kabir switched on the lamp because the room was dark.",
+    ),
+    "english.c3.complete_sentence": (
+        "The bird rests on a branch and watches the garden below.",
+    ),
+    "english.c3.short_answer": (
+        "The children went under a tree because the afternoon sun was hot.",
+        "They moved under a tree because the sun was hot.",
+    ),
+    "english.c4.reason_inference": (
+        "Reva helped the relay continue by picking up the baton and passing it back.",
+        "Her action was helpful because the relay could continue.",
+    ),
+    "english.c4.summary": (
+        "The seed split, grew a root downward, and sent a shoot toward the light.",
+    ),
+    "english.c4.reason_answer": (
+        "They should take turns because that is fair.",
+        "The children should take turns because it is fair.",
+    ),
+    "english.c5.inference": (
+        "It probably rained because Ira's shoes were wet and her umbrella was dripping.",
+        "It rained because her shoes were wet and the umbrella was dripping.",
+    ),
+    "english.c5.summary": (
+        "The storm blocked the lane, so residents cut the branches and cleared a path.",
+    ),
+})
+
+
+def _fast_snapshot_seed(track_id: str, seed: _ItemSeed) -> _ItemSeed:
+    if seed.rubric_ref is None:
+        return seed
+    answers = _FAST_SNAPSHOT_ANSWERS_BY_TRACK.get(track_id)
+    if not answers:
+        raise ValueError(f"missing fast snapshot answer: {track_id}")
+    return _det(
+        seed.key,
+        f"Quick check: {seed.passage}",
+        f"Quick check: {seed.prompt}",
+        *answers,
+        misconception=seed.misconception_code,
+    )
+
+
 def _clusters(seed: _ItemSeed) -> tuple[PlacementMisconceptionCluster, ...]:
     if seed.item_type == "multiple_choice":
         return tuple(
@@ -389,6 +445,19 @@ def _track(
         target_confirm,
         *additional_target_confirmations,
     ) = seeds
+    original_snapshot_seed = snapshot_seed
+    snapshot_seed = _fast_snapshot_seed(track_id, snapshot_seed)
+    additional_lower_confirmations: tuple[_ItemSeed, ...] = ()
+    if original_snapshot_seed.rubric_ref:
+        if snapshot_source == lower_band:
+            additional_lower_confirmations = (original_snapshot_seed,)
+        else:
+            additional_target_confirmations = (
+                *additional_target_confirmations,
+                original_snapshot_seed,
+            )
+        if track_id == "english.c5.inference":
+            additional_target_confirmations = ()
     snapshot_item = _make_item(
         class_no=class_no,
         track_id=track_id,
@@ -426,6 +495,10 @@ def _track(
                 variants=(
                     variant(lower_band, "targeted_diagnostic", lower_target),
                     variant(lower_band, "confirmatory", lower_confirm),
+                    *(
+                        variant(lower_band, "confirmatory", seed)
+                        for seed in additional_lower_confirmations
+                    ),
                 ),
             ),
             PlacementBand(

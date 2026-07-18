@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.api import school_rebuild_routes
 from app.content.school_v3_schema import SchoolV3RubricCriterion, SchoolV3RubricEvaluation
 from app.main import app
+from app.services import school_rebuild_placement as placement
 from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 from app.services.school_rebuild_placement_evaluator import (
     EVALUATOR_UNAVAILABLE_CODE,
@@ -79,13 +80,47 @@ def _passing_open_evaluation(activity, answer):
     )
 
 
+def _advance_to_strict_writing_diagnostic(store, client, started):
+    current = started
+    session_id = started["session_id"]
+    while current["stage"] == "snapshot":
+        row = _run(store.get_school_session("test_user", session_id))
+        envelope = placement.envelope_from_json(row["state_json"])
+        item = placement.find_item(envelope, current["next_item"]["item_id"])
+        answer = (
+            "not a complete sentence"
+            if item.primary_skill_id == "writing.complete_sentence"
+            else item.accepted_answers[0]
+        )
+        response = client.post(
+            f"/school/placement/{session_id}/answer",
+            headers=AUTH,
+            json={"item_id": item.item_id, "answer": answer},
+        )
+        assert response.status_code == 200
+        current = response.json()
+
+    assert current["stage"] == "targeted_diagnostic"
+    row = _run(store.get_school_session("test_user", session_id))
+    envelope = placement.envelope_from_json(row["state_json"])
+    item = placement.find_item(envelope, current["next_item"]["item_id"])
+    assert item.primary_skill_id == "writing.complete_sentence"
+    assert item.evaluation_mode == "strict_rubric"
+    return current, item
+
+
 def test_placement_writing_uses_strict_evaluator_and_commits_criterion_evidence(
     store,
     monkeypatch,
 ):
     client = _seed_profile(store, signals=["writing"])
     started = client.post("/school/placement/start", headers=AUTH).json()
-    item = started["next_item"]
+    current, strict_item = _advance_to_strict_writing_diagnostic(
+        store,
+        client,
+        started,
+    )
+    item = current["next_item"]
     assert item["options"] is None
 
     async def evaluate(**kwargs):
@@ -101,9 +136,9 @@ def test_placement_writing_uses_strict_evaluator_and_commits_criterion_evidence(
     )
     answer = "The bird watches the garden from a branch."
     response = client.post(
-        f"/school/placement/{started['session_id']}/answer",
+        f"/school/placement/{current['session_id']}/answer",
         headers=AUTH,
-        json={"item_id": item["item_id"], "answer": answer},
+        json={"item_id": strict_item.item_id, "answer": answer},
     )
 
     assert response.status_code == 200
@@ -121,8 +156,12 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
 ):
     client = _seed_profile(store, signals=["writing"])
     started = client.post("/school/placement/start", headers=AUTH).json()
-    item = started["next_item"]
-    before = _run(store.get_school_session("test_user", started["session_id"]))
+    current, strict_item = _advance_to_strict_writing_diagnostic(
+        store,
+        client,
+        started,
+    )
+    before = _run(store.get_school_session("test_user", current["session_id"]))
 
     async def unavailable(*_args, **_kwargs):
         raise SchoolPlacementEvaluatorUnavailableError(EVALUATOR_UNAVAILABLE_CODE)
@@ -133,14 +172,17 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
         unavailable,
     )
     response = client.post(
-        f"/school/placement/{started['session_id']}/answer",
+        f"/school/placement/{current['session_id']}/answer",
         headers=AUTH,
-        json={"item_id": item["item_id"], "answer": "A complete English sentence."},
+        json={
+            "item_id": strict_item.item_id,
+            "answer": "A complete English sentence.",
+        },
     )
 
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == EVALUATOR_UNAVAILABLE_CODE
-    after = _run(store.get_school_session("test_user", started["session_id"]))
+    after = _run(store.get_school_session("test_user", current["session_id"]))
     before_state = dict(before["state_json"])
     after_state = dict(after["state_json"])
     before_timing = before_state.pop("_placement_item_timing")
@@ -149,12 +191,13 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
     assert after_timing["item_id"] == before_timing["item_id"]
     assert after_timing["retry_pending"] is True
     assert after_timing["accrued_learner_seconds"] >= 0
-    assert store.learning_events == []
+    assert len(store.learning_events) == 8
+    assert {event["attempt_type"] for event in store.learning_events} == {"snapshot"}
     failed_claim = _run(
         store.get_school_answer_request(
             "test_user",
-            started["session_id"],
-            item["item_id"],
+            current["session_id"],
+            strict_item.item_id,
         )
     )
     assert failed_claim["status"] == "failed"

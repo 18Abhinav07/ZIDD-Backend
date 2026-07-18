@@ -18,7 +18,11 @@ class PlacementBankValidationError(ValueError):
 
 
 _OPAQUE_ITEM_ID = re.compile(
-    r"^(?:spv_c0[2-5]_t0[1-8]_v0[1-5]|spv_c05_t03_v06)$"
+    r"^(?:spv_c0[2-5]_t0[1-8]_v0[1-5]|"
+    r"spv_c02_t0[78]_v06|"
+    r"spv_c03_t0[378]_v06|"
+    r"spv_c04_t0[378]_v06|"
+    r"spv_c05_t0[38]_v06)$"
 )
 _REVIEW_MANIFEST_REFERENCE = "app/content/school_rebuild_placement_review_manifest.json"
 _REVIEW_MANIFEST_PATH = Path(__file__).with_name(
@@ -328,17 +332,24 @@ def _validate_item(
     if item.primary_skill_id == "writing.complete_sentence":
         rubric_contract = COMPLETE_SENTENCE_RUBRICS_BY_SOURCE_BAND.get(item.source_class_no)
         _require(rubric_contract is not None, f"{owner} has no sentence-production band rubric")
-        _require(
-            item.item_type == "short_answer"
-            and item.evaluation_mode == "strict_rubric"
-            and not item.answer_key
-            and not item.accepted_answers,
-            f"{owner} must assess authentic sentence production",
-        )
-        _require(
-            item.rubric_ref == rubric_contract["rubric_ref"],
-            f"{owner} has the wrong sentence-production band rubric",
-        )
+        if item.stage == "snapshot":
+            _require(
+                item.item_type == "short_answer"
+                and item.evaluation_mode == "deterministic",
+                f"{owner} must use a fast deterministic snapshot",
+            )
+        else:
+            _require(
+                item.item_type == "short_answer"
+                and item.evaluation_mode == "strict_rubric"
+                and not item.answer_key
+                and not item.accepted_answers,
+                f"{owner} must assess authentic sentence production",
+            )
+            _require(
+                item.rubric_ref == rubric_contract["rubric_ref"],
+                f"{owner} has the wrong sentence-production band rubric",
+            )
         _require(
             "complete english sentence" in item.prompt.casefold(),
             f"{owner} does not request a complete English sentence",
@@ -466,6 +477,10 @@ def validate_placement_bank(tracks_by_class: Mapping[int, Sequence[Any]]) -> boo
             _require(actual_bands == expected_bands, f"{owner} source bands must be {sorted(expected_bands)}")
             _require(track.snapshot_item.stage == "snapshot", f"{owner} has no snapshot item")
             _require(track.snapshot_item.source_class_no in expected_bands, f"{owner} snapshot uses an unreachable source band")
+            _require(
+                track.snapshot_item.evaluation_mode == "deterministic",
+                f"{owner} snapshot requires provider-free grading",
+            )
             _validate_item(
                 track.snapshot_item,
                 track,

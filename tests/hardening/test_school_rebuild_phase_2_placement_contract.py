@@ -455,7 +455,7 @@ def test_school_state_resumes_active_placement_after_start(store):
     assert state["unlock_state"] == "locked"
 
 
-def test_school_state_resumes_time_capped_evidence_despite_stale_report_action():
+def test_school_state_unlocks_an_actionable_watchlist_after_time_capped_evidence():
     profile_version_id = str(uuid4())
     school_profile = {
         **_profile_payload(target_class_no=5, prior_difficulty_signals=[]),
@@ -471,7 +471,7 @@ def test_school_state_resumes_time_capped_evidence_despite_stale_report_action()
         evaluator_confidence=0.9,
         elapsed_seconds_delta=placement.PLACEMENT_LEARNER_TIME_BUDGET_SECONDS,
     )
-    assert placement.placement_status(envelope) == "insufficient_evidence"
+    assert placement.placement_status(envelope) == "target_ready"
 
     placement_session_id = str(uuid4())
     state = school_state_service.school_state_for_profile(
@@ -479,23 +479,22 @@ def test_school_state_resumes_time_capped_evidence_despite_stale_report_action()
         school_profile=school_profile,
         placement_session={
             "session_id": placement_session_id,
-            "status": "insufficient_evidence",
+            "status": "target_ready",
             "state_json": placement.envelope_to_json(envelope),
         },
         placement_report={
             "placement_session_id": placement_session_id,
-            "placement_status": "insufficient_evidence",
-            "unlock_state": "locked",
+            "placement_status": "target_ready",
+            "unlock_state": "target_unlocked",
             "evaluated_class_no": 4,
-            "allowed_next_actions": ["start_placement"],
+            "allowed_next_actions": ["start_curriculum"],
         },
     )
 
-    assert state["next_action"] == "resume_placement"
-    assert state["allowed_next_actions"] == ["resume_placement"]
-    assert state["next_action_url"] == (
-        f"/school/readiness/{placement_session_id}"
-    )
+    assert state["unlock_state"] == "target_unlocked"
+    assert state["next_action"] == "start_curriculum"
+    assert state["allowed_next_actions"] == ["start_curriculum"]
+    assert state["next_action_url"] == "/school/classes/5"
 
 
 def test_school_placement_answer_persists_progress_and_rejects_wrong_item(store):
@@ -743,11 +742,10 @@ def test_school_placement_exhausted_weak_bank_starts_earliest_supported_recap(
     assert current["status"] == "below_target"
     row = _run(store.get_school_session("test_user", session_id))
     assert row["status"] == "below_target"
-    assert len(store.learning_events) == 18
+    assert len(store.learning_events) == 12
     assert {event["attempt_type"] for event in store.learning_events} == {
         "snapshot",
         "targeted_diagnostic",
-        "confirmatory",
     }
 
 
@@ -822,7 +820,7 @@ def test_terminal_floor_failure_creates_idempotent_recap_report_backed_state(
     _assert_no_hidden_keys(first_report.json())
 
 
-def test_terminal_insufficient_evidence_creates_locked_report(store, monkeypatch):
+def test_evidence_shortfall_creates_an_unlocked_watchlist_report(store, monkeypatch):
     _stub_failing_open_placement_evaluator(monkeypatch)
     _seed_school_profile(store, signals=["reading"])
     monkeypatch.setattr(placement, "MIN_SCORABLE_FOR_TERMINAL_PLACEMENT", 999)
@@ -842,28 +840,21 @@ def test_terminal_insufficient_evidence_creates_locked_report(store, monkeypatch
         assert response.status_code == 200
         current = response.json()
 
-    assert current["status"] == "insufficient_evidence"
+    assert current["status"] == "target_ready"
     assert len(store.school_placement_reports) == 1
     report = next(iter(store.school_placement_reports.values()))
-    assert report["placement_status"] == "insufficient_evidence"
-    assert report["unlock_state"] == "locked"
-    assert report["allowed_next_actions"] == ["start_placement"]
+    assert report["placement_status"] == "target_ready"
+    assert report["unlock_state"] == "target_unlocked"
+    assert report["allowed_next_actions"] == ["start_curriculum"]
     assert report["evidence_summary"]["track_verdicts"]
 
     state = client.get("/school/state", headers=AUTH).json()
-    assert state["placement_status"] == "insufficient_evidence"
-    assert state["unlock_state"] == "locked"
-    assert state["active_flow"] == "placement_report"
-    assert state["next_action"] == "start_placement"
-    assert state["next_action_url"] == "/school/readiness"
-    assert state["allowed_next_actions"] == [
-        "view_placement_report",
-        "start_placement",
-    ]
-
-    restarted = client.post("/school/placement/start", headers=AUTH)
-    assert restarted.status_code == 200
-    assert restarted.json()["session_id"] != session_id
+    assert state["placement_status"] == "target_ready"
+    assert state["unlock_state"] == "target_unlocked"
+    assert state["active_flow"] == "curriculum"
+    assert state["next_action"] == "start_curriculum"
+    assert state["next_action_url"] == "/school/classes/3"
+    assert state["allowed_next_actions"] == ["start_curriculum"]
     _assert_no_hidden_keys(report)
     _assert_no_hidden_keys(state)
 
@@ -1124,7 +1115,14 @@ def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
     store,
     monkeypatch,
 ):
-    _stub_passing_open_placement_evaluator(monkeypatch)
+    async def provider_must_not_run(**_kwargs):
+        raise AssertionError("snapshot placement must not call a provider")
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_evaluate_school_open_answer_with_claim_heartbeat",
+        provider_must_not_run,
+    )
     _seed_school_profile(store, target_class_no=5, signals=[])
     client = TestClient(app)
     current = client.post("/school/placement/start", headers=AUTH).json()
@@ -1138,11 +1136,8 @@ def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
             envelope,
             current["next_item"]["item_id"],
         )
-        answer = (
-            private_item.accepted_answers[0]
-            if private_item.accepted_answers
-            else _strong_open_placement_answer(private_item)
-        )
+        assert private_item.evaluation_mode == "deterministic"
+        answer = private_item.accepted_answers[0]
         last_request = {
             "item_id": current["next_item"]["item_id"],
             "answer": answer,
@@ -1179,6 +1174,9 @@ def test_target_ready_route_persists_every_seed_and_replays_without_inflation(
     }
     assert current["status"] == "target_ready", diagnostic
     assert current["answered_count"] == 8
+    state = client.get("/school/state", headers=AUTH).json()
+    assert state["unlock_state"] == "target_unlocked"
+    assert state["next_action"] == "start_curriculum"
     graph = _run(store.get_school_learning_graph("test_user"))
     profiles = [
         row for row in graph["profiles"] if row.get("domain") == "school"
@@ -1218,6 +1216,35 @@ def test_mixed_snapshot_queues_only_weak_and_ambiguous_tracks_for_stage_two():
         for track_id in snapshot_track_ids[-2:]
     )
     assert placement.next_item(envelope).track_id in set(snapshot_track_ids[-2:])
+
+
+def test_stage_two_caps_at_four_and_nonblocking_uncertainty_unlocks_with_a_watchlist():
+    envelope = placement.new_placement_envelope(_pure_profile())
+    snapshot_track_ids = tuple(envelope.state.track_states)
+
+    for _ in range(8):
+        envelope = _apply_score(envelope, 0.70)
+
+    assert envelope.state.stage == "targeted_diagnostic"
+    assert envelope.state.pending_track_ids == snapshot_track_ids[:4]
+    assert {
+        envelope.state.track_states[track_id].status
+        for track_id in snapshot_track_ids[4:]
+    } == {"unresolved"}
+
+    for _ in range(4):
+        envelope = _apply_score(envelope, 0.70)
+
+    assert placement.placement_status(envelope) == "target_ready"
+    assert envelope.state.total_items == 12
+    assert envelope.state.confirmatory_track_ids == ()
+    assert placement.next_item(envelope) is None
+    summary = placement.readiness_summary(envelope.state)
+    assert summary["watchlist_skill_ids"] == [
+        track.primary_skill_id
+        for track in envelope.state.track_states.values()
+    ]
+    assert all(track.evidence for track in envelope.state.track_states.values())
 
 
 def test_stage_two_binary_search_descends_then_narrows_up_with_arbitrary_authored_bands(monkeypatch):
@@ -1279,12 +1306,15 @@ def test_missing_same_track_item_never_falls_back_to_an_unrelated_track(monkeypa
         envelope = _apply_score(envelope, 1.0)
 
     assert placement.next_item(envelope) is None
-    assert placement.placement_status(envelope) == "insufficient_evidence"
+    assert placement.placement_status(envelope) == "target_ready"
     assert envelope.state.track_states[missing.track_id].status == "unresolved"
     assert envelope.state.track_states[missing.track_id].unresolved_reason == "missing_authored_same_track_item"
+    assert missing.primary_skill_id in placement.readiness_summary(
+        envelope.state
+    )["watchlist_skill_ids"]
 
 
-def test_stage_three_is_entered_only_for_insufficient_boundary_evidence():
+def test_nonblocking_boundary_uncertainty_becomes_a_watchlist_without_stage_three():
     envelope = placement.new_placement_envelope(_pure_profile())
     ambiguous_track_id = next(iter(envelope.state.track_states))
 
@@ -1301,13 +1331,12 @@ def test_stage_three_is_entered_only_for_insufficient_boundary_evidence():
         evaluator_confidence=1.0,
     )
 
-    assert envelope.state.stage == "confirmatory"
-    assert envelope.state.confirmatory_track_ids == (ambiguous_track_id,)
+    assert placement.placement_status(envelope) == "target_ready"
+    assert envelope.state.confirmatory_track_ids == ()
     track = envelope.state.track_states[ambiguous_track_id]
+    assert track.status == "unresolved"
     assert track.unresolved_reason == "insufficient_boundary_evidence"
-    confirmatory = placement.next_item(envelope)
-    assert confirmatory.track_id == ambiguous_track_id
-    assert confirmatory.source_class_no == track.boundary_band
+    assert placement.next_item(envelope) is None
 
 
 def test_same_band_contradiction_is_the_other_valid_stage_three_trigger():
@@ -1336,6 +1365,23 @@ def test_same_band_contradiction_is_the_other_valid_stage_three_trigger():
     )
 
 
+def test_stage_three_caps_contradiction_checks_at_two():
+    envelope = placement.new_placement_envelope(_pure_profile(target_class_no=2))
+    track_ids = tuple(envelope.state.track_states)
+
+    for score in (0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0):
+        envelope = _apply_score(envelope, score)
+
+    for _ in range(3):
+        envelope = _apply_score(envelope, 1.0)
+
+    assert envelope.state.stage == "confirmatory"
+    assert envelope.state.confirmatory_track_ids == track_ids[:2]
+    third = envelope.state.track_states[track_ids[2]]
+    assert third.status == "unresolved"
+    assert third.unresolved_reason == "contradictory_evidence"
+
+
 @pytest.mark.parametrize(
     ("score", "confidence", "blockers", "scorable", "expected"),
     [
@@ -1362,10 +1408,10 @@ def test_evidence_classification_uses_backend_thresholds(
     ) == expected
 
 
-def test_all_weak_at_authored_floor_starts_earliest_supported_recap_path():
+def test_focused_lower_boundary_evidence_starts_the_earliest_supported_recap_path():
     envelope = placement.new_placement_envelope(_pure_profile())
 
-    for _ in range(18):
+    for _ in range(placement.MAX_PLACEMENT_ITEMS):
         item = placement.next_item(envelope)
         if item is None:
             break
@@ -1378,15 +1424,15 @@ def test_all_weak_at_authored_floor_starts_earliest_supported_recap_path():
 
     assert placement.placement_status(envelope) == "below_target"
     assert envelope.state.terminal_reason == "authored_floor_rebuild_required"
+    assert envelope.state.total_items == 12
     assert envelope.state.readiness_seeds_applied is False
-    assert all(
-        track.status == "confirmed_weak"
+    confirmed = [
+        track
         for track in envelope.state.track_states.values()
-    )
-    assert all(
-        track.unresolved_reason == "below_authored_floor"
-        for track in envelope.state.track_states.values()
-    )
+        if track.status == "confirmed_weak"
+    ]
+    assert confirmed
+    assert all(track.unresolved_reason == "below_authored_floor" for track in confirmed)
     assert all(state.ready_source is None for state in envelope.state.skill_states.values())
 
 
