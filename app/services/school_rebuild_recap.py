@@ -16,6 +16,7 @@ from app.content.school_rebuild_placement_validation import (
     STRICT_RUBRIC_CRITERIA_BY_REF,
 )
 from app.services.school_rebuild_curriculum import (
+    _open_answer_preflight_failure,
     accepted_answer_matches,
     decide_open_answer_evaluation,
 )
@@ -2853,6 +2854,7 @@ def apply_recap_answer(
     activity_id: str,
     answer: str,
     open_answer_evaluation: SchoolRubricEvaluation | dict[str, Any] | None = None,
+    open_answer_preflight_failed: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     normalized = normalize_recap_state(state)
     activity = _current_activity(normalized)
@@ -2861,13 +2863,16 @@ def apply_recap_answer(
 
     evaluator_activity = evaluator_activity_for_answer(activity)
     if evaluator_activity is not None:
-        if open_answer_evaluation is None:
+        if open_answer_preflight_failed:
+            answer_evaluation = _open_answer_preflight_failure(evaluator_activity)
+        elif open_answer_evaluation is None:
             raise ValueError("open_answer_evaluation_required")
-        answer_evaluation = decide_open_answer_evaluation(
-            evaluator_activity,
-            open_answer_evaluation,
-            answer=answer,
-        )
+        else:
+            answer_evaluation = decide_open_answer_evaluation(
+                evaluator_activity,
+                open_answer_evaluation,
+                answer=answer,
+            )
         evaluation_mode = "llm_rubric"
     else:
         correct = _answer_matches(activity, answer)
@@ -2968,6 +2973,10 @@ def apply_recap_answer(
             activity,
             correct,
             next_step=str(module.get("current_step") or ""),
+            missing_criteria=[
+                str(criterion_id)
+                for criterion_id in answer_evaluation["missing_criteria"]
+            ],
         ),
         "next_move": _feedback_next_move(
             activity,
@@ -3414,7 +3423,13 @@ def _with_revision_checks(
     }
 
 
-def _feedback_message(activity: dict[str, Any], correct: bool, *, next_step: str) -> str:
+def _feedback_message(
+    activity: dict[str, Any],
+    correct: bool,
+    *,
+    next_step: str,
+    missing_criteria: list[str] | None = None,
+) -> str:
     if correct and activity["kind"] == "independent_check":
         return "Good. One more step: use the same skill in a new passage."
     if correct and activity["kind"] == "transfer_check":
@@ -3423,15 +3438,24 @@ def _feedback_message(activity: dict[str, Any], correct: bool, *, next_step: str
         return "Good. Move to the next revision level."
     if correct:
         return "Good. Now try the same skill without hints."
+    missing_instruction = next(
+        (
+            RUBRIC_REMEDIATION_BY_CRITERION[criterion_id]
+            for criterion_id in missing_criteria or []
+            if criterion_id in RUBRIC_REMEDIATION_BY_CRITERION
+        ),
+        "",
+    )
+    learner_move = f" {missing_instruction}" if missing_instruction else ""
     if activity["kind"] == "bridge":
-        return "Not yet. Zidd is opening a focused masterclass for this skill."
+        return f"Not yet.{learner_move} Zidd is opening a focused masterclass for this skill."
     if activity["kind"] == "masterclass" and next_step == "revision_level_1":
-        return "This needs a short revision run before trying again."
+        return f"This needs a short revision run before trying again.{learner_move}"
     if activity["kind"] == "masterclass":
-        return "Not yet. Stay in the masterclass and try one more supported check."
+        return f"Not yet.{learner_move} Stay in the masterclass and try one more supported check."
     if activity["kind"] in REVISION_STEPS:
-        return "Not yet. Stay on this revision level and rebuild the clue."
-    return "Not yet. Zidd will slow this down with a bridge check before moving ahead."
+        return f"Not yet.{learner_move} Stay on this revision level and rebuild the clue."
+    return f"Not yet.{learner_move} Zidd will slow this down with a bridge check before moving ahead."
 
 
 def _feedback_next_move(

@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "bad888550a4e340f9899359404d92ebaa2a60d19e9083232e754fa926d40d9c5",
+  "runtime_sha256": "67a485b0a93d4e4c8d43386d660b87c1dda5173aa141fcccd8189ac7524ca9fd",
   "chapter_id": "eng_c2_ch06",
   "chapter_no": 6,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "Between Home and School",
   "book_title": "Mridang",
   "unit_title": "Going Places",
@@ -954,7 +955,8 @@
                 "helps",
                 "mira"
               ],
-              "model_answer": "The clinic sign is a landmark that helps Mira find the correct corner."
+              "model_answer": "The clinic sign is a landmark that helps Mira find the correct corner.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -1136,7 +1138,8 @@
                 "direction",
                 "naming"
               ],
-              "model_answer": "The note gives each direction by naming north first and west after the garden."
+              "model_answer": "The note gives each direction by naming north first and west after the garden.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each route word to a path, place, or movement clue. Use route vocabulary in a delivery note. Use the same skill in this new scene. To understand and use route vocabulary, include both details.",
@@ -11305,6 +11308,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

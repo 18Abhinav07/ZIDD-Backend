@@ -745,6 +745,7 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     user_id               TEXT NOT NULL REFERENCES learner_profiles(user_id),
     raw_answer            TEXT NOT NULL,
     expected_state_json   JSONB NOT NULL,
+    request_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     expected_state_digest TEXT NOT NULL,
     answer_hash           TEXT NOT NULL,
     answer_claim_token    TEXT NOT NULL,
@@ -759,6 +760,7 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     lease_token           TEXT,
     lease_version         INTEGER NOT NULL DEFAULT 0 CHECK (lease_version >= 0),
     lease_expires_at      TIMESTAMPTZ,
+    next_attempt_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_error_code       TEXT,
     error_json            JSONB,
     response_json         JSONB,
@@ -770,6 +772,9 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     failed_at             TIMESTAMPTZ,
     cancelled_at          TIMESTAMPTZ,
     PRIMARY KEY (session_id, activity_id),
+    CONSTRAINT school_evaluation_jobs_request_metadata_object CHECK (
+        jsonb_typeof(request_metadata_json) = 'object'
+    ),
     FOREIGN KEY (session_id, activity_id)
         REFERENCES school_answer_requests(session_id, activity_id) ON DELETE CASCADE,
     CONSTRAINT school_evaluation_jobs_running_lease CHECK (
@@ -784,7 +789,7 @@ CREATE TABLE IF NOT EXISTS school_evaluation_jobs (
     )
 );
 CREATE INDEX IF NOT EXISTS idx_school_evaluation_jobs_claimable
-    ON school_evaluation_jobs(status, lease_expires_at, created_at);
+    ON school_evaluation_jobs(status, next_attempt_at, lease_expires_at, created_at);
 
 CREATE TABLE IF NOT EXISTS school_placement_reports (
     report_id                      UUID PRIMARY KEY,
@@ -799,6 +804,7 @@ CREATE TABLE IF NOT EXISTS school_placement_reports (
     unlock_state                   TEXT NOT NULL,
     blocking_skills_json           JSONB NOT NULL DEFAULT '[]'::jsonb,
     watchlist_skills_json          JSONB NOT NULL DEFAULT '[]'::jsonb,
+    deviation_note                 TEXT NOT NULL DEFAULT '',
     evidence_summary_json          JSONB NOT NULL DEFAULT '{}'::jsonb,
     recommended_recap_modules_json JSONB NOT NULL DEFAULT '[]'::jsonb,
     learner_summary                TEXT NOT NULL DEFAULT '',
@@ -915,6 +921,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_idempotency_key
     ON credit_transactions(user_id, idempotency_key)
     WHERE idempotency_key IS NOT NULL;
 
+-- Credit lots keep expiring beta grants separate from paid and promo credit.
+-- `learner_profiles.credits` remains a compatibility cache for old surfaces;
+-- all new debits select and mutate these durable lots inside one transaction.
+CREATE TABLE IF NOT EXISTS credit_lots (
+    id                BIGSERIAL PRIMARY KEY,
+    user_id           TEXT NOT NULL REFERENCES learner_profiles(user_id),
+    source            TEXT NOT NULL CHECK (
+        source IN ('beta_grant', 'paid_purchase', 'promo', 'legacy_migrated')
+    ),
+    grant_key         TEXT NOT NULL,
+    original_credits  INTEGER NOT NULL CHECK (original_credits >= 0),
+    remaining_credits INTEGER NOT NULL CHECK (
+        remaining_credits >= 0 AND remaining_credits <= original_credits
+    ),
+    expires_at        TIMESTAMPTZ,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, grant_key)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_lots_user_expiry
+    ON credit_lots(user_id, expires_at, created_at, id);
+
+-- One debit ledger event can draw from several lots. This allocation table
+-- makes failed-attempt refunds restore the correct expiring/non-expiring lots.
+CREATE TABLE IF NOT EXISTS credit_lot_spends (
+    transaction_id BIGINT NOT NULL REFERENCES credit_transactions(id),
+    lot_id         BIGINT NOT NULL REFERENCES credit_lots(id),
+    amount         INTEGER NOT NULL CHECK (amount > 0),
+    PRIMARY KEY (transaction_id, lot_id)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_lot_spends_lot
+    ON credit_lot_spends(lot_id);
+
 -- ---------- content unlocks + purchases ----------
 CREATE TABLE IF NOT EXISTS content_unlocks (
     user_id         TEXT NOT NULL REFERENCES learner_profiles(user_id),
@@ -975,6 +1013,8 @@ ALTER TABLE school_v2_practice_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_v2_curriculum_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE test_items          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_lots         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_lot_spends   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_unlocks     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchases           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.node_attempts ENABLE ROW LEVEL SECURITY;
@@ -1048,3 +1088,9 @@ REVOKE ALL ON TABLE public.school_v2_curriculum_sessions FROM PUBLIC;
 REVOKE ALL ON TABLE public.node_attempts FROM anon;
 REVOKE ALL ON TABLE public.node_attempts FROM authenticated;
 REVOKE ALL ON TABLE public.node_attempts FROM PUBLIC;
+REVOKE ALL ON TABLE public.credit_lots FROM anon;
+REVOKE ALL ON TABLE public.credit_lots FROM authenticated;
+REVOKE ALL ON TABLE public.credit_lots FROM PUBLIC;
+REVOKE ALL ON TABLE public.credit_lot_spends FROM anon;
+REVOKE ALL ON TABLE public.credit_lot_spends FROM authenticated;
+REVOKE ALL ON TABLE public.credit_lot_spends FROM PUBLIC;

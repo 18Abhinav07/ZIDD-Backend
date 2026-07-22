@@ -1056,6 +1056,48 @@ def test_state_and_class_map_use_one_school_snapshot_authority(store, monkeypatc
     assert store.school_state_snapshot_calls == 2
 
 
+def test_curriculum_start_reuses_its_canonical_school_snapshot(store, monkeypatch):
+    _seed_user(store)
+    client = TestClient(app)
+    completed, _draft, _request = _activate(client)
+    assert completed.status_code == 200
+    _placement, report = _seed_completed_placement_report(
+        store,
+        client,
+        "target_ready",
+    )
+
+    store.school_state_snapshot_calls = 0
+
+    async def legacy_read_forbidden(*_args, **_kwargs):
+        raise AssertionError("curriculum start must reuse its canonical snapshot")
+
+    for method_name in (
+        "get_latest_school_session",
+        "get_school_placement_report",
+        "get_latest_compatible_school_placement_report",
+        "get_school_learning_graph",
+    ):
+        monkeypatch.setattr(store, method_name, legacy_read_forbidden)
+
+    original_active = store.get_active_school_session
+    active_flow_types: list[str] = []
+
+    async def traced_active(*args, **kwargs):
+        active_flow_types.append(str(args[2]))
+        return await original_active(*args, **kwargs)
+
+    monkeypatch.setattr(store, "get_active_school_session", traced_active)
+
+    response = client.post("/school/curriculum/start", headers=AUTH)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["chapter"]["chapter_id"] == "eng_c3_ch01"
+    assert report["unlock_state"] == "target_unlocked"
+    assert store.school_state_snapshot_calls == 1
+    assert active_flow_types == ["curriculum"]
+
+
 def test_support_route_rejects_unauthorized_owner_and_broken_parent_lineage(store):
     _seed_user(store)
     client = TestClient(app)

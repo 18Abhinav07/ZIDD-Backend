@@ -34,6 +34,7 @@ from app.services import session_service as svc
 from app.storage import get_storage
 from app.billing.gate import resolve_gate, charge
 from app.billing.pricing import pack_list
+from app.config import get_settings
 from app.services.session_service import GamePrompt
 from app.services.simulation_service import Speaker, SimulationState, assessment_progress_snapshot
 
@@ -862,13 +863,18 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
 
     # Gate BEFORE the brain runs. The brain stays credit-blind.
     try:
-        decision = await resolve_gate(store, user_id, req.competency_node)
+        decision = await resolve_gate(
+            store,
+            user_id,
+            req.competency_node,
+            test_mode=req.test_mode,
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail="Unknown competency node") from e
 
     if not decision.free:
         balance = await store.get_credits(user_id)
-        if not req.confirm:
+        if get_settings().billing_policy != "journey" and not req.confirm:
             raise HTTPException(
                 status_code=402,
                 detail={
@@ -929,6 +935,8 @@ async def start(req: SessionStartRequest, request: Request) -> SessionStartRespo
                     "error": "insufficient_credits",
                     "cost": decision.cost,
                     "balance": balance,
+                    "scope": decision.scope,
+                    "ref_id": decision.ref_id,
                     "packs": [p.model_dump() for p in pack_list()],
                 },
             )

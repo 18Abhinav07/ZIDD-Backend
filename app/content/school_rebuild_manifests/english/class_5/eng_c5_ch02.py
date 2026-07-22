@@ -56,6 +56,7 @@ def _task(
     ordered: bool = False,
     preflight_rule: str = "relevant_english_response",
     learner_part_count: int | None = None,
+    semantic_evidence_policy: str | None = None,
 ) -> dict[str, Any]:
     return {
         "passage": passage,
@@ -68,6 +69,7 @@ def _task(
         "ordered": ordered,
         "preflight_rule": preflight_rule,
         "learner_part_count": learner_part_count,
+        "semantic_evidence_policy": semantic_evidence_policy,
     }
 
 
@@ -187,6 +189,8 @@ def _open_activity(
         "pass_score": 0.8,
         "preflight_rule": task["preflight_rule"],
     }
+    if task.get("semantic_evidence_policy") is not None:
+        payload["semantic_evidence_policy"] = task["semantic_evidence_policy"]
     if task["ordered"] and len(slots) >= 2:
         payload["ordered_concept_slot_ids"] = [slot["id"] for slot in slots]
     return payload
@@ -723,6 +727,7 @@ LEVEL_SPECS: list[dict[str, Any]] = [
                     _evidence("listener", "Identifies Ravi as the listener in the first line.", "captain speaks to Ravi", "captain told Ravi"),
                     _evidence("contribution", "States that Ravi supplies the key's location.", "key is hanging beside the whistle", "reports the key's location"),
                 ],
+                semantic_evidence_policy="traceable_rubric",
             ),
             _task(
                 "After a ball disappears into a delivery cart, Priya asks the guard what to do. The guard suggests noting the cart number and calling the depot.",
@@ -977,10 +982,28 @@ LEVEL_SPECS: list[dict[str, Any]] = [
                 "Infer the risk and explain the safer action using both details.",
                 "A loose helmet may come off at a speed breaker, so the cyclist should fasten the chin strap before riding.",
                 [
-                    _evidence("risk", "Identifies that the helmet may come off.", "helmet may come off", "may come off"),
+                    _evidence(
+                        "risk",
+                        "Identifies that the helmet may come off.",
+                        "helmet may come off",
+                        "may come off",
+                        "helmet may not protect",
+                    ),
                     _evidence("strap", "Uses the loose chin strap as one supporting detail.", "loose helmet", "chin strap"),
-                    _evidence("breaker", "Uses the speed breakers as the other supporting detail.", "at a speed breaker", "several speed breakers"),
-                    _evidence("action", "Requires fastening before riding.", "fasten the chin strap", "before riding"),
+                    _evidence(
+                        "breaker",
+                        "Uses the speed breakers as the other supporting detail.",
+                        "at a speed breaker",
+                        "several speed breakers",
+                        "speed breaker makes the bike jolt",
+                    ),
+                    _evidence(
+                        "action",
+                        "Requires fastening before riding.",
+                        "fasten the chin strap",
+                        "fasten the strap before riding",
+                        "before riding",
+                    ),
                 ],
             ),
             _task(
@@ -1829,7 +1852,7 @@ LEVEL_SPECS: list[dict[str, Any]] = [
     {
         "level_id": "scooter_summary_and_profile",
         "title": "Summarize and report facts",
-        "focus": "shape own-words summaries, paragraphs, and bounded profiles",
+        "focus": "write clear summaries and fact-based profiles in your own words",
         "outcome": "Select central details, write an organised own-words paragraph, and report only supported facts from a supplied profile packet.",
         "skill_ids": SYNTHESIS_SKILLS,
         "episode_kind": "expression_workshop",

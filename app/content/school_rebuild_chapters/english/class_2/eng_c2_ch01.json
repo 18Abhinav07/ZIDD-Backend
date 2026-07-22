@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "62ece2dcdd3561aadb8614d069a6e99a9a1cfe252e7d21a1c21fd36f58e70567",
+  "runtime_sha256": "5ea227c803a90210c9b1cae1f701e3ef057de9ed89494605a9b23fae0b8ea139",
   "chapter_id": "eng_c2_ch01",
   "chapter_no": 1,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "My Bicycle",
   "book_title": "Mridang",
   "unit_title": "Fun with Friends",
@@ -343,7 +344,8 @@
             "slow",
             "bicycle"
           ],
-          "model_answer": "Kabir uses the brake to slow his bicycle safely before the corner."
+          "model_answer": "Kabir uses the brake to slow his bicycle safely before the corner.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Match each bicycle word to its job and nearby clues. Separate the named bicycle part from the objects on it. Use the same skill in this new scene. To use bicycle words from visible context, include both details.",
@@ -706,7 +708,8 @@
                 "slow",
                 "bicycle"
               ],
-              "model_answer": "Kabir uses the brake to slow his bicycle safely before the corner."
+              "model_answer": "Kabir uses the brake to slow his bicycle safely before the corner.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each bicycle word to its job and nearby clues. Define the word through its place and purpose. Use only the passage. To use bicycle words from visible context, include both details.",
@@ -928,7 +931,8 @@
                 "firmly",
                 "steers"
               ],
-              "model_answer": "Mala grips the handlebar firmly and steers around the cone."
+              "model_answer": "Mala grips the handlebar firmly and steers around the cone.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -1462,7 +1466,8 @@
                 "metal",
                 "holds"
               ],
-              "model_answer": "A carrier is a platform for loads. The metal carrier holds the milk crate above the wheel."
+              "model_answer": "A carrier is a platform for loads. The metal carrier holds the milk crate above the wheel.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each bicycle word to its job and nearby clues. Link the hand control to the slowing action. Remember the skill, then check the passage. To use bicycle words from visible context, include both details.",
@@ -7270,7 +7275,8 @@
                 "beside",
                 "bicycle"
               ],
-              "model_answer": "The cheerful bell rings beside the bicycle shop."
+              "model_answer": "The cheerful bell rings beside the bicycle shop.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Build bicycle sentences with a name, an action, and a useful description. Classify words in a related travel sentence. Use the same skill in this new scene. To use nouns, verbs, and adjectives in bicycle sentences, include all 4 details.",
@@ -10923,6 +10929,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

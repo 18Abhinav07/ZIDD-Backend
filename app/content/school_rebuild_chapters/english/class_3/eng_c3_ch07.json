@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "c638a4cda0bea5863e913710f4328dd5a1d53f5ffbb7839080365e343f4919e9",
+  "runtime_sha256": "076bb5633f851d87584c08e093434ecf1022a1f03876981304fa3e56f1dc869b",
   "chapter_id": "eng_c3_ch07",
   "chapter_no": 7,
-  "content_version": "2026-07-15.deep-v1",
-  "certification_version": "school-deep-class3-v1",
+  "content_version": "2026-07-15.deep-v1.semantic-evidence-v1",
+  "certification_version": "school-deep-class3-v1.semantic-evidence-v1",
   "title": "The Big Laddoo",
   "book_title": "Santoor",
   "unit_title": "Good Food",
@@ -11061,7 +11062,8 @@
           "blend",
           "fruit"
         ],
-        "model_answer": "For the plum use card, my answer is: The word is plum; I packed a ripe plum for lunch. The pl blend and fruit sentence show the right word."
+        "model_answer": "For the plum use card, my answer is: The word is plum; I packed a ripe plum for lunch. The pl blend and fruit sentence show the right word.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch07:assessment:09",
@@ -12027,6 +12029,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

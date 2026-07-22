@@ -31,6 +31,15 @@ SchoolOpenSemanticValidatorId = Literal[
     "affirmative_support_or_no_mocking_v1",
 ]
 
+# Ordered concept slots normally describe chronology, a procedure, or a list
+# of requirements. Only this explicit field authorizes the evaluator to treat
+# three slots as actor, action, and receiver when detecting passive reversals.
+ActorActionReceiverSlotIds = list[str]
+
+# Literal aliases are appropriate when the answer must contain a particular
+# fact. Open language work can instead rely on the strict, traceable rubric.
+SemanticEvidencePolicy = Literal["literal_aliases", "traceable_rubric"]
+
 LiveEpisodeKind = Literal[
     "meaning_encounter",
     "comprehension_studio",
@@ -90,6 +99,16 @@ LiveCoverageTreatment = Literal[
     "optional_creative",
     "offline_group_activity",
 ]
+
+
+_PRODUCTIVE_SKILL_PREFIXES = ("writing.", "speaking.", "oral.")
+
+
+def _is_productive_skill(skill_id: str) -> bool:
+    lowered = skill_id.casefold()
+    return lowered.startswith(_PRODUCTIVE_SKILL_PREFIXES) or (
+        ".production" in lowered or lowered.endswith("_production")
+    )
 
 
 class LiveSourceAnchor(BaseModel):
@@ -274,6 +293,12 @@ class LiveChapterActivity(BaseModel):
     answer_rule: LiveDeterministicAnswerRule | None = None
     evaluation_mode: Literal["llm_rubric"] | None = None
     semantic_validator_id: SchoolOpenSemanticValidatorId | None = None
+    actor_action_receiver_slot_ids: ActorActionReceiverSlotIds | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+    )
+    semantic_evidence_policy: SemanticEvidencePolicy | None = None
     preflight_rule: str | None = None
     pass_score: float | None = Field(default=None, ge=0.0, le=1.0)
     rubric_criteria: list[LiveRubricCriterion] | None = None
@@ -301,6 +326,9 @@ class LiveChapterActivity(BaseModel):
     criterion_misconception_tags: dict[str, list[str]] | None = None
     relevance_terms: list[str] | None = None
     model_answer: str | None = None
+    # Author-only phrasing for a correct response. It is copied into the
+    # server-side activity state and never included in the public activity.
+    success_feedback: str | None = None
 
     @field_validator("teaching_block", "passage", "prompt")
     @classmethod
@@ -316,6 +344,7 @@ class LiveChapterActivity(BaseModel):
         "pool_id",
         "variant_id",
         "model_answer",
+        "success_feedback",
         mode="before",
     )
     @classmethod
@@ -420,6 +449,33 @@ class LiveChapterActivity(BaseModel):
             raise ValueError(
                 "semantic_validator_requires_strict_open_rubric"
             )
+        if (
+            self.actor_action_receiver_slot_ids is not None
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError(
+                "actor_action_receiver_slots_require_strict_open_rubric"
+            )
+        if (
+            self.semantic_evidence_policy == "traceable_rubric"
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError("traceable_rubric_requires_strict_open_rubric")
+        if self.semantic_evidence_policy == "traceable_rubric" and (
+            self.semantic_validator_id is not None
+            or self.actor_action_receiver_slot_ids is not None
+            or self.ordered_concept_slot_ids is not None
+        ):
+            raise ValueError("traceable_rubric_forbids_structured_semantic_guards")
+        if self.actor_action_receiver_slot_ids is not None:
+            if (
+                self.ordered_concept_slot_ids is None
+                or self.ordered_concept_slot_ids[:3]
+                != self.actor_action_receiver_slot_ids
+            ):
+                raise ValueError(
+                    "actor_action_receiver_slots_require_ordered_prefix"
+                )
         if self.grading_mode == "ordered_slots" and self.answer_rule is None:
             self.answer_rule = "concept_slots"
         if (
@@ -448,6 +504,22 @@ class LiveChapterActivity(BaseModel):
                 raise ValueError("incomplete_live_activity_v2_contract")
         elif self.schema_version is not None:
             raise ValueError("empty_live_activity_v2_contract")
+        productive_components = sorted(
+            skill_id
+            for skill_id in self.knowledge_components or ()
+            if _is_productive_skill(skill_id)
+        )
+        if self.grading_mode == "selected_option" and productive_components:
+            raise ValueError(
+                "selected_option_cannot_evidence_productive_skill:"
+                + ",".join(productive_components)
+            )
+        if (
+            self.schema_version == "school-activity-v2"
+            and self.knowledge_components == []
+            and self.evidence_role not in {"experience", "formative", "reflection"}
+        ):
+            raise ValueError("empty_activity_skills_require_non_evidentiary_role")
         if self.evidence_role == "certifying":
             if self.certifying_language != "en":
                 raise ValueError("certifying_activity_requires_english")
@@ -674,6 +746,12 @@ class LiveChapterAssessmentItem(BaseModel):
     answer_rule: LiveDeterministicAnswerRule | None = None
     evaluation_mode: Literal["llm_rubric"] | None = None
     semantic_validator_id: SchoolOpenSemanticValidatorId | None = None
+    actor_action_receiver_slot_ids: ActorActionReceiverSlotIds | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+    )
+    semantic_evidence_policy: SemanticEvidencePolicy | None = None
     preflight_rule: str | None = None
     pass_score: float | None = Field(default=None, ge=0.0, le=1.0)
     rubric_criteria: list[LiveRubricCriterion] | None = None
@@ -803,6 +881,33 @@ class LiveChapterAssessmentItem(BaseModel):
             raise ValueError(
                 "semantic_validator_requires_strict_open_rubric"
             )
+        if (
+            self.actor_action_receiver_slot_ids is not None
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError(
+                "actor_action_receiver_slots_require_strict_open_rubric"
+            )
+        if (
+            self.semantic_evidence_policy == "traceable_rubric"
+            and self.grading_mode != "strict_open_rubric"
+        ):
+            raise ValueError("traceable_rubric_requires_strict_open_rubric")
+        if self.semantic_evidence_policy == "traceable_rubric" and (
+            self.semantic_validator_id is not None
+            or self.actor_action_receiver_slot_ids is not None
+            or self.ordered_concept_slot_ids is not None
+        ):
+            raise ValueError("traceable_rubric_forbids_structured_semantic_guards")
+        if self.actor_action_receiver_slot_ids is not None:
+            if (
+                self.ordered_concept_slot_ids is None
+                or self.ordered_concept_slot_ids[:3]
+                != self.actor_action_receiver_slot_ids
+            ):
+                raise ValueError(
+                    "actor_action_receiver_slots_require_ordered_prefix"
+                )
         if self.grading_mode == "ordered_slots" and self.answer_rule is None:
             self.answer_rule = "concept_slots"
         if (
@@ -812,6 +917,16 @@ class LiveChapterAssessmentItem(BaseModel):
             self.evaluation_mode = "llm_rubric"
         if 0 < len(self.options) < 2:
             raise ValueError("live_assessment_item_options_require_two")
+        productive_skills = sorted(
+            skill_id
+            for skill_id in self.skill_ids
+            if _is_productive_skill(skill_id)
+        )
+        if self.grading_mode == "selected_option" and productive_skills:
+            raise ValueError(
+                "selected_option_cannot_evidence_productive_skill:"
+                + ",".join(productive_skills)
+            )
         has_concept_fields = (
             self.concept_slots is not None
             or self.forbidden_phrases is not None

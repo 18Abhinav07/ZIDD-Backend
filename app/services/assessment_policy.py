@@ -9,6 +9,7 @@ from app.ai.schemas import AssessmentTurnCall, DirectorDecision
 from app.content.task_types import TaskType
 from app.services.assessment_events import append_validity_flag
 from app.services.assessment_validity import (
+    approved_gd_fact_texts,
     available_debater_names,
     explicit_requested_speaker_id,
     first_debater,
@@ -16,6 +17,8 @@ from app.services.assessment_validity import (
     gd_panelist_evaluative_praise_text,
     gd_panelist_formulaic_meta_text,
     gd_panelist_paraphrase_only_text,
+    gd_panelist_unverified_external_claim,
+    gd_unseen_prior_speaker_reference,
     interview_model_answer_leak,
     low_confidence_persona_request,
     moderator_persona,
@@ -35,6 +38,7 @@ class AuthorizedAssessmentTurn:
     text: str
     scorable: bool
     repaired: bool
+    visible_response_repaired: bool
     flags: list[dict[str, Any]]
     analysis: dict[str, Any]
 
@@ -138,50 +142,6 @@ def _safe_gd_action_intent(
     )
 
 
-def _requested_gd_fallback_text(
-    state: dict[str, Any],
-    plan: dict[str, Any],
-    persona: dict[str, Any],
-    question: str,
-) -> str:
-    focus = " ".join(str(question or "").split()).strip().rstrip("?.!")[:180]
-    if not focus:
-        return gd_persona_fallback_text(
-            _active_topic(state, plan),
-            str(persona.get("speaker_id") or ""),
-            str(persona.get("role_type") or ""),
-        )
-    topic = _active_topic(state, plan)
-    role = str(persona.get("role_type") or "").lower()
-    speaker_id = str(persona.get("speaker_id") or "")
-    if "analyst" in role or speaker_id == "data_driven_analyst":
-        answer = (
-            "I would compare the claimed outcome with a defined control group, then set a "
-            "decision threshold that pauses the policy when the result worsens."
-        )
-    elif "builder" in role or speaker_id == "consensus_builder":
-        answer = (
-            "the workable middle path needs a named owner, a clear rule, and a trigger that "
-            "changes or stops the policy when the safeguard fails."
-        )
-    elif "challenger" in role or speaker_id in {"aggressive_challenger", "devils_advocate"}:
-        answer = (
-            "the strongest practical risk is that the safeguard becomes a checkbox while the "
-            "underlying failure continues without a clear accountable owner."
-        )
-    elif "expert" in role or speaker_id == "quiet_expert":
-        answer = (
-            "the deciding issue is the operating mechanism: who observes the failure, what "
-            "evidence they use, and what action follows."
-        )
-    else:
-        answer = (
-            "the answer needs one concrete mechanism, one accountable actor, and one observable "
-            "condition for changing course."
-        )
-    return f'Regarding "{focus}" on {topic}, {answer}'
-
-
 def _response_text_or_fallback(
     state: dict[str, Any],
     plan: dict[str, Any],
@@ -195,13 +155,6 @@ def _response_text_or_fallback(
             return selected
         role = str(plan.get("role") or "this role").strip()
         return f"Tell me about one specific example from your work that shows ownership for {role}."
-    if requested_question:
-        return _requested_gd_fallback_text(
-            state,
-            plan,
-            persona,
-            requested_question,
-        )
     topic = _active_topic(state, plan)
     role = str(persona.get("role_type") or "").lower()
     speaker_id = str(persona.get("speaker_id") or "")
@@ -579,17 +532,32 @@ def _repair_interview_analysis_grounding(
             analysis["criteria_source"] = analysis.get("criteria_source") or "backend_probe_contract"
             repaired = True
         excerpts = _interview_evidence_excerpts(latest)
-        evidence = [
+        model_evidence = [
             " ".join(str(value).split())
             for value in analysis.get("evidence_points") or []
             if str(value).strip() and _interview_evidence_is_grounded(str(value), latest)
         ]
+        evidence = list(model_evidence)
+        if not model_evidence and latest:
+            flag = append_validity_flag(
+                state,
+                "interview_missing_evidence_repaired",
+                "The assessment model omitted grounded evidence, so the backend attached excerpts from the learner's latest answer.",
+                severity="partial",
+                target_speaker_id=expected_probe_id,
+            )
+            flags.append(flag)
+            repaired = True
         for excerpt in excerpts:
             if not any(excerpt in item or item in excerpt for item in evidence):
                 evidence.append(excerpt)
         if evidence != list(analysis.get("evidence_points") or []):
             analysis["evidence_points"] = evidence[-3:]
-            analysis["evidence_source"] = "model_plus_latest_learner_turn"
+            analysis["evidence_source"] = (
+                "model_plus_latest_learner_turn"
+                if model_evidence
+                else "latest_learner_turn"
+            )
             repaired = True
         if float(analysis.get("quality_score") or 0.0) <= 0.0:
             grounded_quality = _derived_interview_quality(latest, signals, analysis)
@@ -651,6 +619,7 @@ def authorize_assessment_turn(
     analysis = turn_call.analysis.model_dump()
     action = turn_call.next_action
     visible = turn_call.visible_response
+    original_visible_text = str(visible.text or "").strip()
     flags: list[dict[str, Any]] = []
     repaired = False
     roster = roster_by_id(plan)
@@ -836,6 +805,62 @@ def authorize_assessment_turn(
         )
         repaired = True
 
+    if (
+        plan.get("mode") == TaskType.GD_TEST.value
+        and gd_panelist_unverified_external_claim(
+            text,
+            learner_text=_latest_learner_text(state),
+            approved_facts=approved_gd_fact_texts(plan, state.get("scenario_config") or {}),
+        )
+    ):
+        flag = append_validity_flag(
+            state,
+            "gd_panelist_unverified_external_claim_repaired",
+            "A GD panelist introduced an unsupported external empirical claim, so the backend replaced the response.",
+            severity="partial",
+            speaker_id=persona.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+
+    unseen = (
+        gd_unseen_prior_speaker_reference(
+            state,
+            text,
+            list(roster.values()),
+            str(persona.get("speaker_id") or ""),
+        )
+        if plan.get("mode") == TaskType.GD_TEST.value
+        else None
+    )
+    if unseen:
+        flag = append_validity_flag(
+            state,
+            "hidden_speaker_reference",
+            (
+                f"{persona.get('name') or persona.get('speaker_id')} referenced "
+                f"{unseen.get('name') or unseen.get('speaker_id')} as if they had "
+                "already spoken visibly."
+            ),
+            severity="invalid",
+            speaker_id=persona.get("speaker_id"),
+            target_speaker_id=unseen.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+
     declared_new_contribution = (
         str(visible.new_contribution or "").strip()
         if text == str(visible.text or "").strip()
@@ -854,6 +879,23 @@ def authorize_assessment_turn(
         persona_role == "moderator"
         or "moderator" in str(persona.get("speaker_id") or "").lower()
     )
+    if plan.get("mode") == TaskType.GD_TEST.value and gd_panelist_ask_only_text(text, persona):
+        flag = append_validity_flag(
+            state,
+            "gd_panelist_ask_only_repaired",
+            "A GD panelist asked only a question instead of contributing to the discussion, so the backend replaced the response.",
+            severity="partial",
+            speaker_id=persona.get("speaker_id"),
+        )
+        flags.append(flag)
+        text = _response_text_or_fallback(
+            state,
+            plan,
+            persona,
+            requested_question=requested_question_for_persona,
+        )
+        repaired = True
+        declared_new_contribution = ""
     if (
         plan.get("mode") == TaskType.GD_TEST.value
         and is_gd_panelist
@@ -913,23 +955,6 @@ def authorize_assessment_turn(
             state,
             "gd_panelist_paraphrase_repaired",
             "A GD panelist repeated the learner's point without adding a new discussion move, so the backend replaced the response.",
-            severity="partial",
-            speaker_id=persona.get("speaker_id"),
-        )
-        flags.append(flag)
-        text = _response_text_or_fallback(
-            state,
-            plan,
-            persona,
-            requested_question=requested_question_for_persona,
-        )
-        repaired = True
-
-    if plan.get("mode") == TaskType.GD_TEST.value and gd_panelist_ask_only_text(text, persona):
-        flag = append_validity_flag(
-            state,
-            "gd_panelist_ask_only_repaired",
-            "A GD panelist asked only a question instead of contributing to the discussion, so the backend replaced the response.",
             severity="partial",
             speaker_id=persona.get("speaker_id"),
         )
@@ -1026,6 +1051,10 @@ def authorize_assessment_turn(
         text=text,
         scorable=scorable,
         repaired=repaired,
+        visible_response_repaired=(
+            text != original_visible_text
+            or str(persona.get("speaker_id") or "") != visible_speaker_id
+        ),
         flags=flags,
         analysis=analysis,
     )

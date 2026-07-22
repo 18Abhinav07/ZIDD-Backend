@@ -58,10 +58,17 @@ def build_placement_report(
         placement_status = "below_target"
         unlock_state = "recap_required"
         allowed_next_actions = ["start_recap"]
-    else:
+    elif effective_status == "target_ready":
         placement_status = "target_ready"
         unlock_state = "target_unlocked"
         allowed_next_actions = ["start_curriculum"]
+    else:
+        # A forward-incompatible or malformed terminal value is not evidence
+        # that a learner can begin the target class. Preserve the raw session
+        # for audit, but make the public navigation fail closed.
+        placement_status = "insufficient_evidence"
+        unlock_state = "locked"
+        allowed_next_actions = ["start_placement"]
 
     evaluated_class_no = _evaluated_class_no(
         state=state,
@@ -93,8 +100,23 @@ def build_placement_report(
         placement_status=placement_status,
         evaluated_class_no=evaluated_class_no,
     )
-    learner_summary = _learner_summary(placement_status, evaluated_class_no, state.class_no)
-    parent_summary = _parent_summary(placement_status, evidence_summary, modules)
+    deviation_note = _deviation_note(
+        placement_status=placement_status,
+        target_class_no=state.class_no,
+        watchlist_skills=watchlist_skills,
+    )
+    learner_summary = _learner_summary(
+        placement_status,
+        evaluated_class_no,
+        state.class_no,
+        has_watchlist=bool(watchlist_skills),
+    )
+    parent_summary = _parent_summary(
+        placement_status,
+        evidence_summary,
+        modules,
+        has_watchlist=bool(watchlist_skills),
+    )
 
     return {
         "report_id": report_id or str(uuid4()),
@@ -109,6 +131,7 @@ def build_placement_report(
         "unlock_state": unlock_state,
         "blocking_skills": blocking_skills,
         "watchlist_skills": watchlist_skills,
+        "deviation_note": deviation_note,
         "evidence_summary": evidence_summary,
         "recommended_recap_modules": modules,
         "learner_summary": learner_summary,
@@ -137,6 +160,14 @@ def public_placement_report(
         "unlock_state": row["unlock_state"],
         "blocking_skills": list(row.get("blocking_skills") or []),
         "watchlist_skills": list(row.get("watchlist_skills") or []),
+        "deviation_note": str(
+            row.get("deviation_note")
+            or _deviation_note(
+                placement_status=str(row.get("placement_status") or ""),
+                target_class_no=int(row.get("target_class_no") or 0),
+                watchlist_skills=list(row.get("watchlist_skills") or []),
+            )
+        ),
         "evidence_summary": dict(row.get("evidence_summary") or {}),
         "track_verdicts": list(
             (row.get("evidence_summary") or {}).get("track_verdicts") or []
@@ -430,8 +461,15 @@ def _learner_summary(
     placement_status: str,
     evaluated_class_no: int | None,
     target_class_no: int,
+    *,
+    has_watchlist: bool,
 ) -> str:
     if placement_status == "target_ready":
+        if has_watchlist:
+            return (
+                f"You can begin Class {target_class_no} now. We will keep a few "
+                "skills in view and check them again during lessons."
+            )
         return "You are ready to begin your target class chapters."
     if placement_status == "abandoned":
         return "Your readiness check stopped before a starting point was decided."
@@ -452,8 +490,15 @@ def _parent_summary(
     placement_status: str,
     evidence_summary: dict[str, Any],
     modules: list[dict[str, Any]],
+    *,
+    has_watchlist: bool,
 ) -> str:
     if placement_status == "target_ready":
+        if has_watchlist:
+            return (
+                "No prerequisite gap was confirmed, so target-class teaching can "
+                "begin now. Zidd will recheck the listed watchlist skills during lessons."
+            )
         return "Placement evidence shows the learner can start target-class work."
     if placement_status == "abandoned":
         return "The readiness check ended before enough evidence was collected to set a learning path."
@@ -462,6 +507,20 @@ def _parent_summary(
     return (
         f"Across {evidence_summary['total_attempts']} placement checks, Zidd found "
         f"{len(modules)} foundation areas to rebuild before regular chapter teaching."
+    )
+
+
+def _deviation_note(
+    *,
+    placement_status: str,
+    target_class_no: int,
+    watchlist_skills: list[dict[str, Any]],
+) -> str:
+    if placement_status != "target_ready" or not watchlist_skills:
+        return ""
+    return (
+        f"Class {target_class_no} is open now. Zidd did not confirm every skill "
+        "in this short check, so the watchlist will be checked again during lessons."
     )
 
 

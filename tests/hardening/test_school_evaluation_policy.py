@@ -10,11 +10,12 @@ def test_cloud_school_evaluation_policy_acknowledges_fast_and_finishes_async():
 
     assert policy.browser_ack_timeout_seconds == 2.0
     assert policy.inline_evaluation_timeout_seconds == 6.0
-    assert policy.worker_evaluation_timeout_seconds == 30.0
-    assert policy.max_worker_attempts == 2
+    assert policy.worker_evaluation_timeout_seconds == 12.0
+    assert policy.worker_stall_timeout_seconds is None
+    assert policy.max_worker_attempts == 1
 
 
-def test_local_school_evaluation_policy_never_cuts_off_qwen_worker():
+def test_local_school_evaluation_policy_has_no_normal_qwen_timeout_but_a_stall_guard():
     policy = evaluation_policy.school_evaluation_policy(
         SimpleNamespace(ai_backend="local")
     )
@@ -22,3 +23,4 @@ def test_local_school_evaluation_policy_never_cuts_off_qwen_worker():
     assert policy.browser_ack_timeout_seconds == 2.0
     assert policy.inline_evaluation_timeout_seconds is None
     assert policy.worker_evaluation_timeout_seconds is None
+    assert policy.worker_stall_timeout_seconds == 10 * 60

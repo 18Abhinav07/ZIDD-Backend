@@ -14,6 +14,7 @@ from app.db import repo as db_repo
 from app.main import app
 from app.services import school_rebuild_placement as placement
 from app.services import school_rebuild_state as school_state_service
+from app.services.school import evaluation_jobs
 from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 
 AUTH = {"Authorization": "Bearer test_token"}
@@ -83,9 +84,7 @@ def _assert_no_hidden_keys(payload: Any) -> None:
 
 
 def _stub_failing_open_placement_evaluator(monkeypatch) -> None:
-    async def evaluate(**kwargs):
-        activity = kwargs["activity"]
-        answer = kwargs["answer"]
+    async def evaluate(activity, answer, **_kwargs):
         return {
             "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
             "item_id": activity["activity_id"],
@@ -113,6 +112,40 @@ def _stub_failing_open_placement_evaluator(monkeypatch) -> None:
         "_evaluate_school_open_answer_with_claim_heartbeat",
         evaluate,
     )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "evaluate_school_open_answer",
+        evaluate,
+    )
+
+
+def _answer_and_settle_placement(
+    *,
+    client: TestClient,
+    store,
+    session_id: str,
+    item_id: str,
+    answer: str,
+):
+    response = client.post(
+        f"/school/placement/{session_id}/answer",
+        headers=AUTH,
+        json={"item_id": item_id, "answer": answer},
+    )
+    if response.status_code == 202:
+        assert _run(
+            evaluation_jobs.run_one_school_evaluation_job(
+                store=store,
+                processor=school_rebuild_routes.process_school_evaluation_job,
+                max_attempts=2,
+            )
+        ) is True
+        response = client.get(
+            f"/school/placement/{session_id}",
+            headers=AUTH,
+        )
+    assert response.status_code == 200, response.text
+    return response
 
 
 def _stub_passing_open_placement_evaluator(monkeypatch) -> None:
@@ -455,7 +488,7 @@ def test_school_state_resumes_active_placement_after_start(store):
     assert state["unlock_state"] == "locked"
 
 
-def test_school_state_unlocks_an_actionable_watchlist_after_time_capped_evidence():
+def test_school_state_resumes_time_capped_uncertainty_from_the_same_placement():
     profile_version_id = str(uuid4())
     school_profile = {
         **_profile_payload(target_class_no=5, prior_difficulty_signals=[]),
@@ -471,7 +504,7 @@ def test_school_state_unlocks_an_actionable_watchlist_after_time_capped_evidence
         evaluator_confidence=0.9,
         elapsed_seconds_delta=placement.PLACEMENT_LEARNER_TIME_BUDGET_SECONDS,
     )
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
 
     placement_session_id = str(uuid4())
     state = school_state_service.school_state_for_profile(
@@ -479,22 +512,26 @@ def test_school_state_unlocks_an_actionable_watchlist_after_time_capped_evidence
         school_profile=school_profile,
         placement_session={
             "session_id": placement_session_id,
-            "status": "target_ready",
+            "status": "insufficient_evidence",
             "state_json": placement.envelope_to_json(envelope),
         },
         placement_report={
             "placement_session_id": placement_session_id,
-            "placement_status": "target_ready",
-            "unlock_state": "target_unlocked",
-            "evaluated_class_no": 4,
-            "allowed_next_actions": ["start_curriculum"],
+            "placement_status": "insufficient_evidence",
+            "unlock_state": "locked",
+            "evaluated_class_no": None,
+            "allowed_next_actions": ["start_placement"],
         },
     )
 
-    assert state["unlock_state"] == "target_unlocked"
-    assert state["next_action"] == "start_curriculum"
-    assert state["allowed_next_actions"] == ["start_curriculum"]
-    assert state["next_action_url"] == "/school/classes/5"
+    assert state["placement_status"] == "insufficient_evidence"
+    assert state["unlock_state"] == "locked"
+    # The persisted envelope contains the unanswered diagnostic work. Its
+    # resumability is canonical; the historical report's stale start action
+    # must never discard that evidence by starting a new placement.
+    assert state["next_action"] == "resume_placement"
+    assert state["allowed_next_actions"] == ["resume_placement"]
+    assert state["next_action_url"] == f"/school/readiness/{placement_session_id}"
 
 
 def test_school_placement_answer_persists_progress_and_rejects_wrong_item(store):
@@ -541,6 +578,47 @@ def test_school_placement_answer_persists_progress_and_rejects_wrong_item(store)
     assert event["evidence_json"]["evaluation_evidence"]["criteria"]
     assert "answer_key" not in repr(event["evidence_json"])
     _assert_no_hidden_keys(body)
+
+
+def test_school_placement_answer_uses_bundled_context_when_storage_supports_it(
+    store,
+    monkeypatch,
+):
+    """Production storage can load the answer preflight in one pooled session."""
+
+    _seed_school_profile(store)
+    client = TestClient(app)
+    started = client.post("/school/placement/start", headers=AUTH).json()
+    calls: list[tuple[str, str, str]] = []
+
+    async def bundled_context(*, user_id: str, session_id: str, activity_id: str):
+        calls.append((user_id, session_id, activity_id))
+        return {
+            "learner_profile": await store.get_profile(user_id),
+            "active_profile": await store.get_active_school_profile_version(user_id),
+            "school_session": await store.get_school_session(user_id, session_id),
+            "answer_request": await store.get_school_answer_request(
+                user_id,
+                session_id,
+                activity_id,
+            ),
+        }
+
+    monkeypatch.setattr(
+        store,
+        "get_school_placement_answer_context",
+        bundled_context,
+        raising=False,
+    )
+
+    response = client.post(
+        f"/school/placement/{started['session_id']}/answer",
+        headers=AUTH,
+        json={"item_id": started["next_item"]["item_id"], "answer": "mat"},
+    )
+
+    assert response.status_code == 200
+    assert calls == [("test_user", started["session_id"], started["next_item"]["item_id"])]
 
 
 def test_placement_learning_event_bounds_the_exact_learner_response(store):
@@ -700,12 +778,13 @@ def test_school_placement_weak_snapshot_routes_to_targeted_diagnostic(store, mon
 
     for _ in range(8):
         item = current["next_item"]
-        response = client.post(
-            f"/school/placement/{session_id}/answer",
-            headers=AUTH,
-            json={"item_id": item["item_id"], "answer": "wrong"},
+        response = _answer_and_settle_placement(
+            client=client,
+            store=store,
+            session_id=session_id,
+            item_id=item["item_id"],
+            answer="wrong",
         )
-        assert response.status_code == 200
         current = response.json()
         if current["stage"] == "targeted_diagnostic":
             break
@@ -730,12 +809,13 @@ def test_school_placement_exhausted_weak_bank_starts_earliest_supported_recap(
         item = current["next_item"]
         if item is None:
             break
-        response = client.post(
-            f"/school/placement/{session_id}/answer",
-            headers=AUTH,
-            json={"item_id": item["item_id"], "answer": "wrong"},
+        response = _answer_and_settle_placement(
+            client=client,
+            store=store,
+            session_id=session_id,
+            item_id=item["item_id"],
+            answer="wrong",
         )
-        assert response.status_code == 200
         current = response.json()
 
     assert current["next_item"] is None
@@ -765,12 +845,13 @@ def test_terminal_floor_failure_creates_idempotent_recap_report_backed_state(
         if item is None:
             break
         terminal_payload = {"item_id": item["item_id"], "answer": "wrong"}
-        response = client.post(
-            f"/school/placement/{session_id}/answer",
-            headers=AUTH,
-            json=terminal_payload,
+        response = _answer_and_settle_placement(
+            client=client,
+            store=store,
+            session_id=session_id,
+            item_id=terminal_payload["item_id"],
+            answer=terminal_payload["answer"],
         )
-        assert response.status_code == 200
         current = response.json()
 
     assert current["status"] == "below_target"
@@ -820,7 +901,7 @@ def test_terminal_floor_failure_creates_idempotent_recap_report_backed_state(
     _assert_no_hidden_keys(first_report.json())
 
 
-def test_evidence_shortfall_creates_an_unlocked_watchlist_report(store, monkeypatch):
+def test_evidence_shortfall_creates_a_locked_insufficient_evidence_report(store, monkeypatch):
     _stub_failing_open_placement_evaluator(monkeypatch)
     _seed_school_profile(store, signals=["reading"])
     monkeypatch.setattr(placement, "MIN_SCORABLE_FOR_TERMINAL_PLACEMENT", 999)
@@ -832,29 +913,30 @@ def test_evidence_shortfall_creates_an_unlocked_watchlist_report(store, monkeypa
         item = current["next_item"]
         if item is None:
             break
-        response = client.post(
-            f"/school/placement/{session_id}/answer",
-            headers=AUTH,
-            json={"item_id": item["item_id"], "answer": "wrong"},
+        response = _answer_and_settle_placement(
+            client=client,
+            store=store,
+            session_id=session_id,
+            item_id=item["item_id"],
+            answer="wrong",
         )
-        assert response.status_code == 200
         current = response.json()
 
-    assert current["status"] == "target_ready"
+    assert current["status"] == "insufficient_evidence"
     assert len(store.school_placement_reports) == 1
     report = next(iter(store.school_placement_reports.values()))
-    assert report["placement_status"] == "target_ready"
-    assert report["unlock_state"] == "target_unlocked"
-    assert report["allowed_next_actions"] == ["start_curriculum"]
+    assert report["placement_status"] == "insufficient_evidence"
+    assert report["unlock_state"] == "locked"
+    assert report["allowed_next_actions"] == ["resume_placement"]
     assert report["evidence_summary"]["track_verdicts"]
 
     state = client.get("/school/state", headers=AUTH).json()
-    assert state["placement_status"] == "target_ready"
-    assert state["unlock_state"] == "target_unlocked"
-    assert state["active_flow"] == "curriculum"
-    assert state["next_action"] == "start_curriculum"
-    assert state["next_action_url"] == "/school/classes/3"
-    assert state["allowed_next_actions"] == ["start_curriculum"]
+    assert state["placement_status"] == "insufficient_evidence"
+    assert state["unlock_state"] == "locked"
+    assert state["active_flow"] == "placement"
+    assert state["next_action"] == "resume_placement"
+    assert state["next_action_url"] == f"/school/readiness/{session_id}"
+    assert state["allowed_next_actions"] == ["resume_placement"]
     _assert_no_hidden_keys(report)
     _assert_no_hidden_keys(state)
 
@@ -1218,7 +1300,7 @@ def test_mixed_snapshot_queues_only_weak_and_ambiguous_tracks_for_stage_two():
     assert placement.next_item(envelope).track_id in set(snapshot_track_ids[-2:])
 
 
-def test_stage_two_caps_at_four_and_nonblocking_uncertainty_unlocks_with_a_watchlist():
+def test_stage_two_caps_at_four_and_nonblocking_uncertainty_unlocks_target_with_watchlist():
     envelope = placement.new_placement_envelope(_pure_profile())
     snapshot_track_ids = tuple(envelope.state.track_states)
 
@@ -1245,6 +1327,7 @@ def test_stage_two_caps_at_four_and_nonblocking_uncertainty_unlocks_with_a_watch
         for track in envelope.state.track_states.values()
     ]
     assert all(track.evidence for track in envelope.state.track_states.values())
+    assert envelope.state.readiness_seeds_applied is False
 
 
 def test_stage_two_binary_search_descends_then_narrows_up_with_arbitrary_authored_bands(monkeypatch):
@@ -1306,7 +1389,7 @@ def test_missing_same_track_item_never_falls_back_to_an_unrelated_track(monkeypa
         envelope = _apply_score(envelope, 1.0)
 
     assert placement.next_item(envelope) is None
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert envelope.state.track_states[missing.track_id].status == "unresolved"
     assert envelope.state.track_states[missing.track_id].unresolved_reason == "missing_authored_same_track_item"
     assert missing.primary_skill_id in placement.readiness_summary(

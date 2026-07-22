@@ -3439,7 +3439,7 @@ MANIFEST = json.loads(r'''{
             "captains",
             "checking dispute"
           ],
-          "model_answer": "They are likely checking a disputed rule before play and scoring continue.",
+          "model_answer": "They are likely checking a disputed rule because the team is studying the rulebook while the scoreboard is paused.",
           "pass_score": 0.8
         },
         {
@@ -6563,7 +6563,7 @@ MANIFEST = json.loads(r'''{
           "make consistent",
           "correct entry"
         ],
-        "model_answer": "The treasurer reconciled the two lists by finding and correcting the missing entry.",
+        "model_answer": "The treasurer will reconcile the two lists by finding and correcting the missing entry so they become consistent.",
         "pass_score": 0.8
       },
       {
@@ -8577,8 +8577,8 @@ _LAUNCH_VARIANTS = {
                 "You are Dev. At a neighbourhood garden meeting, adults accepted your idea for a low tool rack that children can reach. Write to your cousin Nila about the event, your feeling, and why the change matters.",
                 "Write a friendly first-person message with a greeting, one developed paragraph, and a correctly punctuated close.",
                 "Dear Nila,\n\nYesterday I spoke at our garden meeting and suggested a low rack for children's tools. I felt proud when the group accepted the idea because younger helpers will be able to return tools safely without climbing. I hope you can visit when the rack is ready.\n\nYour cousin,\nDev",
-                ("message", "Includes the event, feeling, reason, and invitation in first person.", "I felt proud when the group accepted the idea because younger helpers will be able to return tools safely without climbing"),
                 ("format", "Uses a greeting and correctly punctuated friendly close.", "Dear Nila", "Your cousin,\nDev"),
+                ("message", "Includes the event, feeling, reason, and invitation in first person.", "I felt proud when the group accepted the idea because younger helpers will be able to return tools safely without climbing"),
                 skills=["grammar.punctuation_capitalization", "writing.friendly_message", "writing.paragraph"],
                 interaction="paragraph_text",
                 min_words=43,
@@ -8590,8 +8590,8 @@ _LAUNCH_VARIANTS = {
                 "You are Sana. The local library added an early Saturday hour after families requested a quieter time for young readers. Write to your friend Isha about the change and invite her to join you.",
                 "Create a warm first-person message with a clear reason, complete paragraph, greeting, and close.",
                 "Dear Isha,\n\nOur library will now open one hour earlier on Saturdays after families asked for a quieter reading time. I am excited because we can choose books before the room becomes busy. Would you like to meet me there this Saturday?\n\nYour friend,\nSana",
-                ("content", "Explains the change, feeling, reason, and invitation.", "I am excited because we can choose books before the room becomes busy. Would you like to meet me there this Saturday?"),
                 ("format", "Uses correctly capitalized greeting and friendly close.", "Dear Isha", "Your friend,\nSana"),
+                ("content", "Explains the change, feeling, reason, and invitation.", "I am excited because we can choose books before the room becomes busy. Would you like to meet me there this Saturday?"),
                 skills=["grammar.punctuation_capitalization", "writing.friendly_message", "writing.paragraph"],
                 interaction="paragraph_text",
                 min_words=41,
@@ -8601,8 +8601,8 @@ _LAUNCH_VARIANTS = {
                 "You are Kunal. Workers repaired the uneven footpath near your grandfather's home and added a handrail beside the steep part. Write to him about what you noticed and how the change may help.",
                 "Write a respectful friendly message in first person with one connected paragraph and correct punctuation.",
                 "Dear Grandpa,\n\nI walked past your lane today and saw that the uneven footpath has been repaired. Workers also added a handrail beside the steep section, so the walk should feel steadier after rain. I am glad the request was heard, and I will visit on Sunday.\n\nWith love,\nKunal",
-                ("content", "Reports both changes and explains a likely benefit.", "Workers also added a handrail beside the steep section, so the walk should feel steadier after rain"),
                 ("format", "Uses a capitalized greeting and punctuated affectionate close.", "Dear Grandpa", "With love,\nKunal"),
+                ("content", "Reports both changes and explains a likely benefit.", "Workers also added a handrail beside the steep section, so the walk should feel steadier after rain"),
                 skills=["grammar.punctuation_capitalization", "writing.friendly_message", "writing.paragraph"],
                 interaction="paragraph_text",
                 min_words=45,

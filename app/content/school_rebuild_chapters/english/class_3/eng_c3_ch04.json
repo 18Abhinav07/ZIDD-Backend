@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "e6eed6b225b56668d17538ec73fa409915d0a64efcbe4ec94047a42e9d35a78b",
+  "runtime_sha256": "f8592c85e50cda914a7c0cdb8601efd7618c8e5aa80a9aa1428a628038054b74",
   "chapter_id": "eng_c3_ch04",
   "chapter_no": 4,
-  "content_version": "2026-07-15.2",
-  "certification_version": "2026-07-15.2",
+  "content_version": "2026-07-15.2.semantic-evidence-v1",
+  "certification_version": "2026-07-15.2.semantic-evidence-v1",
   "title": "Out in the Garden",
   "book_title": "Santoor",
   "unit_title": "Toys and Games",
@@ -11393,7 +11394,8 @@
             "string slackened",
             "wind dropped"
           ],
-          "model_answer": "Slackened means became less tight. New sentence: The kite string slackened when the wind dropped. Key ideas: teams stopped pulling."
+          "model_answer": "Slackened means became less tight. New sentence: The kite string slackened when the wind dropped. Key ideas: teams stopped pulling.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_1": {
           "teaching_block": "Worked example - Practise step one: Card: The child glided across the smooth floor, moving without heavy steps. Answer: Glided means moved smoothly and lightly. New sentence: The paper plane glided across the quiet room. Fix it this way: Find the direction-speed-result clue, write a short meaning, and test a fresh sentence by replacing the target word with that meaning. Use the new card for another case. Try the first step, then answer.",
@@ -11518,7 +11520,8 @@
             "ribbon fluttered",
             "open window"
           ],
-          "model_answer": "Fluttered means moved with small light motions. New sentence: The paper ribbon fluttered beside the open window. Key ideas: in breeze."
+          "model_answer": "Fluttered means moved with small light motions. New sentence: The paper ribbon fluttered beside the open window. Key ideas: in breeze.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_3": {
           "teaching_block": "Worked example - Practise the full method: Card: Mira tugged the kite string with one short, firm pull. Answer: pulled briefly and firmly Fix it this way: Find the direction-speed-result clue, write a short meaning, and test a fresh sentence by replacing the target word with that meaning. Use the new card for another case. Check your full answer.",
@@ -11613,7 +11616,8 @@
             "bicycle slowed",
             "before crossing"
           ],
-          "model_answer": "Slowed means moved at a lower speed. New sentence: The bicycle slowed before the crowded crossing. Key ideas: reduced speed; near marker; before crossing."
+          "model_answer": "Slowed means moved at a lower speed. New sentence: The bicycle slowed before the crowded crossing. Key ideas: reduced speed; near marker; before crossing.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -11706,7 +11710,8 @@
             "lizard darted",
             "beneath bench"
           ],
-          "model_answer": "Darted means moved quickly in a sudden direction. New sentence: A lizard darted beneath the garden bench. Key ideas: quick sudden movement; between cones; beneath bench."
+          "model_answer": "Darted means moved quickly in a sudden direction. New sentence: A lizard darted beneath the garden bench. Key ideas: quick sudden movement; between cones; beneath bench.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -11799,7 +11804,8 @@
             "huddled under awning",
             "during shower"
           ],
-          "model_answer": "Huddled means gathered closely in a small group. New sentence: We huddled under the awning during the shower. Key ideas: huddled under awning; during shower."
+          "model_answer": "Huddled means gathered closely in a small group. New sentence: We huddled under the awning during the shower. Key ideas: huddled under awning; during shower.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -12000,7 +12006,8 @@
                 "plane glided",
                 "across room"
               ],
-              "model_answer": "Glided means moved smoothly and lightly. New sentence: The paper plane glided across the quiet room. Key ideas: without heavy steps; across room."
+              "model_answer": "Glided means moved smoothly and lightly. New sentence: The paper plane glided across the quiet room. Key ideas: without heavy steps; across room.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12097,7 +12104,8 @@
                 "leaf drifted across the puddle",
                 "new use of drifted"
               ],
-              "model_answer": "Drifted means moved slowly without a push. New sentence: A dry leaf drifted across the puddle after the rain. Key ideas: across the pond; new use of drifted."
+              "model_answer": "Drifted means moved slowly without a push. New sentence: A dry leaf drifted across the puddle after the rain. Key ideas: across the pond; new use of drifted.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12194,7 +12202,8 @@
                 "gardener crouched beside the seedling",
                 "new use of crouched"
               ],
-              "model_answer": "Crouched means bent low in a ready position. New sentence: The gardener crouched beside the small seedling. Key ideas: knees ready; gardener crouched beside the seedling; new use of crouched."
+              "model_answer": "Crouched means bent low in a ready position. New sentence: The gardener crouched beside the small seedling. Key ideas: knees ready; gardener crouched beside the seedling; new use of crouched.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -12300,7 +12309,8 @@
                 "lizard darted",
                 "beneath bench"
               ],
-              "model_answer": "Darted means moved quickly in a sudden direction. New sentence: A lizard darted beneath the garden bench. Key ideas: quick sudden movement; between cones; beneath bench."
+              "model_answer": "Darted means moved quickly in a sudden direction. New sentence: A lizard darted beneath the garden bench. Key ideas: quick sudden movement; between cones; beneath bench.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12398,7 +12408,8 @@
                 "table wobbled",
                 "bag touched"
               ],
-              "model_answer": "Wobbled means moved unsteadily from side to side. New sentence: The loose table wobbled when the bag touched it. Key ideas: unsteadily side to side; without falling."
+              "model_answer": "Wobbled means moved unsteadily from side to side. New sentence: The loose table wobbled when the bag touched it. Key ideas: unsteadily side to side; without falling.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12496,7 +12507,8 @@
                 "block tower toppled",
                 "desk shook"
               ],
-              "model_answer": "Toppled means lost balance and fell over. New sentence: The tall block tower toppled when the desk shook. Key ideas: coin fell flat."
+              "model_answer": "Toppled means lost balance and fell over. New sentence: The tall block tower toppled when the desk shook. Key ideas: coin fell flat.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12594,7 +12606,8 @@
                 "Rani scooped wet sand",
                 "into the bucket"
               ],
-              "model_answer": "Scooped means lifted or gathered with a curved hand. New sentence: Rani scooped wet sand into the bucket. Key ideas: lifted with a curved hand; gathered several at once."
+              "model_answer": "Scooped means lifted or gathered with a curved hand. New sentence: Rani scooped wet sand into the bucket. Key ideas: lifted with a curved hand; gathered several at once.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -12700,7 +12713,8 @@
                 "huddled under awning",
                 "during shower"
               ],
-              "model_answer": "Huddled means gathered closely in a small group. New sentence: We huddled under the awning during the shower. Key ideas: huddled under awning; during shower."
+              "model_answer": "Huddled means gathered closely in a small group. New sentence: We huddled under the awning during the shower. Key ideas: huddled under awning; during shower.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12798,7 +12812,8 @@
                 "kite soared",
                 "above trees"
               ],
-              "model_answer": "Soared means rose or moved high through the air. New sentence: The kite soared above the trees in the steady wind. Key ideas: rose high through air; above players; above trees."
+              "model_answer": "Soared means rose or moved high through the air. New sentence: The kite soared above the trees in the steady wind. Key ideas: rose high through air; above players; above trees.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -12896,7 +12911,8 @@
                 "swallows dipped toward the lake",
                 "flew upward again"
               ],
-              "model_answer": "Dipped means moved down briefly. New sentence: The swallows dipped toward the lake and flew upward again. Key ideas: before rising again."
+              "model_answer": "Dipped means moved down briefly. New sentence: The swallows dipped toward the lake and flew upward again. Key ideas: before rising again.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -13072,7 +13088,8 @@
                 "Rafi lunged",
                 "catch book"
               ],
-              "model_answer": "Lunged means moved forward with a sudden long step. New sentence: Rafi lunged to catch the falling book. Key ideas: toward ball; catch book."
+              "model_answer": "Lunged means moved forward with a sudden long step. New sentence: Rafi lunged to catch the falling book. Key ideas: toward ball; catch book.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the given direction, speed, or result clue. Use the focus word in a fresh sentence with the same meaning. Write in complete sentences.",
@@ -13170,7 +13187,8 @@
                 "leaves scattered",
                 "gate opened"
               ],
-              "model_answer": "Scattered means spread out in different directions. New sentence: Dry leaves scattered when the gate opened. Key ideas: spread in different directions; zones called."
+              "model_answer": "Scattered means spread out in different directions. New sentence: Dry leaves scattered when the gate opened. Key ideas: spread in different directions; zones called.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -13869,7 +13887,8 @@
           "rocked unsteadily from side to side",
           "stool wobbled"
         ],
-        "model_answer": "Wobbled means rocked unsteadily from side to side. New sentence: The loose stool wobbled when I touched it."
+        "model_answer": "Wobbled means rocked unsteadily from side to side. New sentence: The loose stool wobbled when I touched it.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch04:assessment:13",
@@ -14524,7 +14543,8 @@
           "turned quickly around a centre",
           "bicycle wheel spun"
         ],
-        "model_answer": "Spun means turned quickly around a centre. New sentence: The bicycle wheel spun as Meera rode downhill."
+        "model_answer": "Spun means turned quickly around a centre. New sentence: The bicycle wheel spun as Meera rode downhill.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch04:assessment:27",
@@ -14640,6 +14660,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

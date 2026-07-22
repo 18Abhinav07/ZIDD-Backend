@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.api import school_rebuild_routes
 from app.main import app
 from app.services import school_rebuild_recap
+from app.services.school import evaluation_jobs
 from app.services.school.evaluator_contract import (
     OPEN_RUBRIC_SCHEMA_VERSION,
     RUBRIC_SCHEMA_VERSION,
@@ -18,9 +19,9 @@ AUTH = {"Authorization": "Bearer test_token"}
 
 @pytest.fixture(autouse=True)
 def _trusted_open_answer_evaluator(monkeypatch):
-    async def evaluate(**kwargs):
-        activity = kwargs["activity"]
-        answer = kwargs["answer"]
+    async def evaluate(*args, **kwargs):
+        activity = kwargs.get("activity") or args[0]
+        answer = kwargs.get("answer") or args[1]
         passed = answer != "wrong"
         return {
             "schema_version": (
@@ -51,6 +52,11 @@ def _trusted_open_answer_evaluator(monkeypatch):
     monkeypatch.setattr(
         school_rebuild_routes,
         "_evaluate_school_open_answer_with_claim_heartbeat",
+        evaluate,
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "evaluate_school_open_answer",
         evaluate,
     )
     monkeypatch.setattr(
@@ -152,9 +158,38 @@ def _correct_answer(activity: dict[str, Any]) -> str:
         return "valid test answer"
 
 
+def _answer_and_settle_recap(
+    *,
+    client: TestClient,
+    store,
+    session_id: str,
+    activity: dict[str, Any],
+):
+    response = client.post(
+        f"/school/recap/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": _correct_answer(activity),
+        },
+    )
+    if response.status_code == 202:
+        assert _run(
+            evaluation_jobs.run_one_school_evaluation_job(
+                store=store,
+                processor=school_rebuild_routes.process_school_evaluation_job,
+                max_attempts=2,
+            )
+        ) is True
+        response = client.get(f"/school/recap/{session_id}", headers=AUTH)
+    assert response.status_code == 200, response.text
+    return response
+
+
 def _complete_recap_success_path(
     client: TestClient,
     *,
+    store,
     complete_placement: bool = True,
 ) -> dict:
     if complete_placement:
@@ -168,15 +203,12 @@ def _complete_recap_success_path(
         guard += 1
         assert guard <= 40
         activity = body["current_activity"]
-        response = client.post(
-            f"/school/recap/{session_id}/answer",
-            headers=AUTH,
-            json={
-                "activity_id": activity["activity_id"],
-                "answer": _correct_answer(activity),
-            },
+        response = _answer_and_settle_recap(
+            client=client,
+            store=store,
+            session_id=session_id,
+            activity=activity,
         )
-        assert response.status_code == 200
         body = response.json()
     return body
 
@@ -196,7 +228,7 @@ def test_school_recap_completion_marks_path_complete_without_leaking_answers(sto
     _seed_school_profile(store)
     client = TestClient(app)
 
-    body = _complete_recap_success_path(client)
+    body = _complete_recap_success_path(client, store=store)
 
     assert body["status"] == "complete"
     assert body["current_activity"] is None
@@ -208,7 +240,7 @@ def test_school_recap_completion_marks_path_complete_without_leaking_answers(sto
 def test_school_state_after_completed_recap_unlocks_target_curriculum(store):
     _seed_school_profile(store)
     client = TestClient(app)
-    recap = _complete_recap_success_path(client)
+    recap = _complete_recap_success_path(client, store=store)
 
     state = client.get("/school/state", headers=AUTH).json()
 
@@ -228,7 +260,7 @@ def test_school_state_after_completed_recap_unlocks_target_curriculum(store):
 def test_get_school_recap_returns_completed_path_after_unlock(store):
     _seed_school_profile(store)
     client = TestClient(app)
-    completed = _complete_recap_success_path(client)
+    completed = _complete_recap_success_path(client, store=store)
 
     response = client.get("/school/recap", headers=AUTH)
 
@@ -244,7 +276,7 @@ def test_get_school_recap_returns_completed_path_after_unlock(store):
 def test_start_school_recap_after_completion_is_idempotent(store):
     _seed_school_profile(store)
     client = TestClient(app)
-    completed = _complete_recap_success_path(client)
+    completed = _complete_recap_success_path(client, store=store)
 
     response = client.post("/school/recap/start", headers=AUTH)
 
@@ -266,7 +298,7 @@ def test_school_curriculum_landing_requires_completed_recap_and_hides_keys(store
     assert locked.status_code == 409
     assert locked.json()["detail"]["code"] == "curriculum_locked"
 
-    _complete_recap_success_path(client, complete_placement=False)
+    _complete_recap_success_path(client, store=store, complete_placement=False)
 
     response = client.get("/school/curriculum", headers=AUTH)
     assert response.status_code == 200

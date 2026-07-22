@@ -1,17 +1,21 @@
 {
   "approval_status": "agent_reviewed",
+  "reviewed_by": "Codex bounded school semantic review",
+  "reviewed_at": "2026-07-21T11:20:00+05:30",
   "review_evidence": [
     "Manifest hash SHA-256: 1292195b7bd46d39de4b40d4f3daa94d040520ba1c12349ba98c2be19cd6997f",
     "Official NCERT section map and source anchors were rechecked; all learner-facing passages, prompts, rubrics, and answers remain original Zidd content.",
     "Chapter-scoped semantic audit split multi-part prompts into independent rubric and concept slots with matching learner guidance.",
     "Journey transfer and assessment authorities were checked against every requested part without changing the six-phase pedagogy contract.",
-    "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch03."
+    "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch03.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit.",
+    "Semantic browser false-negative regressions: the bridge connection criterion accepts the authored equivalent phrase 'connects the reeds with the old fort', and the ribbon review accepts a complete nonliteral image explanation without weakening any required claim."
   ],
-  "runtime_sha256": "049f62dfcbb88dd232357645c57daf06072d168d25f01cd6ca51a3aa7f863140",
+  "runtime_sha256": "8f8b7733bd53c652c8c54619c006a2c8b957f83c98f92d1e7948d6ff580a56c6",
   "chapter_id": "eng_c5_ch03",
   "chapter_no": 3,
-  "content_version": "2026-07-15.5",
-  "certification_version": "2026-07-15.5",
+  "content_version": "2026-07-15.5.semantic-alias-v3",
+  "certification_version": "2026-07-15.5.semantic-alias-v3",
   "title": "The Rainbow",
   "book_title": "Santoor",
   "unit_title": "My Colourful World",
@@ -516,6 +520,7 @@
               "description": "Uses the apparent connection between two places.",
               "any_of": [
                 "connect the reeds",
+                "connects the reeds with the old fort",
                 "joined the reeds and fort"
               ]
             }
@@ -947,6 +952,7 @@
                   "description": "Uses the apparent connection between two places.",
                   "any_of": [
                     "connect the reeds",
+                    "connects the reeds with the old fort",
                     "joined the reeds and fort"
                   ]
                 }
@@ -1500,7 +1506,8 @@
                   "any_of": [
                     "narrow",
                     "colourful",
-                    "stretch between"
+                    "stretch between",
+                    "curved strip and stretched between"
                   ]
                 },
                 {
@@ -1508,7 +1515,8 @@
                   "description": "States that the pinning is an image rather than fact.",
                   "any_of": [
                     "not actually pinned",
-                    "poetic image"
+                    "poetic image",
+                    "not a real ribbon"
                   ]
                 }
               ],
@@ -4914,6 +4922,7 @@
               "variant_id": "rainbow_sound_and_contrast:review:2",
               "response_mode": "paragraph",
               "evaluation_mode": "llm_rubric",
+              "semantic_evidence_policy": "traceable_rubric",
               "preflight_rule": "relevant_english_response",
               "pass_score": 0.8,
               "rubric_criteria": [
@@ -13767,7 +13776,5 @@
         "response_mode": "short"
       }
     ]
-  },
-  "reviewed_by": "Codex bounded school semantic review",
-  "reviewed_at": "2026-07-16T13:45:08+05:30"
+  }
 }

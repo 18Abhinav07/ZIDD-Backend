@@ -1,4 +1,6 @@
 """Pydantic request/response models for the billing API surface."""
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -22,6 +24,11 @@ class BalanceResponse(BaseModel):
     # of falling back to the raw user_id. Empty when the profile has no name.
     name: str = ""
     active_module: str | None = None
+    beta_credits: int = 0
+    paid_credits: int = 0
+    promo_credits: int = 0
+    beta_expires_at: datetime | None = None
+    purchases_enabled: bool = True
 
 
 class QuoteResponse(BaseModel):

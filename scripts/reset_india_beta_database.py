@@ -72,6 +72,11 @@ _TRUNCATE_TABLES = (
     "session_reports",
     "learner_skill_profiles",
     "test_items",
+    # Wallet lots own the balance; delete spends before their lots even though
+    # the final TRUNCATE uses CASCADE. This keeps the reset plan readable and
+    # correct if the statement is ever executed table-by-table in an incident.
+    "credit_lot_spends",
+    "credit_lots",
     "credit_transactions",
     "content_unlocks",
     "purchases",

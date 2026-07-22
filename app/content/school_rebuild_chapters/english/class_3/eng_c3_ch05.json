@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "c05dfb946ed7d97ca8e3f6ef7f60227314b16f8aa3268e067e6e6c400994540b",
+  "runtime_sha256": "155382e815d57a4faf573297e11db671525b538e24b7d46e556637347d920daf",
   "chapter_id": "eng_c3_ch05",
   "chapter_no": 5,
-  "content_version": "2026-07-15.2",
-  "certification_version": "2026-07-15.2",
+  "content_version": "2026-07-15.2.semantic-evidence-v1",
+  "certification_version": "2026-07-15.2.semantic-evidence-v1",
   "title": "Talking Toys",
   "book_title": "Santoor",
   "unit_title": "Toys and Games",
@@ -7755,7 +7756,8 @@
                 "springy toy snake bent",
                 "returned to straight shape"
               ],
-              "model_answer": "Springy is a describing word for the snake. The springy toy snake bent around the peg and returned to its straight shape. Key ideas: bends and returns to shape; returned to straight shape."
+              "model_answer": "Springy is a describing word for the snake. The springy toy snake bent around the peg and returned to its straight shape. Key ideas: bends and returns to shape; returned to straight shape.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Identify or use the toy noun, action verb, and precise adjective. Use the chapter word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -7853,7 +7855,8 @@
                 "faded red wagon looked pale",
                 "near its handle"
               ],
-              "model_answer": "Faded describes the wagon's colour. The faded red wagon looked pale near its well-used handle. Key ideas: faded describes colour; lost some colour; near its handle."
+              "model_answer": "Faded describes the wagon's colour. The faded red wagon looked pale near its well-used handle. Key ideas: faded describes colour; lost some colour; near its handle.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -8158,7 +8161,8 @@
                 "miniature kitchen fitted",
                 "inside the toy case"
               ],
-              "model_answer": "Miniature is a describing word meaning very small. The miniature kitchen fitted neatly inside the toy case. Key ideas: much smaller than usual."
+              "model_answer": "Miniature is a describing word meaning very small. The miniature kitchen fitted neatly inside the toy case. Key ideas: much smaller than usual.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Identify or use the toy noun, action verb, and precise adjective. Use the chapter word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -8257,7 +8261,8 @@
                 "loose beads rattled",
                 "inside the wooden cube"
               ],
-              "model_answer": "Rattled is the action word for the short sounds. The loose beads rattled inside the wooden cube when it moved. Key ideas: short hard sounds."
+              "model_answer": "Rattled is the action word for the short sounds. The loose beads rattled inside the wooden cube when it moved. Key ideas: short hard sounds.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -8562,7 +8567,8 @@
                 "spotless toy tea set",
                 "no dust or marks"
               ],
-              "model_answer": "Spotless is a describing word meaning completely clean. The spotless toy tea set had no dust or marks when it reached the display."
+              "model_answer": "Spotless is a describing word meaning completely clean. The spotless toy tea set had no dust or marks when it reached the display.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -8910,7 +8916,8 @@
                 "bridge is a noun, and sturdy is an is a describing word",
                 "the sturdy drum kept its shape after many turns"
               ],
-              "model_answer": "Bridge is a noun, and sturdy is an adjective meaning strong and dependable. New sentence: The sturdy drum kept its shape after many turns. Key ideas: bridge is a noun, and sturdy is an is a describing word."
+              "model_answer": "Bridge is a noun, and sturdy is an adjective meaning strong and dependable. New sentence: The sturdy drum kept its shape after many turns. Key ideas: bridge is a noun, and sturdy is an is a describing word.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -13588,7 +13595,8 @@
           "compact card game",
           "travel pouch"
         ],
-        "model_answer": "Compact means practical in a small space. The compact card game fitted inside one travel pouch."
+        "model_answer": "Compact means practical in a small space. The compact card game fitted inside one travel pouch.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch05:assessment:09",
@@ -14271,7 +14279,8 @@
           "strong and dependable",
           "sturdy block tower"
         ],
-        "model_answer": "Sturdy means strong and dependable. The sturdy block tower remained standing after three tests."
+        "model_answer": "Sturdy means strong and dependable. The sturdy block tower remained standing after three tests.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch05:assessment:23",
@@ -14565,6 +14574,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

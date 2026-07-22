@@ -112,7 +112,7 @@ LEVELS = [
                 "Give the event chain and its main idea in two sentences.",
                 "The visitor records the loan, protects the chime after using it, and returns it on time. The chain shows responsible borrowing.",
                 E("Orders signing, protecting, and returning.", "records the loan", "protects the chime", "returns it on time"),
-                E("States responsible borrowing as the main idea.", "responsible borrowing", "returns it"),
+                E("States responsible borrowing as the main idea.", "responsible borrowing"),
                 interaction_type="summary",
                 ordered=True,
             ),

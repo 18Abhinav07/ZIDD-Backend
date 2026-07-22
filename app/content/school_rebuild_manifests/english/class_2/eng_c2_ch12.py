@@ -89,7 +89,7 @@ LEVELS: list[dict[str, Any]] = [
                     "The team tightens each loose screw one by one, and the completed checks make the whole room safer.",
                     [
                         evidence("Names one-by-one screw repair.", "each loose screw", "one by one"),
-                        evidence("Connects all checks to a safer room.", "whole room safer", "completed checks")
+                        evidence("Connects all checks to a safer room.", "completed checks", "whole room safer")
                     ],
                 ),
                 (
@@ -97,7 +97,7 @@ LEVELS: list[dict[str, Any]] = [
                     "Explain the contribution chain from spoonful to full tray.",
                     "Each family contributes a spoonful of grain, and the combined grain fills the tray for the flock.",
                     [
-                        evidence("Includes each spoonful contribution.", "spoonful of grain", "each family contributes"),
+                        evidence("Includes each spoonful contribution.", "each family contributes", "spoonful of grain"),
                         evidence("Ends with food for the flock.", "fills the tray", "for the flock")
                     ],
                 ),
@@ -135,7 +135,7 @@ LEVELS: list[dict[str, Any]] = [
                 ("Three pupils each add one pencil to a supply box, making three pencils together.", "State the small action and total result.", "Each pupil adds one pencil, so the box gains three pencils altogether.", [evidence("Links one each to three total.", "one pencil", "three pencils")]),
                 ("A drop falls every minute. Ten drops collect at the bottom of the jar.", "Explain the repeated action and result.", "One drop falls each minute, and ten drops collect in the jar.", [evidence("Connects repeated drops to ten collected.", "one drop", "each minute", "ten drops")]),
                 ("Every child clears one scrap. Soon no scraps remain on the floor.", "Name the contributions and final condition.", "Each child clears one scrap, and together they leave the floor clear.", [evidence("Links one scrap each to a clear floor.", "one scrap", "floor clear")]),
-                ("Five spoonfuls of sand fill the small mould.", "State how the mould becomes full.", "The mould becomes full after five separate spoonfuls of sand are added.", [evidence("Uses five spoonfuls and full mould.", "five", "spoonfuls", "mould becomes full")]),
+                ("Five spoonfuls of sand fill the small mould.", "State how the mould becomes full.", "Five separate spoonfuls of sand are added until the mould becomes full.", [evidence("Uses five spoonfuls and full mould.", "five", "spoonfuls", "mould becomes full")]),
                 ("A kind word from each teammate creates a page of welcome messages.", "Explain the small-to-large message chain.", "Each teammate contributes one kind word, and the words create a full welcome page.", [evidence("Links each kind word to the page.", "one kind word", "welcome page")]),
             ],
             ordered=True,

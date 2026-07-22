@@ -1,16 +1,19 @@
 {
   "approval_status": "agent_reviewed",
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30",
   "review_evidence": [
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "89e9ac69f57716ba4ebd990adc113500c7f6ffd7a17708d77aee50fc042286e6",
+  "runtime_sha256": "7659bc7dcdb3eab64aabbed1357662df43e225a4153dc09fc66bde1811bfb3a3",
   "chapter_id": "eng_c4_ch01",
   "chapter_no": 1,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Together We Can",
   "book_title": "Santoor",
   "unit_title": "My Land",
@@ -518,7 +521,7 @@
           "model_answer": "The many window lights represent neighbours acting together, and their bright lane guides the rescue team home."
         },
         "independent_check": {
-          "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the bridge planks independent, Use the visible passage to practise interpret poetic language and state the central idea; include all 4 details.",
+          "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the bridge planks independent, Use the visible passage to practise interpret poetic language and state the central idea; include both details.",
           "passage": "One plank cannot cross the stream, but many fitted planks become a bridge for the whole village.",
           "prompt": "Interpret the bridge image and state the poem-like message.",
           "options": [],
@@ -532,25 +535,13 @@
           "rubric_criteria": [
             {
               "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-1",
-              "description": "Interprets the planks as different contributions. Required detail 1: planks represent people.",
+              "description": "Interprets the planks as different contributions.",
               "required": true,
               "min_quality": 0.7
             },
             {
               "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-2",
-              "description": "Interprets the planks as different contributions. Required detail 2: different contributions.",
-              "required": true,
-              "min_quality": 0.7
-            },
-            {
-              "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-3",
-              "description": "States what the combined effort achieves. Required detail 1: create a useful path.",
-              "required": true,
-              "min_quality": 0.7
-            },
-            {
-              "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-4",
-              "description": "States what the combined effort achieves. Required detail 2: none could make alone.",
+              "description": "States what the combined effort achieves.",
               "required": true,
               "min_quality": 0.7
             }
@@ -558,35 +549,30 @@
           "concept_slots": [
             {
               "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-1",
-              "description": "Interprets the planks as different contributions. Required detail 1: planks represent people.",
+              "description": "Interprets the planks as different contributions.",
               "any_of": [
                 "planks represent people",
-                "planks stand for people"
+                "planks stand for people",
+                "different contributions",
+                "distinct contributions",
+                "people can do difficult work together",
+                "people is able to do difficult work together",
+                "do difficult work together"
               ]
             },
             {
               "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-2",
-              "description": "Interprets the planks as different contributions. Required detail 2: different contributions.",
-              "any_of": [
-                "different contributions",
-                "distinct contributions"
-              ]
-            },
-            {
-              "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-3",
-              "description": "States what the combined effort achieves. Required detail 1: create a useful path.",
+              "description": "States what the combined effort achieves.",
               "any_of": [
                 "create a useful path",
                 "make a useful path",
-                "create useful path"
-              ]
-            },
-            {
-              "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-4",
-              "description": "States what the combined effort achieves. Required detail 2: none could make alone.",
-              "any_of": [
+                "create useful path",
                 "none could make alone",
-                "none might be able to make alone"
+                "none might be able to make alone",
+                "teamwork helps a whole village cross problems",
+                "teamwork supports a whole village cross problems",
+                "cooperation helps a whole village cross problems",
+                "whole village cross problems"
               ]
             }
           ],
@@ -612,14 +598,29 @@
             "planks stand for people",
             "different contributions",
             "distinct contributions",
+            "people can do difficult work together",
+            "people is able to do difficult work together",
+            "do difficult work together",
             "create a useful path",
             "make a useful path",
             "create useful path",
             "none could make alone",
             "none might be able to make alone",
+            "teamwork helps a whole village cross problems",
+            "teamwork supports a whole village cross problems",
+            "cooperation helps a whole village cross problems",
+            "whole village cross problems",
             "fitted",
             "planks",
-            "represent"
+            "represent",
+            "people",
+            "combining",
+            "different",
+            "contributions",
+            "together",
+            "create",
+            "useful",
+            "alone"
           ],
           "model_answer": "The fitted planks represent people combining different contributions, and together they create a useful path that none could make alone."
         },
@@ -1107,7 +1108,7 @@
           "pool_id": "together_poem_message:independent_application",
           "variant_pool": [
             {
-              "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the bridge planks independent, Use the visible passage to practise interpret poetic language and state the central idea; include all 4 details.",
+              "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the bridge planks independent, Use the visible passage to practise interpret poetic language and state the central idea; include both details.",
               "passage": "One plank cannot cross the stream, but many fitted planks become a bridge for the whole village.",
               "prompt": "Interpret the bridge image and state the poem-like message.",
               "options": [],
@@ -1123,25 +1124,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-1",
-                  "description": "Interprets the planks as different contributions. Required detail 1: planks represent people.",
+                  "description": "Interprets the planks as different contributions.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-2",
-                  "description": "Interprets the planks as different contributions. Required detail 2: different contributions.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-3",
-                  "description": "States what the combined effort achieves. Required detail 1: create a useful path.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-4",
-                  "description": "States what the combined effort achieves. Required detail 2: none could make alone.",
+                  "description": "States what the combined effort achieves.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -1149,35 +1138,30 @@
               "concept_slots": [
                 {
                   "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-1",
-                  "description": "Interprets the planks as different contributions. Required detail 1: planks represent people.",
+                  "description": "Interprets the planks as different contributions.",
                   "any_of": [
                     "planks represent people",
-                    "planks stand for people"
+                    "planks stand for people",
+                    "different contributions",
+                    "distinct contributions",
+                    "people can do difficult work together",
+                    "people is able to do difficult work together",
+                    "do difficult work together"
                   ]
                 },
                 {
                   "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-2",
-                  "description": "Interprets the planks as different contributions. Required detail 2: different contributions.",
-                  "any_of": [
-                    "different contributions",
-                    "distinct contributions"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-3",
-                  "description": "States what the combined effort achieves. Required detail 1: create a useful path.",
+                  "description": "States what the combined effort achieves.",
                   "any_of": [
                     "create a useful path",
                     "make a useful path",
-                    "create useful path"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:independent:1:requirement-4",
-                  "description": "States what the combined effort achieves. Required detail 2: none could make alone.",
-                  "any_of": [
+                    "create useful path",
                     "none could make alone",
-                    "none might be able to make alone"
+                    "none might be able to make alone",
+                    "teamwork helps a whole village cross problems",
+                    "teamwork supports a whole village cross problems",
+                    "cooperation helps a whole village cross problems",
+                    "whole village cross problems"
                   ]
                 }
               ],
@@ -1206,14 +1190,29 @@
                 "planks stand for people",
                 "different contributions",
                 "distinct contributions",
+                "people can do difficult work together",
+                "people is able to do difficult work together",
+                "do difficult work together",
                 "create a useful path",
                 "make a useful path",
                 "create useful path",
                 "none could make alone",
                 "none might be able to make alone",
+                "teamwork helps a whole village cross problems",
+                "teamwork supports a whole village cross problems",
+                "cooperation helps a whole village cross problems",
+                "whole village cross problems",
                 "fitted",
                 "planks",
-                "represent"
+                "represent",
+                "people",
+                "combining",
+                "different",
+                "contributions",
+                "together",
+                "create",
+                "useful",
+                "alone"
               ],
               "model_answer": "The fitted planks represent people combining different contributions, and together they create a useful path that none could make alone."
             },
@@ -1855,7 +1854,7 @@
           "pool_id": "together_poem_message:review",
           "variant_pool": [
             {
-              "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the kite tail review, Use the visible passage to practise interpret poetic language and state the central idea; include all 3 details.",
+              "teaching_block": "Together We Can, Find the teamwork message: Translate each poetic image into a plain idea, then connect repeated images to one central message. For the kite tail review, Use the visible passage to practise interpret poetic language and state the central idea; include both details.",
               "passage": "Many short ribbons are tied in a line. Together they steady a kite that had twisted wildly above the field.",
               "prompt": "How does the ribbon image support a message about unity?",
               "options": [],
@@ -1871,18 +1870,12 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c4_ch01:together_poem_message:review:1:requirement-1",
-                  "description": "Explains the difference between each ribbon and the connected line. Required detail 1: each ribbon is small.",
+                  "description": "Explains how separate ribbons become a steady connected line.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch01:together_poem_message:review:1:requirement-2",
-                  "description": "Explains the difference between each ribbon and the connected line. Required detail 2: connected line steadies the kite.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:review:1:requirement-3",
                   "description": "States the message about united effort.",
                   "required": true,
                   "min_quality": 0.7
@@ -1891,29 +1884,32 @@
               "concept_slots": [
                 {
                   "id": "eng_c4_ch01:together_poem_message:review:1:requirement-1",
-                  "description": "Explains the difference between each ribbon and the connected line. Required detail 1: each ribbon is small.",
+                  "description": "Explains how separate ribbons become a steady connected line.",
                   "any_of": [
                     "each ribbon is small",
-                    "every ribbon is small"
+                    "every ribbon is small",
+                    "connected line steadies the kite",
+                    "connected line steadies kite",
+                    "ribbons are separate but together they keep the kite steady",
+                    "ribbons are individual but together they keep the kite steady",
+                    "they keep kite steady"
                   ]
                 },
                 {
                   "id": "eng_c4_ch01:together_poem_message:review:1:requirement-2",
-                  "description": "Explains the difference between each ribbon and the connected line. Required detail 2: connected line steadies the kite.",
-                  "any_of": [
-                    "connected line steadies the kite",
-                    "connected line steadies kite"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch01:together_poem_message:review:1:requirement-3",
                   "description": "States the message about united effort.",
                   "any_of": [
                     "united efforts can restore balance",
                     "united efforts is able to restore balance",
                     "efforts can restore balance",
                     "unity creates balance",
-                    "unity makes balance"
+                    "unity makes balance",
+                    "people can join their different strengths to solve a problem as one team",
+                    "people can join their different strengths to solve a problem as a single team",
+                    "solve problem one team",
+                    "working together helps make the kite steady",
+                    "working together supports make the kite steady",
+                    "helps make kite steady"
                   ]
                 }
               ],
@@ -1942,14 +1938,29 @@
                 "every ribbon is small",
                 "connected line steadies the kite",
                 "connected line steadies kite",
+                "ribbons are separate but together they keep the kite steady",
+                "ribbons are individual but together they keep the kite steady",
+                "they keep kite steady",
                 "united efforts can restore balance",
                 "united efforts is able to restore balance",
                 "efforts can restore balance",
                 "unity creates balance",
                 "unity makes balance",
+                "people can join their different strengths to solve a problem as one team",
+                "people can join their different strengths to solve a problem as a single team",
+                "solve problem one team",
+                "working together helps make the kite steady",
+                "working together supports make the kite steady",
+                "helps make kite steady",
                 "ribbon",
                 "small",
-                "connected"
+                "connected",
+                "steadies",
+                "showing",
+                "united",
+                "efforts",
+                "restore",
+                "balance"
               ],
               "model_answer": "Each ribbon is small, but the connected line steadies the kite, showing that united efforts can restore balance."
             },
@@ -2358,7 +2369,8 @@
             "where",
             "fallen"
           ],
-          "model_answer": "A glimmer is a small weak light; a glimmer from the torch showed where the key had fallen."
+          "model_answer": "A glimmer is a small weak light; a glimmer from the torch showed where the key had fallen.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "masterclass": {
           "teaching_block": "Worked reasoning: Match the target word to the body's change and the request for rest; being busy alone does not explain both clues. Check your answer: Box the context clue, say the meaning in plain words, and test a new sentence by checking whether the same action and result are still present. Next step: write the corrected meaning with the two supporting details.",
@@ -2684,7 +2696,8 @@
             "carrier",
             "handle"
           ],
-          "model_answer": "Fragile means easily damaged; the team marked the fragile model so every carrier would handle it gently."
+          "model_answer": "Fragile means easily damaged; the team marked the fragile model so every carrier would handle it gently.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the stage reliable independent, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include all 3 details.",
@@ -2779,10 +2792,11 @@
             "consistently",
             "doing"
           ],
-          "model_answer": "Reliable means consistently doing what was promised. Class is a collective noun, and the team can rely on Dev because he returns the sports keys before the office closes."
+          "model_answer": "Reliable means consistently doing what was promised. Class is a collective noun, and the team can rely on Dev because he returns the sports keys before the office closes.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
-          "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the kitchen collaborate transfer, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include all 4 details.",
+          "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the kitchen collaborate transfer, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include both details.",
           "passage": "The team of cooks collaborated on lunch: one prepared vegetables, another measured spices, and a third watched the stove. Team is a collective noun.",
           "prompt": "Explain collaborated and show why team is the collective noun for the cooks.",
           "options": [],
@@ -2796,25 +2810,13 @@
           "rubric_criteria": [
             {
               "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-1",
-              "description": "Uses the roles to infer connected teamwork. Required detail 1: worked on connected parts.",
+              "description": "Uses the roles to infer collaborative work toward one shared outcome.",
               "required": true,
               "min_quality": 0.7
             },
             {
               "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-2",
-              "description": "Uses the roles to infer connected teamwork. Required detail 2: one task.",
-              "required": true,
-              "min_quality": 0.7
-            },
-            {
-              "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-3",
-              "description": "Explains the collective noun from the same setting. Required detail 1: team is a collective noun.",
-              "required": true,
-              "min_quality": 0.7
-            },
-            {
-              "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-4",
-              "description": "Explains the collective noun from the same setting. Required detail 2: all the cooks as one working group.",
+              "description": "Explains team as a collective noun for all cooks together.",
               "required": true,
               "min_quality": 0.7
             }
@@ -2822,36 +2824,38 @@
           "concept_slots": [
             {
               "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-1",
-              "description": "Uses the roles to infer connected teamwork. Required detail 1: worked on connected parts.",
+              "description": "Uses the roles to infer collaborative work toward one shared outcome.",
               "any_of": [
-                "worked on connected parts",
-                "worked connected parts"
+                "worked on connected parts of one task",
+                "worked on connected parts of a single task",
+                "connected parts one task",
+                "worked together by doing different jobs for lunch",
+                "worked together by doing distinct jobs for lunch",
+                "doing different jobs lunch",
+                "different jobs for the same lunch",
+                "distinct jobs for the same lunch",
+                "different jobs same lunch",
+                "cooks worked together on the lunch",
+                "cooks worked together lunch"
               ]
             },
             {
               "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-2",
-              "description": "Uses the roles to infer connected teamwork. Required detail 2: one task.",
+              "description": "Explains team as a collective noun for all cooks together.",
               "any_of": [
-                "one task",
-                "a single task"
-              ]
-            },
-            {
-              "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-3",
-              "description": "Explains the collective noun from the same setting. Required detail 1: team is a collective noun.",
-              "any_of": [
-                "team is a collective noun",
-                "group is a collective noun",
-                "team is collective noun"
-              ]
-            },
-            {
-              "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-4",
-              "description": "Explains the collective noun from the same setting. Required detail 2: all the cooks as one working group.",
-              "any_of": [
-                "all the cooks as one working group",
-                "all the cooks as a single working group",
-                "cooks one working group"
+                "team is a collective noun because it names all the cooks as one working group",
+                "team is a collective noun since it names all the cooks as one working group",
+                "team is a collective noun because it names all the cooks as a single working group",
+                "cooks one working group",
+                "team is a collective noun because it names all the cooks as one group",
+                "team is a collective noun since it names all the cooks as one group",
+                "team is a collective noun because it names all the cooks as a single group",
+                "all cooks one group",
+                "team names all the cooks as one group",
+                "team names all the cooks as a single group",
+                "team names the cooks together",
+                "group names the cooks together",
+                "team names cooks together"
               ]
             }
           ],
@@ -2875,18 +2879,40 @@
             "grammar.noun_verb_adjective"
           ],
           "relevance_terms": [
-            "worked on connected parts",
-            "worked connected parts",
-            "one task",
-            "a single task",
-            "team is a collective noun",
-            "group is a collective noun",
-            "team is collective noun",
-            "all the cooks as one working group",
-            "all the cooks as a single working group",
+            "worked on connected parts of one task",
+            "worked on connected parts of a single task",
+            "connected parts one task",
+            "worked together by doing different jobs for lunch",
+            "worked together by doing distinct jobs for lunch",
+            "doing different jobs lunch",
+            "different jobs for the same lunch",
+            "distinct jobs for the same lunch",
+            "different jobs same lunch",
+            "cooks worked together on the lunch",
+            "cooks worked together lunch",
+            "team is a collective noun because it names all the cooks as one working group",
+            "team is a collective noun since it names all the cooks as one working group",
+            "team is a collective noun because it names all the cooks as a single working group",
             "cooks one working group",
+            "team is a collective noun because it names all the cooks as one group",
+            "team is a collective noun since it names all the cooks as one group",
+            "team is a collective noun because it names all the cooks as a single group",
+            "all cooks one group",
+            "team names all the cooks as one group",
+            "team names all the cooks as a single group",
+            "team names the cooks together",
+            "group names the cooks together",
+            "team names cooks together",
             "collaborated",
-            "means"
+            "means",
+            "worked",
+            "connected",
+            "parts",
+            "collective",
+            "names",
+            "cooks",
+            "working",
+            "group"
           ],
           "model_answer": "Collaborated means worked on connected parts of one task. Team is a collective noun because it names all the cooks as one working group."
         }
@@ -3361,7 +3387,8 @@
                 "consistently",
                 "doing"
               ],
-              "model_answer": "Reliable means consistently doing what was promised. Class is a collective noun, and the team can rely on Dev because he returns the sports keys before the office closes."
+              "model_answer": "Reliable means consistently doing what was promised. Class is a collective noun, and the team can rely on Dev because he returns the sports keys before the office closes.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the map unite independent, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include all 3 details.",
@@ -3645,7 +3672,7 @@
           "pool_id": "together_words_in_context:transfer",
           "variant_pool": [
             {
-              "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the kitchen collaborate transfer, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include all 4 details.",
+              "teaching_block": "Together We Can, Use cooperation words precisely: Read the action and result around an unfamiliar word, test a meaning, and reuse the word without changing its sense. For the kitchen collaborate transfer, Use the visible passage to practise infer word meaning from context and use chapter vocabulary accurately; include both details.",
               "passage": "The team of cooks collaborated on lunch: one prepared vegetables, another measured spices, and a third watched the stove. Team is a collective noun.",
               "prompt": "Explain collaborated and show why team is the collective noun for the cooks.",
               "options": [],
@@ -3661,25 +3688,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-1",
-                  "description": "Uses the roles to infer connected teamwork. Required detail 1: worked on connected parts.",
+                  "description": "Uses the roles to infer collaborative work toward one shared outcome.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-2",
-                  "description": "Uses the roles to infer connected teamwork. Required detail 2: one task.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-3",
-                  "description": "Explains the collective noun from the same setting. Required detail 1: team is a collective noun.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-4",
-                  "description": "Explains the collective noun from the same setting. Required detail 2: all the cooks as one working group.",
+                  "description": "Explains team as a collective noun for all cooks together.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -3687,36 +3702,38 @@
               "concept_slots": [
                 {
                   "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-1",
-                  "description": "Uses the roles to infer connected teamwork. Required detail 1: worked on connected parts.",
+                  "description": "Uses the roles to infer collaborative work toward one shared outcome.",
                   "any_of": [
-                    "worked on connected parts",
-                    "worked connected parts"
+                    "worked on connected parts of one task",
+                    "worked on connected parts of a single task",
+                    "connected parts one task",
+                    "worked together by doing different jobs for lunch",
+                    "worked together by doing distinct jobs for lunch",
+                    "doing different jobs lunch",
+                    "different jobs for the same lunch",
+                    "distinct jobs for the same lunch",
+                    "different jobs same lunch",
+                    "cooks worked together on the lunch",
+                    "cooks worked together lunch"
                   ]
                 },
                 {
                   "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-2",
-                  "description": "Uses the roles to infer connected teamwork. Required detail 2: one task.",
+                  "description": "Explains team as a collective noun for all cooks together.",
                   "any_of": [
-                    "one task",
-                    "a single task"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-3",
-                  "description": "Explains the collective noun from the same setting. Required detail 1: team is a collective noun.",
-                  "any_of": [
-                    "team is a collective noun",
-                    "group is a collective noun",
-                    "team is collective noun"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch01:together_words_in_context:transfer:1:requirement-4",
-                  "description": "Explains the collective noun from the same setting. Required detail 2: all the cooks as one working group.",
-                  "any_of": [
-                    "all the cooks as one working group",
-                    "all the cooks as a single working group",
-                    "cooks one working group"
+                    "team is a collective noun because it names all the cooks as one working group",
+                    "team is a collective noun since it names all the cooks as one working group",
+                    "team is a collective noun because it names all the cooks as a single working group",
+                    "cooks one working group",
+                    "team is a collective noun because it names all the cooks as one group",
+                    "team is a collective noun since it names all the cooks as one group",
+                    "team is a collective noun because it names all the cooks as a single group",
+                    "all cooks one group",
+                    "team names all the cooks as one group",
+                    "team names all the cooks as a single group",
+                    "team names the cooks together",
+                    "group names the cooks together",
+                    "team names cooks together"
                   ]
                 }
               ],
@@ -3743,18 +3760,40 @@
                 "together_words_in_context:core-misconception"
               ],
               "relevance_terms": [
-                "worked on connected parts",
-                "worked connected parts",
-                "one task",
-                "a single task",
-                "team is a collective noun",
-                "group is a collective noun",
-                "team is collective noun",
-                "all the cooks as one working group",
-                "all the cooks as a single working group",
+                "worked on connected parts of one task",
+                "worked on connected parts of a single task",
+                "connected parts one task",
+                "worked together by doing different jobs for lunch",
+                "worked together by doing distinct jobs for lunch",
+                "doing different jobs lunch",
+                "different jobs for the same lunch",
+                "distinct jobs for the same lunch",
+                "different jobs same lunch",
+                "cooks worked together on the lunch",
+                "cooks worked together lunch",
+                "team is a collective noun because it names all the cooks as one working group",
+                "team is a collective noun since it names all the cooks as one working group",
+                "team is a collective noun because it names all the cooks as a single working group",
                 "cooks one working group",
+                "team is a collective noun because it names all the cooks as one group",
+                "team is a collective noun since it names all the cooks as one group",
+                "team is a collective noun because it names all the cooks as a single group",
+                "all cooks one group",
+                "team names all the cooks as one group",
+                "team names all the cooks as a single group",
+                "team names the cooks together",
+                "group names the cooks together",
+                "team names cooks together",
                 "collaborated",
-                "means"
+                "means",
+                "worked",
+                "connected",
+                "parts",
+                "collective",
+                "names",
+                "cooks",
+                "working",
+                "group"
               ],
               "model_answer": "Collaborated means worked on connected parts of one task. Team is a collective noun because it names all the cooks as one working group."
             },
@@ -18016,7 +18055,5 @@
         "model_answer": "Om values fair credit because he identifies Kavya's unseen design work, which can strengthen trust among the team members."
       }
     ]
-  },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  }
 }

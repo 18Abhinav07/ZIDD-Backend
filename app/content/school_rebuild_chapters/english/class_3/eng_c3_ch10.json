@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "67936c45e10bd190b4973a88db32b352de0202bd9cfd4e02dc136a1400d1140a",
+  "runtime_sha256": "5d27d79437895c2e0e32e39be6b2ccb767bd88c3970cc5bbe13308e5b1535459",
   "chapter_id": "eng_c3_ch10",
   "chapter_no": 10,
-  "content_version": "2026-07-15.deep-v1",
-  "certification_version": "school-deep-class3-v1",
+  "content_version": "2026-07-15.deep-v1.semantic-evidence-v1",
+  "certification_version": "school-deep-class3-v1.semantic-evidence-v1",
   "title": "Night",
   "book_title": "Santoor",
   "unit_title": "The Sky",
@@ -2329,7 +2330,8 @@
             "beyond",
             "fields"
           ],
-          "model_answer": "For the distant train card, my answer is: The distant train is far beyond the fields. Tiny windows beyond fields confirm separation from the viewer."
+          "model_answer": "For the distant train card, my answer is: The distant train is far beyond the fields. Tiny windows beyond fields confirm separation from the viewer.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Context reveals a word through distance, amount of light, movement, or partial appearance. The same word must keep that meaning when transferred to a new sentence. Read the new card. Give the answer, then tell which words helped you.",
@@ -2810,7 +2812,8 @@
                 "beyond",
                 "fields"
               ],
-              "model_answer": "For the distant train card, my answer is: The distant train is far beyond the fields. Tiny windows beyond fields confirm separation from the viewer."
+              "model_answer": "For the distant train card, my answer is: The distant train is far beyond the fields. Tiny windows beyond fields confirm separation from the viewer.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Context reveals a word through distance, amount of light, movement, or partial appearance. The same word must keep that meaning when transferred to a new sentence. Read the new card. Give the answer, then tell which words helped you.",
@@ -3344,7 +3347,8 @@
                 "train",
                 "looked"
               ],
-              "model_answer": "For the distant tower card, my answer is: Distant means far away. A distant train looked like a short silver line. Three fields and the tiny appearance show great distance."
+              "model_answer": "For the distant tower card, my answer is: Distant means far away. A distant train looked like a short silver line. Three fields and the tiny appearance show great distance.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -12149,6 +12153,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

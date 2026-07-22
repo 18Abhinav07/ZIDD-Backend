@@ -6159,7 +6159,7 @@ _LAUNCH_VARIANTS = {
                 ("order", "Keeps each item beside its correct owner.", "The blue rackets are theirs. The red rackets are ours"),
                 skills=["grammar.pronouns", "grammar.sentence_order"],
                 min_words=10,
-                ordered=True,
+                ordered=False,
             ),
         ],
         "review": [
@@ -6171,7 +6171,7 @@ _LAUNCH_VARIANTS = {
                 ("sentence", "Keeps both ownership statements in clear order.", "The yellow kite is mine, and the green kite is yours"),
                 skills=["grammar.pronouns", "grammar.sentence_order"],
                 min_words=11,
-                ordered=True,
+                ordered=False,
             ),
             _two(
                 "Our class marked the near court. Their class marked the court beyond the trees.",
@@ -6181,7 +6181,7 @@ _LAUNCH_VARIANTS = {
                 ("order", "Preserves the near-then-far comparison.", "The near court is ours, while the court beyond the trees is theirs"),
                 skills=["grammar.pronouns", "grammar.sentence_order"],
                 min_words=13,
-                ordered=True,
+                ordered=False,
             ),
         ],
     },

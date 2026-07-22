@@ -5,8 +5,12 @@ Supabase is unavailable, because that loses auth profiles, credits, progress,
 and session history while making the product look functional.
 """
 from contextlib import asynccontextmanager
+import logging
 
 from app.db.cancellation import finish_cleanup
+
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -60,6 +64,30 @@ def _parse_context_rows(rows: list[dict]) -> list[dict]:
     return result
 
 
+def _compact_active_curriculum_session(payload: dict) -> dict:
+    """Keep immutable authored chapter banks out of Postgres session rows.
+
+    The curriculum service owns the content-reference codec. This adapter is
+    intentionally narrow: only canonical rebuild curriculum writes are
+    compacted, and only when the service confirms the state is a current,
+    active learning snapshot. Other School flows and historical states retain
+    their exact stored shape.
+    """
+
+    if (
+        payload.get("api_version") != "rebuild"
+        or payload.get("flow_type") != "curriculum"
+        or not isinstance(payload.get("state_json"), dict)
+    ):
+        return payload
+    from app.services import school_rebuild_curriculum as curriculum
+
+    return {
+        **payload,
+        "state_json": curriculum.compact_curriculum_state(payload["state_json"]),
+    }
+
+
 class PgStore:
     async def ping_writable(self) -> bool:
         """Confirm the pooled Postgres connection answers a trivial query."""
@@ -70,9 +98,17 @@ class PgStore:
                 try:
                     result = await s.execute(text("SELECT 1"))
                     return result.scalar() == 1
-                except Exception:
+                except Exception as exc:
+                    logger.warning(
+                        "postgres_writable_probe_failed error_type=%s",
+                        type(exc).__name__,
+                    )
                     return False
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "postgres_writable_probe_session_failed error_type=%s",
+                type(exc).__name__,
+            )
             return False
 
     async def ensure_profile(
@@ -111,13 +147,26 @@ class PgStore:
         email: str,
         name: str,
         welcome_credits: int,
+        beta_credit_grant_enabled: bool = False,
+        beta_credit_grant_credits: int = 0,
+        beta_credit_grant_campaign_id: str = "",
+        beta_credit_grant_expires_at=None,
     ) -> dict:
         from app.db import repo
 
         async with _session() as s:
-            return await repo.resolve_google_login(
-                s, google_sub, email, name, welcome_credits
+            resolved = await repo.resolve_google_login(
+                s,
+                google_sub,
+                email,
+                name,
+                welcome_credits,
+                beta_credit_grant_enabled=beta_credit_grant_enabled,
+                beta_credit_grant_credits=beta_credit_grant_credits,
+                beta_credit_grant_campaign_id=beta_credit_grant_campaign_id,
+                beta_credit_grant_expires_at=beta_credit_grant_expires_at,
             )
+            return resolved
 
     async def get_preferences(self, user_id: str) -> dict:
         from app.db import repo
@@ -833,13 +882,36 @@ class PgStore:
         from app.db import repo
 
         async with _session() as s:
-            await repo.upsert_school_session(s, **kwargs)
+            await repo.upsert_school_session(
+                s,
+                **_compact_active_curriculum_session(kwargs),
+            )
 
     async def get_or_create_school_session(self, **kwargs) -> dict:
         from app.db import repo
 
         async with _session() as s:
-            return await repo.get_or_create_school_session(s, **kwargs)
+            return await repo.get_or_create_school_session(
+                s,
+                **_compact_active_curriculum_session(kwargs),
+            )
+
+    async def create_and_attach_school_masterclass(
+        self,
+        *,
+        parent_session: dict,
+        expected_parent_state: dict,
+        child_session: dict,
+    ) -> dict | None:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.create_and_attach_school_masterclass(
+                s,
+                parent_session=parent_session,
+                expected_parent_state=expected_parent_state,
+                child_session=child_session,
+            )
 
     async def persist_school_curriculum_attempt(
         self,
@@ -850,33 +922,108 @@ class PgStore:
         request_activity_id: str | None = None,
         request_answer_hash: str | None = None,
         request_claim_token: str | None = None,
+        request_claim_if_absent: bool = False,
         response_json: dict | None = None,
         projection_evidence: dict | None = None,
         language_evaluation: dict | None = None,
         evaluation_job_completion: dict | None = None,
-    ) -> None:
+    ) -> dict | None:
         from app.db import repo
 
         async with _session() as s:
-            await repo.persist_school_curriculum_attempt(
+            return await repo.persist_school_curriculum_attempt(
                 s,
                 learning_event=learning_event,
-                school_session=school_session,
+                school_session=_compact_active_curriculum_session(school_session),
                 expected_state_json=expected_state_json,
                 request_activity_id=request_activity_id,
                 request_answer_hash=request_answer_hash,
                 request_claim_token=request_claim_token,
+                request_claim_if_absent=request_claim_if_absent,
                 response_json=response_json,
                 projection_evidence=projection_evidence,
                 language_evaluation=language_evaluation,
                 evaluation_job_completion=evaluation_job_completion,
             )
 
-    async def persist_school_answer_attempt(self, **kwargs) -> None:
+    async def persist_school_evaluated_curriculum_attempt(self, **kwargs) -> dict:
+        """Finalize a leased open-answer job through the compact bulk path."""
+
         from app.db import repo
 
         async with _session() as s:
-            await repo.persist_school_answer_attempt(s, **kwargs)
+            return await repo.persist_school_evaluated_curriculum_attempt(
+                s,
+                **{
+                    **kwargs,
+                    "school_session": _compact_active_curriculum_session(
+                        dict(kwargs.get("school_session") or {})
+                    ),
+                },
+            )
+
+    async def persist_school_deterministic_curriculum_attempt(self, **kwargs) -> dict:
+        """Persist a non-LLM curriculum answer under its idempotency claim.
+
+        Unlike a durable evaluator job, deterministic curriculum grading has no
+        provider gap between claim and completion. Keeping the request claim,
+        evidence, profile projection, and session transition in one database
+        transaction removes one cross-region write round trip without changing
+        duplicate replay or fencing behavior.
+        """
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.persist_school_deterministic_curriculum_attempt(
+                s,
+                **{
+                    **kwargs,
+                    "school_session": _compact_active_curriculum_session(
+                        dict(kwargs.get("school_session") or {})
+                    ),
+                },
+            )
+
+    async def persist_school_curriculum_experience_step(self, **kwargs) -> dict:
+        """Atomically advance a non-scoring curriculum acknowledgement."""
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.persist_school_curriculum_experience_step(
+                s,
+                **{
+                    **kwargs,
+                    "school_session": _compact_active_curriculum_session(
+                        dict(kwargs.get("school_session") or {})
+                    ),
+                },
+            )
+
+    async def persist_school_answer_attempt(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.persist_school_answer_attempt(s, **kwargs)
+
+    async def persist_school_deterministic_placement_attempt(self, **kwargs) -> dict:
+        """Claim and persist one deterministic placement answer atomically.
+
+        Unlike an open answer, selected-option/exact-answer grading does not
+        need a durable provider job between idempotency claim and persistence.
+        Keeping those two writes in one transaction avoids a needless pooled
+        database round trip on the child's fastest interactions.
+        """
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.persist_school_answer_attempt(
+                s,
+                request_claim_if_absent=True,
+                **kwargs,
+            )
 
     async def compare_and_set_school_session(
         self,
@@ -889,7 +1036,7 @@ class PgStore:
         async with _session() as s:
             return await repo.compare_and_set_school_session(
                 s,
-                school_session=school_session,
+                school_session=_compact_active_curriculum_session(school_session),
                 expected_state_json=expected_state_json,
             )
 
@@ -900,6 +1047,88 @@ class PgStore:
 
         async with _session() as s:
             return await repo.get_school_answer_request(s, user_id, session_id, activity_id)
+
+    async def get_school_placement_answer_context(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict:
+        """Return placement-answer preflight data from one pooled connection."""
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_placement_answer_context(
+                s,
+                user_id=user_id,
+                session_id=session_id,
+                activity_id=activity_id,
+            )
+
+    async def get_school_masterclass_answer_context(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict:
+        """Return masterclass-answer preflight data from one pooled connection."""
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_masterclass_answer_context(
+                s,
+                user_id=user_id,
+                session_id=session_id,
+                activity_id=activity_id,
+            )
+
+    async def get_school_answer_status_context(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict:
+        """Return one narrow, lineage-complete School answer-status snapshot."""
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_answer_status_context(
+                s,
+                user_id=user_id,
+                session_id=session_id,
+                activity_id=activity_id,
+            )
+
+    async def get_school_curriculum_answer_context(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        activity_id: str,
+    ) -> dict:
+        """Return the narrow, exact preflight required for one curriculum answer."""
+
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_school_curriculum_answer_context(
+                s,
+                user_id=user_id,
+                session_id=session_id,
+                activity_id=activity_id,
+            )
+
+    async def reconcile_expired_school_evaluation_jobs(self) -> int:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.reconcile_expired_school_evaluation_jobs(s)
 
     async def claim_school_answer_request(
         self, user_id: str, session_id: str, activity_id: str, answer_hash: str
@@ -985,6 +1214,12 @@ class PgStore:
         async with _session() as s:
             return await repo.claim_and_enqueue_school_evaluation_job(s, **kwargs)
 
+    async def claim_and_enqueue_school_evaluation_job_atomic(self, **kwargs) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.claim_and_enqueue_school_evaluation_job_atomic(s, **kwargs)
+
     async def claim_school_evaluation_job(
         self,
         lease_owner: str = "school-evaluation-worker",
@@ -1005,9 +1240,16 @@ class PgStore:
         async with _session() as s:
             return await repo.heartbeat_school_evaluation_job(s, **kwargs)
 
-    async def terminalize_school_evaluation_job(self, **kwargs) -> dict | None:
+    async def terminalize_school_evaluation_job(
+        self,
+        *,
+        placement_retry_timing: dict | None = None,
+        **kwargs,
+    ) -> dict | None:
         from app.db import repo
 
+        if placement_retry_timing is not None:
+            kwargs["placement_retry_timing"] = placement_retry_timing
         async with _session() as s:
             return await repo.terminalize_school_evaluation_job(s, **kwargs)
 
@@ -1406,6 +1648,12 @@ class PgStore:
         async with _session() as s:
             return await repo.get_credits(s, user_id)
 
+    async def get_wallet_summary(self, user_id: str) -> dict:
+        from app.db import repo
+
+        async with _session() as s:
+            return await repo.get_wallet_summary(s, user_id)
+
     async def is_demo(self, user_id: str) -> bool:
         from app.db import repo
 
@@ -1421,11 +1669,17 @@ class PgStore:
         async with _session() as s:
             return await repo.set_demo_unlimited(s, user_id, enabled)
 
-    async def grant_credits(self, user_id: str, amount: int, reason: str) -> int:
+    async def grant_credits(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str,
+        **kwargs,
+    ) -> int:
         from app.db import repo
 
         async with _session() as s:
-            return await repo.grant_credits(s, user_id, amount, reason)
+            return await repo.grant_credits(s, user_id, amount, reason, **kwargs)
 
     async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
         from app.db import repo

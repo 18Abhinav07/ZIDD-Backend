@@ -39,22 +39,25 @@ def test_settings_default_gemini_fallback_chain_and_school_cloud_timeout(
         "GEMINI_TEXT_FALLBACK_MODEL",
         "GEMINI_STRUCTURED_MODEL",
         "GEMINI_STRUCTURED_FALLBACK_MODEL",
+        "GEMINI_CREDENTIAL_ATTEMPT_TIMEOUT_SECONDS",
         "SCHOOL_OPEN_ANSWER_TIMEOUT_SECONDS",
     ):
         monkeypatch.delenv(name, raising=False)
     settings = Settings(_env_file=None)
 
-    assert settings.gemini_text_model == "gemini-2.5-flash-lite"
+    assert settings.gemini_text_model == "gemini-3.1-flash-lite"
     assert settings.gemini_text_fallback_model == "gemini-3.1-flash-lite"
-    assert settings.gemini_structured_model == "gemini-2.5-flash-lite"
+    assert settings.gemini_structured_model == "gemini-3.1-flash-lite"
     assert settings.gemini_structured_fallback_model == "gemini-3.1-flash-lite"
+    assert settings.gemini_request_timeout_seconds == 30.0
+    assert settings.gemini_credential_attempt_timeout_seconds == 8.0
     assert settings.school_open_answer_timeout_seconds == 20.0
 
 
 def test_legacy_gemini_generation_default_uses_the_primary_lite_model() -> None:
     from app.ai.calls import GEMINI_FLASH
 
-    assert GEMINI_FLASH == "gemini-2.5-flash-lite"
+    assert GEMINI_FLASH == "gemini-3.1-flash-lite"
 
 
 def test_numbered_gemini_credentials_discover_any_positive_index_in_stable_order() -> None:
@@ -178,6 +181,210 @@ async def test_gemini_structured_generation_falls_back_to_3_1_when_primary_is_mi
 
 
 @pytest.mark.asyncio
+async def test_gemini_structured_generation_falls_back_when_primary_key_pool_is_rate_limited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A per-model 429 must not strand a healthy fallback model."""
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    calls: list[tuple[str, int]] = []
+
+    class Models:
+        def __init__(self, slot: int):
+            self.slot = slot
+
+        async def generate_content(self, *, model, **kwargs):
+            del kwargs
+            calls.append((model, self.slot))
+            if model == "gemini-2.5-flash-lite":
+                raise _api_error(429, retry_after="60")
+            return type("Response", (), {"text": '{"value":"ready"}'})()
+
+    class Client:
+        def __init__(self, slot: int):
+            self.aio = type("Async", (), {"models": Models(slot)})()
+
+    class ProviderSettings:
+        gemini_structured_model = "gemini-2.5-flash-lite"
+        gemini_structured_fallback_model = "gemini-3.1-flash-lite"
+        gemini_request_timeout_seconds = 1.0
+
+    manager = GeminiCredentialManager(("one", "two"), clock=lambda: 0.0)
+    manager._clients = {  # noqa: SLF001 - deterministic clients
+        slot: Client(slot) for slot in range(2)
+    }
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    result = await provider_module.GeminiProvider().structured(
+        "evaluate",
+        "score this",
+        TinyResult,
+    )
+
+    assert result == TinyResult(value="ready")
+    assert calls == [
+        ("gemini-2.5-flash-lite", 0),
+        ("gemini-2.5-flash-lite", 1),
+        ("gemini-3.1-flash-lite", 0),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_quarantines_a_missing_model_per_credential_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 404 model must be learned once, not paid on every learner action."""
+
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    calls: list[tuple[str, int]] = []
+
+    class Models:
+        def __init__(self, slot: int):
+            self.slot = slot
+
+        async def generate_content(self, *, model, **kwargs):
+            del kwargs
+            calls.append((model, self.slot))
+            if model == "missing-model":
+                raise _api_error(404)
+            return type("Response", (), {"text": '{"value":"ready"}'})()
+
+    class Client:
+        def __init__(self, slot: int):
+            self.aio = type("Async", (), {"models": Models(slot)})()
+
+    class ProviderSettings:
+        gemini_structured_model = "missing-model"
+        gemini_structured_fallback_model = "healthy-model"
+        gemini_request_timeout_seconds = 1.0
+
+    manager = GeminiCredentialManager(("one", "two"), clock=lambda: 0.0)
+    manager._clients = {  # noqa: SLF001 - deterministic clients
+        slot: Client(slot) for slot in range(2)
+    }
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    provider = provider_module.GeminiProvider()
+    assert await provider.structured("evaluate", "first", TinyResult) == TinyResult(
+        value="ready"
+    )
+    assert await provider.structured("evaluate", "second", TinyResult) == TinyResult(
+        value="ready"
+    )
+
+    assert calls == [
+        ("missing-model", 0),
+        ("missing-model", 1),
+        ("healthy-model", 0),
+        ("healthy-model", 1),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_gemini_structured_timeout_budget_is_shared_across_the_model_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A fallback must receive only the time left from the logical operation."""
+
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    models: list[str] = []
+
+    class Models:
+        async def generate_content(self, *, model, **kwargs):
+            del kwargs
+            models.append(model)
+            await asyncio.sleep(0.03)
+            if model == "primary-model":
+                raise _api_error(404)
+            return type("Response", (), {"text": '{"value":"ready"}'})()
+
+    class Client:
+        aio = type("Async", (), {"models": Models()})()
+
+    class ProviderSettings:
+        gemini_structured_model = "primary-model"
+        gemini_structured_fallback_model = "fallback-model"
+        gemini_request_timeout_seconds = 0.05
+
+    manager = GeminiCredentialManager(("one",), clock=lambda: 0.0)
+    manager._clients = {0: Client()}  # noqa: SLF001 - deterministic client
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    with pytest.raises(TimeoutError):
+        await provider_module.GeminiProvider().structured(
+            "evaluate",
+            "score this",
+            TinyResult,
+        )
+
+    assert models == ["primary-model", "fallback-model"]
+
+
+@pytest.mark.asyncio
+async def test_gemini_structured_caps_output_by_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Small rubric payloads must not reserve the universal 2,048-token cap."""
+
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    captured_configs: list[dict] = []
+
+    class Models:
+        async def generate_content(self, *, config, **kwargs):
+            del kwargs
+            captured_configs.append(config)
+            return type("Response", (), {"text": '{"value":"ready"}'})()
+
+    class Client:
+        aio = type("Async", (), {"models": Models()})()
+
+    class ProviderSettings:
+        gemini_structured_model = "gemini-3.1-flash-lite"
+        gemini_structured_fallback_model = ""
+        gemini_request_timeout_seconds = 1.0
+
+    manager = GeminiCredentialManager(("one",), clock=lambda: 0.0)
+    manager._clients = {0: Client()}  # noqa: SLF001 - deterministic client
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    result = await provider_module.GeminiProvider().structured(
+        "school_open_answer",
+        "score this",
+        TinyResult,
+    )
+
+    assert result == TinyResult(value="ready")
+    assert captured_configs[0]["max_output_tokens"] == 768
+
+
+@pytest.mark.asyncio
 async def test_gemini_stream_falls_back_to_3_1_before_any_text_is_emitted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -263,7 +470,7 @@ async def test_gemini_provider_does_not_fallback_models_for_invalid_request(
 
 
 @pytest.mark.asyncio
-async def test_health_reports_gemini_readiness_without_an_ollama_probe(
+async def test_health_reports_unverified_gemini_until_a_real_provider_probe_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.api import health as health_module
@@ -288,6 +495,11 @@ async def test_health_reports_gemini_readiness_without_an_ollama_probe(
         "configured_gemini_api_keys",
         lambda: ("configured-but-never-returned",),
     )
+    monkeypatch.setattr(
+        health_module,
+        "gemini_runtime_status",
+        lambda: {"state": "unverified", "ready": False},
+    )
     monkeypatch.setattr(health_module, "get_storage", lambda: Storage())
     monkeypatch.setattr(health_module, "SessionStore", {})
     monkeypatch.setattr(health_module, "_ollama_reachable", ollama_probe_must_not_run)
@@ -296,7 +508,8 @@ async def test_health_reports_gemini_readiness_without_an_ollama_probe(
 
     assert payload["ollama_reachable"] is None
     assert payload["ai"]["backend"] == "gemini"
-    assert payload["ai"]["ready"] is True
+    assert payload["ai"]["ready"] is False
+    assert payload["ai"]["runtime_state"] == "unverified"
     assert payload["ai"]["gemini_credential_count"] == 1
     assert "configured-but-never-returned" not in repr(payload)
 
@@ -390,6 +603,44 @@ def test_gemini_credential_manager_permanently_disables_auth_failures(
     manager.record_failure(attempted_slot=0, status=status)
     with pytest.raises(GeminiKeyPoolExhaustedError) as caught:
         manager.request_client_with_slot()
+    assert caught.value.retry_after_seconds is None
+
+
+def test_gemini_auth_failure_disables_a_credential_across_model_quota_scopes() -> None:
+    from app.ai.clients import GeminiCredentialManager, GeminiKeyPoolExhaustedError
+
+    manager = GeminiCredentialManager(("one",))
+
+    manager.record_failure(
+        attempted_slot=0,
+        status=401,
+        quota_scope="gemini-2.5-flash-lite",
+    )
+
+    with pytest.raises(GeminiKeyPoolExhaustedError) as caught:
+        manager.request_client_with_slot(quota_scope="gemini-3.1-flash-lite")
+    assert caught.value.retry_after_seconds is None
+
+
+def test_gemini_globally_disabled_credential_does_not_report_a_stale_model_cooldown() -> None:
+    from app.ai.clients import GeminiCredentialManager, GeminiKeyPoolExhaustedError
+
+    now = [100.0]
+    manager = GeminiCredentialManager(("one",), clock=lambda: now[0])
+    manager.record_failure(
+        attempted_slot=0,
+        status=429,
+        retry_after_seconds=60.0,
+        quota_scope="gemini-2.5-flash-lite",
+    )
+    manager.record_failure(
+        attempted_slot=0,
+        status=401,
+        quota_scope="gemini-3.1-flash-lite",
+    )
+
+    with pytest.raises(GeminiKeyPoolExhaustedError) as caught:
+        manager.request_client_with_slot(quota_scope="gemini-2.5-flash-lite")
     assert caught.value.retry_after_seconds is None
 
 
@@ -623,11 +874,11 @@ async def test_gemini_pool_rotates_a_real_per_attempt_timeout(
         "get_gemini_credential_manager",
         lambda: manager,
     )
-    monkeypatch.setattr(
-        provider_module,
-        "_PER_KEY_ATTEMPT_TIMEOUT_SECONDS",
-        0.005,
-    )
+
+    class ProviderSettings:
+        gemini_credential_attempt_timeout_seconds = 0.005
+
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
 
     assert (
         await provider_module.GeminiProvider()._with_credentials(
@@ -636,6 +887,104 @@ async def test_gemini_pool_rotates_a_real_per_attempt_timeout(
         )
         == "ready"
     )
+    assert calls == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_gemini_complete_reserves_time_for_the_next_credential_within_caller_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow first key cannot consume the full timeout supplied by the caller."""
+
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    calls: list[int] = []
+
+    class Models:
+        def __init__(self, slot: int):
+            self.slot = slot
+
+        async def generate_content(self, **kwargs):
+            del kwargs
+            calls.append(self.slot)
+            if self.slot == 0:
+                await asyncio.sleep(0.03)
+            return type("Response", (), {"text": "ready"})()
+
+    class Client:
+        def __init__(self, slot: int):
+            self.aio = type("Async", (), {"models": Models(slot)})()
+
+    class ProviderSettings:
+        gemini_text_model = "gemini-test"
+        gemini_text_fallback_model = ""
+        gemini_request_timeout_seconds = 0.08
+        gemini_credential_attempt_timeout_seconds = 0.01
+
+    manager = GeminiCredentialManager(("one", "two"), clock=lambda: 0.0)
+    manager._clients = {0: Client(0), 1: Client(1)}  # noqa: SLF001
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    assert await provider_module.GeminiProvider().complete(
+        "teach",
+        "help",
+        timeout=0.08,
+    ) == "ready"
+    assert calls == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_gemini_complete_scales_the_credential_cap_to_a_short_caller_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A short caller timeout still reserves time for one credential rotation."""
+
+    from app.ai import provider as provider_module
+    from app.ai.clients import GeminiCredentialManager
+
+    calls: list[int] = []
+
+    class Models:
+        def __init__(self, slot: int):
+            self.slot = slot
+
+        async def generate_content(self, **kwargs):
+            del kwargs
+            calls.append(self.slot)
+            if self.slot == 0:
+                await asyncio.sleep(0.03)
+            return type("Response", (), {"text": "ready"})()
+
+    class Client:
+        def __init__(self, slot: int):
+            self.aio = type("Async", (), {"models": Models(slot)})()
+
+    class ProviderSettings:
+        gemini_text_model = "gemini-test"
+        gemini_text_fallback_model = ""
+        gemini_request_timeout_seconds = 1.0
+        gemini_credential_attempt_timeout_seconds = 1.0
+
+    manager = GeminiCredentialManager(("one", "two"), clock=lambda: 0.0)
+    manager._clients = {0: Client(0), 1: Client(1)}  # noqa: SLF001
+    monkeypatch.setattr(
+        provider_module,
+        "get_gemini_credential_manager",
+        lambda: manager,
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
+
+    assert await provider_module.GeminiProvider().complete(
+        "health_probe",
+        "help",
+        timeout=0.04,
+    ) == "ready"
     assert calls == [0, 1]
 
 
@@ -973,7 +1322,9 @@ async def test_career_probe_timeout_is_owned_and_recorded_by_gemini_provider(
 
     assert items
     assert timeout_values == [0.005]
-    assert manager._states[0].cooldown_until == pytest.approx(5.0)  # noqa: SLF001
+    assert manager._states_by_quota_scope["gemini-test"][0].cooldown_until == pytest.approx(  # noqa: SLF001
+        5.0
+    )
 
 
 @pytest.mark.asyncio
@@ -1262,6 +1613,7 @@ async def test_gemini_stream_bridge_keeps_event_loop_responsive_and_rotates_time
     class ProviderSettings:
         gemini_text_model = "gemini-test"
         gemini_request_timeout_seconds = 1.0
+        gemini_credential_attempt_timeout_seconds = 0.005
 
     async def mark_loop_progress() -> None:
         await asyncio.sleep(0.001)
@@ -1273,7 +1625,6 @@ async def test_gemini_stream_bridge_keeps_event_loop_responsive_and_rotates_time
         lambda: manager,
     )
     monkeypatch.setattr(provider_module, "get_settings", lambda: ProviderSettings())
-    monkeypatch.setattr(provider_module, "_PER_KEY_ATTEMPT_TIMEOUT_SECONDS", 0.005)
 
     progress_task = asyncio.create_task(mark_loop_progress())
     chunks = [
@@ -1411,7 +1762,9 @@ async def test_gemini_stream_rotates_chunked_encoding_error_before_first_text(
 
     assert chunks == ["ready"]
     assert calls == [0, 1]
-    assert manager._states[0].cooldown_until == pytest.approx(5.0)  # noqa: SLF001
+    assert manager._states_by_quota_scope["gemini-test"][0].cooldown_until == pytest.approx(  # noqa: SLF001
+        5.0
+    )
 
 
 @pytest.mark.asyncio
@@ -1518,5 +1871,7 @@ async def test_gemini_stream_records_failure_after_text_without_replaying(monkey
             seen.append(chunk)
 
     assert seen == ["partial"]
-    assert manager._states[0].cooldown_until == pytest.approx(5.0)  # noqa: SLF001
+    assert manager._states_by_quota_scope["gemini-test"][0].cooldown_until == pytest.approx(  # noqa: SLF001
+        5.0
+    )
     assert manager.request_client_with_slot()[0] == 1

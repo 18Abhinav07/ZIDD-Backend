@@ -902,6 +902,12 @@ class CareerLearningProfileService:
             status = reported_status
         else:
             status = "partial" if learner_caveats else "final"
+        # SimulationReport defaults validity_status to "final" for backwards
+        # compatibility. A report that carries learner-facing assessment caveats
+        # is still incomplete evidence, even when that default survived model_dump.
+        # Never promote its strengths as durable final evidence.
+        if status == "final" and learner_caveats:
+            status = "partial"
         canonical_gaps = canonicalize_report_gaps(
             task_type,
             skill_gaps=report.get("skill_gaps") or [],

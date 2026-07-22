@@ -38,6 +38,12 @@ def _require_billing_enabled() -> None:
         raise HTTPException(status_code=404, detail="Not found")
 
 
+def _require_purchases_enabled() -> None:
+    _require_billing_enabled()
+    if not get_settings().credit_purchases_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
 def _is_local_dev_grant_enabled(request: Request) -> bool:
     settings = get_settings()
     if settings.app_env.lower() not in {"dev", "test", "local"}:
@@ -81,12 +87,22 @@ async def balance(request: Request) -> BalanceResponse:
     except Exception as e:
         logger.warning("Failed to resolve active module for %s: %s", user_id, e)
 
+    wallet = (
+        await store.get_wallet_summary(user_id)
+        if hasattr(store, "get_wallet_summary")
+        else {"credits": await store.get_credits(user_id)}
+    )
     return BalanceResponse(
         user_id=user_id,
-        credits=await store.get_credits(user_id),
+        credits=int(wallet.get("credits") or 0),
         demo_unlimited=await store.is_demo(user_id),
         name=name,
         active_module=active_module,
+        beta_credits=int(wallet.get("beta_credits") or 0),
+        paid_credits=int(wallet.get("paid_credits") or 0),
+        promo_credits=int(wallet.get("promo_credits") or 0),
+        beta_expires_at=wallet.get("beta_expires_at"),
+        purchases_enabled=get_settings().credit_purchases_enabled,
     )
 
 
@@ -113,7 +129,7 @@ async def dev_grant(request: Request, amount: int = 500) -> dict:
 
 @router.get("/packs", response_model=PackListResponse)
 async def packs() -> PackListResponse:
-    _require_billing_enabled()
+    _require_purchases_enabled()
     return PackListResponse(packs=pricing.pack_list())
 
 
@@ -155,7 +171,7 @@ async def unlocks(request: Request) -> UnlockListResponse:
 
 @router.post("/purchase/order", response_model=OrderResponse)
 async def create_purchase_order(req: OrderRequest, request: Request) -> OrderResponse:
-    _require_billing_enabled()
+    _require_purchases_enabled()
     user_id = _uid(request)
     pack = pricing.get_pack(req.pack_id)
     if pack is None:

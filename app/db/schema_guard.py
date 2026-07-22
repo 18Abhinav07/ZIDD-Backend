@@ -1,6 +1,7 @@
 """Runtime schema drift guard for the Supabase-backed product store."""
 
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 import hashlib
 import json
 import re
@@ -37,6 +38,20 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
     },
     "credit_transactions": {
         "idempotency_key",
+    },
+    "credit_lots": {
+        "id",
+        "user_id",
+        "source",
+        "grant_key",
+        "original_credits",
+        "remaining_credits",
+        "expires_at",
+    },
+    "credit_lot_spends": {
+        "transaction_id",
+        "lot_id",
+        "amount",
     },
     "competency_nodes": {
         "best_mastery",
@@ -337,6 +352,7 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "user_id",
         "raw_answer",
         "expected_state_json",
+        "request_metadata_json",
         "expected_state_digest",
         "answer_hash",
         "answer_claim_token",
@@ -349,6 +365,7 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "lease_token",
         "lease_version",
         "lease_expires_at",
+        "next_attempt_at",
         "last_error_code",
         "error_json",
         "response_json",
@@ -373,6 +390,7 @@ REQUIRED_RUNTIME_COLUMNS: dict[str, set[str]] = {
         "unlock_state",
         "blocking_skills_json",
         "watchlist_skills_json",
+        "deviation_note",
         "evidence_summary_json",
         "recommended_recap_modules_json",
         "learner_summary",
@@ -478,6 +496,21 @@ REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS: tuple[
     ),
 )
 
+# Most School lineage relationships must not cascade. Evaluation jobs are the
+# exception: they are a private child of their idempotency request and must be
+# removed with that request. Keep the exception explicit so a broad guard
+# relaxation cannot silently permit cascades on learner lineage or releases.
+REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEY_ACTIONS: dict[
+    tuple[str, tuple[str, ...], str, tuple[str, ...]], tuple[str, str]
+] = {
+    (
+        "school_evaluation_jobs",
+        ("session_id", "activity_id"),
+        "school_answer_requests",
+        ("session_id", "activity_id"),
+    ): ("a", "c"),
+}
+
 SENSITIVE_SCHOOL_TABLES: frozenset[str] = frozenset(
     table for table in REQUIRED_RUNTIME_COLUMNS if table.startswith("school_")
 )
@@ -571,6 +604,12 @@ REQUIRED_RUNTIME_CHECKS: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("learner_skill_profiles", "learner_skill_profiles_domain_task"): (
         "domain_task_registry",
+    ),
+    (
+        "school_evaluation_jobs",
+        "school_evaluation_jobs_request_metadata_object",
+    ): (
+        "request_metadata_json_object",
     ),
 }
 
@@ -802,6 +841,7 @@ REQUIRED_RUNTIME_INDEXES: dict[str, tuple[str, ...]] = {
         "CREATE INDEX",
         "school_evaluation_jobs",
         "status",
+        "next_attempt_at",
         "lease_expires_at",
         "created_at",
     ),
@@ -866,7 +906,96 @@ REQUIRED_MIGRATION_FILES: tuple[str, ...] = (
     "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
     "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
     "app/db/migrations/2026-07-18-school-evaluation-jobs.sql",
+    "app/db/migrations/2026-07-18-school-evaluation-jobs-fk-repair.sql",
+    "app/db/migrations/2026-07-19-school-evaluation-job-retry-schedule.sql",
+    "app/db/migrations/2026-07-19-school-evaluation-job-request-metadata.sql",
+    "app/db/migrations/2026-07-20-unified-credit-wallet.sql",
 )
+
+
+@dataclass(frozen=True)
+class _RuntimeSchemaRequirements:
+    columns: dict[str, set[str]]
+    column_types: dict[tuple[str, str], str]
+    nullable_columns: frozenset[tuple[str, str]]
+    foreign_keys: tuple[tuple[str, str, str, str], ...]
+    composite_foreign_keys: tuple[
+        tuple[str, tuple[str, ...], str, tuple[str, ...]], ...
+    ]
+    checks: dict[tuple[str, str], tuple[str, ...]]
+    indexes: dict[str, tuple[str, ...]]
+    exact_indexes: frozenset[str]
+    trigger_guards: dict[str, tuple[str, str, tuple[str, ...]]]
+    sensitive_school_tables: frozenset[str]
+
+
+def _is_school_runtime_table(table_name: str) -> bool:
+    return table_name.startswith("school_")
+
+
+def _is_school_runtime_index(index_name: str) -> bool:
+    return index_name.startswith(("idx_school_", "school_"))
+
+
+def _runtime_schema_requirements(
+    school_runtime_enabled: bool,
+) -> _RuntimeSchemaRequirements:
+    def includes_tables(*table_names: str) -> bool:
+        return school_runtime_enabled or not any(
+            _is_school_runtime_table(table_name) for table_name in table_names
+        )
+
+    indexes = {
+        index_name: required_tokens
+        for index_name, required_tokens in REQUIRED_RUNTIME_INDEXES.items()
+        if school_runtime_enabled or not _is_school_runtime_index(index_name)
+    }
+    return _RuntimeSchemaRequirements(
+        columns={
+            table_name: columns
+            for table_name, columns in REQUIRED_RUNTIME_COLUMNS.items()
+            if includes_tables(table_name)
+        },
+        column_types={
+            requirement: required_type
+            for requirement, required_type in REQUIRED_RUNTIME_COLUMN_TYPES.items()
+            if includes_tables(requirement[0])
+        },
+        nullable_columns=frozenset(
+            requirement
+            for requirement in REQUIRED_RUNTIME_NULLABLE_COLUMNS
+            if includes_tables(requirement[0])
+        ),
+        foreign_keys=tuple(
+            requirement
+            for requirement in REQUIRED_RUNTIME_FOREIGN_KEYS
+            if includes_tables(requirement[0], requirement[2])
+        ),
+        composite_foreign_keys=tuple(
+            requirement
+            for requirement in REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS
+            if includes_tables(requirement[0], requirement[2])
+        ),
+        checks={
+            requirement: required_semantics
+            for requirement, required_semantics in REQUIRED_RUNTIME_CHECKS.items()
+            if includes_tables(requirement[0])
+        },
+        indexes=indexes,
+        exact_indexes=frozenset(
+            index_name
+            for index_name in REQUIRED_EXACT_RUNTIME_INDEXES
+            if index_name in indexes
+        ),
+        # These guards exist solely for retired School flows, so they follow
+        # the School runtime rather than blocking a Career-only deployment.
+        trigger_guards=(
+            REQUIRED_RUNTIME_TRIGGER_GUARDS if school_runtime_enabled else {}
+        ),
+        sensitive_school_tables=(
+            SENSITIVE_SCHOOL_TABLES if school_runtime_enabled else frozenset()
+        ),
+    )
 
 
 class SchemaDriftError(RuntimeError):
@@ -879,54 +1008,58 @@ def _normalize_definition(value: str) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
-def required_schema_points() -> list[str]:
+def required_schema_points(*, school_runtime_enabled: bool = True) -> list[str]:
+    requirements = _runtime_schema_requirements(school_runtime_enabled)
     points: list[str] = []
-    for table, columns in sorted(REQUIRED_RUNTIME_COLUMNS.items()):
+    for table, columns in sorted(requirements.columns.items()):
         points.extend(f"public.{table}.{column}" for column in sorted(columns))
     points.extend(
         f"public.{table}.{column}.type.{required_type}"
         for (table, column), required_type in sorted(
-            REQUIRED_RUNTIME_COLUMN_TYPES.items()
+            requirements.column_types.items()
         )
     )
     points.extend(
         f"public.{table}.{column}.nullable"
-        for table, column in sorted(REQUIRED_RUNTIME_NULLABLE_COLUMNS)
+        for table, column in sorted(requirements.nullable_columns)
     )
     points.extend(
         f"public.foreign_key.{table}.{column}"
         f"->public.{foreign_table}.{foreign_column}"
         for table, column, foreign_table, foreign_column in sorted(
-            REQUIRED_RUNTIME_FOREIGN_KEYS
+            requirements.foreign_keys
         )
     )
     points.extend(
         f"public.composite_foreign_key.{table}.({','.join(columns)})"
         f"->public.{foreign_table}.({','.join(foreign_columns)})"
         for table, columns, foreign_table, foreign_columns in sorted(
-            REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS
+            requirements.composite_foreign_keys
         )
     )
     points.extend(
         f"public.check.{table}.{constraint_name}"
-        for table, constraint_name in sorted(REQUIRED_RUNTIME_CHECKS)
+        for table, constraint_name in sorted(requirements.checks)
     )
-    points.extend(f"public.index.{index}" for index in sorted(REQUIRED_RUNTIME_INDEXES))
-    points.append("public.data.school_curriculum_releases.canonical_rows")
-    points.append("public.trigger.school_curriculum_releases_immutable")
-    points.append(
-        "public.function.reject_school_curriculum_release_identity_change"
+    points.extend(
+        f"public.index.{index}" for index in sorted(requirements.indexes)
     )
     for trigger_name, (
         _table_name,
         function_name,
         _function_tokens,
-    ) in sorted(REQUIRED_RUNTIME_TRIGGER_GUARDS.items()):
+    ) in sorted(requirements.trigger_guards.items()):
         points.append(f"public.trigger.{trigger_name}")
         points.append(f"public.function.{function_name}")
-    for table in sorted(SENSITIVE_SCHOOL_TABLES):
+    for table in sorted(requirements.sensitive_school_tables):
         points.append(f"public.rls.{table}.enabled")
         points.append(f"public.privileges.{table}.api_roles_none")
+    if school_runtime_enabled:
+        points.append("public.data.school_curriculum_releases.canonical_rows")
+        points.append("public.trigger.school_curriculum_releases_immutable")
+        points.append(
+            "public.function.reject_school_curriculum_release_identity_change"
+        )
     return points
 
 
@@ -1009,6 +1142,9 @@ def _check_definition_matches(
                 ("task_type like" in normalized and "task_type not like" in normalized)
                 or ("task_type ~~" in normalized and "task_type !~~" in normalized)
             )
+        ),
+        "request_metadata_json_object": (
+            "jsonb_typeof(request_metadata_json) = 'object'" in normalized
         ),
     }
     matched = all(
@@ -1102,14 +1238,21 @@ async def _runtime_schema_executor(connection=None):
         yield session
 
 
-async def validate_runtime_schema(connection=None) -> None:
+async def validate_runtime_schema(
+    connection=None,
+    *,
+    school_runtime_enabled: bool = True,
+) -> None:
     """Fail fast if Supabase has not had the hardening migrations applied.
 
     This intentionally runs at boot, not during a learner flow. A stale schema
     should be an operator-visible startup error, not a random /map or lesson-start
     500 after the UI has already accepted a click.
     """
-    table_filter = ", ".join(f"'{table}'" for table in sorted(REQUIRED_RUNTIME_COLUMNS))
+    requirements = _runtime_schema_requirements(school_runtime_enabled)
+    table_filter = ", ".join(
+        f"'{table}'" for table in sorted(requirements.columns)
+    )
     query = text(
         f"""
         SELECT table_name, column_name, data_type, udt_name, is_nullable
@@ -1193,71 +1336,72 @@ async def validate_runtime_schema(connection=None) -> None:
                 """
             )
         )
-        rls_result = await session.execute(
-            text(
-                """
-                SELECT table_row.relname AS table_name,
-                       table_row.relrowsecurity AS rls_enabled
-                FROM pg_class AS table_row
-                JOIN pg_namespace AS namespace_row
-                  ON namespace_row.oid = table_row.relnamespace
-                WHERE namespace_row.nspname = 'public'
-                  AND table_row.relname LIKE 'school_%'
-                """
+        if school_runtime_enabled:
+            rls_result = await session.execute(
+                text(
+                    """
+                    SELECT table_row.relname AS table_name,
+                           table_row.relrowsecurity AS rls_enabled
+                    FROM pg_class AS table_row
+                    JOIN pg_namespace AS namespace_row
+                      ON namespace_row.oid = table_row.relnamespace
+                    WHERE namespace_row.nspname = 'public'
+                      AND table_row.relname LIKE 'school_%'
+                    """
+                )
             )
-        )
-        privilege_result = await session.execute(
-            text(
-                """
-                SELECT table_name, grantee, privilege_type
-                FROM information_schema.table_privileges
-                WHERE table_schema = 'public'
-                  AND table_name LIKE 'school_%'
-                  AND grantee IN ('anon', 'authenticated', 'PUBLIC')
-                """
+            privilege_result = await session.execute(
+                text(
+                    """
+                    SELECT table_name, grantee, privilege_type
+                    FROM information_schema.table_privileges
+                    WHERE table_schema = 'public'
+                      AND table_name LIKE 'school_%'
+                      AND grantee IN ('anon', 'authenticated', 'PUBLIC')
+                    """
+                )
             )
-        )
-        release_result = await session.execute(
-            text(
-                """
-                SELECT curriculum_release_id, board_id, subject_id, class_no,
-                       academic_year, manifest, release_digest, status
-                FROM public.school_curriculum_releases
-                ORDER BY class_no, curriculum_release_id
-                """
+            release_result = await session.execute(
+                text(
+                    """
+                    SELECT curriculum_release_id, board_id, subject_id, class_no,
+                           academic_year, manifest, release_digest, status
+                    FROM public.school_curriculum_releases
+                    ORDER BY class_no, curriculum_release_id
+                    """
+                )
             )
-        )
-        immutability_result = await session.execute(
-            text(
-                """
-                SELECT trigger_row.tgname AS trigger_name,
-                       table_row.relname AS table_name,
-                       trigger_row.tgenabled::text AS tgenabled,
-                       function_namespace_row.nspname AS function_schema,
-                       function_row.proname AS function_name,
-                       pg_get_triggerdef(trigger_row.oid, true)
-                           AS trigger_definition,
-                       pg_get_functiondef(function_row.oid)
-                           AS function_definition
-                FROM pg_trigger AS trigger_row
-                JOIN pg_class AS table_row
-                  ON table_row.oid = trigger_row.tgrelid
-                JOIN pg_namespace AS namespace_row
-                  ON namespace_row.oid = table_row.relnamespace
-                JOIN pg_proc AS function_row
-                  ON function_row.oid = trigger_row.tgfoid
-                JOIN pg_namespace AS function_namespace_row
-                  ON function_namespace_row.oid = function_row.pronamespace
-                WHERE namespace_row.nspname = 'public'
-                  AND trigger_row.tgname IN (
-                      'school_curriculum_releases_immutable',
-                      'sessions_reject_active_legacy_school',
-                      'session_runtime_reject_active_legacy_school'
-                  )
-                  AND NOT trigger_row.tgisinternal
-                """
+            immutability_result = await session.execute(
+                text(
+                    """
+                    SELECT trigger_row.tgname AS trigger_name,
+                           table_row.relname AS table_name,
+                           trigger_row.tgenabled::text AS tgenabled,
+                           function_namespace_row.nspname AS function_schema,
+                           function_row.proname AS function_name,
+                           pg_get_triggerdef(trigger_row.oid, true)
+                               AS trigger_definition,
+                           pg_get_functiondef(function_row.oid)
+                               AS function_definition
+                    FROM pg_trigger AS trigger_row
+                    JOIN pg_class AS table_row
+                      ON table_row.oid = trigger_row.tgrelid
+                    JOIN pg_namespace AS namespace_row
+                      ON namespace_row.oid = table_row.relnamespace
+                    JOIN pg_proc AS function_row
+                      ON function_row.oid = trigger_row.tgfoid
+                    JOIN pg_namespace AS function_namespace_row
+                      ON function_namespace_row.oid = function_row.pronamespace
+                    WHERE namespace_row.nspname = 'public'
+                      AND trigger_row.tgname IN (
+                          'school_curriculum_releases_immutable',
+                          'sessions_reject_active_legacy_school',
+                          'session_runtime_reject_active_legacy_school'
+                      )
+                      AND NOT trigger_row.tgisinternal
+                    """
+                )
             )
-        )
 
     column_rows = result.mappings().all()
     found = {
@@ -1281,11 +1425,15 @@ async def validate_runtime_schema(connection=None) -> None:
         for row in index_result.mappings().all()
     }
     foreign_key_rows = foreign_key_result.mappings().all()
-    valid_foreign_key_rows = [
+    validated_foreign_key_rows = [
         row
         for row in foreign_key_rows
         if bool(row.get("convalidated"))
-        and str(row.get("confupdtype") or "") == "a"
+    ]
+    valid_foreign_key_rows = [
+        row
+        for row in validated_foreign_key_rows
+        if str(row.get("confupdtype") or "") == "a"
         and str(row.get("confdeltype") or "") == "a"
     ]
     foreign_keys = {
@@ -1301,9 +1449,9 @@ async def validate_runtime_schema(connection=None) -> None:
         tuple[str, tuple[str, ...], str, tuple[str, ...]]
     ] = set()
     grouped_foreign_keys: dict[
-        tuple[str, str, str], list[tuple[int, str, str]]
+        tuple[str, str, str], list[tuple[int, str, str, str, str]]
     ] = {}
-    for row in valid_foreign_key_rows:
+    for row in validated_foreign_key_rows:
         constraint_name = str(row.get("constraint_name") or "")
         if not constraint_name:
             continue
@@ -1317,18 +1465,25 @@ async def validate_runtime_schema(connection=None) -> None:
                 int(row.get("column_position") or 0),
                 str(row["column_name"]),
                 str(row["foreign_column_name"]),
+                str(row.get("confupdtype") or ""),
+                str(row.get("confdeltype") or ""),
             )
         )
     for (table, _constraint, foreign_table), rows in grouped_foreign_keys.items():
         ordered = sorted(rows)
-        composite_foreign_keys.add(
-            (
-                table,
-                tuple(row[1] for row in ordered),
-                foreign_table,
-                tuple(row[2] for row in ordered),
-            )
+        candidate = (
+            table,
+            tuple(row[1] for row in ordered),
+            foreign_table,
+            tuple(row[2] for row in ordered),
         )
+        expected_actions = REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEY_ACTIONS.get(
+            candidate,
+            ("a", "a"),
+        )
+        actual_actions = {(row[3], row[4]) for row in ordered}
+        if actual_actions == {expected_actions}:
+            composite_foreign_keys.add(candidate)
     checks = {
         (str(row["table_name"]), str(row["constraint_name"])): str(
             row["constraint_definition"]
@@ -1336,44 +1491,50 @@ async def validate_runtime_schema(connection=None) -> None:
         for row in check_result.mappings().all()
         if bool(row.get("convalidated"))
     }
-    rls_enabled = {
-        str(row["table_name"]): bool(row["rls_enabled"])
-        for row in rls_result.mappings().all()
-    }
-    api_privilege_tables = {
-        str(row["table_name"])
-        for row in privilege_result.mappings().all()
-    }
-    release_rows = [
-        {
-            "curriculum_release_id": str(row["curriculum_release_id"]),
-            "board_id": str(row["board_id"]),
-            "subject_id": str(row["subject_id"]),
-            "class_no": int(row["class_no"]),
-            "academic_year": str(row["academic_year"]),
-            "manifest": dict(row["manifest"]),
-            "release_digest": str(row["release_digest"]),
-            "status": str(row["status"]),
+    if school_runtime_enabled:
+        rls_enabled = {
+            str(row["table_name"]): bool(row["rls_enabled"])
+            for row in rls_result.mappings().all()
         }
-        for row in release_result.mappings().all()
-    ]
-    immutability_rows = immutability_result.mappings().all()
+        api_privilege_tables = {
+            str(row["table_name"])
+            for row in privilege_result.mappings().all()
+        }
+        release_rows = [
+            {
+                "curriculum_release_id": str(row["curriculum_release_id"]),
+                "board_id": str(row["board_id"]),
+                "subject_id": str(row["subject_id"]),
+                "class_no": int(row["class_no"]),
+                "academic_year": str(row["academic_year"]),
+                "manifest": dict(row["manifest"]),
+                "release_digest": str(row["release_digest"]),
+                "status": str(row["status"]),
+            }
+            for row in release_result.mappings().all()
+        ]
+        immutability_rows = immutability_result.mappings().all()
+    else:
+        rls_enabled = {}
+        api_privilege_tables = set()
+        release_rows = []
+        immutability_rows = []
     missing = [
         f"public.{table}.{column}"
-        for table, columns in sorted(REQUIRED_RUNTIME_COLUMNS.items())
+        for table, columns in sorted(requirements.columns.items())
         for column in sorted(columns)
         if (table, column) not in found
     ]
     for (table, column), required_type in sorted(
-        REQUIRED_RUNTIME_COLUMN_TYPES.items()
+        requirements.column_types.items()
     ):
         if column_types.get((table, column)) != required_type:
             missing.append(f"public.{table}.{column}.type.{required_type}")
-    for table, column in sorted(REQUIRED_RUNTIME_NULLABLE_COLUMNS):
+    for table, column in sorted(requirements.nullable_columns):
         if column_nullability.get((table, column)) != "YES":
             missing.append(f"public.{table}.{column}.nullable")
     for table, column, foreign_table, foreign_column in sorted(
-        REQUIRED_RUNTIME_FOREIGN_KEYS
+        requirements.foreign_keys
     ):
         requirement = (table, column, foreign_table, foreign_column)
         if requirement not in foreign_keys:
@@ -1381,7 +1542,7 @@ async def validate_runtime_schema(connection=None) -> None:
                 f"public.foreign_key.{table}.{column}"
                 f"->public.{foreign_table}.{foreign_column}"
             )
-    for requirement in sorted(REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS):
+    for requirement in sorted(requirements.composite_foreign_keys):
         if requirement not in composite_foreign_keys:
             table, columns, foreign_table, foreign_columns = requirement
             missing.append(
@@ -1389,7 +1550,7 @@ async def validate_runtime_schema(connection=None) -> None:
                 f"->public.{foreign_table}.({','.join(foreign_columns)})"
             )
     for (table, constraint_name), required_semantics in sorted(
-        REQUIRED_RUNTIME_CHECKS.items()
+        requirements.checks.items()
     ):
         definition = checks.get((table, constraint_name), "")
         if not definition or not _check_definition_matches(
@@ -1397,7 +1558,7 @@ async def validate_runtime_schema(connection=None) -> None:
             required_semantics,
         ):
             missing.append(f"public.check.{table}.{constraint_name}")
-    for index_name, required_tokens in sorted(REQUIRED_RUNTIME_INDEXES.items()):
+    for index_name, required_tokens in sorted(requirements.indexes.items()):
         index_row = indexes.get(index_name)
         index_def = str(index_row["indexdef"]) if index_row else ""
         normalized = index_def.lower()
@@ -1405,7 +1566,7 @@ async def validate_runtime_schema(connection=None) -> None:
             token.lower() not in normalized for token in required_tokens
         )
         wrong_exact_shape = (
-            index_name in REQUIRED_EXACT_RUNTIME_INDEXES
+            index_name in requirements.exact_indexes
             and not _exact_runtime_index_matches(index_name, index_def)
         )
         invalid_catalog_state = not (
@@ -1415,7 +1576,7 @@ async def validate_runtime_schema(connection=None) -> None:
         )
         if not index_def or missing_tokens or wrong_exact_shape or invalid_catalog_state:
             missing.append(f"public.index.{index_name}")
-    release_rows_are_canonical = (
+    release_rows_are_canonical = not school_runtime_enabled or (
         release_rows == [dict(row) for row in REQUIRED_SCHOOL_CURRICULUM_RELEASES]
         and all(
             row["release_digest"] == _release_digest(row["manifest"])
@@ -1424,49 +1585,52 @@ async def validate_runtime_schema(connection=None) -> None:
     )
     if not release_rows_are_canonical:
         missing.append("public.data.school_curriculum_releases.canonical_rows")
-    immutability = next(
-        (
-            row
-            for row in immutability_rows
-            if str(row.get("trigger_name") or "")
-            == "school_curriculum_releases_immutable"
-        ),
-        None,
-    )
-    trigger_definition = _normalize_definition(
-        str(immutability.get("trigger_definition") or "")
-        if immutability
-        else ""
-    )
-    trigger_enabled = str(immutability.get("tgenabled") or "") if immutability else ""
-    if trigger_enabled not in {"O", "A"} or not re.fullmatch(
-        r"create trigger school_curriculum_releases_immutable before "
-        r"(?:update or delete|delete or update) on "
-        r"(?:public\.)?school_curriculum_releases for each row execute function "
-        r"(?:public\.)?reject_school_curriculum_release_identity_change\(\)",
-        trigger_definition,
-    ):
-        missing.append("public.trigger.school_curriculum_releases_immutable")
-    function_definition = _normalize_definition(
-        str(immutability.get("function_definition") or "")
-        if immutability
-        else ""
-    )
-    if not (
-        "reject_school_curriculum_release_identity_change" in function_definition
-        and "school_curriculum_release_immutable" in function_definition
-        and "raise exception" in function_definition
-        and "return old" in function_definition
-        and "return new" not in function_definition
-    ):
-        missing.append(
-            "public.function.reject_school_curriculum_release_identity_change"
+    if school_runtime_enabled:
+        immutability = next(
+            (
+                row
+                for row in immutability_rows
+                if str(row.get("trigger_name") or "")
+                == "school_curriculum_releases_immutable"
+            ),
+            None,
         )
+        trigger_definition = _normalize_definition(
+            str(immutability.get("trigger_definition") or "")
+            if immutability
+            else ""
+        )
+        trigger_enabled = (
+            str(immutability.get("tgenabled") or "") if immutability else ""
+        )
+        if trigger_enabled not in {"O", "A"} or not re.fullmatch(
+            r"create trigger school_curriculum_releases_immutable before "
+            r"(?:update or delete|delete or update) on "
+            r"(?:public\.)?school_curriculum_releases for each row execute function "
+            r"(?:public\.)?reject_school_curriculum_release_identity_change\(\)",
+            trigger_definition,
+        ):
+            missing.append("public.trigger.school_curriculum_releases_immutable")
+        function_definition = _normalize_definition(
+            str(immutability.get("function_definition") or "")
+            if immutability
+            else ""
+        )
+        if not (
+            "reject_school_curriculum_release_identity_change" in function_definition
+            and "school_curriculum_release_immutable" in function_definition
+            and "raise exception" in function_definition
+            and "return old" in function_definition
+            and "return new" not in function_definition
+        ):
+            missing.append(
+                "public.function.reject_school_curriculum_release_identity_change"
+            )
     for trigger_name, (
         table_name,
         function_name,
         required_function_tokens,
-    ) in sorted(REQUIRED_RUNTIME_TRIGGER_GUARDS.items()):
+    ) in sorted(requirements.trigger_guards.items()):
         guard = next(
             (
                 row
@@ -1517,7 +1681,7 @@ async def validate_runtime_schema(connection=None) -> None:
         )
         if not function_is_exact:
             missing.append(f"public.function.{function_name}")
-    for table in sorted(SENSITIVE_SCHOOL_TABLES):
+    for table in sorted(requirements.sensitive_school_tables):
         if not rls_enabled.get(table, False):
             missing.append(f"public.rls.{table}.enabled")
         if table in api_privilege_tables:

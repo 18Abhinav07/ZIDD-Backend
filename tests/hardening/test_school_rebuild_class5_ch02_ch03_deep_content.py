@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
+from app.content.school.content_schema import SchoolRubricEvaluation
 from app.content.school_rebuild_content import load_live_chapter_file
 from app.content.school_rebuild_quality import chapter_quality_issues
+from app.services import school_rebuild_curriculum as curriculum
+from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
 from scripts.build_school_class5_deep_chapter import load_manifest
 
 
@@ -406,6 +409,22 @@ def test_chapter_two_has_four_genuinely_distinct_review_variants_per_level():
             assert all(slot["any_of"] for slot in slots)
 
 
+def test_chapter_two_event_sequence_certifying_variants_have_authored_success_feedback():
+    payload = _payload("eng_c5_ch02")
+    level = next(
+        level
+        for level in payload["levels"]
+        if level["level_id"] == "scooter_event_sequence"
+    )
+
+    for phase in ("transfer", "review"):
+        step = next(item for item in level["teaching_steps"] if item["phase"] == phase)
+        assert all(
+            str(activity.get("success_feedback") or "").strip()
+            for activity in step["variant_pool"]
+        )
+
+
 def test_chapter_two_precise_grammar_teaches_only_tense_and_sentence_order():
     payload = _payload("eng_c5_ch02")
     level = next(
@@ -505,6 +524,60 @@ def test_chapter_two_dialogue_prompt_does_not_miscount_required_speech_acts():
     )
 
 
+def test_chapter_two_dialogue_attribution_accepts_a_complete_own_words_answer():
+    """Dialogue attribution assesses understanding, not one authored sentence."""
+
+    payload = _payload("eng_c5_ch02")
+    activity = next(
+        item
+        for item in _all_teaching_activities(payload)
+        if item.get("variant_id")
+        == "scooter_dialogue_and_speaker:independent:1"
+    )
+    activity = {
+        **activity,
+        "activity_id": activity["variant_id"],
+        "skill_ids": list(activity["knowledge_components"]),
+    }
+    answer = (
+        "The captain tells Ravi that the scoreboard key is missing. "
+        "Ravi says that it is hanging beside the whistle on the storage shelf."
+    )
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 1.0,
+            "confidence": 0.95,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "The answer identifies each speaker and Ravi's information.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+    assert activity["semantic_evidence_policy"] == "traceable_rubric"
+    assert decision["correct"] is True
+    assert "semantic_required_claim_missing" not in decision["blockers"]
+
+
 def test_chapter_two_assessment_choices_are_plausible_not_nonsense_eliminations():
     payload = _payload("eng_c5_ch02")
     options = {
@@ -554,6 +627,13 @@ def test_chapter_three_final_journey_work_certifies_eighty_to_hundred_words():
         for item in journey_items
     )
     assert all("80" in item["prompt"] and "100" in item["prompt"] for item in journey_items)
+
+    plural_transfer = steps["transfer"]["variant_pool"][0]
+    assert "we" in plural_transfer["model_answer"].casefold().split()
+    assert curriculum._open_answer_preflight(
+        plural_transfer,
+        plural_transfer["model_answer"],
+    ) is True
 
 
 def test_chapter_three_clay_pot_claim_stays_within_source():

@@ -11,6 +11,7 @@ import copy
 import hashlib
 import importlib
 import json
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -66,6 +67,7 @@ class InMemoryStore:
         self.school_v2_practice_sessions: dict[tuple[str, str], dict[str, Any]] = {}
         self.school_v2_curriculum_sessions: dict[tuple[str, str], dict[str, Any]] = {}
         self.unlocks: set[tuple[str, str, str]] = set()
+        self.credit_lots: dict[tuple[str, str], dict[str, Any]] = {}
         self.idempotent_charges: dict[tuple[str, str], dict[str, Any]] = {}
         self.credit_transactions: list[dict[str, Any]] = []
         self.google_login_resolutions = 0
@@ -148,20 +150,53 @@ class InMemoryStore:
         email: str,
         name: str,
         welcome_credits: int,
+        beta_credit_grant_enabled: bool = False,
+        beta_credit_grant_credits: int = 0,
+        beta_credit_grant_campaign_id: str = "",
+        beta_credit_grant_expires_at=None,
     ) -> dict[str, Any]:
         self.google_login_resolutions += 1
         profile = await self.get_profile_by_google_sub(google_sub)
         if profile:
-            return {"user_id": profile["user_id"], "is_new_user": False}
+            resolved = {"user_id": profile["user_id"], "is_new_user": False}
+            if beta_credit_grant_enabled:
+                await self.grant_credits(
+                    resolved["user_id"],
+                    beta_credit_grant_credits,
+                    f"beta_grant:{beta_credit_grant_campaign_id}",
+                    source="beta_grant",
+                    grant_key=f"beta:{beta_credit_grant_campaign_id}",
+                    expires_at=beta_credit_grant_expires_at,
+                )
+            return resolved
 
         profile = await self.get_profile_by_email(email)
         if profile:
             await self.ensure_profile(profile["user_id"], email=email, google_sub=google_sub)
-            return {"user_id": profile["user_id"], "is_new_user": False}
+            resolved = {"user_id": profile["user_id"], "is_new_user": False}
+            if beta_credit_grant_enabled:
+                await self.grant_credits(
+                    resolved["user_id"],
+                    beta_credit_grant_credits,
+                    f"beta_grant:{beta_credit_grant_campaign_id}",
+                    source="beta_grant",
+                    grant_key=f"beta:{beta_credit_grant_campaign_id}",
+                    expires_at=beta_credit_grant_expires_at,
+                )
+            return resolved
 
         user_id = f"google:{google_sub}"
         await self.ensure_profile(user_id, name=name, email=email, google_sub=google_sub)
-        await self.grant_credits(user_id, welcome_credits, "welcome")
+        await self.grant_credits(user_id, welcome_credits, "welcome", grant_key="welcome")
+        if beta_credit_grant_enabled:
+            await self.grant_credits(
+                user_id,
+                beta_credit_grant_credits,
+                f"beta_grant:{beta_credit_grant_campaign_id}",
+                source="beta_grant",
+                grant_key=f"beta:{beta_credit_grant_campaign_id}",
+                expires_at=beta_credit_grant_expires_at,
+            )
         return {"user_id": user_id, "is_new_user": True}
 
     async def get_preferences(self, user_id: str) -> dict[str, Any]:
@@ -314,11 +349,20 @@ class InMemoryStore:
             == str(parent.get("session_id") or "")
         ]
         snapshot_now = time.time()
+        relevant_answer_session_ids = {
+            str(row.get("session_id") or "")
+            for row in (
+                placement_session,
+                recap_session,
+                curriculum_session,
+                *linked_sessions,
+            )
+            if isinstance(row, dict) and str(row.get("session_id") or "")
+        }
         processing_requests = []
         for (session_id, _activity_id), row in self.school_answer_requests.items():
             if (
-                not curriculum_session
-                or str(session_id) != str(curriculum_session.get("session_id") or "")
+                str(session_id) not in relevant_answer_session_ids
                 or row.get("status") != "processing"
             ):
                 continue
@@ -724,13 +768,75 @@ class InMemoryStore:
                 self.profiles = profiles_before
                 raise
 
-    async def grant_credits(self, user_id: str, amount: int, reason: str = "grant") -> int:
+    async def grant_credits(
+        self,
+        user_id: str,
+        amount: int,
+        reason: str = "grant",
+        *,
+        source: str = "promo",
+        grant_key: str | None = None,
+        expires_at=None,
+    ) -> int:
+        key = grant_key or f"{source}:{reason}:{len(self.credit_lots)}"
+        lot_key = (user_id, key)
+        if lot_key in self.credit_lots:
+            return await self.get_credits(user_id)
+        self.credit_lots[lot_key] = {
+            "source": source,
+            "remaining_credits": int(amount),
+            "expires_at": expires_at,
+        }
         profile = self._profile(user_id)
         profile["credits"] = int(profile.get("credits") or 0) + amount
         return int(profile["credits"])
 
     async def get_credits(self, user_id: str) -> int:
-        return int(self._profile(user_id).get("credits") or 0)
+        now = datetime.now(timezone.utc)
+        total = 0
+        has_lots = False
+        for (lot_user_id, _key), lot in self.credit_lots.items():
+            if lot_user_id != user_id:
+                continue
+            has_lots = True
+            expires_at = lot.get("expires_at")
+            if expires_at is not None and expires_at <= now:
+                lot["remaining_credits"] = 0
+            total += int(lot.get("remaining_credits") or 0)
+        if not has_lots:
+            return int(self._profile(user_id).get("credits") or 0)
+        self._profile(user_id)["credits"] = total
+        return total
+
+    async def get_wallet_summary(self, user_id: str) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        beta = paid = promo = 0
+        expiries = []
+        for (lot_user_id, _key), lot in self.credit_lots.items():
+            if lot_user_id != user_id:
+                continue
+            expires_at = lot.get("expires_at")
+            if expires_at is not None and expires_at <= now:
+                lot["remaining_credits"] = 0
+                continue
+            amount = int(lot.get("remaining_credits") or 0)
+            if lot.get("source") == "beta_grant":
+                beta += amount
+                if expires_at is not None:
+                    expiries.append(expires_at)
+            elif lot.get("source") in {"paid_purchase", "legacy_migrated"}:
+                paid += amount
+            else:
+                promo += amount
+        total = beta + paid + promo
+        self._profile(user_id)["credits"] = total
+        return {
+            "credits": total,
+            "beta_credits": beta,
+            "paid_credits": paid,
+            "promo_credits": promo,
+            "beta_expires_at": min(expiries) if expiries else None,
+        }
 
     async def set_demo_unlimited(self, user_id: str, enabled: bool) -> None:
         self._profile(user_id)["demo_unlimited"] = bool(enabled)
@@ -1547,6 +1653,40 @@ class InMemoryStore:
 
     async def deduct_credits(self, user_id: str, amount: int, reason: str) -> bool:
         profile = self._profile(user_id)
+        lots = [
+            (key, lot)
+            for key, lot in self.credit_lots.items()
+            if key[0] == user_id
+            and int(lot.get("remaining_credits") or 0) > 0
+            and (
+                lot.get("expires_at") is None
+                or lot["expires_at"] > datetime.now(timezone.utc)
+            )
+        ]
+        if lots:
+            lots.sort(
+                key=lambda item: (
+                    0 if item[1].get("expires_at") is not None else 1,
+                    item[1].get("expires_at") or datetime.max.replace(tzinfo=timezone.utc),
+                    item[0][1],
+                )
+            )
+            credits = sum(int(lot.get("remaining_credits") or 0) for _key, lot in lots)
+            if credits < amount:
+                return False
+            remaining = amount
+            allocations = []
+            for key, lot in lots:
+                debit = min(remaining, int(lot.get("remaining_credits") or 0))
+                if debit:
+                    lot["remaining_credits"] -= debit
+                    allocations.append((key, debit))
+                    remaining -= debit
+                if remaining == 0:
+                    break
+            profile["credits"] = credits - amount
+            profile["_last_credit_allocations"] = allocations
+            return True
         credits = int(profile.get("credits") or 0)
         if credits < amount:
             return False
@@ -1565,7 +1705,11 @@ class InMemoryStore:
             return True
         if not await self.deduct_credits(user_id, amount, reason):
             return False
-        self.idempotent_charges[key] = {"amount": amount, "reason": reason}
+        self.idempotent_charges[key] = {
+            "amount": amount,
+            "reason": reason,
+            "allocations": list(self._profile(user_id).pop("_last_credit_allocations", [])),
+        }
         self.credit_transactions.append({
             "user_id": user_id,
             "delta": -amount,
@@ -1585,7 +1729,15 @@ class InMemoryStore:
         if row is None:
             return False
         profile = self._profile(user_id)
-        profile["credits"] = int(profile.get("credits") or 0) + amount
+        allocations = list(row.get("allocations") or [])
+        if allocations:
+            for lot_key, refunded in allocations:
+                lot = self.credit_lots.get(tuple(lot_key))
+                if lot is not None:
+                    lot["remaining_credits"] = int(lot.get("remaining_credits") or 0) + int(refunded)
+            await self.get_credits(user_id)
+        else:
+            profile["credits"] = int(profile.get("credits") or 0) + amount
         self.credit_transactions.append({
             "user_id": user_id,
             "delta": amount,
@@ -1796,6 +1948,46 @@ class InMemoryStore:
             return copy.deepcopy(
                 self.school_sessions[(user_id, str(row["session_id"]))]
             )
+
+    async def create_and_attach_school_masterclass(
+        self,
+        *,
+        parent_session: dict[str, Any],
+        expected_parent_state: dict[str, Any],
+        child_session: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        parent = dict(parent_session)
+        child = dict(child_session)
+        user_id = str(parent["user_id"])
+        parent_session_id = str(parent["session_id"])
+        child_session_id = str(child["session_id"])
+        if (
+            str(child.get("user_id") or "") != user_id
+            or str(child.get("linked_session_id") or "") != parent_session_id
+            or child.get("flow_type") != "masterclass"
+        ):
+            raise ValueError("invalid_masterclass_parent_link")
+        async with self._school_lineage_lock(user_id):
+            current = self.school_sessions.get((user_id, parent_session_id))
+            if current is None or current.get("state_json") != expected_parent_state:
+                return None
+            active_child = await self.get_active_school_session(
+                user_id,
+                str(child["api_version"]),
+                "masterclass",
+                str(child["subject_id"]),
+                int(child["class_no"]),
+                profile_version_id=child.get("profile_version_id"),
+                source_placement_report_id=child.get("source_placement_report_id"),
+            )
+            if (
+                active_child is not None
+                and str(active_child.get("session_id") or "") != child_session_id
+            ):
+                return None
+            self._upsert_school_session(child)
+            self._upsert_school_session(parent)
+            return copy.deepcopy(self.school_sessions[(user_id, child_session_id)])
 
     async def get_or_create_active_school_placement_session(
         self,
@@ -2466,6 +2658,16 @@ class InMemoryStore:
         return hashlib.sha256(encoded).hexdigest()
 
     @staticmethod
+    def _school_evaluation_job_request_metadata(
+        request_metadata: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        if request_metadata is None:
+            return {}
+        if not isinstance(request_metadata, dict):
+            raise ValueError("invalid_school_evaluation_job_request_metadata")
+        return request_metadata
+
+    @staticmethod
     def _school_evaluation_job_current_claim(
         job: dict[str, Any],
         request: dict[str, Any] | None,
@@ -2490,6 +2692,7 @@ class InMemoryStore:
                 "max_attempts",
                 "lease_version",
                 "lease_expires_at",
+                "next_attempt_at",
                 "last_error_code",
                 "error_json",
                 "created_at",
@@ -2547,6 +2750,69 @@ class InMemoryStore:
         if self._school_evaluation_job_current_claim(job, request):
             request.update(status="failed", response_json=None, updated_at=now)
 
+    @staticmethod
+    def _validated_placement_retry_timing(
+        placement_retry_timing: dict | None,
+        *,
+        activity_id: str,
+    ) -> dict | None:
+        if placement_retry_timing is None:
+            return None
+        required_fields = {
+            "item_id",
+            "retry_pending",
+            "accrued_learner_seconds",
+            "presented_at",
+        }
+        if (
+            not isinstance(placement_retry_timing, dict)
+            or set(placement_retry_timing) != required_fields
+        ):
+            raise ValueError("invalid_school_evaluation_job_placement_retry_timing")
+        item_id = placement_retry_timing.get("item_id")
+        presented_at = placement_retry_timing.get("presented_at")
+        accrued_learner_seconds = placement_retry_timing.get(
+            "accrued_learner_seconds"
+        )
+        if (
+            not isinstance(item_id, str)
+            or item_id != activity_id
+            or placement_retry_timing.get("retry_pending") is not True
+            or isinstance(accrued_learner_seconds, bool)
+            or not isinstance(accrued_learner_seconds, (int, float))
+            or not math.isfinite(float(accrued_learner_seconds))
+            or float(accrued_learner_seconds) < 0
+            or not isinstance(presented_at, str)
+            or not presented_at
+        ):
+            raise ValueError("invalid_school_evaluation_job_placement_retry_timing")
+        try:
+            datetime.fromisoformat(presented_at)
+        except ValueError as exc:
+            raise ValueError(
+                "invalid_school_evaluation_job_placement_retry_timing"
+            ) from exc
+        return {
+            "item_id": item_id,
+            "retry_pending": True,
+            "accrued_learner_seconds": float(accrued_learner_seconds),
+            "presented_at": presented_at,
+        }
+
+    @staticmethod
+    def _school_evaluation_job_retry_after_seconds(
+        retry_after_seconds: float | int | None,
+    ) -> float:
+        try:
+            normalized = float(retry_after_seconds or 0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "invalid_school_evaluation_job_retry_after_seconds"
+            ) from exc
+        if not math.isfinite(normalized) or normalized < 0 or normalized > 15 * 60:
+            raise ValueError("invalid_school_evaluation_job_retry_after_seconds")
+        return normalized
+
     async def get_school_evaluation_job(
         self,
         user_id: str,
@@ -2597,6 +2863,7 @@ class InMemoryStore:
         flow_type: str,
         evaluation_mode: str,
         max_attempts: int = 3,
+        request_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(raw_answer, str):
             raise ValueError("invalid_school_evaluation_job_answer")
@@ -2609,6 +2876,9 @@ class InMemoryStore:
         normalized_max_attempts = int(max_attempts)
         if normalized_max_attempts <= 0:
             raise ValueError("invalid_school_evaluation_job_max_attempts")
+        normalized_request_metadata = self._school_evaluation_job_request_metadata(
+            request_metadata
+        )
 
         key = (str(session_id), str(activity_id))
         expected_state_digest = self._school_evaluation_job_digest(expected_state_json)
@@ -2652,6 +2922,8 @@ class InMemoryStore:
                     same_payload = (
                         existing.get("raw_answer") == raw_answer
                         and existing.get("expected_state_digest") == expected_state_digest
+                        and existing.get("request_metadata_json")
+                        == normalized_request_metadata
                         and existing.get("flow_type") == normalized_flow_type
                         and existing.get("evaluation_mode") == normalized_evaluation_mode
                         and existing.get("max_attempts") == normalized_max_attempts
@@ -2697,6 +2969,7 @@ class InMemoryStore:
                         user_id=user_id,
                         raw_answer=raw_answer,
                         expected_state_json=copy.deepcopy(expected_state_json),
+                        request_metadata_json=copy.deepcopy(normalized_request_metadata),
                         expected_state_digest=expected_state_digest,
                         answer_hash=answer_hash,
                         answer_claim_token=claim_token,
@@ -2708,6 +2981,7 @@ class InMemoryStore:
                         lease_owner=None,
                         lease_token=None,
                         lease_expires_at=None,
+                        next_attempt_at=now,
                         last_error_code=None,
                         error_json=None,
                         response_json=None,
@@ -2727,6 +3001,9 @@ class InMemoryStore:
                         "user_id": user_id,
                         "raw_answer": raw_answer,
                         "expected_state_json": copy.deepcopy(expected_state_json),
+                        "request_metadata_json": copy.deepcopy(
+                            normalized_request_metadata
+                        ),
                         "expected_state_digest": expected_state_digest,
                         "answer_hash": answer_hash,
                         "answer_claim_token": claim_token,
@@ -2739,6 +3016,7 @@ class InMemoryStore:
                         "lease_token": None,
                         "lease_version": 0,
                         "lease_expires_at": None,
+                        "next_attempt_at": now,
                         "last_error_code": None,
                         "error_json": None,
                         "response_json": None,
@@ -2780,6 +3058,7 @@ class InMemoryStore:
         flow_type: str,
         evaluation_mode: str,
         max_attempts: int = 3,
+        request_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(raw_answer, str):
             raise ValueError("invalid_school_evaluation_job_answer")
@@ -2792,6 +3071,9 @@ class InMemoryStore:
         normalized_max_attempts = int(max_attempts)
         if normalized_max_attempts <= 0:
             raise ValueError("invalid_school_evaluation_job_max_attempts")
+        normalized_request_metadata = self._school_evaluation_job_request_metadata(
+            request_metadata
+        )
 
         key = (str(session_id), str(activity_id))
         expected_state_digest = self._school_evaluation_job_digest(expected_state_json)
@@ -2817,6 +3099,8 @@ class InMemoryStore:
                 same_payload = (
                     existing.get("raw_answer") == raw_answer
                     and existing.get("expected_state_digest") == expected_state_digest
+                    and existing.get("request_metadata_json")
+                    == normalized_request_metadata
                     and existing.get("flow_type") == normalized_flow_type
                     and existing.get("evaluation_mode") == normalized_evaluation_mode
                     and existing.get("max_attempts") == normalized_max_attempts
@@ -2829,6 +3113,7 @@ class InMemoryStore:
                         user_id=user_id,
                         raw_answer=raw_answer,
                         expected_state_json=copy.deepcopy(expected_state_json),
+                        request_metadata_json=copy.deepcopy(normalized_request_metadata),
                         expected_state_digest=expected_state_digest,
                         answer_hash=answer_hash,
                         answer_claim_token=answer_claim_token,
@@ -2840,6 +3125,7 @@ class InMemoryStore:
                         lease_owner=None,
                         lease_token=None,
                         lease_expires_at=None,
+                        next_attempt_at=now,
                         last_error_code=None,
                         error_json=None,
                         response_json=None,
@@ -2861,6 +3147,7 @@ class InMemoryStore:
                 "user_id": user_id,
                 "raw_answer": raw_answer,
                 "expected_state_json": copy.deepcopy(expected_state_json),
+                "request_metadata_json": copy.deepcopy(normalized_request_metadata),
                 "expected_state_digest": expected_state_digest,
                 "answer_hash": answer_hash,
                 "answer_claim_token": answer_claim_token,
@@ -2873,6 +3160,7 @@ class InMemoryStore:
                 "lease_token": None,
                 "lease_version": 0,
                 "lease_expires_at": None,
+                "next_attempt_at": now,
                 "last_error_code": None,
                 "error_json": None,
                 "response_json": None,
@@ -2924,6 +3212,7 @@ class InMemoryStore:
                     job.get("status") == "queued"
                     and int(job.get("attempts") or 0)
                     < int(job.get("max_attempts") or 0)
+                    and float(job.get("next_attempt_at") or 0) <= now
                 )
                 recovery_attempt = bool(
                     job.get("status") == "running"
@@ -3002,10 +3291,15 @@ class InMemoryStore:
         lease_version: int,
         last_error_code: str,
         error_json: dict[str, Any] | None = None,
+        placement_retry_timing: dict | None = None,
     ) -> dict[str, Any] | None:
         normalized_error_code = str(last_error_code or "").strip()
         if not normalized_error_code:
             raise ValueError("invalid_school_evaluation_job_error_code")
+        normalized_placement_retry_timing = self._validated_placement_retry_timing(
+            placement_retry_timing,
+            activity_id=str(activity_id),
+        )
         async with self._school_curriculum_attempt_lock:
             key = (str(session_id), str(activity_id))
             job = self.school_evaluation_jobs.get(key)
@@ -3024,6 +3318,28 @@ class InMemoryStore:
                 and self._school_evaluation_job_current_claim(job, request)
             ):
                 return None
+            if normalized_placement_retry_timing is not None:
+                session_row = self.school_sessions.get((user_id, str(session_id)))
+                current_timing = (session_row or {}).get("state_json", {}).get(
+                    "_placement_item_timing"
+                )
+                if not (
+                    job.get("flow_type") == "placement"
+                    and session_row
+                    and session_row.get("api_version") == "rebuild"
+                    and session_row.get("flow_type") == "placement"
+                    and session_row.get("status") == "active"
+                    and isinstance(current_timing, dict)
+                    and current_timing.get("item_id") == activity_id
+                ):
+                    return None
+                session_row["state_json"] = {
+                    **session_row.get("state_json", {}),
+                    "_placement_item_timing": copy.deepcopy(
+                        normalized_placement_retry_timing
+                    ),
+                }
+                session_row["updated_at"] = now
             self._terminalize_school_evaluation_job_row(
                 job,
                 request,
@@ -3144,11 +3460,15 @@ class InMemoryStore:
         lease_token: str,
         lease_version: int,
         last_error_code: str,
+        retry_after_seconds: float | int | None = None,
         error_json: dict | None = None,
     ) -> dict[str, Any] | None:
         normalized_error_code = str(last_error_code or "").strip()
         if not normalized_error_code:
             raise ValueError("invalid_school_evaluation_job_error_code")
+        normalized_retry_after_seconds = self._school_evaluation_job_retry_after_seconds(
+            retry_after_seconds
+        )
         async with self._school_curriculum_attempt_lock:
             key = (str(session_id), str(activity_id))
             job = self.school_evaluation_jobs.get(key)
@@ -3174,6 +3494,7 @@ class InMemoryStore:
                 lease_owner=None,
                 lease_token=None,
                 lease_expires_at=None,
+                next_attempt_at=now + normalized_retry_after_seconds,
                 last_error_code=normalized_error_code,
                 error_json=copy.deepcopy(error_json),
                 response_json=None,

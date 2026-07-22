@@ -63,6 +63,40 @@ def test_settings_default_to_enabled_and_normalize_billing_mode(monkeypatch):
         Settings(_env_file=None, billing_mode="paused")
 
 
+def test_enabled_beta_grants_require_a_positive_expiring_campaign() -> None:
+    with pytest.raises(ValidationError, match="beta_credit_grant_expiry_required"):
+        Settings(
+            _env_file=None,
+            beta_credit_grant_enabled=True,
+            beta_credit_grant_credits=300,
+            beta_credit_grant_campaign_id="india-beta",
+        )
+    with pytest.raises(ValidationError, match="beta_credit_grant_credits_must_be_positive"):
+        Settings(
+            _env_file=None,
+            beta_credit_grant_enabled=True,
+            beta_credit_grant_credits=0,
+            beta_credit_grant_campaign_id="india-beta",
+            beta_credit_grant_expires_at="2026-08-31T23:59:59+05:30",
+        )
+    with pytest.raises(ValidationError, match="beta_credit_grant_expiry_must_be_timezone_aware"):
+        Settings(
+            _env_file=None,
+            beta_credit_grant_enabled=True,
+            beta_credit_grant_credits=300,
+            beta_credit_grant_campaign_id="india-beta",
+            beta_credit_grant_expires_at="2030-08-31T23:59:59",
+        )
+    with pytest.raises(ValidationError, match="beta_credit_grant_expiry_must_be_future"):
+        Settings(
+            _env_file=None,
+            beta_credit_grant_enabled=True,
+            beta_credit_grant_credits=300,
+            beta_credit_grant_campaign_id="india-beta",
+            beta_credit_grant_expires_at="2020-08-31T23:59:59+05:30",
+        )
+
+
 @pytest.mark.parametrize("module_id", [COMM_ID, INT_ID, GD_ID, SCHOOL_ID])
 def test_disabled_mode_makes_every_learning_module_free_without_store_reads(
     monkeypatch,
@@ -227,7 +261,7 @@ def test_enabled_order_route_keeps_existing_gateway_and_storage_flow(monkeypatch
     assert response.json()["order_id"] == "order_enabled"
     assert recorded == [
         (
-            ("order_enabled", "test_user", "starter", 100, 9900),
+                ("order_enabled", "test_user", "starter", 100, 19_900),
             {"status": "created"},
         )
     ]

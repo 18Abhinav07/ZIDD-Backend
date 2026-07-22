@@ -145,6 +145,45 @@ def _open(activity_id: str) -> dict:
     }
 
 
+def _ordered(activity_id: str) -> dict:
+    return {
+        "kind": "ordered_slots",
+        "activity_id": activity_id,
+        "teaching_block": (
+            f"Use the stated rule to order every item in the {activity_id} task."
+        ),
+        "passage": (
+            f"For {activity_id}, arrange seed, lemon, and melon from the smallest "
+            "width to the greatest width."
+        ),
+        "prompt": f"Order the three objects correctly in the {activity_id} task.",
+        "skill_ids": [SKILL_ID],
+        "interaction_type": "ordering",
+        "concept_slots": [
+            {
+                "id": f"{activity_id}-first",
+                "description": "The smallest object is first.",
+                "any_of": ["seed"],
+            },
+            {
+                "id": f"{activity_id}-second",
+                "description": "The middle-sized object is second.",
+                "any_of": ["lemon"],
+            },
+            {
+                "id": f"{activity_id}-third",
+                "description": "The largest object is third.",
+                "any_of": ["melon"],
+            },
+        ],
+        "ordered_concept_slot_ids": [
+            f"{activity_id}-first",
+            f"{activity_id}-second",
+            f"{activity_id}-third",
+        ],
+    }
+
+
 def _manifest_payload() -> dict:
     support_ids = [
         "support-bridge",
@@ -284,6 +323,91 @@ def test_deep_builder_can_create_complete_chapter_without_shallow_input() -> Non
     assert len(checked.levels) == 1
     assert checked.chapter_assessment is not None
     assert len(checked.chapter_assessment.items) == 20
+
+
+def test_deep_builder_marks_certifying_deterministic_variant_as_english() -> None:
+    manifest = _manifest_payload()
+    manifest["levels"][0]["independent_variants"][0] = _ordered(
+        "independent-order"
+    )
+
+    built = build_deep_chapter(None, manifest)
+
+    activity = built["levels"][0]["teaching_steps"][3]["variant_pool"][0]
+    assert activity["grading_mode"] == "ordered_slots"
+    assert activity["evidence_role"] == "certifying"
+    assert activity["certifying_language"] == "en"
+
+
+def test_deep_builder_preserves_explicit_non_evidentiary_guided_role() -> None:
+    manifest = _manifest_payload()
+    guided = manifest["levels"][0]["guided_variants"][0]
+    guided["skill_ids"] = []
+    guided["evidence_role_override"] = "experience"
+
+    built = build_deep_chapter(None, manifest)
+
+    activity = built["levels"][0]["teaching_steps"][2]["variant_pool"][0]
+    assert activity["knowledge_components"] == []
+    assert activity["evidence_role"] == "experience"
+    assert "certifying_language" not in activity
+
+
+def test_deep_builder_can_author_a_distinct_choice_guided_check() -> None:
+    manifest = _manifest_payload()
+    manifest["source_anchors"].append(
+        {
+            "anchor_id": "eng_c5_ch99:learn:2",
+            "section_label": "Expression practice",
+            "page_start": 3,
+            "page_end": 3,
+            "source_url": "https://ncert.nic.in/textbook/pdf/eesa199.pdf#page=3",
+            "coverage_treatment": "zidd_equivalent",
+            "required_for_chapter_certification": False,
+        }
+    )
+    manifest["levels"][0]["source_anchor_ids"].append("eng_c5_ch99:learn:2")
+    manifest["levels"][0]["connect"]["source_anchor_ids_override"] = [
+        "eng_c5_ch99:learn:1"
+    ]
+    manifest["levels"][0]["connect"]["knowledge_components_override"] = []
+    manifest["levels"][0]["co_construct"] = _open("co-construct-open")
+    manifest["levels"][0]["guided_pool_id"] = "fixture_tense_level:guided"
+    manifest["levels"][0]["support_checks"]["guided_check"] = {
+        **_choice("guided-check"),
+        "teaching_phase_override": "guided_practice",
+        "source_anchor_ids_override": ["eng_c5_ch99:learn:1"],
+    }
+    manifest["levels"][0]["support_checks"]["independent_check"] = _open(
+        "independent-check"
+    )
+    manifest["levels"][0]["support_checks"]["transfer_check"] = _open(
+        "transfer-check"
+    )
+
+    built = build_deep_chapter(None, manifest)
+
+    guided_check = built["levels"][0]["checks"]["guided_check"]
+    connect = built["levels"][0]["teaching_steps"][0]["activity"]
+    assert connect["source_anchor_ids"] == ["eng_c5_ch99:learn:1"]
+    assert connect["knowledge_components"] == []
+    assert guided_check["grading_mode"] == "selected_option"
+    assert guided_check["options"]
+    assert guided_check["teaching_phase"] == "guided_practice"
+    assert guided_check["source_anchor_ids"] == ["eng_c5_ch99:learn:1"]
+    assert guided_check["prompt"] == _choice("guided-check")["prompt"]
+    assert (
+        built["levels"][0]["teaching_steps"][2]["pool_id"]
+        == "fixture_tense_level:guided"
+    )
+    assert (
+        built["levels"][0]["checks"]["independent_check"]["prompt"]
+        == _open("independent-check")["prompt"]
+    )
+    assert (
+        built["levels"][0]["checks"]["transfer_check"]["prompt"]
+        == _open("transfer-check")["prompt"]
+    )
 
 
 @pytest.mark.parametrize("items_per_attempt", [10, 16, 20])

@@ -462,7 +462,7 @@ MANIFEST = json.loads(r'''{
             "hears",
             "reported"
           ],
-          "model_answer": "The bird heard the reported signal, copied the still pose, was lifted outside the opened cage, and then flew away. Reference evidence states: receives a distant signal; copies the signal; flies away.",
+          "model_answer": "The bird hears the reported signal, becomes still, is lifted outside the opened cage, and then flies away.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "receive",
@@ -541,7 +541,7 @@ MANIFEST = json.loads(r'''{
             "rohan",
             "switches"
           ],
-          "model_answer": "Amina gives the instruction, Rohan performs the lamp signal, and Amina leaves quietly after seeing it. Reference evidence states: Rohan switches.",
+          "model_answer": "Amina gives the instruction, Rohan gives the signal by switching off the porch lamp, and Amina leaves quietly after seeing it.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "instruction_speaker",
@@ -621,7 +621,7 @@ MANIFEST = json.loads(r'''{
             "unlatches",
             "opens"
           ],
-          "model_answer": "The puppy's scratching is the signal, Dev responds by unlatching the gate, and the puppy then runs to its owner. Reference evidence states: puppy scratches; Dev unlatches.",
+          "model_answer": "The puppy scratches twice as the signal, Dev unlatches the gate in response, and the puppy runs to its owner.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "signal",
@@ -855,7 +855,7 @@ MANIFEST = json.loads(r'''{
             "gives",
             "instruction"
           ],
-          "model_answer": "Coach Mira gives the instruction; Kabir hears her whistle, starts running, and finally crosses the finish line. Reference evidence states: Coach Mira says; Kabir begins.",
+          "model_answer": "Coach Mira says to wait for her whistle. Kabir begins after the whistle and finally crosses the finish line.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "coach_speaker",
@@ -7911,6 +7911,7 @@ MANIFEST = json.loads(r'''{
               "description": "Places the bowl in shade on a stable surface.",
               "any_of": [
                 "place in shade",
+                "place it in shade",
                 "stable surface"
               ]
             },
@@ -7919,7 +7920,8 @@ MANIFEST = json.loads(r'''{
               "description": "Includes daily refreshing.",
               "any_of": [
                 "refresh daily",
-                "change water each day"
+                "change water each day",
+                "refresh the water every day"
               ]
             },
             {
@@ -7943,7 +7945,7 @@ MANIFEST = json.loads(r'''{
             "fill",
             "place"
           ],
-          "model_answer": "First wash a shallow bowl and fill it with clean water. Next, ask an adult to place it in shade on a stable surface. Finally, refresh the water every day so it stays safe and useful. Reference evidence states: refresh daily.",
+          "model_answer": "First wash a shallow bowl and fill it with clean water. Next, place it in shade on a stable surface. Then refresh the water every day. Finally, ask an adult to check that the bowl cannot tip, so it stays safe and useful.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "wash_fill",

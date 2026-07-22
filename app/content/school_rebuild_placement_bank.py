@@ -111,6 +111,7 @@ class PlacementTrack:
     snapshot_item: SchoolPlacementBankItem
     bands: tuple[PlacementBand, ...]
     approval: PlacementApproval
+    watchlist_eligible: bool = False
 
 
 @dataclass(frozen=True)
@@ -430,6 +431,8 @@ def _track(
     label: str,
     snapshot_source: int,
     seeds: tuple[_ItemSeed, ...],
+    *,
+    watchlist_eligible: bool = True,
 ) -> PlacementTrack:
     lower_band = max(1, class_no - 1)
     track_id = f"english.c{class_no}.{slug}"
@@ -514,6 +517,7 @@ def _track(
             ),
         ),
         approval=_APPROVAL,
+        watchlist_eligible=watchlist_eligible,
     )
 
 
@@ -1001,6 +1005,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
             _det("delivery", "The parcel reached the office on Monday but was collected by Zoya on Tuesday.", "When did Zoya collect the parcel?", "Tuesday", "Zoya collected the parcel on Tuesday."),
             _det("museum", "The museum opens at ten, but the guided tour begins thirty minutes later near the main staircase.", "What time does the guided tour begin?", "10:30", "ten thirty", "10.30", "The guided tour begins at ten thirty.", "The guided tour begins at 10:30.", "The guided tour begins at 10.30.", "The guided tour begins at 10:30 near the main staircase.", "The guided tour begins at ten thirty near the main staircase.", "The guided tour begins at 10.30 near the main staircase."),
             _det("competition", "Entries must be emailed by Friday, while printed posters may be delivered on Monday morning.", "What must be sent by Friday?", "entries", "the entries", "emailed entries", "The entries must be sent by Friday.", "The entries must be emailed by Friday."),
+            _det("science_exhibition", "Because the auditorium is being repaired, Friday's science exhibition will open in the library at 11:15 instead of 10:30.", "Where and when will the science exhibition open?", "in the library at 11:15", "the library at 11:15", "library at 11:15", "The science exhibition will open in the library at 11:15.", "It will open in the library at 11:15."),
         )),
         _track(5, "main_idea", "reading", "reading.paragraph_main_idea", "Distinguish a central idea from details", 4, (
             _det("community_kitchen", "Families donated rice, shopkeepers lent large pots, and volunteers cooked meals after the flood.", "What is the main idea?", "the community worked together to provide meals", options=("the community worked together to provide meals", "shopkeepers sold new pots", "families moved to another town"), item_type="multiple_choice", misconception="main_idea"),
@@ -1008,6 +1013,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
             _det("oral_history", "Children interviewed grandparents, recorded old neighbourhood stories, and displayed them with photographs.", "What idea connects the interviews, recordings, and display?", "children preserving local memories", options=("children preserving local memories", "children learning photography only", "grandparents moving houses"), item_type="multiple_choice", misconception="main_idea"),
             _det("lake_restore", "For months, citizens tested the lake water, stopped waste pipes, and planted native grasses along the shore.", "What larger project do the lake actions describe?", "a community restoring a lake", options=("a community restoring a lake", "citizens building a swimming pool", "a town preparing for a fair", "workers widening a road"), item_type="multiple_choice", misconception="main_idea"),
             _det("book_exchange", "Instead of buying every new title, families brought books they had finished and exchanged them for others.", "What idea explains why families brought finished books?", "families sharing books through an exchange", options=("families sharing books through an exchange", "families opening a bookshop", "children writing textbooks", "people repairing a library roof"), item_type="multiple_choice", misconception="main_idea"),
+            _det("monsoon_preparation", "Residents marked flood-prone lanes, volunteers installed warning signs, and the council cleared drains before the monsoon.", "What central idea connects all three actions?", "a community preparing for monsoon flooding", options=("a community preparing for monsoon flooding", "residents planning a street festival", "volunteers measuring road traffic", "the council building new houses"), item_type="multiple_choice", misconception="main_idea"),
         )),
         _track(5, "inference", "reading", "reading.inference_reason", "Infer an unstated reason from evidence", 4, (
             _inference_open(
@@ -1143,13 +1149,14 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                     "locked the hall",
                 ),
             ),
-        )),
+        ), watchlist_eligible=False),
         _track(5, "context_word", "vocabulary", "reading.word_meaning_context", "Infer precise meaning from context", 4, (
             _det("glanced", "Ravi glanced at the clock, then quickly returned to his book.", "What does glanced mean?", "looked quickly", options=("looked quickly", "slept deeply", "spoke loudly"), item_type="multiple_choice", misconception="context_clue"),
             _det("scarce", "Water became scarce; each family received only one bucket.", "What does scarce mean here?", "not enough", options=("not enough", "very clean", "easy to carry"), item_type="multiple_choice", misconception="context_clue"),
             _det("resolved", "After discussing both plans, the group resolved the disagreement and chose one route.", "What does resolved mean?", "settled", options=("settled", "started", "ignored"), item_type="multiple_choice", misconception="context_clue"),
             _det("meticulous", "Anaya checked every measurement twice and corrected even tiny errors. Her work was meticulous.", "What does meticulous mean?", "very careful and exact", options=("very careful and exact", "done in a hurry", "brightly coloured", "hard to explain"), item_type="multiple_choice", misconception="context_clue"),
             _det("deteriorated", "Without repairs, the path deteriorated: cracks widened and stones came loose.", "What does deteriorated mean?", "became worse", options=("became worse", "became shorter", "was painted", "was discovered"), item_type="multiple_choice", misconception="context_clue"),
+            _det("tentative", "The committee pencilled in Saturday for the match but would confirm the date only after checking the weather forecast. The Saturday plan was tentative.", "What does tentative mean here?", "not final", options=("not final", "carefully measured", "widely advertised", "already completed"), item_type="multiple_choice", misconception="context_clue"),
         )),
         _track(5, "word_usage", "vocabulary", "vocab.chapter_word_usage", "Choose precise vocabulary for a context", 5, (
             _det("inspect", "Before using the rope, the climber will ___ it for damage.", "Choose the precise action the climber should take before use.", "inspect", options=("inspect", "scatter", "borrow", "whisper"), item_type="multiple_choice", misconception="precise_word"),
@@ -1157,6 +1164,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
             _det("persuade", "The team used facts to ___ the council to add a crossing.", "Choose the verb for influencing the council with facts.", "persuade", options=("persuade", "measure", "replace", "observe"), item_type="multiple_choice", misconception="precise_word"),
             _det("allocate", "The captain must ___ equal practice time to every player.", "Choose the verb for assigning equal practice time.", "allocate", options=("allocate", "scatter", "predict", "remove"), item_type="multiple_choice", misconception="precise_word"),
             _det("verify", "Before publishing the result, the class should ___ the numbers against the original table.", "Choose the verb for checking numbers against the source.", "verify", options=("verify", "imagine", "erase", "celebrate"), item_type="multiple_choice", misconception="precise_word"),
+            _det("prioritize", "With only one repair day available, the team must ___ the faults that could cause an accident.", "Choose the verb for dealing with the most urgent faults first.", "prioritize", options=("prioritize", "postpone", "describe", "combine"), item_type="multiple_choice", misconception="precise_word"),
         )),
         _track(5, "tense", "grammar", "grammar.tense_usage", "Maintain consistent tense", 5, (
             _det("arrived", "The guests ___ before the music began.", "Which word fits?", "arrived", options=("arrived", "arrive tomorrow", "arrives now"), item_type="multiple_choice", misconception="tense_consistency"),
@@ -1164,6 +1172,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
             _det("has_finished", "Meera ___ her homework, so she can play now.", "Which verb phrase connects a finished action to the present result?", "has finished", options=("has finished", "finish tomorrow", "finishing yesterday"), item_type="multiple_choice", misconception="tense_consistency"),
             _det("had_left", "By the time we reached the station, the train ___.", "Which words correctly show the earlier action?", "had left", options=("had left", "leaves tomorrow", "is leaving yesterday", "will left"), item_type="multiple_choice", misconception="tense_consistency"),
             _det("has_been_working", "Salim ___ on the model since Monday and is still improving it.", "Which words best match the time clue?", "has been working", options=("has been working", "worked tomorrow", "will working", "had work now"), item_type="multiple_choice", misconception="tense_consistency"),
+            _det("were_covering", "While the rain fell, the workers ___ the equipment with waterproof sheets.", "Which verb phrase shows the continuing past action?", "were covering", options=("were covering", "will cover", "are covering now", "has covered tomorrow"), item_type="multiple_choice", misconception="tense_consistency"),
         )),
         _track(5, "sentence_order", "grammar", "grammar.sentence_order", "Arrange clauses into a clear sentence", 5, (
             _det("rain", "Parts: because it rained / indoors / we stayed", "Build a sentence that gives the rain as the reason.", "we stayed indoors because it rained", "We stayed indoors because it rained"),
@@ -1171,6 +1180,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
             _det("practice", "Parts: improved / she practised daily / because / her serve", "Build a sentence connecting daily practice to improvement.", "her serve improved because she practised daily", "Her serve improved because she practised daily"),
             _det("experiment", "Parts: the result / although the first trial failed / the team repeated / to verify", "Build a clear sentence that keeps the failed trial before the repeated test.", "although the first trial failed, the team repeated it to verify the result", "Although the first trial failed, the team repeated it to verify the result", "although the first trial failed, the team repeated the test to verify the result", "Although the first trial failed, the team repeated the test to verify the result"),
             _det("meeting", "Parts: before the meeting ended / who would present / the group decided / each section", "Build a clear sentence showing what the group decided before the meeting ended.", "before the meeting ended, the group decided who would present each section", "Before the meeting ended, the group decided who would present each section"),
+            _det("weather", "Parts: unless the weather improves / the match / will remain / postponed", "Build a sentence that states the condition for the match.", "the match will remain postponed unless the weather improves", "The match will remain postponed unless the weather improves", "unless the weather improves, the match will remain postponed", "Unless the weather improves, the match will remain postponed"),
         )),
         _track(5, "summary", "writing", "writing.summary_own_words", "Summarize without copying", 5, (
             _open(
@@ -1183,6 +1193,8 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                     _claim_slot(
                         "storm_blocked_route",
                         "storm damage made the road unusable",
+                        "storm damage blocked the lane",
+                        "storm damage blocked the road",
                         "the storm blocked the lane",
                         "broken branches blocked the lane",
                         "fallen branches blocked the road",
@@ -1190,6 +1202,8 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                     _claim_slot(
                         "branches_cut",
                         "neighbours chopped up the fallen wood",
+                        "neighbours cut up the fallen branches",
+                        "neighbours cut the fallen branches into pieces",
                         "residents cut up the branches",
                         "residents cut the branches into smaller pieces",
                     ),
@@ -1198,6 +1212,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                         "opened a way through",
                         "reopened a path",
                         "cleared a path",
+                        "made a path",
                         "made a path through",
                     ),
                 ),
@@ -1213,18 +1228,26 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                         "power_costs_reviewed",
                         "reviewing its power costs",
                         "reviewed its power costs",
+                        "studied its electricity bills",
+                        "studied electricity bills",
+                        "looked at its electricity bills",
                         "compared its electricity bills",
                         "checked its electricity costs",
                     ),
                     _claim_slot(
                         "solar_installed",
                         "put up solar panels",
+                        "added solar panels",
+                        "added the solar panels",
                         "installed solar panels",
                         "switched to solar panels",
                     ),
                     _claim_slot(
                         "savings_bought_books",
                         "spent the resulting savings on library books",
+                        "used the saved money to buy library books",
+                        "used the money saved to buy library books",
+                        "spent the saved money on library books",
                         "used the savings for library books",
                         "bought library books with the savings",
                     ),
@@ -1270,6 +1293,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                         "studied unsafe bus stops",
                         "investigated risky bus stops",
                         "mapped unsafe bus stops",
+                        "identified unsafe bus stops",
                         "identified dangerous bus stops",
                     ),
                     _claim_slot(
@@ -1284,6 +1308,7 @@ def _class_5_tracks() -> tuple[PlacementTrack, ...]:
                         "improvements_proposed",
                         "proposed three practical improvements to the transport office",
                         "sent the transport office three practical safety improvements",
+                        "gave the transport office three practical improvements",
                         "submitted three practical changes to the transport office",
                         "sent three useful changes to the transport office",
                     ),

@@ -4,13 +4,14 @@
     "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
     "Selected-option prompts and keys reviewed for interaction fit, support, and ambiguity; learner-facing chapter references clarified",
     "Independent, transfer, and review pools checked for fresh scenarios, prompt-template diversity, exact skill coverage, and compile parity",
-    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content"
+    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
   ],
-  "runtime_sha256": "c079f78b3eb69c57d5d65c758f1f7c104c34670a20510c9b2da824c3d77a7064",
+  "runtime_sha256": "8af87b1c5c34c392cbb287fb651e09e8556656d586b4f59c1a5689843e549754",
   "chapter_id": "eng_c5_ch07",
   "chapter_no": 7,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Gilli Danda",
   "book_title": "Santoor",
   "unit_title": "Ups and Downs",
@@ -1888,7 +1889,8 @@
             "recounted",
             "points"
           ],
-          "model_answer": "The scorer recounted the points, but the faded mark remained unreadable."
+          "model_answer": "The scorer recounted the points, but the faded mark remained unreadable.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Answer without a model. Build the response from the visible evidence in this new example. Read the base meaning first, apply 'not' for un- or 'again' for re-, and then test the built word in the sentence. Include both details.",
@@ -6092,10 +6094,6 @@
                 "I copied the sample answer"
               ],
               "min_response_words": 10,
-              "ordered_concept_slot_ids": [
-                "gilli-possessive-pronouns:transfer:4:owners",
-                "gilli-possessive-pronouns:transfer:4:order"
-              ],
               "schema_version": "school-activity-v2",
               "episode_kind": "language_lab",
               "teaching_phase": "transfer",
@@ -6316,10 +6314,6 @@
                 "I copied the sample answer"
               ],
               "min_response_words": 11,
-              "ordered_concept_slot_ids": [
-                "gilli-possessive-pronouns:review:3:pronouns",
-                "gilli-possessive-pronouns:review:3:sentence"
-              ],
               "schema_version": "school-activity-v2",
               "episode_kind": "language_lab",
               "teaching_phase": "review",
@@ -6391,10 +6385,6 @@
                 "I copied the sample answer"
               ],
               "min_response_words": 13,
-              "ordered_concept_slot_ids": [
-                "gilli-possessive-pronouns:review:4:pronouns",
-                "gilli-possessive-pronouns:review:4:order"
-              ],
               "schema_version": "school-activity-v2",
               "episode_kind": "language_lab",
               "teaching_phase": "review",
@@ -12886,5 +12876,5 @@
     ]
   },
   "reviewed_by": "codex-school-content-review",
-  "reviewed_at": "2026-07-16T13:50:17+05:30"
+  "reviewed_at": "2026-07-21T11:20:00+05:30"
 }

@@ -92,53 +92,100 @@ def _chapter_with_assessment() -> dict:
     return chapter
 
 
-def _chapter_with_extended_revision() -> dict:
-    chapter = _chapter_with_assessment()
-    chapter["chapter_assessment"]["max_attempts"] = 3
-    skills = list(chapter["levels"][0]["skill_ids"])
-    chapter["chapter_assessment"]["items"] = [
-        _assessment_item(index, skills[index % len(skills)])
-        for index in range(1, 37)
-    ]
-    checks = chapter["levels"][0]["checks"]
-    for revision_no in range(1, 4):
-        check = copy.deepcopy(checks["masterclass"])
+def _v2_test_activity(
+    level: dict,
+    *,
+    step_id: str,
+    variant_id: str,
+    ordinal: int,
+) -> dict:
+    level_id = str(level["level_id"])
+    return {
+        "variant_id": variant_id,
+        "passage": f"{level_id} {step_id} test passage {ordinal}.",
+        "prompt": f"Choose the correct response for {step_id} variant {ordinal}.",
+        "teaching_block": f"Practise {level['focus']} with a fresh authored variant.",
+        "options": ["correct", "incorrect"],
+        "accepted_answers": ["correct"],
+        "knowledge_components": list(level["skill_ids"]),
+        "response_mode": "short",
+        "interaction_type": "single_choice",
+        "evidence_role": "practice",
+        "source_anchor_ids": list(level.get("source_anchor_ids") or []),
+    }
+
+
+def _as_v2_test_level(level: dict) -> dict:
+    """Keep the fixture aligned with the authored V2 activity and support shape."""
+
+    for step_index, step in enumerate(level.get("teaching_steps") or [], start=1):
+        step_id = str(step["step_id"])
+        if isinstance(step.get("activity"), dict):
+            step["activity"] = _v2_test_activity(
+                level,
+                step_id=step_id,
+                variant_id=f"{step_id}:v1",
+                ordinal=step_index,
+            )
+            continue
+        step["variant_pool"] = [
+            _v2_test_activity(
+                level,
+                step_id=step_id,
+                variant_id=f"{step_id}:v{variant_no}",
+                ordinal=variant_no,
+            )
+            for variant_no in range(1, 3)
+        ]
+
+    for kind, check in (level.get("checks") or {}).items():
+        for key in (
+            "answer_rule",
+            "certifying_language",
+            "concept_slots",
+            "evaluation_mode",
+            "forbidden_phrases",
+            "grading_mode",
+            "min_response_words",
+            "ordered_concept_slot_ids",
+            "pass_score",
+            "preflight_rule",
+            "rubric_criteria",
+        ):
+            check.pop(key, None)
+        revision_no = str(kind).removeprefix("revision_level_")
+        label = (
+            f"{level['level_id']} authored revision passage {revision_no}."
+            if str(kind).startswith("revision_level_")
+            else f"{level['level_id']} authored {kind} passage."
+        )
         check.update(
             {
-                "passage": f"Authored revision passage {revision_no}.",
-                "prompt": f"Answer authored revision check {revision_no}.",
+                "passage": label,
+                "prompt": f"Answer the authored {kind} check for {level['level_id']}.",
+                "teaching_block": f"Practise {level['focus']} with authored support.",
                 "options": ["correct", "incorrect"],
                 "accepted_answers": ["correct"],
+                "knowledge_components": list(level["skill_ids"]),
+                "target_misconception_tags": [],
             }
         )
-        checks[f"revision_level_{revision_no}"] = check
-    return chapter
+    return level
 
 
-def _multi_level_chapter_with_extended_revision() -> dict:
-    chapter = copy.deepcopy(curriculum.CLASS_5_WISE_PARROT_CHAPTER)
-    chapter["chapter_id"] = "eng_c5_bounded_revision"
-    chapter["chapter_no"] = 98
-    chapter["content_version"] = "bounded-revision-1"
-    chapter["levels"] = chapter["levels"][:3]
-    for level_index, level in enumerate(chapter["levels"], start=1):
-        _as_legacy_level(level)
-        level["checks"].pop("transfer_check", None)
-        for revision_no in range(1, 4):
-            revision = copy.deepcopy(level["checks"]["masterclass"])
-            revision.update(
-                {
-                    "passage": (
-                        f"Level {level_index} authored revision passage {revision_no}."
-                    ),
-                    "prompt": (
-                        f"Answer level {level_index} revision {revision_no}."
-                    ),
-                    "options": ["correct", "incorrect"],
-                    "accepted_answers": ["correct"],
-                }
-            )
-            level["checks"][f"revision_level_{revision_no}"] = revision
+def _chapter_with_v2_assessment(
+    *,
+    level_count: int = 1,
+    max_attempts: int = 2,
+    item_count: int = 24,
+) -> dict:
+    chapter = copy.deepcopy(curriculum.CLASS_5_PAPAS_SPECTACLES_CHAPTER)
+    chapter["chapter_id"] = "eng_c5_v2_test_assessment"
+    chapter["chapter_no"] = 99
+    chapter["content_version"] = "test-assessment-v2-1"
+    chapter["levels"] = chapter["levels"][:level_count]
+    for level in chapter["levels"]:
+        _as_v2_test_level(level)
     skill_ids = list(
         dict.fromkeys(
             skill_id
@@ -149,12 +196,31 @@ def _multi_level_chapter_with_extended_revision() -> dict:
     chapter["chapter_assessment"] = {
         "items_per_attempt": 12,
         "pass_score": 0.8,
-        "max_attempts": 3,
+        "max_attempts": max_attempts,
         "items": [
             _assessment_item(index, skill_ids[(index - 1) % len(skill_ids)])
-            for index in range(1, 37)
+            for index in range(1, item_count + 1)
         ],
     }
+    return chapter
+
+
+def _chapter_with_extended_revision() -> dict:
+    chapter = _chapter_with_v2_assessment(max_attempts=3, item_count=36)
+    chapter["chapter_id"] = "eng_c5_v2_extended_revision"
+    chapter["content_version"] = "extended-revision-v2-1"
+    return chapter
+
+
+def _multi_level_chapter_with_extended_revision() -> dict:
+    chapter = _chapter_with_v2_assessment(
+        level_count=3,
+        max_attempts=3,
+        item_count=36,
+    )
+    chapter["chapter_id"] = "eng_c5_bounded_revision"
+    chapter["chapter_no"] = 98
+    chapter["content_version"] = "bounded-revision-v2-1"
     return chapter
 
 
@@ -170,6 +236,29 @@ def _answer_until_phase(state: dict, phase: str, *, limit: int = 20) -> dict:
             answer=_correct_answer(activity),
         )
     raise AssertionError(f"test fixture did not reach {phase}")
+
+
+def _enter_v2_chapter_check_for(monkeypatch, chapter: dict) -> dict:
+    monkeypatch.setattr(
+        curriculum,
+        "_available_chapters",
+        lambda subject_id, class_no: (chapter,),
+    )
+    state = curriculum.new_curriculum_state(
+        school_profile={"subject_ids": ["english"], "target_class_no": 5},
+        placement_report={
+            "report_id": "placement-report",
+            "unlock_state": "target_unlocked",
+            "watchlist_skills": [],
+        },
+        recap_session=None,
+    )
+    for level in state["levels"]:
+        level["status"] = "complete"
+        level["current_step"] = "complete"
+        level["v2_step_index"] = len(level.get("teaching_steps") or [])
+    state["current_level_index"] = len(state["levels"]) - 1
+    return curriculum._begin_chapter_assessment(state)
 
 
 def _fail_assessment_form(state: dict) -> dict:
@@ -248,6 +337,22 @@ def _enter_chapter_check_for(monkeypatch, chapter: dict) -> dict:
 def _fail_first_assessment(monkeypatch) -> tuple[dict, str]:
     state = _enter_chapter_check(monkeypatch)
     weak_skill_id = _chapter_with_assessment()["levels"][0]["skill_ids"][0]
+    for _ in range(12):
+        activity = curriculum._current_activity(state)
+        assert activity is not None
+        answer = "incorrect" if weak_skill_id in activity["skill_ids"] else "correct"
+        state, _ = curriculum.apply_curriculum_answer(
+            state,
+            activity_id=activity["activity_id"],
+            answer=answer,
+        )
+    return state, weak_skill_id
+
+
+def _fail_first_v2_assessment(monkeypatch) -> tuple[dict, str]:
+    chapter = _chapter_with_v2_assessment()
+    state = _enter_v2_chapter_check_for(monkeypatch, chapter)
+    weak_skill_id = chapter["levels"][0]["skill_ids"][0]
     for _ in range(12):
         activity = curriculum._current_activity(state)
         assert activity is not None
@@ -461,6 +566,30 @@ def test_passing_chapter_check_is_the_only_event_that_completes_chapter(monkeypa
                 "result_visible": False,
                 "message": "Answer saved. Keep going; results appear after the chapter check.",
             }
+            assert state["feedback_v2"] == {
+                "outcome": "chapter_check_answer_saved",
+                "feedback_type": "chapter_check_progress",
+                "correct": None,
+                "scored": False,
+                "what_worked": "Your answer is saved.",
+                "criterion_gap": None,
+                "misconception_tag": None,
+                "next_support": "Keep going; results appear after the chapter check.",
+                "retry_policy": "continue_chapter_check",
+                "allowed_next_actions": ["answer_next_activity"],
+                "response_excerpt": "",
+            }
+            public = curriculum.public_curriculum_response(
+                {
+                    "session_id": "chapter-check-feedback",
+                    "status": "active",
+                    "subject_id": "english",
+                    "class_no": 5,
+                    "state_json": state,
+                }
+            )
+            assert public["feedback_v2"]["what_worked"] == "Your answer is saved."
+            assert public["last_feedback"]["message"] == "Your answer is saved."
 
     assert state["status"] == "complete"
     assert state["phase"] == "complete"
@@ -590,23 +719,17 @@ def test_failed_chapter_check_reopens_only_a_weak_skill_level(monkeypatch):
 
 
 def test_remediation_success_starts_an_alternate_second_check(monkeypatch):
-    state, _ = _fail_first_assessment(monkeypatch)
+    state, _ = _fail_first_v2_assessment(monkeypatch)
     first_item_ids = set(state["chapter_assessment"]["selected_item_ids"])
 
-    masterclass = curriculum._current_activity(state)
-    assert masterclass is not None
+    remediation = curriculum._current_activity(state)
+    assert remediation is not None
+    assert remediation["kind"] == "v2_support"
+    assert remediation["variant"]["fresh"] is True
     state, _ = curriculum.apply_curriculum_answer(
         state,
-        activity_id=masterclass["activity_id"],
-        answer=_correct_answer(masterclass),
-    )
-    independent = curriculum._current_activity(state)
-    assert independent is not None
-    assert independent["kind"] == "independent_check"
-    state, _ = curriculum.apply_curriculum_answer(
-        state,
-        activity_id=independent["activity_id"],
-        answer=_correct_answer(independent),
+        activity_id=remediation["activity_id"],
+        answer=_correct_answer(remediation),
     )
 
     assert state["phase"] == "chapter_check"
@@ -618,16 +741,17 @@ def test_remediation_success_starts_an_alternate_second_check(monkeypatch):
 
 
 def test_second_failed_check_pauses_for_support_without_unlock_or_loop(monkeypatch):
-    state, _ = _fail_first_assessment(monkeypatch)
-    for expected_kind in ("masterclass", "independent_check"):
-        activity = curriculum._current_activity(state)
-        assert activity is not None
-        assert activity["kind"] == expected_kind
-        state, _ = curriculum.apply_curriculum_answer(
-            state,
-            activity_id=activity["activity_id"],
-            answer=_correct_answer(activity),
-        )
+    state, _ = _fail_first_v2_assessment(monkeypatch)
+    remediation = curriculum._current_activity(state)
+    assert remediation is not None
+    assert remediation["kind"] == "v2_support"
+    assert remediation["variant"]["fresh"] is True
+    state, _ = curriculum.apply_curriculum_answer(
+        state,
+        activity_id=remediation["activity_id"],
+        answer=_correct_answer(remediation),
+    )
+    assert state["phase"] == "chapter_check"
 
     for _ in range(12):
         activity = curriculum._current_activity(state)
@@ -678,18 +802,7 @@ def test_second_failed_check_opens_three_authored_revision_levels_before_final_f
     monkeypatch,
 ):
     chapter = _chapter_with_extended_revision()
-    monkeypatch.setattr(
-        curriculum,
-        "_available_chapters",
-        lambda subject_id, class_no: (chapter,),
-    )
-    state = curriculum.new_curriculum_state(
-        school_profile={"subject_ids": ["english"], "target_class_no": 5},
-        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
-        recap_session=None,
-    )
-    state["levels"][0]["current_step"] = "independent_check"
-    state = _answer_until_phase(state, "chapter_check")
+    state = _enter_v2_chapter_check_for(monkeypatch, chapter)
     state = _fail_assessment_form(state)
     state = _answer_until_phase(state, "chapter_check")
 
@@ -703,22 +816,26 @@ def test_second_failed_check_opens_three_authored_revision_levels_before_final_f
     assert state["chapter_assessment"]["attempt_no"] == 2
     activity = curriculum._current_activity(state)
     assert activity is not None
-    assert activity["kind"] == "revision_level_1"
-    assert activity["passage"] == "Authored revision passage 1."
+    assert activity["kind"] == "v2_support"
+    assert activity["variant"]["variant_id"] == "revision_level_1"
+    assert activity["passage"] == (
+        f"{chapter['levels'][0]['level_id']} authored revision passage 1."
+    )
 
-    observed_revision_kinds = []
+    observed_revision_variants = []
     while state.get("phase") == "remediation":
         activity = curriculum._current_activity(state)
         assert activity is not None
-        if activity["kind"].startswith("revision_level_"):
-            observed_revision_kinds.append(activity["kind"])
+        assert activity["kind"] == "v2_support"
+        assert activity["variant"]["fresh"] is True
+        observed_revision_variants.append(activity["variant"]["variant_id"])
         state, _ = curriculum.apply_curriculum_answer(
             state,
             activity_id=activity["activity_id"],
             answer=_correct_answer(activity),
         )
 
-    assert observed_revision_kinds == [
+    assert observed_revision_variants == [
         "revision_level_1",
         "revision_level_2",
         "revision_level_3",
@@ -732,21 +849,10 @@ def test_second_failed_check_opens_three_authored_revision_levels_before_final_f
 
 def test_third_failed_check_creates_truthful_parent_backed_support(monkeypatch):
     chapter = _chapter_with_extended_revision()
-    monkeypatch.setattr(
-        curriculum,
-        "_available_chapters",
-        lambda subject_id, class_no: (chapter,),
-    )
-    state = curriculum.new_curriculum_state(
-        school_profile={"subject_ids": ["english"], "target_class_no": 5},
-        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
-        recap_session=None,
-    )
-    state["levels"][0]["current_step"] = "independent_check"
+    state = _enter_v2_chapter_check_for(monkeypatch, chapter)
     for _ in range(2):
-        state = _answer_until_phase(state, "chapter_check")
         state = _fail_assessment_form(state)
-    state = _answer_until_phase(state, "chapter_check")
+        state = _answer_until_phase(state, "chapter_check")
     state = _fail_assessment_form(state)
 
     assert state["phase"] == "needs_support"
@@ -771,26 +877,10 @@ def test_expanded_revision_is_bounded_to_three_activities_across_many_levels(
     monkeypatch,
 ):
     chapter = _multi_level_chapter_with_extended_revision()
-    monkeypatch.setattr(
-        curriculum,
-        "_available_chapters",
-        lambda subject_id, class_no: (chapter,),
-    )
-    state = curriculum.new_curriculum_state(
-        school_profile={"subject_ids": ["english"], "target_class_no": 5},
-        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
-        recap_session=None,
-    )
-    for level in state["levels"][:-1]:
-        level["status"] = "complete"
-        level["current_step"] = "complete"
-    state["levels"][-1]["status"] = "in_progress"
-    state["levels"][-1]["current_step"] = "independent_check"
-    state["current_level_index"] = len(state["levels"]) - 1
-
-    for _ in range(2):
-        state = _answer_until_phase(state, "chapter_check")
-        state = _fail_assessment_form(state)
+    state = _enter_v2_chapter_check_for(monkeypatch, chapter)
+    state = _fail_assessment_form(state)
+    state = _answer_until_phase(state, "chapter_check")
+    state = _fail_assessment_form(state)
 
     assert state["remediation_mode"] == "expanded_revision"
     assert len(state["assessment_revision_plan"]) == 3
@@ -798,15 +888,17 @@ def test_expanded_revision_is_bounded_to_three_activities_across_many_levels(
     while state.get("phase") == "remediation":
         activity = curriculum._current_activity(state)
         assert activity is not None
-        observed.append((activity["level_id"], activity["kind"]))
+        assert activity["kind"] == "v2_support"
+        assert activity["variant"]["fresh"] is True
+        observed.append((activity["level_id"], activity["variant"]["variant_id"]))
         state, _ = curriculum.apply_curriculum_answer(
             state,
             activity_id=activity["activity_id"],
-            answer="incorrect",
+            answer=_correct_answer(activity),
         )
 
     assert len(observed) == 3
-    assert all(kind.startswith("revision_level_") for _, kind in observed)
+    assert all(variant_id.startswith("revision_level_") for _, variant_id in observed)
     assert state["phase"] == "chapter_check"
     assert state["chapter_assessment"]["attempt_no"] == 3
     assert state["assessment_revision_targeted_skill_ids"]
@@ -1037,14 +1129,10 @@ def test_each_selected_check_covers_every_taught_skill_even_when_bank_is_cluster
 
 
 def test_multi_skill_remediation_follows_weak_level_queue_before_retest(monkeypatch):
-    chapter = copy.deepcopy(curriculum.CLASS_5_WISE_PARROT_CHAPTER)
+    chapter = _chapter_with_v2_assessment(level_count=2)
     chapter["chapter_id"] = "eng_c5_multi_remediation"
     chapter["chapter_no"] = 99
-    chapter["content_version"] = "multi-remediation-1"
-    chapter["levels"] = chapter["levels"][:2]
-    for level in chapter["levels"]:
-        _as_legacy_level(level)
-        level["checks"].pop("transfer_check", None)
+    chapter["content_version"] = "multi-remediation-v2-1"
     first_skill = chapter["levels"][0]["skill_ids"][0]
     second_skill = next(
         skill_id
@@ -1055,33 +1143,12 @@ def test_multi_skill_remediation_follows_weak_level_queue_before_retest(monkeypa
         "items_per_attempt": 12,
         "pass_score": 0.8,
         "max_attempts": 2,
-        "items": [
-            _assessment_item(index, first_skill if index % 2 else second_skill)
-            for index in range(1, 21)
-        ],
-    }
-    monkeypatch.setattr(
-        curriculum,
-        "_available_chapters",
-        lambda subject_id, class_no: (chapter,),
-    )
-    state = curriculum.new_curriculum_state(
-        school_profile={"subject_ids": ["english"], "target_class_no": 5},
-        placement_report={"report_id": "placement", "unlock_state": "target_unlocked"},
-        recap_session=None,
-    )
-    state["levels"][0]["status"] = "complete"
-    state["levels"][0]["current_step"] = "complete"
-    state["levels"][1]["status"] = "in_progress"
-    state["levels"][1]["current_step"] = "independent_check"
-    state["current_level_index"] = 1
-    final_lesson = curriculum._current_activity(state)
-    assert final_lesson is not None
-    state, _ = curriculum.apply_curriculum_answer(
-        state,
-        activity_id=final_lesson["activity_id"],
-        answer=_correct_answer(final_lesson),
-    )
+            "items": [
+                _assessment_item(index, first_skill if index % 2 else second_skill)
+                for index in range(1, 25)
+            ],
+        }
+    state = _enter_v2_chapter_check_for(monkeypatch, chapter)
     for _ in range(12):
         activity = curriculum._current_activity(state)
         assert activity is not None
@@ -1093,26 +1160,21 @@ def test_multi_skill_remediation_follows_weak_level_queue_before_retest(monkeypa
 
     expected_queue = [level["level_id"] for level in chapter["levels"]]
     assert state["remediation_queue"] == expected_queue
+    observed_support_levels = []
     for expected_level_id in expected_queue:
-        masterclass = curriculum._current_activity(state)
-        assert masterclass is not None
-        assert masterclass["level_id"] == expected_level_id
-        assert masterclass["kind"] == "masterclass"
+        remediation = curriculum._current_activity(state)
+        assert remediation is not None
+        assert remediation["level_id"] == expected_level_id
+        assert remediation["kind"] == "v2_support"
+        assert remediation["variant"]["fresh"] is True
+        observed_support_levels.append(remediation["level_id"])
         state, _ = curriculum.apply_curriculum_answer(
             state,
-            activity_id=masterclass["activity_id"],
-            answer=_correct_answer(masterclass),
-        )
-        independent = curriculum._current_activity(state)
-        assert independent is not None
-        assert independent["level_id"] == expected_level_id
-        assert independent["kind"] == "independent_check"
-        state, _ = curriculum.apply_curriculum_answer(
-            state,
-            activity_id=independent["activity_id"],
-            answer=_correct_answer(independent),
+            activity_id=remediation["activity_id"],
+            answer=_correct_answer(remediation),
         )
 
+    assert observed_support_levels == expected_queue
     assert state["phase"] == "chapter_check"
     assert state["chapter_assessment"]["attempt_no"] == 2
 
@@ -1380,6 +1442,27 @@ def test_adversative_negation_builds_a_strict_semantic_rubric_fallback():
         activity,
         "It used the water-filled ditch and kept its eyes above water.",
     ) is None
+
+
+def test_explicit_deterministic_activity_never_enters_semantic_evaluator():
+    """A recoverable legacy activity must not turn a choice into an LLM job."""
+
+    activity = {
+        "activity_id": "legacy-choice:guided:1",
+        "grading_mode": "selected_option",
+        "evaluation_mode": "llm_rubric",
+        "options": ["looked carefully", "spoke softly"],
+        "accepted_answers": ["looked carefully"],
+    }
+
+    assert curriculum.evaluator_activity_for_answer(
+        activity,
+        "looked carefully",
+    ) is None
+    assert curriculum.evaluate_deterministic_answer(
+        activity,
+        "looked carefully",
+    )["correct"] is True
 
 
 def test_natural_concept_paraphrase_uses_semantic_fallback_before_rejection():

@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "5bea4e28eeaa7bcce3e99e6c227d6df00ddd5ed2e01e19655fddd49e83be9b40",
+  "runtime_sha256": "ad3ecd295fffae64f1c9857b6ceb737f05c17de5d7a0a7b8f4b1f3f569238b9c",
   "chapter_id": "eng_c3_ch03",
   "chapter_no": 3,
-  "content_version": "2026-07-15.2",
-  "certification_version": "2026-07-15.2",
+  "content_version": "2026-07-15.2.semantic-evidence-v1",
+  "certification_version": "2026-07-15.2.semantic-evidence-v1",
   "title": "Best Friends",
   "book_title": "Santoor",
   "unit_title": "Fun with Friends",
@@ -11156,7 +11157,8 @@
                 "they refers to Arun and Dev",
                 "the cooperative partners checked the measurements together"
               ],
-              "model_answer": "They refers to Arun and Dev. New sentence: The cooperative partners checked the measurements together before they cut the poster."
+              "model_answer": "They refers to Arun and Dev. New sentence: The cooperative partners checked the measurements together before they cut the poster.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -14697,6 +14699,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

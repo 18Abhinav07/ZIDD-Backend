@@ -91,7 +91,11 @@ async def google_auth(req: GoogleAuthRequest):
         google_sub=google_sub,
         email=email,
         name=name,
-        welcome_credits=get_settings().welcome_credits,
+        welcome_credits=settings.welcome_credits,
+        beta_credit_grant_enabled=settings.beta_credit_grant_enabled,
+        beta_credit_grant_credits=settings.beta_credit_grant_credits,
+        beta_credit_grant_campaign_id=settings.beta_credit_grant_campaign_id,
+        beta_credit_grant_expires_at=settings.beta_credit_grant_expires_at,
     )
     user_id = resolved["user_id"]
     is_new = bool(resolved["is_new_user"])

@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import hashlib
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,12 @@ from app.content.school_v3_schema import (
 from app.main import app
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_placement as placement
+from app.services import school_rebuild_recap as recap
+from app.services.school import evaluation_jobs
+from app.services.school_core.readiness import (
+    SkillReadinessState,
+    to_profile_upsert,
+)
 
 AUTH = {"Authorization": "Bearer test_token"}
 _REAL_SCHOOL_OPEN_ANSWER_WITH_HEARTBEAT = (
@@ -67,11 +74,12 @@ PLACEMENT_STRONG_SUMMARY_ANSWERS = {
 @pytest.fixture(autouse=True)
 def _stub_school_open_answer_evaluator(monkeypatch):
     async def evaluate(
-        *,
-        activity: dict[str, Any],
-        answer: str,
+        activity: dict[str, Any] | None = None,
+        answer: str | None = None,
         **_kwargs,
     ) -> SchoolV3RubricEvaluation:
+        activity = activity or _kwargs["activity"]
+        answer = str(answer if answer is not None else _kwargs["answer"])
         concept_slots = {
             slot["id"]: tuple(slot["any_of"])
             for slot in activity.get("concept_slots") or []
@@ -118,6 +126,11 @@ def _stub_school_open_answer_evaluator(monkeypatch):
     monkeypatch.setattr(
         school_rebuild_routes,
         "_evaluate_school_open_answer_with_claim_heartbeat",
+        evaluate,
+    )
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "evaluate_school_open_answer",
         evaluate,
     )
 
@@ -214,7 +227,11 @@ def _seed_direct_curriculum_report_lineage(store, profile: dict[str, Any]) -> No
             user_id="test_user",
             profile_version_id=profile["profile_version_id"],
             placement_session_id=placement_session_id,
-            placement_status="below_target",
+            subject_id="english",
+            target_class_no=int(profile["target_class_no"]),
+            evaluated_class_no=int(profile["target_class_no"]),
+            placement_status="target_ready",
+            unlock_state="target_unlocked",
         )
     )
 
@@ -236,28 +253,52 @@ def _complete_weak_placement(client: TestClient) -> None:
     assert current["status"] == "below_target"
 
 
-def _correct_recap_answer(activity: dict[str, Any]) -> str:
-    focus = activity["focus"].lower()
-    kind = activity["kind"]
-    answers = {
-        ("recognize naming words", "guided_check"): "teacher",
-        ("recognize naming words", "independent_check"): "flower",
-        ("understand a simple sentence", "guided_check"): "mat",
-        ("understand a simple sentence", "independent_check"): "mangoes",
-        ("use context to understand a word", "guided_check"): "small",
-        ("use context to understand a word", "independent_check"): "smart",
-        ("write a complete sentence", "guided_check"): "sitting",
-        ("write a complete sentence", "independent_check"): "ran",
-        ("answer with a reason", "guided_check"): "dark",
-        ("answer with a reason", "independent_check"): "thirsty",
-        ("find the main idea", "guided_check"): "Aman caring for plants",
-        ("find the main idea", "independent_check"): "children reading in a library",
-        ("use because to give a reason", "guided_check"): "because",
-        ("use because to give a reason", "independent_check"): "because",
-        ("use past tense", "guided_check"): "went",
-        ("use past tense", "independent_check"): "played",
-    }
-    return answers[(focus, kind)]
+def _private_recap_activity_for_current_body(body: dict[str, Any]) -> dict[str, Any]:
+    public_activity = body.get("current_activity") or {}
+    session_id = str(body.get("session_id") or "")
+    activity_id = str(public_activity.get("activity_id") or "")
+    assert session_id and activity_id, body
+    session = _run(
+        school_rebuild_routes.get_storage().get_school_session(
+            "test_user",
+            session_id,
+        )
+    )
+    assert session is not None
+    return recap.recap_activity_for_answer(
+        dict(session["state_json"]),
+        activity_id=activity_id,
+    )
+
+
+def _settle_queued_recap_answer(
+    response,
+    *,
+    body: dict[str, Any],
+    client: TestClient,
+):
+    if response.status_code != 202:
+        return response
+    session_id = str(body["session_id"])
+    activity_id = str(body["current_activity"]["activity_id"])
+    store = school_rebuild_routes.get_storage()
+    assert _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    ) is True
+    job = _run(store.get_school_evaluation_job("test_user", session_id, activity_id))
+    assert job is not None
+    assert job["status"] == "completed", (
+        activity_id,
+        job.get("last_error_code"),
+        job.get("error_json"),
+    )
+    settled = client.get(f"/school/recap/{session_id}", headers=AUTH)
+    assert settled.status_code == 200, settled.text
+    return settled
 
 
 def _complete_recap_success_path(client: TestClient) -> dict:
@@ -275,8 +316,15 @@ def _complete_recap_success_path(client: TestClient) -> dict:
             headers=AUTH,
             json={
                 "activity_id": activity["activity_id"],
-                "answer": _correct_recap_answer(activity),
+                "answer": _correct_private_curriculum_answer(
+                    _private_recap_activity_for_current_body(body)
+                ),
             },
+        )
+        response = _settle_queued_recap_answer(
+            response,
+            body=body,
+            client=client,
         )
         assert response.status_code == 200, response.text
         body = response.json()
@@ -351,6 +399,73 @@ def _assert_no_hidden_keys(payload: Any) -> None:
     elif isinstance(payload, list):
         for value in payload:
             _assert_no_hidden_keys(value)
+
+
+def _authored_chapter_for_public_session(body: dict[str, Any]) -> dict[str, Any]:
+    chapter_id = str((body.get("chapter") or {}).get("chapter_id") or "")
+    subject_id = str(body.get("subject_id") or "english")
+    class_no = int(body.get("target_class_no") or 0)
+    chapter = next(
+        (
+            candidate
+            for candidate in curriculum._available_chapters(subject_id, class_no)
+            if candidate["chapter_id"] == chapter_id
+        ),
+        None,
+    )
+    assert chapter is not None, body
+    return chapter
+
+
+def _assert_current_activity_matches_catalog(body: dict[str, Any]) -> None:
+    chapter = _authored_chapter_for_public_session(body)
+    activity = body.get("current_activity") or {}
+    assert chapter["levels"], chapter["chapter_id"]
+    progress = dict(body.get("progress") or {})
+    current_level_index = int(progress.get("current_level_index") or 0)
+    assert 0 <= current_level_index < len(chapter["levels"]), progress
+    expected_level = chapter["levels"][current_level_index]
+    assert activity.get("level_id") == expected_level["level_id"]
+
+    teaching_steps = list(expected_level.get("teaching_steps") or [])
+    authored_phases = {
+        str(step.get("phase") or "")
+        for step in teaching_steps
+        if isinstance(step, dict) and str(step.get("phase") or "")
+    }
+    assert activity["phase"] in authored_phases
+    assert activity["activity_id"].startswith(f"{expected_level['level_id']}:")
+    assert activity["kind"].startswith("v2_")
+    assert str(activity.get("teaching_block") or "").strip()
+    assert str(activity.get("prompt") or "").strip()
+
+    declared_activity_anchor_ids = list(activity.get("source_anchor_ids") or [])
+    public_anchor_ids = [
+        str(anchor["anchor_id"])
+        for anchor in activity.get("source_reference", {}).get("anchors") or []
+    ]
+    assert public_anchor_ids == declared_activity_anchor_ids, activity
+
+    certification_anchor_ids = set(expected_level.get("source_anchor_ids") or [])
+    companion_anchor_ids = set(
+        expected_level.get("companion_source_anchor_ids") or []
+    )
+    assert set(declared_activity_anchor_ids).issubset(
+        certification_anchor_ids | companion_anchor_ids
+    ), activity
+    if activity.get("evidence_role") == "certifying":
+        assert not set(declared_activity_anchor_ids).intersection(
+            companion_anchor_ids
+        ), activity
+
+
+def _assert_empty_chapter_progress(body: dict[str, Any]) -> None:
+    chapter = _authored_chapter_for_public_session(body)
+    assert body["progress"] == {
+        "completed_levels": 0,
+        "total_levels": len(chapter["levels"]),
+        "current_level_index": 0,
+    }
 
 
 def _seed_certification_repair_session(
@@ -1161,9 +1276,6 @@ def test_curriculum_answer_from_stale_ordinary_state_persists_current_engine(
     persist_calls = 0
     original_persist = store.persist_school_curriculum_attempt
     evaluator_calls = 0
-    original_evaluator = (
-        school_rebuild_routes._evaluate_school_open_answer_with_claim_heartbeat
-    )
 
     async def capture_persist(**kwargs):
         nonlocal persist_calls
@@ -1171,39 +1283,100 @@ def test_curriculum_answer_from_stale_ordinary_state_persists_current_engine(
         captured_persist.update(copy.deepcopy(kwargs))
         return await original_persist(**kwargs)
 
-    async def count_evaluator(**kwargs):
+    async def count_evaluator(activity, answer, **_kwargs):
         nonlocal evaluator_calls
         evaluator_calls += 1
-        return await original_evaluator(**kwargs)
+        return SchoolV3RubricEvaluation(
+            schema_version=(
+                "school.open.v1"
+                if activity.get("grading_mode") == "strict_open_rubric"
+                else "school-v3-rubric-1"
+            ),
+            item_id=activity["activity_id"],
+            skill_ids=list(activity["skill_ids"]),
+            score=0.9,
+            confidence=0.95,
+            language_detected="en",
+            criteria=[
+                SchoolV3RubricCriterion(
+                    id=criterion["id"],
+                    met=True,
+                    quality=0.9,
+                    evidence_quote=answer,
+                )
+                for criterion in activity["rubric_criteria"]
+            ],
+            misconception_tags=[],
+            blockers=[],
+            needs_human_review=False,
+            feedback_to_learner="The response meets the authored criteria.",
+        )
 
     monkeypatch.setattr(store, "persist_school_curriculum_attempt", capture_persist)
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         count_evaluator,
     )
+    monkeypatch.setattr(school_rebuild_routes, "get_storage", lambda: store)
 
     payload = {
         "activity_id": activity["activity_id"],
         "answer": "I used the chapter details to explain my answer.",
     }
-    response = client.post(
+    queued = client.post(
         f"/school/curriculum/{session_id}/answer",
         headers=AUTH,
         json=payload,
     )
+    in_progress = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json=payload,
+    )
+
+    assert queued.status_code == 202
+    assert in_progress.status_code == 409
+    assert in_progress.json()["detail"]["code"] == "curriculum_answer_in_progress"
+    assert persist_calls == 0
+    assert evaluator_calls == 0
+    queued_job = _run(
+        store.get_school_evaluation_job(
+            "test_user", session_id, activity["activity_id"]
+        )
+    )
+    persisted_before_worker = _run(store.get_school_session("test_user", session_id))
+    assert queued_job["expected_state_json"] == persisted_before_worker["state_json"]
+
+    processed = _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    )
+    assert processed is True
+    job = _run(
+        store.get_school_evaluation_job(
+            "test_user", session_id, activity["activity_id"]
+        )
+    )
+    assert job["status"] == "completed", (
+        job.get("last_error_code"),
+        job.get("error_json"),
+    )
+
     replay = client.post(
         f"/school/curriculum/{session_id}/answer",
         headers=AUTH,
         json=payload,
     )
 
-    assert response.status_code == 200
     assert replay.status_code == 200
-    assert replay.json() == response.json()
     assert persist_calls == 1
     assert evaluator_calls == 1
     assert captured_persist["expected_state_json"] == stale_state
+    assert captured_persist["evaluation_job_completion"] is not None
     assert (
         captured_persist["school_session"]["state_json"]["engine_version"]
         == curriculum.ENGINE_VERSION
@@ -1212,490 +1385,629 @@ def test_curriculum_answer_from_stale_ordinary_state_persists_current_engine(
     assert persisted["state_json"]["engine_version"] == curriculum.ENGINE_VERSION
 
 
-def _answer(body: dict, answer: str, client: TestClient) -> dict:
-    activity = body["current_activity"]
+def test_curriculum_answer_uses_matching_canonical_snapshot_without_legacy_reads(
+    store,
+    monkeypatch,
+):
+    session_id = str(uuid4())
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    seeded_state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_comprehension",
+    )
+    persisted = _run(store.get_school_session("test_user", session_id))
+    persisted_state = {
+        **seeded_state,
+        "learner_memory": {"strong_skills": ["reading.paragraph_main_idea"]},
+    }
+    assert _run(
+        store.compare_and_set_school_session(
+            school_session={**persisted, "state_json": persisted_state},
+            expected_state_json=seeded_state,
+        )
+    ) is True
+    client = TestClient(app)
+    activity = client.get(
+        f"/school/curriculum/{session_id}",
+        headers=AUTH,
+    ).json()["current_activity"]
+
+    async def unexpected_legacy_read(*_args, **_kwargs):
+        raise AssertionError("matching curriculum answer must use canonical snapshot")
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_latest_placement_report_for_profile",
+        unexpected_legacy_read,
+    )
+    monkeypatch.setattr(store, "get_active_school_profile_version", unexpected_legacy_read)
+    monkeypatch.setattr(store, "get_school_session", unexpected_legacy_read)
+
+    read = client.get(
+        f"/school/curriculum/{session_id}",
+        headers=AUTH,
+    )
+    response = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": "I used the chapter details to explain my answer.",
+        },
+    )
+
+    assert read.status_code == 200, read.text
+    assert response.status_code == 202, response.text
+    assert store.school_state_snapshot_calls >= 1
+    queued_job = _run(
+        store.get_school_evaluation_job(
+            "test_user",
+            session_id,
+            activity["activity_id"],
+        )
+    )
+    assert queued_job["expected_state_json"]["learner_memory"] == {
+        "strong_skills": ["reading.paragraph_main_idea"]
+    }
+
+
+def test_curriculum_answer_uses_bundled_context_when_storage_supports_it(
+    store,
+    monkeypatch,
+):
+    """Live curriculum answers must not hydrate the full School dashboard."""
+
+    session_id = str(uuid4())
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_comprehension",
+    )
+    client = TestClient(app)
+    activity = client.get(
+        f"/school/curriculum/{session_id}",
+        headers=AUTH,
+    ).json()["current_activity"]
+    snapshot_calls_before = store.school_state_snapshot_calls
+    calls: list[tuple[str, str, str]] = []
+
+    async def bundled_context(*, user_id: str, session_id: str, activity_id: str):
+        calls.append((user_id, session_id, activity_id))
+        return {
+            "active_profile": await store.get_active_school_profile_version(user_id),
+            "placement_report": await store.get_school_placement_report_by_id(
+                user_id,
+                "placement-report",
+            ),
+            "school_session": await store.get_school_session(user_id, session_id),
+            "answer_request": await store.get_school_answer_request(
+                user_id,
+                session_id,
+                activity_id,
+            ),
+        }
+
+    async def full_dashboard_snapshot_must_not_run(*_args, **_kwargs):
+        raise AssertionError("curriculum answer must use its bundled preflight")
+
+    monkeypatch.setattr(
+        store,
+        "get_school_curriculum_answer_context",
+        bundled_context,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        store,
+        "get_school_state_snapshot",
+        full_dashboard_snapshot_must_not_run,
+    )
+
+    response = client.post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": "I used the chapter details to explain my answer.",
+        },
+    )
+
+    assert response.status_code == 202, response.text
+    assert calls == [("test_user", session_id, activity["activity_id"])]
+    assert store.school_state_snapshot_calls == snapshot_calls_before
+
+
+def test_curriculum_direct_answer_uses_atomic_persist_when_storage_supports_it(
+    store,
+    monkeypatch,
+):
+    """A direct teaching step must not pay a second claim round trip."""
+
+    _seed_school_profile(store, target_class_no=5)
+    client = TestClient(app)
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    session_id = str(uuid4())
+    state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_comprehension",
+    )
+    level = state["levels"][state["current_level_index"]]
+    co_construct_index = next(
+        index
+        for index, step in enumerate(level["teaching_steps"])
+        if str(step.get("phase") or "") == "co_construct"
+    )
+    level["v2_step_index"] = co_construct_index
+    level["current_step"] = "co_construct"
+    state = curriculum.normalize_curriculum_state(state)
+    saved = _run(store.get_school_session("test_user", session_id))
+    assert _run(store.compare_and_set_school_session(
+        school_session={**saved, "state_json": state},
+        expected_state_json=saved["state_json"],
+    )) is True
+    started = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    activity = _private_activity_for_current_body(body)
+    answer = _correct_private_curriculum_answer(activity)
+    assert curriculum.evaluator_activity_for_answer(activity, answer) is None
+
+    atomic_calls: list[dict[str, Any]] = []
+    original_claim = store.claim_school_answer_request
+    original_persist = store.persist_school_curriculum_attempt
+
+    async def atomic_persist(**kwargs):
+        atomic_calls.append(copy.deepcopy(kwargs))
+        claim = await original_claim(
+            "test_user",
+            body["session_id"],
+            activity["activity_id"],
+            hashlib.sha256(answer.encode("utf-8")).hexdigest(),
+        )
+        assert claim["outcome"] == "claimed"
+        return await original_persist(
+            **kwargs,
+            request_claim_token=claim["claim_token"],
+        )
+
+    async def unexpected_external_claim(*_args, **_kwargs):
+        raise AssertionError("direct curriculum answer must use atomic persistence")
+
+    monkeypatch.setattr(
+        store,
+        "persist_school_deterministic_curriculum_attempt",
+        atomic_persist,
+        raising=False,
+    )
+    monkeypatch.setattr(store, "claim_school_answer_request", unexpected_external_claim)
+
     response = client.post(
         f"/school/curriculum/{body['session_id']}/answer",
         headers=AUTH,
         json={"activity_id": activity["activity_id"], "answer": answer},
     )
+
+    assert response.status_code == 200, response.text
+    assert len(atomic_calls) == 1
+    assert atomic_calls[0]["request_activity_id"] == activity["activity_id"]
+    assert atomic_calls[0]["language_evaluation"] is None
+    saved_request = store.school_answer_requests[(body["session_id"], activity["activity_id"])]
+    assert saved_request["status"] == "completed"
+
+
+def test_curriculum_continue_uses_experience_persist_without_evidence_writes(
+    store,
+    monkeypatch,
+):
+    """An acknowledgement step advances durably without becoming learner evidence."""
+
+    _seed_school_profile(store, target_class_no=5)
+    client = TestClient(app)
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    session_id = str(uuid4())
+    state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_comprehension",
+    )
+    level = state["levels"][state["current_level_index"]]
+    connect_index = next(
+        index
+        for index, step in enumerate(level["teaching_steps"])
+        if str(step.get("phase") or "") == "connect"
+    )
+    level["v2_step_index"] = connect_index
+    level["current_step"] = "connect"
+    state = curriculum.normalize_curriculum_state(state)
+    saved = _run(store.get_school_session("test_user", session_id))
+    assert _run(store.compare_and_set_school_session(
+        school_session={**saved, "state_json": state},
+        expected_state_json=saved["state_json"],
+    )) is True
+    body = client.get(f"/school/curriculum/{session_id}", headers=AUTH).json()
+    activity = _private_activity_for_current_body(body)
+    assert activity["interaction_type"] == "continue"
+
+    calls: list[dict[str, Any]] = []
+
+    async def persist_experience(**kwargs):
+        calls.append(copy.deepcopy(kwargs))
+        return {"outcome": "persisted"}
+
+    async def unexpected(*_args, **_kwargs):
+        raise AssertionError("continue must not use the evidence persistence path")
+
+    monkeypatch.setattr(
+        store,
+        "persist_school_curriculum_experience_step",
+        persist_experience,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        store,
+        "persist_school_deterministic_curriculum_attempt",
+        unexpected,
+        raising=False,
+    )
+    monkeypatch.setattr(store, "claim_school_answer_request", unexpected)
+
+    response = client.post(
+        f"/school/curriculum/{body['session_id']}/answer",
+        headers=AUTH,
+        json={"activity_id": activity["activity_id"], "answer": "continue"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert "school-preflight" in response.headers["server-timing"]
+    assert "school-persist" in response.headers["server-timing"]
+    assert len(calls) == 1
+    assert calls[0]["request_activity_id"] == activity["activity_id"]
+    assert calls[0]["request_answer_hash"]
+    assert "learning_event" not in calls[0]
+    assert "projection_evidence" not in calls[0]
+    assert "language_evaluation" not in calls[0]
+
+
+def test_compact_curriculum_state_rehydrates_authored_content_without_public_key_leak():
+    """Persist learner runtime only while rebuilding the same authored lesson."""
+
+    state = curriculum.new_curriculum_state(
+        school_profile={
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "hi_en",
+            "profile_version_id": "profile-v1",
+        },
+        placement_report={"report_id": "placement-report"},
+        recap_session=None,
+    )
+    activity_id = curriculum.current_curriculum_activity_id(state)
+    assert activity_id
+    original_size = len(json.dumps(state, sort_keys=True, separators=(",", ":")))
+
+    compact = curriculum.compact_curriculum_state(state)
+
+    assert compact["authored_content_reference"]["schema_version"] == (
+        "school-curriculum-runtime-v1"
+    )
+    assert "levels" not in compact
+    assert "chapter_assessment" not in compact
+    assert len(json.dumps(compact, sort_keys=True, separators=(",", ":"))) < original_size // 8
+
+    hydrated = curriculum.normalize_curriculum_state(compact)
+    assert curriculum.current_curriculum_activity_id(hydrated) == activity_id
+    assert len(hydrated["levels"]) == len(state["levels"])
+    assert len(hydrated["chapter_assessment"]["items"]) == len(
+        state["chapter_assessment"]["items"]
+    )
+
+    updated, evaluation = curriculum.apply_curriculum_answer(
+        compact,
+        activity_id=activity_id,
+        answer="continue",
+    )
+    assert evaluation["scored"] is False
+    resumed = curriculum.normalize_curriculum_state(
+        curriculum.compact_curriculum_state(updated)
+    )
+    assert curriculum.current_curriculum_activity_id(resumed) != activity_id
+
+    public = curriculum.public_curriculum_response(
+        {
+            "session_id": "runtime-only-session",
+            "status": "active",
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": compact,
+        }
+    )
+    _assert_no_hidden_keys(public)
+
+
+def _private_activity_for_current_body(body: dict[str, Any]) -> dict[str, Any]:
+    """Return the server-side authored activity for a public test response.
+
+    Public curriculum responses must never contain keys, model exemplars, or
+    rubrics. Contract tests use the persisted, canonical activity solely to
+    drive a complete learner journey; this prevents the test fixture from
+    becoming a second, stale curriculum catalogue.
+    """
+
+    public_activity = body.get("current_activity") or {}
+    session_id = str(body.get("session_id") or "")
+    assert session_id and public_activity, body
+    session = _run(
+        school_rebuild_routes.get_storage().get_school_session(
+            "test_user",
+            session_id,
+        )
+    )
+    assert session is not None
+    state = dict(session["state_json"])
+    activity_id = curriculum.current_curriculum_activity_id(state)
+    assert activity_id, state
+    return curriculum.curriculum_activity_for_answer(state, activity_id=activity_id)
+
+
+def _private_concept_slot_answer(activity: dict[str, Any]) -> str | None:
+    slots = [
+        slot
+        for slot in activity.get("concept_slots") or []
+        if isinstance(slot, dict) and slot.get("any_of")
+    ]
+    if slots:
+        slot_by_id = {str(slot.get("id") or ""): slot for slot in slots}
+        ordered_ids = [
+            str(slot_id)
+            for slot_id in activity.get("ordered_concept_slot_ids") or []
+            if str(slot_id) in slot_by_id
+        ]
+        ordered_slots = [slot_by_id[slot_id] for slot_id in ordered_ids]
+        ordered_slots.extend(
+            slot
+            for slot in slots
+            if slot not in ordered_slots
+        )
+        answer = " ".join(
+            str(slot["any_of"][0]).strip()
+            for slot in ordered_slots
+            if str(slot["any_of"][0]).strip()
+        )
+        minimum_words = int(activity.get("min_response_words") or 0)
+        if len(answer.split()) < minimum_words:
+            answer = f"{answer} This explains the chapter idea clearly."
+        return answer
+    return None
+
+
+def _private_open_answer_satisfies_current_contract(
+    activity: dict[str, Any],
+    answer: str,
+) -> bool:
+    """Check a private authored candidate against the same backend gate.
+
+    The test evaluator deliberately supplies a valid high-quality structured
+    result. This helper only chooses between private authored candidates; it
+    never manufactures or reads a public answer key.
+    """
+
+    evaluator_activity = recap.evaluator_activity_for_answer(activity) or activity
+    if not curriculum._open_answer_preflight(evaluator_activity, answer):
+        return False
+    try:
+        result = SchoolV3RubricEvaluation(
+            schema_version=(
+                "school.open.v1"
+                if evaluator_activity.get("grading_mode") == "strict_open_rubric"
+                else "school-v3-rubric-1"
+            ),
+            item_id=str(evaluator_activity["activity_id"]),
+            skill_ids=list(evaluator_activity.get("skill_ids") or []),
+            score=0.9,
+            confidence=0.95,
+            language_detected="en",
+            criteria=[
+                SchoolV3RubricCriterion(
+                    id=str(criterion["id"]),
+                    met=True,
+                    quality=0.9,
+                    evidence_quote=answer,
+                )
+                for criterion in evaluator_activity.get("rubric_criteria") or []
+            ],
+            misconception_tags=[],
+            blockers=[],
+            needs_human_review=False,
+            feedback_to_learner="The response meets the authored criteria.",
+        )
+        return bool(
+            curriculum.decide_open_answer_evaluation(
+                evaluator_activity,
+                result,
+                answer=answer,
+            )["correct"]
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _correct_private_curriculum_answer(activity: dict[str, Any]) -> str:
+    """Select an authored passing answer without exposing it through the API."""
+
+    if activity.get("interaction_type") == "continue":
+        return "continue"
+
+    slot_answer = _private_concept_slot_answer(activity)
+    model_answer = str(activity.get("model_answer") or "").strip()
+    if activity.get("evaluation_mode") in {"strict_rubric", "llm_rubric"}:
+        generic_strict_response = (
+            "I used the passage clue to explain the answer in clear English."
+        )
+        for candidate in (slot_answer, model_answer, generic_strict_response):
+            if candidate and _private_open_answer_satisfies_current_contract(
+                activity,
+                candidate,
+            ):
+                return candidate
+        raise AssertionError(
+            "private authored open-answer candidates do not satisfy the current "
+            f"backend contract for {activity.get('activity_id')!r}"
+        )
+
+    if model_answer:
+        return model_answer
+    if activity.get("answer_key"):
+        return str(activity["answer_key"])
+    accepted_answers = [
+        str(answer).strip()
+        for answer in activity.get("accepted_answers") or []
+        if str(answer).strip()
+    ]
+    if accepted_answers:
+        return accepted_answers[0]
+    if slot_answer:
+        return slot_answer
+
+    if activity.get("evaluation_mode") in {"strict_rubric", "llm_rubric"}:
+        # Strict recap items deliberately have no hidden exemplar. The test
+        # evaluator is stubbed to validate the rubric contract, so supply a
+        # real learner-style response rather than inventing an answer key.
+        return "I used the passage clue and explained the answer in my own words."
+
+    raise AssertionError(
+        "test oracle has no authored answer source for "
+        f"{activity.get('activity_id')!r}"
+    )
+
+
+def _settle_queued_curriculum_answer(
+    response,
+    *,
+    body: dict[str, Any],
+    client: TestClient,
+    activity_id: str,
+):
+    """Run the durable worker before asserting the post-answer learner state."""
+
+    if response.status_code != 202:
+        return response
+    session_id = str(body["session_id"])
+    store = school_rebuild_routes.get_storage()
+    assert _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    ) is True
+    job = _run(store.get_school_evaluation_job("test_user", session_id, activity_id))
+    assert job is not None
+    assert job["status"] == "completed", (
+        activity_id,
+        job.get("last_error_code"),
+        job.get("error_json"),
+    )
+    settled = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    assert settled.status_code == 200, settled.text
+    return settled
+
+
+def _answer(body: dict, answer: str | None, client: TestClient) -> dict:
+    # Always submit against the server's current durable state. A preceding
+    # answer can update learner evidence and therefore the next adaptive entry
+    # point even when the immediate synchronous response still reflects the
+    # pre-projection snapshot.
+    canonical = client.get(
+        f"/school/curriculum/{body['session_id']}",
+        headers=AUTH,
+    )
+    assert canonical.status_code == 200, canonical.text
+    body = canonical.json()
+    activity = _private_activity_for_current_body(body)
+    if answer is None:
+        answer = _correct_private_curriculum_answer(
+            _private_activity_for_current_body(body)
+        )
+    response = client.post(
+        f"/school/curriculum/{body['session_id']}/answer",
+        headers=AUTH,
+        json={"activity_id": activity["activity_id"], "answer": answer},
+    )
+    response = _settle_queued_curriculum_answer(
+        response,
+        body=body,
+        client=client,
+        activity_id=str(activity["activity_id"]),
+    )
     assert response.status_code == 200
-    result = response.json()
+    # A deterministic answer response is generated before the same transaction
+    # projects its new learner evidence. Reload the canonical session so the
+    # next test action follows the durable adaptive entry point, exactly as a
+    # learner resuming the page would. Queued answers already take this path.
+    refreshed = client.get(
+        f"/school/curriculum/{body['session_id']}",
+        headers=AUTH,
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    result = refreshed.json()
     _assert_no_hidden_keys(result)
     return result
 
-
-def _correct_curriculum_answer(activity: dict[str, Any]) -> str:
-    answers = {
-        ("colour_sharing_reason", "guided_check"): "share",
-        ("colour_sharing_reason", "independent_check"): "share",
-        ("colour_word_meaning", "guided_check"): "blue",
-        ("colour_word_meaning", "independent_check"): "purple",
-        ("action_words_in_colour_play", "guided_check"): "jump",
-        ("action_words_in_colour_play", "independent_check"): "writes",
-        ("alphabetical_colour_order", "guided_check"): "blue",
-        ("alphabetical_colour_order", "independent_check"): "black",
-        ("word_friends", "guided_check"): "rainbow",
-        ("word_friends", "independent_check"): "rainbow",
-        ("badal_moti_care_reason", "guided_check"): "care for the puppy",
-        ("badal_moti_care_reason", "independent_check"): "care for Moti",
-        ("badal_moti_story_sequence", "guided_check"): "Badal cares for Moti",
-        ("badal_moti_story_sequence", "independent_check"): "Badal and Moti become friends",
-        ("badal_moti_past_tense_ed", "guided_check"): "helped",
-        ("badal_moti_past_tense_ed", "independent_check"): "played",
-        ("badal_moti_question_statement", "guided_check"): "Can Moti stay with us?",
-        ("badal_moti_question_statement", "independent_check"): "question",
-        ("badal_moti_friendship_summary", "guided_check"): "kindness and friendship can help us",
-        ("badal_moti_friendship_summary", "independent_check"): "friendship",
-        ("best_friends_team_reason", "guided_check"): "together",
-        ("best_friends_team_reason", "independent_check"): "work together",
-        ("best_friends_shape_clues", "guided_check"): "circle",
-        ("best_friends_shape_clues", "independent_check"): "triangle",
-        ("best_friends_a_an", "guided_check"): "an",
-        ("best_friends_a_an", "independent_check"): "a",
-        ("best_friends_describe_friend", "guided_check"): "kind",
-        ("best_friends_describe_friend", "independent_check"): "My friend is kind.",
-        ("best_friends_action_words", "guided_check"): "bark",
-        ("best_friends_action_words", "independent_check"): "jump",
-        ("out_garden_picture_clues", "guided_check"): "playing",
-        ("out_garden_picture_clues", "independent_check"): "open space",
-        ("out_garden_ball_actions", "guided_check"): "bounce",
-        ("out_garden_ball_actions", "independent_check"): "catch",
-        ("out_garden_kite_actions", "guided_check"): "fly",
-        ("out_garden_kite_actions", "independent_check"): "pull",
-        ("out_garden_and_pairs", "guided_check"): "sing and dance",
-        ("out_garden_and_pairs", "independent_check"): "run and catch",
-        ("out_garden_safety_reason", "guided_check"): "be careful",
-        ("out_garden_safety_reason", "independent_check"): "play safely",
-        ("talking_toys_story_order", "guided_check"): "toy shop",
-        ("talking_toys_story_order", "independent_check"): "train",
-        ("talking_toys_toy_words", "guided_check"): "doll",
-        ("talking_toys_toy_words", "independent_check"): "marbles",
-        ("talking_toys_describing_words", "guided_check"): "red",
-        ("talking_toys_describing_words", "independent_check"): "soft elephant",
-        ("talking_toys_plural_words", "guided_check"): "toys",
-        ("talking_toys_plural_words", "independent_check"): "boxes",
-        ("talking_toys_process_order", "guided_check"): "first",
-        ("talking_toys_process_order", "independent_check"): "finally",
-        ("paper_boats_story_setting", "guided_check"): "stream",
-        ("paper_boats_story_setting", "independent_check"): "paper boats",
-        ("paper_boats_feeling_reason", "guided_check"): "angry",
-        ("paper_boats_feeling_reason", "independent_check"): "because he overturned her boats",
-        ("paper_boats_help_sequence", "guided_check"): "fold",
-        ("paper_boats_help_sequence", "independent_check"): "showed him how to make a boat",
-        ("paper_boats_he_she", "guided_check"): "she",
-        ("paper_boats_he_she", "independent_check"): "he",
-        ("paper_boats_position_words", "guided_check"): "under",
-        ("paper_boats_position_words", "independent_check"): "on",
-        ("big_laddoo_poem_image", "guided_check"): "big laddoo",
-        ("big_laddoo_poem_image", "independent_check"): "big splash",
-        ("big_laddoo_round_things", "guided_check"): "laddoo",
-        ("big_laddoo_round_things", "independent_check"): "ball",
-        ("big_laddoo_sense_clues", "guided_check"): "touch",
-        ("big_laddoo_sense_clues", "independent_check"): "round and sweet",
-        ("big_laddoo_blend_words", "guided_check"): "blue",
-        ("big_laddoo_blend_words", "independent_check"): "plum",
-        ("big_laddoo_float_sink", "guided_check"): "float",
-        ("big_laddoo_float_sink", "independent_check"): "sink",
-        ("thank_god_fruit_choice", "guided_check"): "grapes",
-        ("thank_god_fruit_choice", "independent_check"): "grapes were light",
-        ("thank_god_story_reason", "guided_check"): "watermelons",
-        ("thank_god_story_reason", "independent_check"): "watermelons would hurt more",
-        ("thank_god_opposites", "guided_check"): "light",
-        ("thank_god_opposites", "independent_check"): "short",
-        ("thank_god_is_are", "guided_check"): "are",
-        ("thank_god_is_are", "independent_check"): "is",
-        ("thank_god_salad_sequence", "guided_check"): "first",
-        ("thank_god_salad_sequence", "independent_check"): "finally",
-        ("madhu_wish_kind_action", "guided_check"): "old man",
-        ("madhu_wish_kind_action", "independent_check"): "he was kind",
-        ("madhu_wish_water_need", "guided_check"): "water",
-        ("madhu_wish_water_need", "independent_check"): "water is important",
-        ("madhu_wish_food_groups", "guided_check"): "fruits",
-        ("madhu_wish_food_groups", "independent_check"): "samosa",
-        ("madhu_wish_and_but", "guided_check"): "and",
-        ("madhu_wish_and_but", "independent_check"): "but",
-        ("madhu_wish_because_reason", "guided_check"): "because",
-        ("madhu_wish_because_reason", "independent_check"): "because he needed water",
-        ("night_poem_mood", "guided_check"): "night",
-        ("night_poem_mood", "independent_check"): "dark and still",
-        ("night_sun_path", "guided_check"): "hill",
-        ("night_sun_path", "independent_check"): "behind the hill",
-        ("night_sky_words", "guided_check"): "stars",
-        ("night_sky_words", "independent_check"): "moon",
-        ("night_blend_sounds", "guided_check"): "star",
-        ("night_blend_sounds", "independent_check"): "sky",
-        ("night_sun_compounds", "guided_check"): "sunlight",
-        ("night_sun_compounds", "independent_check"): "sunset",
-        ("chanda_mama_moon_shape", "guided_check"): "moon",
-        ("chanda_mama_moon_shape", "independent_check"): "the moon changes shape",
-        ("chanda_mama_counting_problem", "guided_check"): "stars",
-        ("chanda_mama_counting_problem", "independent_check"): "too many stars",
-        ("chanda_mama_sun_help", "guided_check"): "sun",
-        ("chanda_mama_sun_help", "independent_check"): "children and stars",
-        ("chanda_mama_here_there", "guided_check"): "here",
-        ("chanda_mama_here_there", "independent_check"): "there",
-        ("chanda_mama_countable_groups", "guided_check"): "fingers",
-        ("chanda_mama_countable_groups", "independent_check"): "hairs",
-        ("chandrayaan_rani_questions", "guided_check"): "curious",
-        ("chandrayaan_rani_questions", "independent_check"): "she asked many questions",
-        ("chandrayaan_moon_news", "guided_check"): "moon",
-        ("chandrayaan_moon_news", "independent_check"): "india reached the moon",
-        ("chandrayaan_scientist_help", "guided_check"): "scientist",
-        ("chandrayaan_scientist_help", "independent_check"): "a rocket",
-        ("chandrayaan_word_meaning", "guided_check"): "moon vehicle",
-        ("chandrayaan_word_meaning", "independent_check"): "chandra means moon",
-        ("chandrayaan_date_sentence", "guided_check"): "23 august 2023",
-        ("chandrayaan_date_sentence", "independent_check"): "Chandrayaan landed on 23 August 2023.",
-        ("together_we_can_teamwork", "guided_check"): "teamwork",
-        ("together_we_can_teamwork", "independent_check"): "teamwork",
-        ("together_we_can_helping_reason", "guided_check"): "Meera could get the ball safely",
-        ("together_we_can_helping_reason", "independent_check"): "she helped him find the library",
-        ("together_we_can_unity_words", "guided_check"): "unity",
-        ("together_we_can_unity_words", "independent_check"): "unity",
-        ("together_we_can_collective_nouns", "guided_check"): "herd",
-        ("together_we_can_collective_nouns", "independent_check"): "swarm",
-        ("together_we_can_fair_solution", "guided_check"): "listen to both",
-        ("together_we_can_fair_solution", "independent_check"): "take turns",
-        ("tinkling_bells_honesty_choice", "guided_check"): "return the extra money",
-        ("tinkling_bells_honesty_choice", "independent_check"): "return the extra money",
-        ("tinkling_bells_story_sequence", "guided_check"): "a shopkeeper gave extra change",
-        ("tinkling_bells_story_sequence", "independent_check"): "he received extra change",
-        ("tinkling_bells_compare_adjectives", "guided_check"): "smallest",
-        ("tinkling_bells_compare_adjectives", "independent_check"): "brighter",
-        ("tinkling_bells_opposites", "guided_check"): "ugly",
-        ("tinkling_bells_opposites", "independent_check"): "loudly",
-        ("tinkling_bells_careful_sentence", "guided_check"): "because",
-        ("tinkling_bells_careful_sentence", "independent_check"): "I should return the extra change because it is not mine.",
-        ("be_safe_crossing_steps", "guided_check"): "stop and look both ways",
-        ("be_safe_crossing_steps", "independent_check"): "look right left and right again",
-        ("be_safe_safe_unsafe", "guided_check"): "unsafe",
-        ("be_safe_safe_unsafe", "independent_check"): "safe",
-        ("be_safe_sign_meaning", "guided_check"): "school ahead",
-        ("be_safe_sign_meaning", "independent_check"): "no honking",
-        ("be_safe_countable_nouns", "guided_check"): "buses",
-        ("be_safe_countable_nouns", "independent_check"): "traffic",
-        ("be_safe_promise_sentence", "guided_check"): "because",
-        ("be_safe_promise_sentence", "independent_check"): "I will use the footpath because it keeps me away from traffic.",
-        ("one_thing_focus_message", "guided_check"): "one task at a time",
-        ("one_thing_focus_message", "independent_check"): "finish one task before starting another",
-        ("one_thing_rhyme_words", "guided_check"): "day and way",
-        ("one_thing_rhyme_words", "independent_check"): "bright and right",
-        ("one_thing_word_meanings", "guided_check"): "strength",
-        ("one_thing_word_meanings", "independent_check"): "short times",
-        ("one_thing_ing_sentences", "guided_check"): "is reading",
-        ("one_thing_ing_sentences", "independent_check"): "are playing",
-        ("one_thing_routine_paragraph", "guided_check"): "after",
-        ("one_thing_routine_paragraph", "independent_check"): "I finish my homework before I play because one thing done well is better.",
-        ("old_stag_kindness_reason", "guided_check"): "kindness",
-        ("old_stag_kindness_reason", "independent_check"): "he cared for everyone",
-        ("old_stag_resource_choice", "guided_check"): "leave grass for him",
-        ("old_stag_resource_choice", "independent_check"): "share wisely",
-        ("old_stag_describing_words", "guided_check"): "tender",
-        ("old_stag_describing_words", "independent_check"): "shaded spot",
-        ("old_stag_adverbs_manner", "guided_check"): "slowly",
-        ("old_stag_adverbs_manner", "independent_check"): "carefully",
-        ("old_stag_thank_you_note", "guided_check"): "because",
-        ("old_stag_thank_you_note", "independent_check"): "Thank you for bringing food because it helped me recover.",
-        ("braille_touch_reading", "guided_check"): "raised dots",
-        ("braille_touch_reading", "independent_check"): "reading by touch",
-        ("braille_louis_invention", "guided_check"): "simplified it",
-        ("braille_louis_invention", "independent_check"): "he made reading by touch easier",
-        ("braille_new_words", "guided_check"): "blacksmith",
-        ("braille_new_words", "independent_check"): "invented",
-        ("braille_spl_words", "guided_check"): "splendid",
-        ("braille_spl_words", "independent_check"): "splash",
-        ("braille_was_were_ing", "guided_check"): "was reading",
-        ("braille_was_were_ing", "independent_check"): "were helping",
-        ("fit_body_activity_clues", "guided_check"): "hockey",
-        ("fit_body_activity_clues", "independent_check"): "music",
-        ("fit_body_adjectives", "guided_check"): "swift runner",
-        ("fit_body_adjectives", "independent_check"): "healthy food",
-        ("fit_body_rhyme_words", "guided_check"): "race and pace",
-        ("fit_body_rhyme_words", "independent_check"): "joy and boy",
-        ("fit_body_double_letters", "guided_check"): "running",
-        ("fit_body_double_letters", "independent_check"): "balloon",
-        ("fit_body_word_meanings", "guided_check"): "mistakes",
-        ("fit_body_word_meanings", "independent_check"): "proudly",
-        ("lagori_rules_comprehension", "guided_check"): "seven stones",
-        ("lagori_rules_comprehension", "independent_check"): "stack and avoid the ball",
-        ("lagori_team_sequence", "guided_check"): "referee blew the whistle",
-        ("lagori_team_sequence", "independent_check"): "Prakash set the seventh stone",
-        ("lagori_word_meanings", "guided_check"): "opponent",
-        ("lagori_word_meanings", "independent_check"): "boundary",
-        ("lagori_sentence_order", "guided_check"): "The field is marked with a boundary.",
-        ("lagori_sentence_order", "independent_check"): "Everybody looked at Prakash with surprise.",
-        ("lagori_sentence_question", "guided_check"): "question",
-        ("lagori_sentence_question", "independent_check"): "sentence",
-        ("hekko_word_meaning", "guided_check"): "challenging the tiger",
-        ("hekko_word_meaning", "independent_check"): "challenge",
-        ("hekko_team_rules", "guided_check"): "11",
-        ("hekko_team_rules", "independent_check"): "human chain",
-        ("hekko_joko_surrender", "guided_check"): "surrender",
-        ("hekko_joko_surrender", "independent_check"): "the game ends",
-        ("hekko_homophones", "guided_check"): "There",
-        ("hekko_homophones", "independent_check"): "their",
-        ("hekko_past_tense", "guided_check"): "visited",
-        ("hekko_past_tense", "independent_check"): "decided",
-        ("swing_view_clues", "guided_check"): "rivers and trees",
-        ("swing_view_clues", "independent_check"): "garden green",
-        ("swing_feeling_reason", "guided_check"): "pleasantest thing",
-        ("swing_feeling_reason", "independent_check"): "he enjoys swinging",
-        ("swing_sentence_stringing", "guided_check"): "Mira watched the clouds",
-        ("swing_sentence_stringing", "independent_check"): "Mira watched the clouds from the swing.",
-        ("swing_noun_verb", "guided_check"): "verb",
-        ("swing_noun_verb", "independent_check"): "noun",
-        ("swing_prepositions", "guided_check"): "between",
-        ("swing_prepositions", "independent_check"): "under",
-        ("mountain_story_sequence", "guided_check"): "Himalayas",
-        ("mountain_story_sequence", "independent_check"): "river",
-        ("mountain_vocabulary_context", "guided_check"): "Sherpa",
-        ("mountain_vocabulary_context", "independent_check"): "journey",
-        ("mountain_animals_and_care", "guided_check"): "milk, wool, and carrying loads",
-        ("mountain_animals_and_care", "independent_check"): "protect the mountains",
-        ("mountain_body_part_metaphors", "guided_check"): "foot",
-        ("mountain_body_part_metaphors", "independent_check"): "mouth",
-        ("mountain_conjunctions", "guided_check"): "because",
-        ("mountain_conjunctions", "independent_check"): "but",
-        ("maheshwar_dialogue_facts", "guided_check"): "Queen Ahilya Bai",
-        ("maheshwar_dialogue_facts", "independent_check"): "Narmada River",
-        ("maheshwar_fort_features", "guided_check"): "overhanging balconies",
-        ("maheshwar_fort_features", "independent_check"): "red stones",
-        ("maheshwar_synonyms_odd_one", "guided_check"): "thrilled",
-        ("maheshwar_synonyms_odd_one", "independent_check"): "kind",
-        ("maheshwar_silent_g", "guided_check"): "sign",
-        ("maheshwar_silent_g", "independent_check"): "design",
-        ("maheshwar_articles", "guided_check"): "an",
-        ("maheshwar_articles", "independent_check"): "the",
-        ("papas_spectacles_story_details", "guided_check"): "spectacles",
-        ("papas_spectacles_story_details", "independent_check"): "on his head",
-        ("papas_spectacles_word_meaning", "guided_check"): "eyeglasses",
-        ("papas_spectacles_word_meaning", "independent_check"): "looked quickly",
-        ("papas_spectacles_ordering", "guided_check"): "handkerchief",
-        ("papas_spectacles_ordering", "independent_check"): "cherry",
-        ("papas_spectacles_pair_phrases", "guided_check"): "shoes",
-        ("papas_spectacles_pair_phrases", "independent_check"): "socks",
-        ("papas_spectacles_prepositions", "guided_check"): "around",
-        ("papas_spectacles_prepositions", "independent_check"): "on",
-        ("gone_scooter_story_sequence", "guided_check"): "hockey ball",
-        ("gone_scooter_story_sequence", "independent_check"): "scooter basket",
-        ("gone_scooter_honest_owner", "guided_check"): "four months ago",
-        ("gone_scooter_honest_owner", "independent_check"): "ask around",
-        ("gone_scooter_action_words", "guided_check"): "small taps",
-        ("gone_scooter_action_words", "independent_check"): "take suddenly",
-        ("gone_scooter_connectors", "guided_check"): "because",
-        ("gone_scooter_connectors", "independent_check"): "however",
-        ("gone_scooter_oo_compounds", "guided_check"): "school",
-        ("gone_scooter_oo_compounds", "independent_check"): "football",
-        ("rainbow_image_bridge", "guided_check"): "a bridge from earth to sky",
-        ("rainbow_image_bridge", "independent_check"): "it joins earth and sky",
-        ("rainbow_word_meanings", "guided_check"): "over",
-        ("rainbow_word_meanings", "independent_check"): "bridge",
-        ("rainbow_reference_words", "guided_check"): "boats",
-        ("rainbow_reference_words", "independent_check"): "ships and boats",
-        ("rainbow_rhyme_sound", "guided_check"): "rain",
-        ("rainbow_rhyme_sound", "independent_check"): "sky",
-        ("rainbow_compound_words", "guided_check"): "rainbow",
-        ("rainbow_compound_words", "independent_check"): "wristwatch",
-        ("rainbow_noun_verb_use", "guided_check"): "noun",
-        ("rainbow_noun_verb_use", "independent_check"): "verb",
-        ("rainbow_opposites", "guided_check"): "slow",
-        ("rainbow_opposites", "independent_check"): "straight",
-        ("rainbow_travel_paragraph", "guided_check"): "past tense",
-        ("rainbow_travel_paragraph", "independent_check"): "I travelled by bus with my family.",
-        ("rainbow_journey_writing", "guided_check"): "Plan B",
-        ("rainbow_journey_writing", "independent_check"): RAINBOW_JOURNEY_PARAGRAPH,
-        ("rainbow_colour_order", "guided_check"): "violet",
-        ("rainbow_colour_order", "independent_check"): "yellow",
-        ("rainbow_natural_human_made", "guided_check"): "human-made",
-        ("rainbow_natural_human_made", "independent_check"): "light and water droplets form it",
-        ("wise_parrot_story_sequence", "guided_check"): "a greeting",
-        ("wise_parrot_story_sequence", "independent_check"): "it became still so the trader took it out",
-        ("wise_parrot_freedom_reason", "guided_check"): "it could not fly freely",
-        ("wise_parrot_freedom_reason", "independent_check"): "the forest parrot because it showed an escape plan",
-        ("wise_parrot_words_phrases", "guided_check"): "worried and upset",
-        ("wise_parrot_words_phrases", "independent_check"): "going to soon",
-        ("wise_parrot_collective_nouns", "guided_check"): "flight",
-        ("wise_parrot_collective_nouns", "independent_check"): "bunch",
-        ("wise_parrot_present_perfect", "guided_check"): "have visited",
-        ("wise_parrot_present_perfect", "independent_check"): "have written",
-        ("wise_parrot_bird_sanctuary", "guided_check"): "safe habitats help birds",
-        ("wise_parrot_bird_sanctuary", "independent_check"): "they give birds food and shelter",
-        ("wise_parrot_ai_oi_sounds", "guided_check"): "soil",
-        ("wise_parrot_ai_oi_sounds", "independent_check"): "sail",
-        ("wise_parrot_opinion_reason", "guided_check"): "let the bird fly safely",
-        ("wise_parrot_opinion_reason", "independent_check"): "let it fly because freedom matters",
-        ("wise_parrot_story_continuation", "guided_check"): "Plan B",
-        ("wise_parrot_story_continuation", "independent_check"): WISE_PARROT_STORY_CONTINUATION,
-        ("wise_parrot_bird_feeder_steps", "guided_check"): "clean the container",
-        ("wise_parrot_bird_feeder_steps", "independent_check"): (
-            "First clean the container, next add fresh grains and water, then place it "
-            "safely, and finally clean it regularly."
-        ),
-        ("frog_between_two_homes", "guided_check"): "a damp stone and pond water",
-        ("frog_between_two_homes", "independent_check"): (
-            "It hopped on moss and later hid in the ditch filled with water."
-        ),
-        ("frog_between_two_homes", "masterclass"): (
-            "The pond habitat provides different useful places: reeds provide shelter, "
-            "and the frog dives below the surface to escape."
-        ),
-        ("frog_from_spawn_to_adult", "guided_check"): "a cluster of frog eggs",
-        ("frog_from_spawn_to_adult", "independent_check"): (
-            "Eggs hatch into tadpoles, which grow legs as their tails shrink."
-        ),
-        ("frog_from_spawn_to_adult", "masterclass"): (
-            "Eggs hatch into tadpoles, and tadpoles grow legs before they grow into adult frogs."
-        ),
-        ("frog_fast_food_and_defence", "guided_check"): (
-            "to catch the beetle before it escapes"
-        ),
-        ("frog_fast_food_and_defence", "independent_check"): (
-            "Its speckles match the stones, and it slips under the root to hide."
-        ),
-        ("frog_fast_food_and_defence", "masterclass"): (
-            "Camouflage makes it hard to see, while the frog dives underwater to escape."
-        ),
-        ("frog_motion_comparison", "guided_check"): (
-            "long back legs and wide back feet"
-        ),
-        ("frog_motion_comparison", "independent_check"): (
-            "Both the frog and fish swim through water. The fish uses fins and remains "
-            "in water, while the frog kicks with webbed back feet and can also cross "
-            "wet ground."
-        ),
-        ("frog_motion_comparison", "masterclass"): (
-            "The frog has smoother skin than the toad and jumps farther than the toad."
-        ),
-        ("frog_calls_and_connectors", "guided_check"): (
-            "the call grows louder because the inflated throat pouch vibrates"
-        ),
-        ("frog_calls_and_connectors", "independent_check"): (
-            "A frog may call next to the drain or among the grass. Even though the grass "
-            "is a long way from the pond, its voice carries to the water."
-        ),
-        ("frog_calls_and_connectors", "masterclass"): (
-            "A frog may call from the reeds or the muddy bank, and its repeated croaks "
-            "travel across the pond."
-        ),
-        ("frog_sentence_sequence", "guided_check"): (
-            "The frog catches an insect."
-        ),
-        ("frog_sentence_sequence", "independent_check"): (
-            "The frog enters the pond because the bank is dry."
-        ),
-        ("frog_sentence_sequence", "masterclass"): (
-            "The frog slips under a leaf because the sun is hot."
-        ),
-        ("frog_friendly_reply", "guided_check"): (
-            "Hi Kabir, I saw tiny legs on our tadpoles yesterday."
-        ),
-        ("frog_friendly_reply", "independent_check"): (
-            "Hi Maya, I often see frogs near our garden after rain. They hide beside "
-            "wet leaves and call loudly from the drain. I watch quietly without touching "
-            "them. Do frogs visit the wetland near you too? Best wishes, Open Assets"
-        ),
-        ("frog_friendly_reply", "masterclass"): (
-            "Hi Dev, I saw frogs at the park and they were jumping near the pond. "
-            "Did you see frogs there yesterday?"
-        ),
-    }
-    if activity["kind"] == "chapter_check":
-        item_id = activity["activity_id"].split(":", 2)[-1]
-        assessment_answers = {
-            "eng_c5_ch05_assess_01": (
-                "The frog rests under a fern on the muddy bank, then dives into the "
-                "stream when footsteps approach."
-            ),
-            "eng_c5_ch05_assess_02": (
-                "A larva is a young stage, like a newly hatched tadpole."
-            ),
-            "eng_c5_ch05_assess_03": (
-                "Tadpoles hatch from eggs and tadpoles grow into adult frogs."
-            ),
-            "eng_c5_ch05_assess_04": (
-                "The frog remains under a rock because the ground is hot and dry at midday."
-            ),
-            "eng_c5_ch05_assess_05": "it reaches the moth quickly without a chase",
-            "eng_c5_ch05_assess_06": (
-                "The frog has webbed feet, and its webbed feet help it swim by pushing water."
-            ),
-            "eng_c5_ch05_assess_07": (
-                "A tree frog may call from a branch or from a wall."
-            ),
-            "eng_c5_ch05_assess_08": "the frog swims across the pond",
-            "eng_c5_ch05_assess_09": "predators may fail to notice the frog",
-            "eng_c5_ch05_assess_10": (
-                "Calling helps frogs hear each other and communicate across the distance."
-            ),
-            "eng_c5_ch05_assess_11": (
-                "Both the frog and fish swim through water. The fish uses fins and stays "
-                "in water, while the frog kicks with webbed back feet and crosses wet ground."
-            ),
-            "eng_c5_ch05_assess_12": "it jumps from the brick into the trough",
-            "eng_c5_ch05_assess_13": (
-                "A predator is an animal that hunts other animals and eats the animals it hunts."
-            ),
-            "eng_c5_ch05_assess_14": "amphibian",
-            "eng_c5_ch05_assess_15": (
-                "A tadpole begins with a tail, later grows front and hind legs, and finally "
-                "its tail becomes tiny."
-            ),
-            "eng_c5_ch05_assess_16": (
-                "the frog opens its mouth and its sticky tongue catches a fly"
-            ),
-            "eng_c5_ch05_assess_17": (
-                "Powerful hind legs help it leap away quickly from danger across the pond bank."
-            ),
-            "eng_c5_ch05_assess_18": "the pond supplies several things frogs need",
-            "eng_c5_ch05_assess_19": (
-                "The speckled pattern makes the frog hard to see, so the bird has trouble "
-                "seeing it."
-            ),
-            "eng_c5_ch05_assess_20": (
-                "the front legs appear and the tail becomes shorter"
-            ),
-            "eng_c5_ch05_assess_21": (
-                "The ground below the tap is damp, and the frog chooses it because it is damp."
-            ),
-            "eng_c5_ch05_assess_22": (
-                "Hi Aman, frogs sometimes appear near my garden after rain. I stay back and "
-                "watch quietly so I do not frighten them. Did the frog near your rain barrel "
-                "return the next day? Best wishes, Open Assets"
-            ),
-            "eng_c5_ch05_assess_23": (
-                "The frog hides because a shadow crosses the pond."
-            ),
-            "eng_c5_ch05_assess_24": (
-                "Camouflage hides the frog, webbed feet help it swim, and its quick tongue "
-                "catches insects for food."
-            ),
-            "eng_c5_ch05_assess_25": (
-                "Both the frog and toad move on land. The frog has smoother skin and more "
-                "webbing for swimming, while the toad has rougher skin and takes shorter hops."
-            ),
-            "eng_c5_ch05_assess_26": (
-                "Hi Zoya, I hear frogs near school after heavy rain. Their repeated calls "
-                "travel from the grass to the pond. I listen from the playground. Do the "
-                "frogs near your classroom call before sunset too? Best wishes, Open Assets"
-            ),
-        }
-        return assessment_answers[item_id]
-    return answers[(activity["level_id"], activity["kind"])]
 
 
 def _complete_current_curriculum_session(
     body: dict[str, Any],
     client: TestClient,
 ) -> dict:
+    initial_state = _run(
+        school_rebuild_routes.get_storage().get_school_session(
+            "test_user",
+            body["session_id"],
+        )
+    )["state_json"]
+    chapter_assessment = dict(initial_state.get("chapter_assessment") or {})
+    completion_budget = max(
+        50,
+        len(initial_state.get("levels") or []) * 16
+        + len(chapter_assessment.get("items") or []) * 3,
+    )
     guard = 0
     while body["current_activity"] is not None:
         guard += 1
-        assert guard <= 30
+        assert guard <= completion_budget
         activity = body["current_activity"]
-        body = _answer(body, _correct_curriculum_answer(activity), client)
-        if str(activity["level_id"]).startswith("frog_"):
-            assert body["last_feedback"]["correct"] is True, activity
+        body = _answer(body, None, client)
+        if (
+            activity.get("interaction_type") != "continue"
+            and activity.get("kind") != "chapter_check"
+            and body.get("last_feedback") is not None
+        ):
+            assert body["last_feedback"]["correct"] is True, (
+                activity,
+                body["last_feedback"],
+            )
     assert body["status"] == "complete"
     return body
 
@@ -1705,11 +2017,29 @@ def _seed_curriculum_activity_session(
     *,
     session_id: str,
     chapter: dict[str, Any],
-    level_id: str,
+    level_id: str | None = None,
 ) -> dict[str, Any]:
     profile = _seed_school_profile(store, target_class_no=5)
     _seed_direct_curriculum_report_lineage(store, profile)
     levels = copy.deepcopy(chapter["levels"])
+    if level_id is None:
+        level_id = next(
+            str(level["level_id"])
+            for level in levels
+            if any(
+                str(step.get("phase") or "") == "independent_application"
+                and (
+                    isinstance(step.get("activity"), dict)
+                    or any(
+                        isinstance(variant, dict)
+                        and str(variant.get("evaluation_mode") or "")
+                        == "llm_rubric"
+                        for variant in step.get("variant_pool") or []
+                    )
+                )
+                for step in level.get("teaching_steps") or []
+            )
+        )
     level_index = next(
         index for index, level in enumerate(levels) if level["level_id"] == level_id
     )
@@ -1763,6 +2093,106 @@ def _seed_curriculum_activity_session(
         )
     )
     return state
+
+
+def test_curriculum_answer_status_uses_narrow_context_and_rehydrates_only_public_session(
+    store,
+    monkeypatch,
+):
+    """Pending rubric polling must not rehydrate the learner dashboard or answer data."""
+
+    chapter = next(
+        item
+        for item in curriculum._available_chapters("english", 5)
+        if item["chapter_id"] == "eng_c5_ch01"
+    )
+    session_id = str(uuid4())
+    _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+    )
+    client = TestClient(app)
+    initial = client.get(f"/school/curriculum/{session_id}", headers=AUTH)
+    assert initial.status_code == 200, initial.text
+    activity_id = str(initial.json()["current_activity"]["activity_id"])
+
+    store.school_answer_requests[(session_id, activity_id)] = {
+        "user_id": "test_user",
+        "status": "processing",
+        "answer_hash": "private-answer-hash",
+        "claim_token": "private-claim-token",
+        "raw_answer": "private learner answer must never leave storage",
+        "updated_at": time.time(),
+    }
+    calls: list[tuple[str, str, str]] = []
+
+    async def narrow_context(*, user_id: str, session_id: str, activity_id: str):
+        calls.append((user_id, session_id, activity_id))
+        return {
+            "active_profile": await store.get_active_school_profile_version(user_id),
+            "placement_report": await store.get_school_placement_report_by_id(
+                user_id,
+                "placement-report",
+            ),
+            "school_session": await store.get_school_session(user_id, session_id),
+            "answer_request": await store.get_school_answer_request(
+                user_id,
+                session_id,
+                activity_id,
+            ),
+        }
+
+    async def full_dashboard_snapshot_must_not_run(*_args, **_kwargs):
+        raise AssertionError("pending answer status must not load the School dashboard")
+
+    monkeypatch.setattr(
+        store,
+        "get_school_curriculum_answer_context",
+        narrow_context,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        store,
+        "get_school_state_snapshot",
+        full_dashboard_snapshot_must_not_run,
+    )
+
+    pending = client.get(
+        f"/school/curriculum/{session_id}/answers/{activity_id}/status",
+        headers=AUTH,
+    )
+
+    assert pending.status_code == 200, pending.text
+    assert pending.json() == {
+        "status": "awaiting_evaluation",
+        "session_id": session_id,
+        "activity_id": activity_id,
+    }
+    assert calls == [("test_user", session_id, activity_id)]
+    assert "private learner answer" not in pending.text
+    assert "private-answer-hash" not in pending.text
+    assert "private-claim-token" not in pending.text
+
+    store.school_answer_requests[(session_id, activity_id)].update(
+        status="completed",
+        response_json={
+            "answer_key": "must-not-be-returned-from-stored-response",
+            "raw_answer": "must-not-be-returned-from-stored-response",
+        },
+        updated_at=time.time(),
+    )
+    completed = client.get(
+        f"/school/curriculum/{session_id}/answers/{activity_id}/status",
+        headers=AUTH,
+    )
+
+    assert completed.status_code == 200, completed.text
+    body = completed.json()
+    assert body["status"] == "completed"
+    assert body["session"]["session_id"] == session_id
+    _assert_no_hidden_keys(body)
+    assert "must-not-be-returned-from-stored-response" not in completed.text
 
 
 def _seed_frog_chapter_check_session(store, *, session_id: str) -> dict[str, Any]:
@@ -1881,6 +2311,16 @@ def _drive_frog_chapter_check(
     *,
     fail_first: bool,
 ) -> dict[str, Any]:
+    state = _run(
+        school_rebuild_routes.get_storage().get_school_session(
+            "test_user",
+            body["session_id"],
+        )
+    )["state_json"]
+    expected_answers = len(
+        (state.get("chapter_assessment") or {}).get("selected_item_ids") or []
+    )
+    assert expected_answers > 0
     answered = 0
     while body["phase"] == "chapter_check":
         activity = body["current_activity"]
@@ -1888,12 +2328,12 @@ def _drive_frog_chapter_check(
         answer = (
             "wrong"
             if fail_first and answered == 0
-            else _correct_curriculum_answer(activity)
+            else None
         )
         body = _answer(body, answer, client)
         answered += 1
-        assert answered <= 13
-    assert answered == 13
+        assert answered <= expected_answers
+    assert answered == expected_answers
     return body
 
 
@@ -1906,7 +2346,7 @@ def _drive_frog_remediation(
         activity = body["current_activity"]
         assert activity is not None
         assert activity["kind"] in {"masterclass", "independent_check"}
-        body = _answer(body, _correct_curriculum_answer(activity), client)
+        body = _answer(body, None, client)
         assert body["last_feedback"]["correct"] is True, activity
         answered += 1
         assert answered <= 14
@@ -1915,40 +2355,43 @@ def _drive_frog_remediation(
 
 
 def test_curriculum_short_answer_requires_exact_match_not_substring():
-    public_profile = {
-        "target_class_no": 3,
-        "subject_ids": ["english"],
-    }
+    public_profile = {"target_class_no": 3, "subject_ids": ["english"]}
     state = curriculum.new_curriculum_state(
         school_profile=public_profile,
-        placement_report=None,
+        placement_report={"report_id": "test-report", "unlock_state": "target_unlocked"},
         recap_session=None,
     )
     assert public_profile["target_class_no"] == 3
-    state["current_level_index"] = 3
-    for index, level in enumerate(state["levels"]):
-        level["status"] = "in_progress" if index == 3 else "complete"
-    state["levels"][3]["current_step"] = "bridge"
-
-    updated, evaluation = curriculum.apply_curriculum_answer(
-        state,
-        activity_id="alphabetical_colour_order:bridge:1",
-        answer="banana",
+    first_level = state["levels"][0]
+    typed_step_index = next(
+        index
+        for index, step in enumerate(first_level["teaching_steps"])
+        if str(step.get("phase") or "") == "co_construct"
     )
+    first_level["v2_step_index"] = typed_step_index
+    first_level["current_step"] = "co_construct"
+    activity_id = curriculum.current_curriculum_activity_id(state)
+    assert activity_id
+    activity = curriculum.curriculum_activity_for_answer(state, activity_id=activity_id)
+    assert activity["grading_mode"] == "selected_option"
+    accepted_answer = _correct_private_curriculum_answer(activity)
+    rejected_answer = f"{accepted_answer} extra"
 
-    assert evaluation["correct"] is False
-    assert updated["current_level_index"] == 3
-    assert updated["levels"][3]["current_step"] == "masterclass"
-
-    state["levels"][3]["attempts"] = []
+    rejected, rejected_evaluation = curriculum.apply_curriculum_answer(
+        copy.deepcopy(state),
+        activity_id=activity_id,
+        answer=rejected_answer,
+    )
     accepted, accepted_evaluation = curriculum.apply_curriculum_answer(
-        state,
-        activity_id="alphabetical_colour_order:bridge:1",
-        answer="b",
+        copy.deepcopy(state),
+        activity_id=activity_id,
+        answer=accepted_answer,
     )
 
+    assert rejected_evaluation["correct"] is False
     assert accepted_evaluation["correct"] is True
-    assert accepted["levels"][3]["current_step"] == "independent_check"
+    assert curriculum.current_curriculum_activity_id(accepted) != activity_id
+    assert rejected["current_level_index"] == accepted["current_level_index"]
 
 
 def test_curriculum_phrase_match_rejects_a_negated_expected_answer():
@@ -1985,17 +2428,16 @@ def test_curriculum_starts_real_class_3_colours_chapter_after_recap(store):
     assert body["chapter"]["title"] == "Colours"
     assert body["chapter"]["book_title"] == "Santoor"
     assert body["chapter"]["unit_title"] == "Fun with Friends"
-    assert body["progress"] == {
-        "completed_levels": 0,
-        "total_levels": 5,
-        "current_level_index": 0,
-    }
+    _assert_empty_chapter_progress(body)
     assert body["carry_forward_focuses"]
-    assert "write a complete sentence" in body["carry_forward_focuses"]
-    assert body["current_activity"]["kind"] == "guided_check"
-    assert body["current_activity"]["level_id"] == "colour_sharing_reason"
+    assert all(
+        isinstance(focus, str) and focus.strip()
+        for focus in body["carry_forward_focuses"]
+    )
+    _assert_current_activity_matches_catalog(body)
+    assert body["current_activity"]["phase"] == "connect"
+    assert body["current_activity"]["interaction_type"] == "continue"
     assert "Santoor Chapter" not in body["current_activity"]["teaching_block"]
-    assert "share" in body["current_activity"]["teaching_block"].lower()
     _assert_no_hidden_keys(body)
 
     active_profile = _run(store.get_active_school_profile_version("test_user"))
@@ -2045,18 +2487,32 @@ def test_curriculum_get_refreshes_learning_memory_created_after_session_start(st
     client = TestClient(app)
     _complete_target_ready_placement(client)
     started = client.post("/school/curriculum/start", headers=AUTH).json()
-    assert started["memory_summary"]["strong_skills"] == []
+    initial_strong_skills = list(started["memory_summary"]["strong_skills"])
 
+    skill_id = "writing.summary_own_words"
+    readiness_state = SkillReadinessState(
+        skill_id=skill_id,
+        practice_readiness=0.94,
+        certified_readiness=0.94,
+        total_attempts=5,
+        certified_attempts=5,
+        independent_passes=3,
+        transfer_passes=1,
+        review_passes=1,
+        recent_hint_flags=(False,),
+        last_confidence=1.0,
+    )
+    profile_fields = to_profile_upsert(readiness_state)
     _run(store.upsert_learner_skill_profile(
         user_id="test_user",
         domain="school",
-        skill_id="reading.inference_reason",
+        skill_id=skill_id,
         module_id="eng_c5_ch01",
         task_type="school_rebuild_curriculum",
-        mastery=0.0,
-        readiness=0.9,
+        mastery=profile_fields["mastery"],
+        readiness=profile_fields["readiness"],
         confidence=1.0,
-        attempts=3,
+        attempts=5,
         strengths_json=["explain a reason from passage evidence"],
         gaps_json=[],
         evidence_json={
@@ -2064,6 +2520,7 @@ def test_curriculum_get_refreshes_learning_memory_created_after_session_start(st
             "attempt_type": "transfer_check",
             "chapter_id": "eng_c5_ch01",
             "level_id": "papas_spectacles_humour_and_reasons",
+            "school_readiness_state": profile_fields["school_readiness_state"],
         },
         recommended_next_action="Continue with a new independent example.",
         source_summary="Strong transfer evidence in eng_c5_ch01.",
@@ -2075,14 +2532,19 @@ def test_curriculum_get_refreshes_learning_memory_created_after_session_start(st
     )
 
     assert refreshed.status_code == 200
-    assert refreshed.json()["memory_summary"]["strong_skills"] == [{
-        "skill_id": "reading.inference_reason",
-        "skill_label": "Infer a reason",
-        "latest_evidence": "I used the passage clue to explain why he searched.",
-        "last_attempt_type": "transfer_check",
-        "last_chapter_id": "eng_c5_ch01",
-        "attempts": 3,
-    }]
+    refreshed_skills = refreshed.json()["memory_summary"]["strong_skills"]
+    profile = next(
+        item
+        for item in refreshed_skills
+        if item["skill_id"] == skill_id
+    )
+    assert profile["skill_id"] == skill_id
+    assert profile["latest_evidence"] == "I used the passage clue to explain why he searched."
+    assert profile["last_attempt_type"] == "transfer_check"
+    assert profile["last_chapter_id"] == "eng_c5_ch01"
+    assert profile["attempts"] == 5
+    assert profile["skill_status"] == "mastered"
+    assert len(refreshed_skills) >= len(initial_strong_skills)
 
 
 def test_compatible_profile_edit_keeps_active_curriculum_and_historical_report_lineage(store):
@@ -2143,36 +2605,46 @@ def test_curriculum_bridge_masterclass_and_independent_advance_are_tracked(store
     body = client.post("/school/curriculum/start", headers=AUTH).json()
     session_id = body["session_id"]
 
+    # V2 deliberately begins with a low-stakes connection and co-construction
+    # before a scored guided attempt. A miss at that point must produce a
+    # fresh, targeted bridge rather than prematurely certifying progress.
+    body = _answer(body, None, client)
+    assert body["current_activity"]["phase"] == "co_construct"
+    body = _answer(body, None, client)
+    assert body["current_activity"]["phase"] == "guided_practice"
+    guided_activity_id = body["current_activity"]["activity_id"]
+
     body = _answer(body, "wrong", client)
-    assert body["current_activity"]["kind"] == "bridge"
     assert body["last_feedback"]["correct"] is False
-    assert "slow this chapter level down" in body["last_feedback"]["message"].lower()
+    assert body["current_activity"]["kind"] == "v2_support"
+    assert body["current_activity"]["support_mode"] == "bridge"
+    assert body["current_activity"]["lineage"]["trigger_activity_id"] == guided_activity_id
     _assert_no_hidden_keys(body)
 
-    body = _answer(body, "wrong", client)
-    assert body["current_activity"]["kind"] == "masterclass"
-    assert "colour clue" in body["current_activity"]["teaching_block"].lower()
-    _assert_no_hidden_keys(body)
+    body = _answer(body, None, client)
+    assert body["current_activity"]["phase"] == "guided_practice"
+    assert body["current_activity"]["support_mode"] is None
+    assert body["current_activity"]["activity_id"] != guided_activity_id
 
-    body = _answer(body, "share", client)
-    assert body["current_activity"]["kind"] == "independent_check"
-    assert "without hints" in body["current_activity"]["teaching_block"].lower()
+    body = _answer(body, None, client)
+    assert body["current_activity"]["phase"] == "independent_application"
+    assert (
+        _private_activity_for_current_body(body)["evaluation_mode"] == "llm_rubric"
+    )
     _assert_no_hidden_keys(body)
-
-    body = _answer(body, "share", client)
-    assert body["progress"]["completed_levels"] == 1
-    assert body["current_activity"]["level_id"] == "colour_word_meaning"
-    assert body["current_activity"]["kind"] == "guided_check"
     assert body["session_id"] == session_id
-    _assert_no_hidden_keys(body)
 
     curriculum_events = [
         event
         for event in store.learning_events
         if event.get("task_type") == "school_rebuild_curriculum"
     ]
-    assert len(curriculum_events) == 4
-    assert curriculum_events[-1]["score"] == 1.0
+    assert len(curriculum_events) == 5
+    assert curriculum_events[-1]["score"] >= 0.8
+    assert any(
+        event["attempt_type"] == "v2_support"
+        for event in curriculum_events
+    )
 
 
 def test_school_state_resumes_active_curriculum_session(store):
@@ -2214,13 +2686,10 @@ def test_completed_curriculum_session_opens_next_chapter(store):
     assert body["chapter"]["chapter_id"] == "eng_c3_ch02"
     assert body["chapter"]["title"] == "Badal and Moti"
     assert body["chapter"]["book_title"] == "Santoor"
-    assert body["progress"] == {
-        "completed_levels": 0,
-        "total_levels": 5,
-        "current_level_index": 0,
-    }
-    assert body["current_activity"]["kind"] == "guided_check"
-    assert "puppy" in body["current_activity"]["teaching_block"].lower()
+    _assert_empty_chapter_progress(body)
+    _assert_current_activity_matches_catalog(body)
+    assert body["current_activity"]["phase"] == "connect"
+    assert body["current_activity"]["interaction_type"] == "continue"
     _assert_no_hidden_keys(body)
 
 
@@ -2249,8 +2718,7 @@ def test_completed_second_authored_chapter_opens_best_friends(store):
     third = third_response.json()
     assert third["chapter"]["chapter_id"] == "eng_c3_ch03"
     assert third["chapter"]["title"] == "Best Friends"
-    assert third["current_activity"]["level_id"] == "best_friends_team_reason"
-    assert "shape" in third["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(third)
     _assert_no_hidden_keys(third)
 
 
@@ -2282,8 +2750,7 @@ def test_completed_third_authored_chapter_opens_out_in_the_garden(store):
     assert fourth["chapter"]["chapter_id"] == "eng_c3_ch04"
     assert fourth["chapter"]["title"] == "Out in the Garden"
     assert fourth["chapter"]["unit_title"] == "Toys and Games"
-    assert fourth["current_activity"]["level_id"] == "out_garden_picture_clues"
-    assert "garden" in fourth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(fourth)
     _assert_no_hidden_keys(fourth)
 
 
@@ -2317,8 +2784,7 @@ def test_completed_fourth_authored_chapter_opens_talking_toys(store):
     assert fifth["chapter"]["chapter_id"] == "eng_c3_ch05"
     assert fifth["chapter"]["title"] == "Talking Toys"
     assert fifth["chapter"]["unit_title"] == "Toys and Games"
-    assert fifth["current_activity"]["level_id"] == "talking_toys_story_order"
-    assert "toy" in fifth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(fifth)
     _assert_no_hidden_keys(fifth)
 
 
@@ -2354,8 +2820,7 @@ def test_completed_fifth_authored_chapter_opens_paper_boats(store):
     assert sixth["chapter"]["chapter_id"] == "eng_c3_ch06"
     assert sixth["chapter"]["title"] == "Paper Boats"
     assert sixth["chapter"]["unit_title"] == "Toys and Games"
-    assert sixth["current_activity"]["level_id"] == "paper_boats_story_setting"
-    assert "paper boat" in sixth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(sixth)
     _assert_no_hidden_keys(sixth)
 
 
@@ -2393,8 +2858,7 @@ def test_completed_sixth_authored_chapter_opens_the_big_laddoo(store):
     assert seventh["chapter"]["chapter_id"] == "eng_c3_ch07"
     assert seventh["chapter"]["title"] == "The Big Laddoo"
     assert seventh["chapter"]["unit_title"] == "Good Food"
-    assert seventh["current_activity"]["level_id"] == "big_laddoo_poem_image"
-    assert "laddoo" in seventh["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(seventh)
     _assert_no_hidden_keys(seventh)
 
 
@@ -2437,8 +2901,7 @@ def test_completed_seventh_authored_chapter_opens_thank_god(store):
     assert eighth["chapter"]["chapter_id"] == "eng_c3_ch08"
     assert eighth["chapter"]["title"] == "Thank God!"
     assert eighth["chapter"]["unit_title"] == "Good Food"
-    assert eighth["current_activity"]["level_id"] == "thank_god_fruit_choice"
-    assert "grapes" in eighth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(eighth)
     _assert_no_hidden_keys(eighth)
 
 
@@ -2482,13 +2945,13 @@ def test_completed_last_authored_chapter_hides_next_chapter(store):
     assert state["active_flow"] == "curriculum"
     assert state["active_session_id"] == completed_twelfth["session_id"]
     assert state["next_action"] == "view_report"
-    assert state["next_action_url"] == "/school/curriculum"
+    assert state["next_action_url"] == "/school/reports"
     assert state["allowed_next_actions"] == ["view_report"]
 
     next_response = client.post("/school/curriculum/start", headers=AUTH)
 
     assert next_response.status_code == 409
-    assert next_response.json()["detail"]["code"] == "all_curriculum_chapters_complete"
+    assert next_response.json()["detail"]["code"] == "curriculum_locked"
 
 
 def test_completed_eighth_authored_chapter_opens_madhu_wish(store):
@@ -2529,8 +2992,7 @@ def test_completed_eighth_authored_chapter_opens_madhu_wish(store):
     assert ninth["chapter"]["chapter_id"] == "eng_c3_ch09"
     assert ninth["chapter"]["title"] == "Madhu's Wish"
     assert ninth["chapter"]["unit_title"] == "Good Food"
-    assert ninth["current_activity"]["level_id"] == "madhu_wish_kind_action"
-    assert "shared" in ninth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(ninth)
     _assert_no_hidden_keys(ninth)
 
 
@@ -2574,8 +3036,7 @@ def test_completed_ninth_authored_chapter_opens_night(store):
     assert tenth["chapter"]["chapter_id"] == "eng_c3_ch10"
     assert tenth["chapter"]["title"] == "Night"
     assert tenth["chapter"]["unit_title"] == "The Sky"
-    assert tenth["current_activity"]["level_id"] == "night_poem_mood"
-    assert "dark" in tenth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(tenth)
     _assert_no_hidden_keys(tenth)
 
 
@@ -2621,8 +3082,7 @@ def test_completed_tenth_authored_chapter_opens_chanda_mama(store):
     assert eleventh["chapter"]["chapter_id"] == "eng_c3_ch11"
     assert eleventh["chapter"]["title"] == "Chanda Mama Counts the Stars"
     assert eleventh["chapter"]["unit_title"] == "The Sky"
-    assert eleventh["current_activity"]["level_id"] == "chanda_mama_moon_shape"
-    assert "moon" in eleventh["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(eleventh)
     _assert_no_hidden_keys(eleventh)
 
 
@@ -2670,8 +3130,7 @@ def test_completed_eleventh_authored_chapter_opens_chandrayaan(store):
     assert twelfth["chapter"]["chapter_id"] == "eng_c3_ch12"
     assert twelfth["chapter"]["title"] == "Chandrayaan"
     assert twelfth["chapter"]["unit_title"] == "The Sky"
-    assert twelfth["current_activity"]["level_id"] == "chandrayaan_rani_questions"
-    assert "curious" in twelfth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(twelfth)
     _assert_no_hidden_keys(twelfth)
 
 
@@ -2696,8 +3155,7 @@ def test_class_four_target_ready_placement_opens_together_we_can_curriculum(stor
     assert started["chapter"]["chapter_id"] == "eng_c4_ch01"
     assert started["chapter"]["title"] == "Together We Can"
     assert started["chapter"]["unit_title"] == "My Land"
-    assert started["current_activity"]["level_id"] == "together_we_can_teamwork"
-    assert "teamwork" in started["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(started)
     _assert_no_hidden_keys(started)
 
 
@@ -2726,8 +3184,7 @@ def test_completed_class_four_first_chapter_opens_tinkling_bells(store):
     assert second["chapter"]["chapter_id"] == "eng_c4_ch02"
     assert second["chapter"]["title"] == "The Tinkling Bells"
     assert second["chapter"]["unit_title"] == "My Land"
-    assert second["current_activity"]["level_id"] == "tinkling_bells_honesty_choice"
-    assert "honest" in second["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(second)
     _assert_no_hidden_keys(second)
 
 
@@ -2758,8 +3215,7 @@ def test_completed_class_four_second_chapter_opens_be_smart_be_safe(store):
     assert third["chapter"]["chapter_id"] == "eng_c4_ch03"
     assert third["chapter"]["title"] == "Be Smart, Be Safe"
     assert third["chapter"]["unit_title"] == "My Land"
-    assert third["current_activity"]["level_id"] == "be_safe_crossing_steps"
-    assert "road" in third["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(third)
     _assert_no_hidden_keys(third)
 
 
@@ -2792,8 +3248,7 @@ def test_completed_class_four_third_chapter_opens_one_thing_at_a_time(store):
     assert fourth["chapter"]["chapter_id"] == "eng_c4_ch04"
     assert fourth["chapter"]["title"] == "One Thing at a Time"
     assert fourth["chapter"]["unit_title"] == "My Beautiful World"
-    assert fourth["current_activity"]["level_id"] == "one_thing_focus_message"
-    assert "focus" in fourth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(fourth)
     _assert_no_hidden_keys(fourth)
 
 
@@ -2828,8 +3283,7 @@ def test_completed_class_four_fourth_chapter_opens_the_old_stag(store):
     assert fifth["chapter"]["chapter_id"] == "eng_c4_ch05"
     assert fifth["chapter"]["title"] == "The Old Stag"
     assert fifth["chapter"]["unit_title"] == "My Beautiful World"
-    assert fifth["current_activity"]["level_id"] == "old_stag_kindness_reason"
-    assert "kind" in fifth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(fifth)
     _assert_no_hidden_keys(fifth)
 
 
@@ -2870,8 +3324,7 @@ def test_completed_class_four_fifth_chapter_opens_braille(store):
     assert sixth["chapter"]["chapter_id"] == "eng_c4_ch06"
     assert sixth["chapter"]["title"] == "Braille"
     assert sixth["chapter"]["unit_title"] == "My Beautiful World"
-    assert sixth["current_activity"]["level_id"] == "braille_touch_reading"
-    assert "touch" in sixth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(sixth)
     _assert_no_hidden_keys(sixth)
 
 
@@ -2915,8 +3368,7 @@ def test_completed_class_four_sixth_chapter_opens_fit_body(store):
     assert seventh["chapter"]["chapter_id"] == "eng_c4_ch07"
     assert seventh["chapter"]["title"] == "Fit Body, Fit Mind, Fit Nation"
     assert seventh["chapter"]["unit_title"] == "Fun with Games"
-    assert seventh["current_activity"]["level_id"] == "fit_body_activity_clues"
-    assert "active" in seventh["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(seventh)
     _assert_no_hidden_keys(seventh)
 
 
@@ -2972,8 +3424,7 @@ def test_completed_class_four_seventh_chapter_opens_lagori_champions(store):
     assert eighth["chapter"]["chapter_id"] == "eng_c4_ch08"
     assert eighth["chapter"]["title"] == "The Lagori Champions"
     assert eighth["chapter"]["unit_title"] == "Fun with Games"
-    assert eighth["current_activity"]["level_id"] == "lagori_rules_comprehension"
-    assert "traditional game" in eighth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(eighth)
     _assert_no_hidden_keys(eighth)
 
 
@@ -3033,8 +3484,7 @@ def test_completed_class_four_eighth_chapter_opens_hekko(store):
     assert ninth["chapter"]["chapter_id"] == "eng_c4_ch09"
     assert ninth["chapter"]["title"] == "Hekko"
     assert ninth["chapter"]["unit_title"] == "Fun with Games"
-    assert ninth["current_activity"]["level_id"] == "hekko_word_meaning"
-    assert "challenge" in ninth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(ninth)
     _assert_no_hidden_keys(ninth)
 
 
@@ -3098,8 +3548,7 @@ def test_completed_class_four_ninth_chapter_opens_the_swing(store):
     assert tenth["chapter"]["chapter_id"] == "eng_c4_ch10"
     assert tenth["chapter"]["title"] == "The Swing"
     assert tenth["chapter"]["unit_title"] == "Up High"
-    assert tenth["current_activity"]["level_id"] == "swing_view_clues"
-    assert "view" in tenth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(tenth)
     _assert_no_hidden_keys(tenth)
 
 
@@ -3167,8 +3616,7 @@ def test_completed_class_four_tenth_chapter_opens_magical_mountains(store):
     assert eleventh["chapter"]["chapter_id"] == "eng_c4_ch11"
     assert eleventh["chapter"]["title"] == "A Journey to the Magical Mountains"
     assert eleventh["chapter"]["unit_title"] == "Up High"
-    assert eleventh["current_activity"]["level_id"] == "mountain_story_sequence"
-    assert "journey" in eleventh["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(eleventh)
     _assert_no_hidden_keys(eleventh)
 
 
@@ -3241,8 +3689,7 @@ def test_completed_class_four_eleventh_chapter_opens_maheshwar(store):
     assert twelfth["chapter"]["chapter_id"] == "eng_c4_ch12"
     assert twelfth["chapter"]["title"] == "Maheshwar"
     assert twelfth["chapter"]["unit_title"] == "Up High"
-    assert twelfth["current_activity"]["level_id"] == "maheshwar_dialogue_facts"
-    assert "dialogue" in twelfth["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(twelfth)
     _assert_no_hidden_keys(twelfth)
 
 
@@ -3358,8 +3805,7 @@ def test_class_five_completed_first_chapter_opens_gone_with_the_scooter(store):
     assert second["chapter"]["chapter_id"] == "eng_c5_ch02"
     assert second["chapter"]["title"] == "Gone with the Scooter"
     assert second["chapter"]["unit_title"] == "Let's Have Fun"
-    assert second["current_activity"]["level_id"] == "gone_scooter_story_sequence"
-    assert "sequence" in second["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(second)
     _assert_no_hidden_keys(second)
 
 
@@ -3393,8 +3839,7 @@ def test_class_five_second_chapter_completion_opens_the_rainbow(store):
     assert third["chapter"]["chapter_id"] == "eng_c5_ch03"
     assert third["chapter"]["title"] == "The Rainbow"
     assert third["chapter"]["unit_title"] == "My Colourful World"
-    assert third["current_activity"]["level_id"] == "rainbow_image_bridge"
-    assert "image" in third["current_activity"]["teaching_block"].lower()
+    _assert_current_activity_matches_catalog(third)
     _assert_no_hidden_keys(third)
 
 
@@ -3431,7 +3876,7 @@ def test_class_five_third_chapter_completion_opens_the_wise_parrot(store):
     assert fourth["chapter"]["chapter_id"] == "eng_c5_ch04"
     assert fourth["chapter"]["title"] == "The Wise Parrot"
     assert fourth["chapter"]["unit_title"] == "My Colourful World"
-    assert fourth["current_activity"]["level_id"] == "wise_parrot_story_sequence"
+    _assert_current_activity_matches_catalog(fourth)
     _assert_no_hidden_keys(fourth)
 
 
@@ -3470,7 +3915,7 @@ def test_class_five_fourth_chapter_completion_opens_and_completes_the_frog(store
     assert fifth["chapter"]["chapter_id"] == "eng_c5_ch05"
     assert fifth["chapter"]["title"] == "The Frog"
     assert fifth["chapter"]["unit_title"] == "Water"
-    assert fifth["current_activity"]["level_id"] == "frog_between_two_homes"
+    _assert_current_activity_matches_catalog(fifth)
     _assert_no_hidden_keys(fifth)
 
     completed_fifth = _complete_current_curriculum_session(fifth, client)
@@ -3479,7 +3924,18 @@ def test_class_five_fourth_chapter_completion_opens_and_completes_the_frog(store
     assert completed_fifth["phase"] == "complete"
     assert completed_fifth["chapter_assessment"]["status"] == "passed"
     assert completed_fifth["chapter_assessment"]["last_result"]["passed"] is True
-    assert completed_fifth["next_available_chapter"] is None
+    assert completed_fifth["next_available_chapter"] == {
+        "chapter_id": "eng_c5_ch06",
+        "chapter_no": 6,
+        "title": "What a Tank!",
+        "book_title": "Santoor",
+        "unit_title": "Water",
+        "source_url": "https://ncert.nic.in/textbook/pdf/eesa106.pdf",
+        "source_note": (
+            "NCERT structural alignment only. All learner-facing passages, examples, "
+            "questions, feedback authorities, and assessments are Zidd-authored originals."
+        ),
+    }
     assert completed_fifth["completed_chapter_ids"] == [
         "eng_c5_ch01",
         "eng_c5_ch02",
@@ -3654,7 +4110,7 @@ def test_ambiguous_concept_answer_uses_semantic_evaluator_before_progression(
             for chapter in curriculum.CLASS_5_CURRICULUM_CHAPTERS
             if chapter["chapter_id"] == "eng_c5_ch05"
         ),
-        level_id="frog_between_two_homes",
+        level_id=None,
     )
     answer = (
         "It hopped across moss and used the water-filled ditch, but the ditch "
@@ -3722,7 +4178,7 @@ def test_open_answer_provider_failure_does_not_mutate_session_or_evidence(store,
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
 
     async def unavailable(_activity, _answer):
@@ -3747,13 +4203,300 @@ def test_open_answer_provider_failure_does_not_mutate_session_or_evidence(store,
     assert len(store.learning_events) == before_event_count
 
 
+def test_open_answer_is_durably_queued_before_any_curriculum_progress(store, monkeypatch):
+    """A semantic answer acknowledges quickly and cannot advance before its worker."""
+
+    session_id = str(uuid4())
+    original_state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=next(
+            chapter
+            for chapter in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+            if chapter["chapter_id"] == "eng_c5_ch05"
+        ),
+        level_id=None,
+    )
+    queued: list[dict[str, Any]] = []
+    original_claim_and_enqueue = store.claim_and_enqueue_school_evaluation_job
+
+    async def claim_and_enqueue(**kwargs):
+        queued.append(copy.deepcopy(kwargs))
+        return await original_claim_and_enqueue(**kwargs)
+
+    monkeypatch.setattr(
+        store,
+        "claim_and_enqueue_school_evaluation_job",
+        claim_and_enqueue,
+        raising=False,
+    )
+
+    activity_id = (
+        "frog_poem_meaning:frog_poem_meaning:independent_application:"
+        "frog_poem_meaning:independent:1:1"
+    )
+    answer = (
+        "The jump feels very high and exciting, but the frog does not reach clouds; "
+        "this is not a scientific height claim."
+    )
+    response = TestClient(app).post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity_id,
+            "answer": answer,
+        },
+    )
+
+    assert response.status_code == 202
+    assert response.json() == {
+        "status": "awaiting_evaluation",
+        "session_id": session_id,
+        "activity_id": activity_id,
+        "state_url": "/school/state",
+    }
+    assert len(queued) == 1
+    assert queued[0]["user_id"] == "test_user"
+    assert queued[0]["session_id"] == session_id
+    assert queued[0]["activity_id"] == activity_id
+    assert queued[0]["raw_answer"] == answer
+    assert queued[0]["expected_state_json"] == original_state
+    assert queued[0]["flow_type"] == "curriculum"
+    assert queued[0]["evaluation_mode"] == "llm_rubric"
+    assert _run(store.get_school_session("test_user", session_id))["state_json"] == original_state
+    assert not [event for event in store.learning_events if event["session_id"] == session_id]
+    request = _run(
+        store.get_school_answer_request(
+            "test_user",
+            session_id,
+            activity_id,
+        )
+    )
+    assert request is not None
+    assert request["status"] == "processing"
+
+    # The browser refreshes this endpoint immediately after the fast answer
+    # acknowledgement. It must expose a stable passive state, not another
+    # actionable copy of the same activity while the durable worker owns it.
+    state_response = TestClient(app).get("/school/state", headers=AUTH)
+    assert state_response.status_code == 200
+    pending_state = state_response.json()
+    assert pending_state["status"] == "awaiting_evaluation"
+    assert pending_state["active_flow"] == "curriculum"
+    assert pending_state["active_session_id"] == session_id
+    assert pending_state["next_action"] is None
+    assert pending_state["allowed_next_actions"] == []
+
+
+def test_queued_open_answer_uses_the_post_reconciliation_state_snapshot(
+    store,
+    monkeypatch,
+):
+    """The worker must receive the state the answer route actually serves."""
+
+    session_id = str(uuid4())
+    original_state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=next(
+            chapter
+            for chapter in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+            if chapter["chapter_id"] == "eng_c5_ch05"
+        ),
+        level_id=None,
+    )
+    reconciled_state = copy.deepcopy(original_state)
+    reconciled_state["hot_session_memory"] = {
+        **dict(reconciled_state.get("hot_session_memory") or {}),
+        "reconciled_before_queue": True,
+    }
+    queued: list[dict[str, Any]] = []
+
+    async def reconciled_row(*, row, **_kwargs):
+        return {**row, "state_json": copy.deepcopy(reconciled_state)}
+
+    async def claim_and_enqueue(**kwargs):
+        queued.append(copy.deepcopy(kwargs))
+        return {"outcome": "queued", "job": {"status": "queued"}}
+
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_reconcile_saved_curriculum_session",
+        reconciled_row,
+    )
+    monkeypatch.setattr(
+        store,
+        "claim_and_enqueue_school_evaluation_job",
+        claim_and_enqueue,
+        raising=False,
+    )
+
+    response = TestClient(app).post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": (
+                "frog_poem_meaning:frog_poem_meaning:independent_application:"
+                "frog_poem_meaning:independent:1:1"
+            ),
+            "answer": (
+                "The jump feels very high and exciting, but the frog does not reach clouds; "
+                "this is not a scientific height claim."
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(queued) == 1
+    assert queued[0]["expected_state_json"] == reconciled_state
+
+
+def test_semantic_answer_uses_one_atomic_claim_and_enqueue_operation(
+    store,
+    monkeypatch,
+):
+    """A semantic submit cannot leave a live answer claim without its job."""
+
+    session_id = str(uuid4())
+    expected_state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=next(
+            chapter
+            for chapter in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+            if chapter["chapter_id"] == "eng_c5_ch05"
+        ),
+        level_id=None,
+    )
+    atomic_calls: list[dict[str, Any]] = []
+
+    async def atomic_claim_and_enqueue(**kwargs):
+        atomic_calls.append(copy.deepcopy(kwargs))
+        return {"outcome": "queued", "job": {"status": "queued"}}
+
+    async def split_claim_must_not_run(*_args, **_kwargs):
+        raise AssertionError("semantic answers must claim and enqueue atomically")
+
+    monkeypatch.setattr(
+        store,
+        "claim_and_enqueue_school_evaluation_job",
+        atomic_claim_and_enqueue,
+        raising=False,
+    )
+    monkeypatch.setattr(store, "claim_school_answer_request", split_claim_must_not_run)
+
+    answer = (
+        "The jump feels very high and exciting, but the frog does not reach clouds; "
+        "this is not a scientific height claim."
+    )
+    response = TestClient(app).post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": (
+                "frog_poem_meaning:frog_poem_meaning:independent_application:"
+                "frog_poem_meaning:independent:1:1"
+            ),
+            "answer": answer,
+        },
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "awaiting_evaluation"
+    assert len(atomic_calls) == 1
+    assert atomic_calls[0]["user_id"] == "test_user"
+    assert atomic_calls[0]["session_id"] == session_id
+    assert atomic_calls[0]["raw_answer"] == answer
+    assert atomic_calls[0]["expected_state_json"] == expected_state
+    assert atomic_calls[0]["flow_type"] == "curriculum"
+    assert atomic_calls[0]["evaluation_mode"] == "llm_rubric"
+
+
+def test_fully_authored_supported_curriculum_answer_bypasses_queue_and_provider(
+    store,
+    monkeypatch,
+):
+    """Literal, non-certifying support must not wait for a model worker."""
+
+    session_id = str(uuid4())
+    chapter = copy.deepcopy(
+        next(
+            candidate
+            for candidate in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+            if candidate["chapter_id"] == "eng_c5_ch01"
+        )
+    )
+    state = _seed_curriculum_activity_session(
+        store,
+        session_id=session_id,
+        chapter=chapter,
+        level_id="papas_spectacles_poem_to_story",
+    )
+    level = state["levels"][state["current_level_index"]]
+    level.update(
+        {
+            "v2_support_mode": "bridge",
+            "v2_trigger_skill_ids": [
+                "grammar.tense_usage",
+                "writing.complete_sentence",
+            ],
+            "v2_active_misconception_tags": ["tense_shift"],
+            "v2_forced_support_kind": "revision_level_1",
+        }
+    )
+    state = curriculum.normalize_curriculum_state(state)
+    _run(
+        store.upsert_school_session(
+            session_id=session_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=5,
+            status="active",
+            current_stage=str(state["current_level_index"]),
+            linked_session_id=None,
+            profile_version_id=state["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=state,
+        )
+    )
+    activity = curriculum._current_activity(state)
+    assert activity is not None
+    assert activity["kind"] == "v2_support"
+    assert activity["evidence_role"] == "supported"
+    assert activity["certifying_language"] is None
+    assert activity["semantic_evidence_policy"] == "literal_aliases"
+
+    async def queue_must_not_run(**_kwargs):
+        raise AssertionError("fully authored supported practice must not queue")
+
+    monkeypatch.setattr(
+        store,
+        "claim_and_enqueue_school_evaluation_job",
+        queue_must_not_run,
+        raising=False,
+    )
+    response = TestClient(app).post(
+        f"/school/curriculum/{session_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": "Mira opened the gate and walked into the garden.",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["last_feedback"]["correct"] is True
+
+
 def test_open_answer_provider_schema_failure_returns_structured_503(store, monkeypatch):
     session_id = str(uuid4())
     original_state = _seed_curriculum_activity_session(
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
 
     async def invalid_schema(_activity, _answer):
@@ -3806,7 +4549,7 @@ def test_open_answer_server_deadline_prevents_late_progress_mutation(store, monk
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
 
     async def too_slow(_activity, _answer):
@@ -3849,7 +4592,7 @@ def test_local_open_answer_evaluator_has_no_server_deadline(store, monkeypatch):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
 
     async def slow_local_success(activity, answer):
@@ -3916,7 +4659,7 @@ def test_structurally_incomplete_open_answer_skips_model_and_opens_bridge(store,
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_story_continuation",
+        level_id=None,
     )
     call_count = 0
 
@@ -3952,7 +4695,7 @@ def test_inflated_open_answer_model_score_cannot_advance_required_gap(store, mon
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_story_continuation",
+        level_id=None,
     )
 
     async def inflated(activity, answer):
@@ -4008,7 +4751,7 @@ def test_curriculum_attempt_store_boundary_rolls_back_event_and_state_together(s
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     session_write = {
         "session_id": session_id,
@@ -4064,7 +4807,7 @@ def test_curriculum_attempt_rejects_state_changed_by_another_submit(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     newer_state = copy.deepcopy(expected_state)
     newer_state["last_feedback"] = {"message": "another request committed first"}
@@ -4125,7 +4868,7 @@ def test_in_memory_curriculum_attempt_boundary_serializes_concurrent_writers(sto
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     active_writers = 0
     max_active_writers = 0
@@ -4204,7 +4947,7 @@ def test_curriculum_answer_avoids_redundant_profile_and_post_commit_reads(store,
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     session_reads = 0
     profile_reads = 0
@@ -4300,7 +5043,7 @@ def test_curriculum_answer_replay_returns_exact_response_and_one_event(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     payload = {
         "activity_id": "wise_parrot_opinion_reason:independent_check:1",
@@ -4327,7 +5070,7 @@ def test_curriculum_answer_same_activity_different_answer_conflicts(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     activity_id = "wise_parrot_opinion_reason:independent_check:1"
     client = TestClient(app)
@@ -4357,7 +5100,7 @@ def test_concurrent_identical_open_answers_invoke_evaluator_once(store, monkeypa
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
     started = threading.Event()
     release = threading.Event()
@@ -4429,7 +5172,7 @@ def test_long_local_evaluation_renews_answer_claim_before_it_can_go_stale(store,
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
     started = threading.Event()
     call_count = 0
@@ -4503,7 +5246,7 @@ def test_long_local_evaluation_renews_answer_claim_before_it_can_go_stale(store,
     assert call_count == 1
 
 
-def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
+def test_worker_cancels_evaluation_and_releases_the_answer_when_its_lease_is_lost(
     store,
     monkeypatch,
 ):
@@ -4512,7 +5255,7 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_image_and_idea",
+        level_id=None,
     )
     activity_id = curriculum.current_curriculum_activity_id(state)
     assert activity_id
@@ -4536,7 +5279,7 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
             raise
         raise AssertionError("lost claim must cancel evaluator")
 
-    async def lose_claim(*_args, **_kwargs):
+    async def lose_lease(*_args, **_kwargs):
         return False
 
     monkeypatch.setattr(
@@ -4546,20 +5289,11 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
     )
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
-        _REAL_SCHOOL_OPEN_ANSWER_WITH_HEARTBEAT,
-    )
-    monkeypatch.setattr(
-        school_rebuild_routes,
-        "_school_open_answer_timeout_seconds",
-        lambda: None,
-    )
-    monkeypatch.setattr(
-        school_rebuild_routes,
         "SCHOOL_ANSWER_HEARTBEAT_SECONDS",
         0.005,
     )
-    monkeypatch.setattr(store, "renew_school_answer_request", lose_claim)
+    monkeypatch.setattr(store, "heartbeat_school_evaluation_job", lose_lease)
+    monkeypatch.setattr(school_rebuild_routes, "get_storage", lambda: store)
 
     response = TestClient(app).post(
         f"/school/curriculum/{session_id}/answer",
@@ -4570,14 +5304,28 @@ def test_local_evaluation_is_cancelled_immediately_when_claim_renewal_is_lost(
         },
     )
 
-    assert response.status_code == 409, (
+    assert response.status_code == 200, (
         activity_id,
         response.json().get("last_feedback"),
         response.json().get("current_activity"),
         cancelled.is_set(),
     )
-    assert response.json()["detail"]["code"] == "stale_curriculum_answer"
+    processed = _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    )
+
+    assert processed is True
     assert cancelled.wait(0.2)
+    job = _run(store.get_school_evaluation_job("test_user", session_id, activity_id))
+    request = _run(store.get_school_answer_request("test_user", session_id, activity_id))
+    assert job["status"] == "failed"
+    assert job["last_error_code"] == "stale_school_evaluation_job"
+    assert request["status"] == "failed"
+    assert _run(store.get_school_session("test_user", session_id))["state_json"] == state
 
 
 def test_open_answer_provider_failure_can_be_retried_with_same_request(store, monkeypatch):
@@ -4586,7 +5334,7 @@ def test_open_answer_provider_failure_can_be_retried_with_same_request(store, mo
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_RAINBOW_CHAPTER,
-        level_id="rainbow_journey_writing",
+        level_id=None,
     )
     attempts = 0
 
@@ -4645,11 +5393,13 @@ def test_completed_curriculum_answer_replays_after_session_completion(store):
     body = client.get(f"/school/curriculum/{session_id}", headers=AUTH).json()
     for _ in range(12):
         activity = body["current_activity"]
-        body = _answer(body, _correct_curriculum_answer(activity), client)
+        body = _answer(body, None, client)
     final_activity = body["current_activity"]
     payload = {
         "activity_id": final_activity["activity_id"],
-        "answer": _correct_curriculum_answer(final_activity),
+        "answer": _correct_private_curriculum_answer(
+            _private_activity_for_current_body(body)
+        ),
     }
     before = len(store.learning_events)
     first = client.post(
@@ -4672,7 +5422,7 @@ def test_failed_curriculum_persist_does_not_complete_answer_request(store, monke
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     activity_id = "wise_parrot_opinion_reason:independent_check:1"
     answer_hash = hashlib.sha256(b"answer").hexdigest()
@@ -4735,7 +5485,7 @@ def test_stale_processing_school_answer_request_can_be_reclaimed(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     activity_id = "wise_parrot_opinion_reason:independent_check:1"
     answer_hash = hashlib.sha256(b"same answer").hexdigest()
@@ -4765,7 +5515,7 @@ def test_expired_school_answer_claim_cannot_complete_newer_lease(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     activity_id = "wise_parrot_opinion_reason:independent_check:1"
     answer_hash = hashlib.sha256(b"same answer").hexdigest()
@@ -4835,7 +5585,7 @@ def test_expired_school_answer_claim_cannot_fail_newer_lease(store):
         store,
         session_id=session_id,
         chapter=curriculum.CLASS_5_WISE_PARROT_CHAPTER,
-        level_id="wise_parrot_opinion_reason",
+        level_id=None,
     )
     activity_id = "wise_parrot_opinion_reason:independent_check:1"
     answer_hash = hashlib.sha256(b"same answer").hexdigest()
@@ -4883,18 +5633,35 @@ def test_revised_rainbow_content_reopens_only_the_stale_chapter_completion():
                 "subject_id": "english",
                 "target_class_no": 5,
                 "completed_chapter_ids": ["eng_c5_ch01", "eng_c5_ch02", "eng_c5_ch03"],
+                "completed_chapter_certification_versions": {
+                    "eng_c5_ch01": curriculum.CLASS_5_PAPAS_SPECTACLES_CHAPTER[
+                        "certification_version"
+                    ],
+                    "eng_c5_ch02": curriculum.CLASS_5_GONE_WITH_SCOOTER_CHAPTER[
+                        "certification_version"
+                    ],
+                    "eng_c5_ch03": "2026-07-15.4",
+                },
                 "chapter": {"chapter_id": "eng_c5_ch03"},
             },
         },
     )
 
-    assert landing["chapters_preview"][0]["status"] == "complete"
-    assert landing["chapters_preview"][1]["status"] == "complete"
-    assert landing["chapters_preview"][2]["status"] == "ready"
+    assert landing["source_note"] == (
+        "Target class is unlocked. Start Chapter 3 when you are ready."
+    )
+    assert [chapter["status"] for chapter in landing["chapters_preview"][:4]] == [
+        "complete",
+        "complete",
+        "ready",
+        "locked_next",
+    ]
 
 
 def test_non_certifying_content_revision_preserves_completed_chapter():
-    completed_ids = [f"eng_c5_ch0{index}" for index in range(1, 6)]
+    chapters = curriculum.CLASS_5_CURRICULUM_CHAPTERS
+    completed_ids = [str(chapter["chapter_id"]) for chapter in chapters]
+    final_chapter = chapters[-1]
     landing = curriculum.curriculum_landing(
         school_profile={"target_class_no": 5, "subject_ids": ["english"]},
         placement_report={"unlock_state": "target_unlocked", "report_id": "report-1"},
@@ -4907,17 +5674,26 @@ def test_non_certifying_content_revision_preserves_completed_chapter():
                 "target_class_no": 5,
                 "completed_chapter_ids": completed_ids,
                 "completed_chapter_versions": {
-                    "eng_c5_ch03": curriculum.CLASS_5_RAINBOW_CHAPTER["content_version"],
-                    "eng_c5_ch04": curriculum.CLASS_5_WISE_PARROT_CHAPTER["content_version"],
-                    "eng_c5_ch05": "2026-07-11.2",
+                    **{
+                        str(chapter["chapter_id"]): str(chapter["content_version"])
+                        for chapter in chapters
+                    },
+                    "eng_c5_ch01": "pre-non-certifying-content-revision",
+                },
+                "completed_chapter_certification_versions": {
+                    str(chapter["chapter_id"]): str(
+                        chapter.get("certification_version")
+                        or chapter["content_version"]
+                    )
+                    for chapter in curriculum.CLASS_5_CURRICULUM_CHAPTERS
                 },
                 "chapter": {
-                    "chapter_id": "eng_c5_ch05",
-                    "content_version": "2026-07-11.2",
+                    "chapter_id": str(final_chapter["chapter_id"]),
+                    "content_version": str(final_chapter["content_version"]),
                 },
             },
         },
     )
 
-    assert landing["chapters_preview"][4]["status"] == "complete"
+    assert landing["chapters_preview"][-1]["status"] == "complete"
     assert landing["source_note"] == "All available target-class chapters are complete."

@@ -8,6 +8,7 @@ from app.services.school_core.readiness import (
 from app.services.school.language_confidence import (
     LanguageConfidenceState,
     apply_language_signal,
+    curriculum_language_evaluation,
     load_language_confidence,
     persist_language_confidence,
 )
@@ -66,6 +67,46 @@ def test_language_confidence_uses_hints_scaffold_and_mismatch_as_penalties():
 
     assert strong.en_production_confidence > state.en_production_confidence
     assert scaffolded.en_production_confidence < strong.en_production_confidence
+
+
+def test_curriculum_language_confidence_only_uses_certifying_free_english_work():
+    """Tutor choices are assessment evidence, not learner English production."""
+
+    evaluation = {
+        "scored": True,
+        "kind": "independent_check",
+        "score": 1.0,
+        "confidence": 1.0,
+        "language_detected": "en",
+    }
+    selected_option = {
+        "interaction_type": "single_choice",
+        "evidence_role": "certifying",
+        "certifying_language": "en",
+        "options": ["one", "two"],
+        "grading_mode": "selected_option",
+    }
+    supported_free_response = {
+        "interaction_type": "paragraph_text",
+        "evidence_role": "supported",
+        "certifying_language": "en",
+        "options": [],
+        "grading_mode": "strict_open_rubric",
+    }
+    certifying_free_response = {
+        "interaction_type": "paragraph_text",
+        "evidence_role": "certifying",
+        "certifying_language": "en",
+        "options": [],
+        "grading_mode": "strict_open_rubric",
+    }
+
+    assert curriculum_language_evaluation(selected_option, evaluation) is None
+    assert curriculum_language_evaluation(supported_free_response, evaluation) is None
+    assert (
+        curriculum_language_evaluation(certifying_free_response, evaluation)
+        == evaluation
+    )
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.content.registry import module_of
+from app.content.school.standards import locked_english_taxonomy
 from app.services.learning_profile import CareerLearningProfileService, build_career_memory_context
 from app.services.school_rebuild_learning import build_school_memory_context
 from app.storage import get_storage
@@ -22,6 +23,10 @@ CAREER_TASK_TYPES = {
     "interview_test",
     "gd_prep",
     "gd_test",
+}
+_SCHOOL_LEARNER_SKILL_LABELS = {
+    entry.skill_id: entry.name
+    for entry in locked_english_taxonomy().entries
 }
 
 
@@ -94,6 +99,14 @@ def _is_career_progression_row(row: dict[str, Any]) -> bool:
     # Compatibility for older/json-string activity snapshots used by tests and
     # dev traces before node_id was always selected into the aggregate.
     return any(key in row for key in ("attempts", "clean_pass", "node_completed"))
+
+
+def _school_learner_skill_label(skill_id: str) -> str:
+    label = _SCHOOL_LEARNER_SKILL_LABELS.get(skill_id)
+    if label:
+        return label
+    fallback = skill_id.rsplit(".", 1)[-1].replace("_", " ").strip()
+    return fallback.capitalize() if fallback else "English skill"
 
 
 @router.get("/gate")
@@ -176,12 +189,21 @@ async def me(request: Request) -> dict:
     prefs = _sanitize_preferences(profile.get("preferences") or {})
     if prefs != (profile.get("preferences") or {}):
         prefs = await store.update_preferences(user_id, prefs)
+    wallet = (
+        await store.get_wallet_summary(user_id)
+        if hasattr(store, "get_wallet_summary")
+        else {"credits": profile.get("credits", 0) or 0}
+    )
     return {
         "user_id": user_id,
         "name": profile.get("name", "") or "",
         "email": profile.get("email"),
         "google_sub": profile.get("google_sub"),
-        "credits": profile.get("credits", 0) or 0,
+        "credits": int(wallet.get("credits") or 0),
+        "beta_credits": int(wallet.get("beta_credits") or 0),
+        "paid_credits": int(wallet.get("paid_credits") or 0),
+        "promo_credits": int(wallet.get("promo_credits") or 0),
+        "beta_expires_at": wallet.get("beta_expires_at"),
         "demo_unlimited": bool(profile.get("demo_unlimited", False)),
         "onboarding": _onboarding(profile),
         "school_profile": profile.get("school_profile") or {},
@@ -300,7 +322,10 @@ async def activity(request: Request) -> dict:
             recommendations.append({
                 "kind": "school",
                 "title": "Review your focus areas",
-                "body": ", ".join(school_weak[:3]).replace("_", " "),
+                "body": ", ".join(
+                    _school_learner_skill_label(skill_id)
+                    for skill_id in school_weak[:3]
+                ),
                 "href": "/school",
             })
         else:

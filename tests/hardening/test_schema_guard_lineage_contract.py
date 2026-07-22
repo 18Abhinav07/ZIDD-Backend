@@ -185,6 +185,13 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
         foreign_table,
         foreign_columns,
     ) in enumerate(schema_guard.REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS):
+        requirement = (table, source_columns, foreign_table, foreign_columns)
+        confupdtype, confdeltype = (
+            schema_guard.REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEY_ACTIONS.get(
+                requirement,
+                ("a", "a"),
+            )
+        )
         constraint_name = f"composite_foreign_key_{index}"
         foreign_keys.extend(
             {
@@ -195,8 +202,8 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
                 "foreign_column_name": foreign_column,
                 "column_position": position,
                 "convalidated": True,
-                "confupdtype": "a",
-                "confdeltype": "a",
+                "confupdtype": confupdtype,
+                "confdeltype": confdeltype,
             }
             for position, (column, foreign_column) in enumerate(
                 zip(source_columns, foreign_columns),
@@ -271,6 +278,13 @@ def _valid_snapshot() -> dict[str, list[dict[str, str]]]:
             "constraint_definition": (
                 "CHECK (((domain = 'school' AND task_type LIKE 'school\\_%') OR "
                 "(domain = 'career' AND task_type NOT LIKE 'school\\_%')))"
+            ),
+        },
+        {
+            "table_name": "school_evaluation_jobs",
+            "constraint_name": "school_evaluation_jobs_request_metadata_object",
+            "constraint_definition": (
+                "CHECK (jsonb_typeof(request_metadata_json) = 'object'::text)"
             ),
         },
     ]
@@ -419,6 +433,10 @@ def test_lineage_type_fk_and_check_points_are_required():
             "profile_completion_check_missing",
             "public.check.school_profile_versions.school_profile_versions_complete_non_drafts",
         ),
+        (
+            "request_metadata_check_missing",
+            "public.check.school_evaluation_jobs.school_evaluation_jobs_request_metadata_object",
+        ),
     ],
 )
 async def test_runtime_guard_rejects_lineage_schema_drift(
@@ -467,6 +485,13 @@ async def test_runtime_guard_rejects_lineage_schema_drift(
             row
             for row in snapshot["checks"]
             if row["constraint_name"] != "school_profile_versions_complete_non_drafts"
+        ]
+    elif drift == "request_metadata_check_missing":
+        snapshot["checks"] = [
+            row
+            for row in snapshot["checks"]
+            if row["constraint_name"]
+            != "school_evaluation_jobs_request_metadata_object"
         ]
     else:
         snapshot["checks"][0]["constraint_definition"] = (
@@ -834,6 +859,87 @@ async def test_runtime_guard_rejects_unvalidated_or_cascading_lineage_fk(
     assert "public.foreign_key.school_sessions.curriculum_release_id" in str(
         exc_info.value
     )
+
+
+@pytest.mark.asyncio
+async def test_runtime_guard_requires_the_evaluation_job_request_cascade(
+    monkeypatch,
+):
+    snapshot = _valid_snapshot()
+    row = next(
+        row
+        for row in snapshot["foreign_keys"]
+        if row["table_name"] == "school_evaluation_jobs"
+        and row["column_name"] == "session_id"
+    )
+    row["confdeltype"] = "a"
+    _install_fake_session(monkeypatch, snapshot)
+
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema()
+
+    assert (
+        "public.composite_foreign_key.school_evaluation_jobs."
+        "(session_id,activity_id)->public.school_answer_requests."
+        "(session_id,activity_id)"
+    ) in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_runtime_guard_skips_school_evaluation_job_drift_only_when_disabled(
+    monkeypatch,
+):
+    snapshot = _valid_snapshot()
+    snapshot["columns"] = [
+        row
+        for row in snapshot["columns"]
+        if not (
+            row["table_name"] == "school_evaluation_jobs"
+            and row["column_name"]
+            in {"request_metadata_json", "next_attempt_at"}
+        )
+    ]
+    snapshot["foreign_keys"] = [
+        row
+        for row in snapshot["foreign_keys"]
+        if row["table_name"] != "school_evaluation_jobs"
+    ]
+
+    career_points = set(
+        schema_guard.required_schema_points(school_runtime_enabled=False)
+    )
+    assert "public.sessions.status" in career_points
+    assert "public.school_evaluation_jobs.request_metadata_json" not in career_points
+    assert (
+        "public.composite_foreign_key.school_evaluation_jobs."
+        "(session_id,activity_id)->public.school_answer_requests."
+        "(session_id,activity_id)"
+    ) not in career_points
+
+    career_connection = _FakeSession(
+        [
+            snapshot["columns"],
+            snapshot["indexes"],
+            snapshot["foreign_keys"],
+            snapshot["checks"],
+        ]
+    )
+    await schema_guard.validate_runtime_schema(
+        connection=career_connection,
+        school_runtime_enabled=False,
+    )
+
+    _install_fake_session(monkeypatch, snapshot)
+    with pytest.raises(schema_guard.SchemaDriftError) as exc_info:
+        await schema_guard.validate_runtime_schema(school_runtime_enabled=True)
+
+    error = str(exc_info.value)
+    assert "public.school_evaluation_jobs.request_metadata_json" in error
+    assert (
+        "public.composite_foreign_key.school_evaluation_jobs."
+        "(session_id,activity_id)->public.school_answer_requests."
+        "(session_id,activity_id)"
+    ) in error
 
 
 @pytest.mark.asyncio

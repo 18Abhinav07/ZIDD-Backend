@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -5,14 +6,21 @@ import pytest
 from pydantic import ValidationError
 
 from app.ai import calls
+from app.ai.structured import structured_output_token_limit
 from app.ai.prompts import build_school_open_answer_prompt
 from app.config import Settings
 from app.content.school.content_schema import SchoolRubricEvaluation
-from app.services.school import open_answer_ai
+from app.content.school_rebuild_content import load_live_chapter_file
+from app.middleware import rate_limit
+from app.services.school import evaluation_jobs, open_answer_ai
 from app.services import school_rebuild_curriculum as curriculum
+from app.services import school_rebuild_recap as recap
 from app.services.school.evaluator_contract import (
     OPEN_RUBRIC_SCHEMA_VERSION,
     SchoolOpenAnswerRetryableError,
+)
+from app.services.school.semantic_evidence import (
+    authored_evidence_can_prove_criterion,
 )
 from app.services.school.open_answer_prompt import (
     build_school_open_answer_prompt as canonical_prompt_builder,
@@ -67,6 +75,244 @@ LEARNER_ANSWER = (
     "The parrot crossed the trees and found a quiet garden. It warned the other "
     "birds about the trader, so they moved deeper into the forest."
 )
+
+
+def test_school_open_answer_budget_fits_a_full_certifying_rubric_payload():
+    """Five evidence rows must not be truncated before the closing JSON brace."""
+
+    assert structured_output_token_limit("school_open_answer") == 768
+
+
+def test_strict_open_provider_copying_flag_cannot_override_a_complete_summary():
+    """The model cannot turn a fully evidenced recap answer into a false miss."""
+
+    answer = (
+        "Families donated more books, and older students organised them on "
+        "labelled shelves."
+    )
+    activity = recap.evaluator_activity_for_answer(
+        {
+            "activity_id": "recap_summary:independent_check:1",
+            "skill_ids": ["writing.summary_own_words"],
+            "passage": (
+                "A reading club had few books in different languages. Families "
+                "donated stories, and older students organised them on labelled shelves."
+            ),
+            "prompt": "Summarize how the reading club improved its collection.",
+            "evaluation_mode": "strict_rubric",
+            "rubric_ref": "school.strict.summary.v1",
+        }
+    )
+    assert activity is not None
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 1.0,
+            "confidence": 1.0,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": ["copied_exemplar"],
+            "needs_human_review": False,
+            "feedback_to_learner": "You included the two changes clearly.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+    assert decision["correct"] is True, decision
+    assert "copied_exemplar" not in decision["blockers"]
+
+
+def test_strict_open_prompt_keeps_copy_detection_backend_owned():
+    prompt = canonical_prompt_builder(
+        item_id="recap_summary:independent_check:1",
+        skill_ids=["writing.summary_own_words"],
+        task_prompt="Summarize the change in your own words.",
+        passage="Families donated stories and older students organised them.",
+        learner_answer="Families gave books, and students sorted them.",
+        rubric_criteria=[
+            {
+                "id": "main_idea_or_event",
+                "description": "States the central change.",
+                "required": True,
+            }
+        ],
+        schema_version=OPEN_RUBRIC_SCHEMA_VERSION,
+    )
+
+    assert "Do not add copied_exemplar" in prompt
+
+
+SUPPORTED_BRIDGE_ACTIVITY = {
+    "activity_id": "event_sequence:bridge:1",
+    "skill_ids": ["reading.event_sequence"],
+    "prompt": "Name the start, middle, and ending in order.",
+    "passage": "A wristband fell at the gate, rolled under a bench, and was found by the monitor.",
+    "grading_mode": "strict_open_rubric",
+    "evaluation_mode": "llm_rubric",
+    "evidence_role": "supported",
+    "pass_score": 0.8,
+    "minimum_confidence": 0.65,
+    "min_response_words": 6,
+    "rubric_criteria": [
+        {
+            "id": "event_sequence:bridge:1:start",
+            "description": "Names the fall at the gate as the start.",
+            "required": True,
+            "min_quality": 0.65,
+        },
+        {
+            "id": "event_sequence:bridge:1:middle",
+            "description": "Names rolling under the bench as the middle.",
+            "required": True,
+            "min_quality": 0.65,
+        },
+        {
+            "id": "event_sequence:bridge:1:end",
+            "description": "Names the monitor finding it as the ending.",
+            "required": True,
+            "min_quality": 0.65,
+        },
+    ],
+    "concept_slots": [
+        {"id": "event_sequence:bridge:1:start", "any_of": ["fell at the gate"]},
+        {"id": "event_sequence:bridge:1:middle", "any_of": ["rolled under the bench"]},
+        {"id": "event_sequence:bridge:1:end", "any_of": ["found by the monitor"]},
+    ],
+    "ordered_concept_slot_ids": [
+        "event_sequence:bridge:1:start",
+        "event_sequence:bridge:1:middle",
+        "event_sequence:bridge:1:end",
+    ],
+}
+
+
+@pytest.mark.asyncio
+async def test_supported_open_answer_uses_a_safe_authored_evidence_fast_path(
+    monkeypatch,
+):
+    answer = (
+        "First it fell at the gate, then it rolled under the bench, and finally "
+        "it was found by the monitor."
+    )
+
+    async def provider_must_not_run(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("fully evidenced supported bridge work must not call an LLM")
+
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "structured_generate", provider_must_not_run)
+
+    result = await open_answer_ai.evaluate_school_open_answer(
+        SUPPORTED_BRIDGE_ACTIVITY,
+        answer,
+    )
+
+    assert result.schema_version == OPEN_RUBRIC_SCHEMA_VERSION
+    assert result.score == 1.0
+    assert result.confidence == 1.0
+    assert all(criterion.met for criterion in result.criteria)
+    assert all(criterion.evidence_quote in answer for criterion in result.criteria)
+
+
+@pytest.mark.asyncio
+async def test_ch01_story_revision_uses_deterministic_supported_evidence(monkeypatch):
+    chapter_path = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "content"
+        / "school_rebuild_chapters"
+        / "english"
+        / "class_5"
+        / "eng_c5_ch01.json"
+    )
+    chapter = load_live_chapter_file(chapter_path)
+    level = next(
+        item
+        for item in chapter.levels
+        if item.level_id == "papas_spectacles_poem_to_story"
+    )
+    activity = level.checks.revision_level_1.model_dump(exclude_none=True)
+    activity["activity_id"] = "papas_spectacles_poem_to_story:revision_level_1"
+    activity["skill_ids"] = list(activity["knowledge_components"])
+    answer = "Mira opened the gate and walked into the garden."
+
+    async def provider_must_not_run(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("fully evidenced supported revision work must not call an LLM")
+
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "structured_generate", provider_must_not_run)
+
+    result = await open_answer_ai.evaluate_school_open_answer(activity, answer)
+
+    assert result.score == 1.0
+    assert all(criterion.met for criterion in result.criteria)
+
+
+@pytest.mark.asyncio
+async def test_certifying_open_answer_never_uses_the_supported_fast_path(monkeypatch):
+    answer = (
+        "First it fell at the gate, then it rolled under the bench, and finally "
+        "it was found by the monitor."
+    )
+    activity = {
+        **SUPPORTED_BRIDGE_ACTIVITY,
+        "evidence_role": "certifying",
+        "certifying_language": "en",
+    }
+    calls = []
+
+    async def provider(operation, prompt, schema, *, timeout=None):
+        del operation, prompt, timeout
+        calls.append(schema)
+        return schema.model_validate(
+            {
+                "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+                "item_id": activity["activity_id"],
+                "skill_ids": activity["skill_ids"],
+                "score": 1.0,
+                "confidence": 1.0,
+                "language_detected": "en",
+                "criteria": [
+                    {
+                        "id": criterion["id"],
+                        "met": True,
+                        "quality": 1.0,
+                        "evidence_quote": slot["any_of"][0],
+                    }
+                    for criterion, slot in zip(
+                        activity["rubric_criteria"], activity["concept_slots"]
+                    )
+                ],
+                "misconception_tags": [],
+                "blockers": [],
+                "needs_human_review": False,
+                "feedback_to_learner": "You put each event in order.",
+            }
+        )
+
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "structured_generate", provider)
+
+    await open_answer_ai.evaluate_school_open_answer(activity, answer)
+
+    assert len(calls) == 1
 
 
 def _evaluation() -> SchoolRubricEvaluation:
@@ -905,6 +1151,530 @@ def test_strict_open_backend_recovers_complete_authored_semantic_evidence():
     assert decision["blockers"] == []
 
 
+def test_ch02_scooter_safety_paraphrase_recovers_each_authored_detail():
+    """A complete child answer must not fail just because it avoids model phrasing."""
+
+    chapter_path = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "content"
+        / "school_rebuild_chapters"
+        / "english"
+        / "class_5"
+        / "eng_c5_ch02.json"
+    )
+    chapter = load_live_chapter_file(chapter_path)
+    level = next(
+        item
+        for item in chapter.levels
+        if item.level_id == "scooter_inference_and_fair_choice"
+    )
+    independent_step = next(
+        item
+        for item in level.teaching_steps
+        if item.phase == "independent_application"
+    )
+    raw_activity = next(
+        item
+        for item in independent_step.variant_pool
+        if item.variant_id == "scooter_inference_and_fair_choice:independent:2"
+    ).model_dump(exclude_none=True)
+    activity = {
+        **raw_activity,
+        "activity_id": raw_activity["variant_id"],
+        "skill_ids": raw_activity["knowledge_components"],
+    }
+    answer = (
+        "The loose chin strap means the helmet may not protect the cyclist if a "
+        "speed breaker makes the bike jolt. The cyclist should fasten the strap "
+        "before riding slowly over the speed breakers."
+    )
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 0.0,
+            "confidence": 0.95,
+            "language_detected": "en",
+                "criteria": [
+                    {
+                        "id": criterion["id"],
+                        "met": False,
+                        "quality": 0.0,
+                        # A provider may quote the relevant sentence but still
+                        # miss the criterion. The backend must recover only
+                        # author-approved equivalent evidence from that answer.
+                        "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "Check the safety clues.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+    assert decision["missing_criteria"] == [], decision
+    assert decision["correct"] is True, decision
+
+
+def test_ch03_rainbow_bridge_paraphrase_recovers_each_authored_detail():
+    """A natural conjugated bridge explanation must retain both required clues."""
+
+    chapter_path = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "content"
+        / "school_rebuild_chapters"
+        / "english"
+        / "class_5"
+        / "eng_c5_ch03.json"
+    )
+    chapter = load_live_chapter_file(chapter_path)
+    level = next(
+        item
+        for item in chapter.levels
+        if item.level_id == "rainbow_image_and_idea"
+    )
+    independent_step = next(
+        item
+        for item in level.teaching_steps
+        if item.phase == "independent_application"
+    )
+    raw_activity = next(
+        item
+        for item in independent_step.variant_pool
+        if item.variant_id == "rainbow_image_and_idea:independent:1"
+    ).model_dump(exclude_none=True)
+    activity = {
+        **raw_activity,
+        "activity_id": raw_activity["variant_id"],
+        "skill_ids": raw_activity["knowledge_components"],
+    }
+    answer = (
+        "A poet may call it a bridge because the coloured curve arches over the "
+        "river. It looks like it connects the reeds on one bank with the old "
+        "fort on the other side."
+    )
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 0.0,
+            "confidence": 0.95,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": False,
+                    "quality": 0.0,
+                    "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "Check the bridge clues.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+    assert decision["missing_criteria"] == [], decision
+    assert decision["correct"] is True, decision
+
+
+def test_paired_place_connection_requires_a_complete_authored_relation():
+    description = "Uses the apparent connection between two places."
+
+    assert authored_evidence_can_prove_criterion(
+        description,
+        "connects the reeds with the old fort",
+    )
+    assert not authored_evidence_can_prove_criterion(
+        description,
+        "connects the reeds",
+    )
+
+
+def test_ch03_ribbon_review_recovers_a_complete_nonliteral_paraphrase():
+    """A complete browser-grounded image explanation must not enter support."""
+
+    chapter_path = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "content"
+        / "school_rebuild_chapters"
+        / "english"
+        / "class_5"
+        / "eng_c5_ch03.json"
+    )
+    chapter = load_live_chapter_file(chapter_path)
+    level = next(
+        item
+        for item in chapter.levels
+        if item.level_id == "rainbow_image_and_idea"
+    )
+    review_step = next(
+        item for item in level.teaching_steps if item.phase == "review"
+    )
+    raw_activity = next(
+        item
+        for item in review_step.variant_pool
+        if item.variant_id == "rainbow_image_and_idea:review:1"
+    ).model_dump(exclude_none=True)
+    activity = {
+        **raw_activity,
+        "activity_id": raw_activity["variant_id"],
+        "skill_ids": raw_activity["knowledge_components"],
+    }
+    answer = (
+        "A ribbon is a curved strip, so the pale curve looks like a ribbon "
+        "stretched between two clouds. It is a comparison, not a real ribbon."
+    )
+    evaluation = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 0.0,
+            "confidence": 0.95,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": False,
+                    "quality": 0.0,
+                    "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "Check the picture clues.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        evaluation,
+        answer=answer,
+    )
+
+    assert decision["missing_criteria"] == [], decision
+    assert decision["correct"] is True, decision
+
+
+def test_strict_open_negative_alias_does_not_accept_a_negated_positive_claim():
+    assert (
+        curriculum._authored_concept_evidence_quote(
+            "The helmet may not protect the cyclist at a speed breaker.",
+            "helmet may not protect",
+        )
+        == "helmet may not protect"
+    )
+    assert (
+        curriculum._authored_concept_evidence_quote(
+            "The helmet may not come off at a speed breaker.",
+            "helmet may come off",
+        )
+        is None
+    )
+
+
+def test_ch02_alias_only_release_repairs_an_in_progress_scooter_activity(
+    monkeypatch,
+):
+    chapter = next(
+        item
+        for item in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+        if item["chapter_id"] == "eng_c5_ch02"
+    )
+    monkeypatch.setattr(
+        curriculum,
+        "_available_chapters",
+        lambda _subject_id, _class_no: (chapter,),
+    )
+    state = curriculum.new_curriculum_state(
+        school_profile={
+            "profile_version_id": "scooter-alias-repair-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+        },
+        placement_report={
+            "report_id": "scooter-alias-repair-placement",
+            "unlock_state": "target_unlocked",
+        },
+        recap_session=None,
+        requested_chapter_id="eng_c5_ch02",
+    )
+    state["chapter"]["content_version"] = "2026-07-15.4.semantic-evidence-v1"
+    level = next(
+        item
+        for item in state["levels"]
+        if item["level_id"] == "scooter_inference_and_fair_choice"
+    )
+    independent_step = next(
+        item
+        for item in level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    persisted = next(
+        item
+        for item in independent_step["variant_pool"]
+        if item["variant_id"] == "scooter_inference_and_fair_choice:independent:2"
+    )
+    for slot in persisted["concept_slots"]:
+        slot["any_of"] = [
+            alias
+            for alias in slot["any_of"]
+            if alias
+            not in {
+                "helmet may not protect",
+                "speed breaker makes the bike jolt",
+                "fasten the strap before riding",
+            }
+        ]
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert repair == {
+        "kind": "strict_open_alias_expansion_reconciled",
+        "chapter_id": "eng_c5_ch02",
+        "from_content_version": "2026-07-15.4.semantic-evidence-v1",
+        "to_content_version": "2026-07-15.4.semantic-evidence-v2",
+        "variant_ids": ["scooter_inference_and_fair_choice:independent:2"],
+    }
+    assert reconciled["chapter"]["content_version"] == (
+        "2026-07-15.4.semantic-evidence-v2"
+    )
+    repaired_level = next(
+        item
+        for item in reconciled["levels"]
+        if item["level_id"] == "scooter_inference_and_fair_choice"
+    )
+    repaired_step = next(
+        item
+        for item in repaired_level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    repaired = next(
+        item
+        for item in repaired_step["variant_pool"]
+        if item["variant_id"] == "scooter_inference_and_fair_choice:independent:2"
+    )
+    assert "helmet may not protect" in repaired["concept_slots"][0]["any_of"]
+    assert "speed breaker makes the bike jolt" in repaired["concept_slots"][2]["any_of"]
+
+
+def test_ch03_alias_only_release_repairs_an_in_progress_rainbow_activity(
+    monkeypatch,
+):
+    chapter = next(
+        item
+        for item in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+        if item["chapter_id"] == "eng_c5_ch03"
+    )
+    monkeypatch.setattr(
+        curriculum,
+        "_available_chapters",
+        lambda _subject_id, _class_no: (chapter,),
+    )
+    state = curriculum.new_curriculum_state(
+        school_profile={
+            "profile_version_id": "rainbow-alias-repair-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+        },
+        placement_report={
+            "report_id": "rainbow-alias-repair-placement",
+            "unlock_state": "target_unlocked",
+        },
+        recap_session=None,
+        requested_chapter_id="eng_c5_ch03",
+    )
+    state["chapter"]["content_version"] = "2026-07-15.5.semantic-evidence-v1"
+    level = next(
+        item
+        for item in state["levels"]
+        if item["level_id"] == "rainbow_image_and_idea"
+    )
+    independent_step = next(
+        item
+        for item in level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    persisted = next(
+        item
+        for item in independent_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:independent:1"
+    )
+    for slot in persisted["concept_slots"]:
+        slot["any_of"] = [
+            alias
+            for alias in slot["any_of"]
+            if alias != "connects the reeds with the old fort"
+        ]
+    review_step = next(
+        item for item in level["teaching_steps"] if item["phase"] == "review"
+    )
+    review = next(
+        item
+        for item in review_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:review:1"
+    )
+    for slot in review["concept_slots"]:
+        slot["any_of"] = [
+            alias
+            for alias in slot["any_of"]
+            if alias not in {"curved strip and stretched between", "not a real ribbon"}
+        ]
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert repair == {
+        "kind": "strict_open_alias_expansion_reconciled",
+        "chapter_id": "eng_c5_ch03",
+        "from_content_version": "2026-07-15.5.semantic-evidence-v1",
+        "to_content_version": "2026-07-15.5.semantic-alias-v3",
+        "variant_ids": [
+            "rainbow_image_and_idea:independent:1",
+            "rainbow_image_and_idea:review:1",
+        ],
+    }
+    assert reconciled["chapter"]["content_version"] == (
+        "2026-07-15.5.semantic-alias-v3"
+    )
+    repaired_level = next(
+        item
+        for item in reconciled["levels"]
+        if item["level_id"] == "rainbow_image_and_idea"
+    )
+    repaired_step = next(
+        item
+        for item in repaired_level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    repaired = next(
+        item
+        for item in repaired_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:independent:1"
+    )
+    assert "connects the reeds with the old fort" in repaired["concept_slots"][1][
+        "any_of"
+    ]
+    repaired_review_step = next(
+        item
+        for item in repaired_level["teaching_steps"]
+        if item["phase"] == "review"
+    )
+    repaired_review = next(
+        item
+        for item in repaired_review_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:review:1"
+    )
+    assert "curved strip and stretched between" in repaired_review["concept_slots"][
+        0
+    ]["any_of"]
+    assert "not a real ribbon" in repaired_review["concept_slots"][1]["any_of"]
+
+
+def test_ch03_v3_alias_only_release_repairs_an_in_progress_ribbon_review(
+    monkeypatch,
+):
+    chapter = next(
+        item
+        for item in curriculum.CLASS_5_CURRICULUM_CHAPTERS
+        if item["chapter_id"] == "eng_c5_ch03"
+    )
+    monkeypatch.setattr(
+        curriculum,
+        "_available_chapters",
+        lambda _subject_id, _class_no: (chapter,),
+    )
+    state = curriculum.new_curriculum_state(
+        school_profile={
+            "profile_version_id": "ribbon-alias-repair-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+        },
+        placement_report={
+            "report_id": "ribbon-alias-repair-placement",
+            "unlock_state": "target_unlocked",
+        },
+        recap_session=None,
+        requested_chapter_id="eng_c5_ch03",
+    )
+    state["chapter"]["content_version"] = "2026-07-15.5.semantic-alias-v2"
+    level = next(
+        item
+        for item in state["levels"]
+        if item["level_id"] == "rainbow_image_and_idea"
+    )
+    review_step = next(
+        item for item in level["teaching_steps"] if item["phase"] == "review"
+    )
+    persisted = next(
+        item
+        for item in review_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:review:1"
+    )
+    for slot in persisted["concept_slots"]:
+        slot["any_of"] = [
+            alias
+            for alias in slot["any_of"]
+            if alias not in {"curved strip and stretched between", "not a real ribbon"}
+        ]
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert repair == {
+        "kind": "strict_open_alias_expansion_reconciled",
+        "chapter_id": "eng_c5_ch03",
+        "from_content_version": "2026-07-15.5.semantic-alias-v2",
+        "to_content_version": "2026-07-15.5.semantic-alias-v3",
+        "variant_ids": ["rainbow_image_and_idea:review:1"],
+    }
+    assert reconciled["chapter"]["content_version"] == (
+        "2026-07-15.5.semantic-alias-v3"
+    )
+    repaired_level = next(
+        item
+        for item in reconciled["levels"]
+        if item["level_id"] == "rainbow_image_and_idea"
+    )
+    repaired_step = next(
+        item for item in repaired_level["teaching_steps"] if item["phase"] == "review"
+    )
+    repaired = next(
+        item
+        for item in repaired_step["variant_pool"]
+        if item["variant_id"] == "rainbow_image_and_idea:review:1"
+    )
+    assert "curved strip and stretched between" in repaired["concept_slots"][0][
+        "any_of"
+    ]
+    assert "not a real ribbon" in repaired["concept_slots"][1]["any_of"]
+
+
 def test_strict_open_backend_does_not_recover_one_partial_supporting_event():
     answer = "The wind put the scarf on the van roof."
     activity = _scarf_sequence_activity()
@@ -1047,6 +1817,48 @@ async def test_school_open_answer_uses_selected_nonlocal_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_school_open_answer_emits_latency_safe_dev_telemetry(monkeypatch):
+    """Local timing must identify provider cost without logging learner text."""
+
+    captured_logs: list[tuple[object, tuple[object, ...]]] = []
+
+    class Logger:
+        def warning(self, message, *args):
+            captured_logs.append((message, args))
+
+    class Settings:
+        app_env = "dev"
+
+    async def fake_structured(operation, prompt, schema):
+        del operation, prompt
+        return schema.model_validate(_evaluation().model_dump(mode="python"))
+
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "get_settings", lambda: Settings())
+    monkeypatch.setattr(open_answer_ai, "logger", Logger())
+    monkeypatch.setattr(open_answer_ai, "structured_generate", fake_structured)
+
+    await open_answer_ai.evaluate_school_open_answer(
+        ACTIVITY,
+        LEARNER_ANSWER,
+    )
+
+    assert len(captured_logs) == 1
+    message, args = captured_logs[0]
+    assert message == "school_open_answer_timing %s"
+    telemetry = args[0]
+    assert telemetry["item_id"] == ACTIVITY["activity_id"]
+    assert telemetry["criteria_count"] == len(ACTIVITY["rubric_criteria"])
+    assert telemetry["answer_chars"] == len(LEARNER_ANSWER)
+    assert telemetry["prompt_chars"] > 0
+    assert telemetry["provider_ms"] >= 0
+    assert telemetry["validation_ms"] >= 0
+    assert telemetry["total_ms"] >= telemetry["provider_ms"]
+    assert LEARNER_ANSWER not in str(telemetry)
+    assert ACTIVITY["passage"] not in str(telemetry)
+
+
+@pytest.mark.asyncio
 async def test_school_open_answer_forwards_an_explicit_worker_timeout(monkeypatch):
     monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
     captured: list[float | None] = []
@@ -1068,6 +1880,103 @@ async def test_school_open_answer_forwards_an_explicit_worker_timeout(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_queued_school_jobs_leave_a_shared_llm_slot_for_career(monkeypatch):
+    shared_slots = asyncio.Semaphore(2)
+    school_slots = asyncio.Semaphore(1)
+    school_started = asyncio.Event()
+    second_school_processor_started = asyncio.Event()
+    career_started = asyncio.Event()
+    release_providers = asyncio.Event()
+    school_provider_calls = 0
+
+    class _QueuedJobStore:
+        def __init__(self, job_id: str) -> None:
+            self.job: dict[str, str] | None = {"job_id": job_id}
+
+        async def claim_school_evaluation_job(self):
+            claimed, self.job = self.job, None
+            return claimed
+
+    async def school_provider(operation, prompt, schema, *, timeout=None):
+        del operation, prompt, timeout
+        nonlocal school_provider_calls
+        school_provider_calls += 1
+        school_started.set()
+        await release_providers.wait()
+        return schema.model_validate(_evaluation().model_dump(mode="python"))
+
+    async def career_provider(operation, prompt, schema):
+        del operation, prompt
+        career_started.set()
+        await release_providers.wait()
+        return schema.model_construct()
+
+    monkeypatch.setattr(rate_limit, "llm_semaphore", shared_slots)
+    monkeypatch.setattr(
+        rate_limit,
+        "school_evaluation_semaphore",
+        school_slots,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        open_answer_ai,
+        "llm_semaphore",
+        shared_slots,
+        raising=False,
+    )
+    monkeypatch.setattr(calls, "llm_semaphore", shared_slots)
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(calls, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "structured_generate", school_provider)
+    monkeypatch.setattr(calls, "structured_generate", career_provider)
+
+    async def queued_school_processor(job, *, second: bool = False) -> None:
+        del job
+        if second:
+            second_school_processor_started.set()
+        await open_answer_ai.evaluate_school_open_answer(ACTIVITY, LEARNER_ANSWER)
+
+    first_school_task = asyncio.create_task(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=_QueuedJobStore("first"),
+            processor=queued_school_processor,
+            max_attempts=1,
+        )
+    )
+    second_school_task = None
+    career_task = None
+    try:
+        await asyncio.wait_for(school_started.wait(), timeout=0.5)
+        second_school_task = asyncio.create_task(
+            evaluation_jobs.run_one_school_evaluation_job(
+                store=_QueuedJobStore("second"),
+                processor=lambda job: queued_school_processor(job, second=True),
+                max_attempts=1,
+            )
+        )
+        await asyncio.wait_for(second_school_processor_started.wait(), timeout=0.5)
+        await asyncio.sleep(0)
+
+        career_task = asyncio.create_task(
+            calls.evaluate_placement("Career placement", "A short writing sample.")
+        )
+        await asyncio.wait_for(career_started.wait(), timeout=0.5)
+
+        assert school_provider_calls == 1
+    finally:
+        release_providers.set()
+        await asyncio.gather(
+            first_school_task,
+            *(
+                task
+                for task in (second_school_task, career_task)
+                if task is not None
+            ),
+            return_exceptions=True,
+        )
+
+
+@pytest.mark.asyncio
 async def test_school_open_answer_requires_a_local_qwen_model(monkeypatch):
     class NonQwenSettings:
         ai_backend = "local"
@@ -1080,6 +1989,26 @@ async def test_school_open_answer_requires_a_local_qwen_model(monkeypatch):
 
     assert raised.value.code == "school_open_qwen_model_required"
     assert raised.value.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_school_open_answer_preserves_gemini_pool_retry_after(monkeypatch):
+    from app.ai.clients import GeminiKeyPoolExhaustedError
+
+    async def rate_limited_provider(*args, **kwargs):
+        raise GeminiKeyPoolExhaustedError(
+            attempted_slots=(1, 2),
+            retry_after_seconds=42.5,
+        )
+
+    monkeypatch.setattr(open_answer_ai, "_local", lambda: False)
+    monkeypatch.setattr(open_answer_ai, "structured_generate", rate_limited_provider)
+
+    with pytest.raises(SchoolOpenAnswerRetryableError) as raised:
+        await open_answer_ai.evaluate_school_open_answer(ACTIVITY, LEARNER_ANSWER)
+
+    assert raised.value.code == "school_open_provider_failure"
+    assert raised.value.retry_after_seconds == pytest.approx(42.5)
 
 
 def test_legacy_calls_path_delegates_to_canonical_school_provider():

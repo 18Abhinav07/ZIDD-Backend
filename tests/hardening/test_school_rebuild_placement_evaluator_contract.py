@@ -14,6 +14,7 @@ from app.services.school_rebuild_placement_evaluator import (
     EVALUATOR_UNAVAILABLE_CODE,
     SchoolPlacementEvaluatorUnavailableError,
     build_placement_evaluator_activity,
+    deterministic_insufficient_strict_placement_evaluation,
     evaluate_school_placement_item,
     grade_deterministic_placement_item,
 )
@@ -81,6 +82,31 @@ def test_deterministic_items_match_every_accepted_alternative_after_normalizatio
     assert evaluation.needs_human_review is False
 
 
+@pytest.mark.asyncio
+async def test_one_word_strict_placement_reply_is_rejected_without_a_provider_call():
+    item = _item("strict_rubric")
+    provider_called = False
+
+    async def provider(_activity, _answer):
+        nonlocal provider_called
+        provider_called = True
+        raise AssertionError("an obviously incomplete answer must not call the provider")
+
+    immediate = deterministic_insufficient_strict_placement_evaluation(item, "wrong")
+    evaluation = await evaluate_school_placement_item(
+        item,
+        "wrong",
+        provider=provider,
+    )
+
+    assert immediate is not None
+    assert evaluation.score == 0.0
+    assert evaluation.confidence == 1.0
+    assert evaluation.blockers == ("required_criteria_missing",)
+    assert all(criterion.met is False for criterion in evaluation.criteria)
+    assert provider_called is False
+
+
 def test_authored_snapshot_paraphrase_keeps_the_eight_item_target_unlock():
     envelope = placement.new_placement_envelope(
         {
@@ -112,6 +138,34 @@ def test_authored_snapshot_paraphrase_keeps_the_eight_item_target_unlock():
     assert paraphrase_used is True
     assert placement.placement_status(envelope) == "target_ready"
     assert envelope.state.terminal_reason == "all_required_tracks_ready"
+
+
+def test_snapshot_summary_accepts_a_clear_student_style_paraphrase():
+    envelope = placement.new_placement_envelope(
+        {
+            "profile_version_id": "snapshot-natural-summary-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+            "prior_difficulty_signals": [],
+        }
+    )
+    summary_item = next(
+        track.snapshot_item
+        for track in placement.placement_tracks_for("english", 5)
+        if track.track_id == "english.c5.summary"
+    )
+    answer = (
+        "Storm damage blocked the lane, so neighbours cut up the fallen "
+        "branches and made a path."
+    )
+
+    assert answer not in summary_item.accepted_answers
+
+    evaluation = grade_deterministic_placement_item(summary_item, answer)
+
+    assert evaluation.score == 1.0
+    assert evaluation.criteria[0].met is True
 
 
 @pytest.mark.parametrize(
@@ -328,12 +382,13 @@ async def test_authored_inference_fallback_cannot_certify_a_negated_claim():
     async def provider(_activity, _answer):
         raise SchoolOpenAnswerRetryableError("school_open_schema_failure")
 
-    with pytest.raises(SchoolPlacementEvaluatorUnavailableError):
+    with pytest.raises(SchoolOpenAnswerRetryableError) as exc_info:
         await evaluate_school_placement_item(
             item,
             answer,
             provider=provider,
         )
+    assert str(exc_info.value) == "school_open_schema_failure"
 
 
 def test_strict_activity_uses_authored_rubric_and_only_the_primary_skill():
@@ -507,6 +562,11 @@ async def test_backend_accepts_clear_summary_paraphrase_when_model_calls_it_copi
             "and spent the resulting savings on library books.",
         ),
         (
+            "The school compared electricity bills",
+            "The school studied its electricity bills, added solar panels, and "
+            "used the saved money to buy library books.",
+        ),
+        (
             "Children found an injured bird",
             "The children contacted rescuers and kept the surroundings calm "
             "until assistance arrived.",
@@ -515,6 +575,11 @@ async def test_backend_accepts_clear_summary_paraphrase_when_model_calls_it_copi
             "Students mapped unsafe bus stops",
             "Students investigated risky bus stops, consulted commuters, and "
             "sent the transport office three practical safety improvements.",
+        ),
+        (
+            "Students mapped unsafe bus stops",
+            "Students identified unsafe bus stops, asked commuters about them, "
+            "and gave the transport office three practical improvements.",
         ),
         (
             "Two water samples looked equally clear",

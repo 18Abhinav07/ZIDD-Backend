@@ -84,7 +84,13 @@ LEVEL_SPECS: list[dict[str, Any]] = [
                 "The curve resembles a bridge because it arches over the river and appears to connect the reeds with the distant fort.",
                 [
                     _evidence("shape", "Uses the arching shape as one clue.", "arches over the river", "curved above the river"),
-                    _evidence("connection", "Uses the apparent connection between two places.", "connect the reeds", "joined the reeds and fort"),
+                    _evidence(
+                        "connection",
+                        "Uses the apparent connection between two places.",
+                        "connect the reeds",
+                        "connects the reeds with the old fort",
+                        "joined the reeds and fort",
+                    ),
                 ],
                 skills=["reading.poetic_language"],
             ),
@@ -123,8 +129,21 @@ LEVEL_SPECS: list[dict[str, Any]] = [
                 "Explain the ribbon comparison without treating the image as literal fact.",
                 "The curve is compared with a ribbon because it is narrow, colourful, and seems to stretch between two points; it is not actually pinned to clouds.",
                 [
-                    _evidence("feature", "Explains at least two shared visual features.", "narrow", "colourful", "stretch between"),
-                    _evidence("nonliteral", "States that the pinning is an image rather than fact.", "not actually pinned", "poetic image"),
+                    _evidence(
+                        "feature",
+                        "Explains at least two shared visual features.",
+                        "narrow",
+                        "colourful",
+                        "stretch between",
+                        "curved strip and stretched between",
+                    ),
+                    _evidence(
+                        "nonliteral",
+                        "States that the pinning is an image rather than fact.",
+                        "not actually pinned",
+                        "poetic image",
+                        "not a real ribbon",
+                    ),
                 ],
                 skills=["reading.poetic_language"],
             ),

@@ -13,6 +13,35 @@ from pydantic import BaseModel, ValidationError
 
 STRUCTURED_MODEL = "gemini-3.1-flash-lite"
 
+# The old universal 2,048-token allowance let small grading payloads occupy a
+# disproportionately large generation window. Limits are operation-scoped so a
+# final report can still be richer than a one-item school rubric.
+_DEFAULT_STRUCTURED_OUTPUT_TOKENS = 768
+_STRUCTURED_OUTPUT_TOKENS_BY_OPERATION = {
+    "assessment_turn": 768,
+    "career_placement": 384,
+    "content_selection": 384,
+    "diagnosis": 512,
+    "fill_blank_game": 384,
+    "prep_evaluation": 768,
+    # A certifying School response can require five evidence rows plus its
+    # contract fields. 512 truncates otherwise-valid JSON before its closing
+    # brace on Flash-Lite; 768 keeps the response bounded while fitting it.
+    "school_open_answer": 768,
+    "simulation_director": 512,
+    "simulation_report": 1024,
+    "test_probe_generation": 512,
+}
+
+
+def structured_output_token_limit(operation: str) -> int:
+    """Return the bounded response budget for one structured operation."""
+
+    return _STRUCTURED_OUTPUT_TOKENS_BY_OPERATION.get(
+        str(operation or "").strip(),
+        _DEFAULT_STRUCTURED_OUTPUT_TOKENS,
+    )
+
 def _gemini_response_schema(schema_cls: type[BaseModel]) -> dict:
     """Return the pinned Gemini SDK's JSON-Schema subset.
 
@@ -238,6 +267,7 @@ async def _generate_once(
     schema_cls: type[BaseModel],
     *,
     model: str | None = None,
+    max_output_tokens: int = _DEFAULT_STRUCTURED_OUTPUT_TOKENS,
 ):
     """Make one transport attempt; the provider owns key failover."""
 
@@ -248,6 +278,6 @@ async def _generate_once(
             "response_mime_type": "application/json",
             "response_schema": _gemini_response_schema(schema_cls),
             "temperature": 0,
-            "max_output_tokens": 2048,
+            "max_output_tokens": max_output_tokens,
         },
     )

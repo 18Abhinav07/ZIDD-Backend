@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "1a3e4b9228b1a4c6ec8e69383f522439bf4cfc742e806bd8a09e5c73942b8589",
+  "runtime_sha256": "e43bfb888aa5c476c3f1ef94b6018a757d05e3a1c23a2355aa5b4781e3dd9823",
   "chapter_id": "eng_c2_ch04",
   "chapter_no": 4,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "Seeing without Seeing",
   "book_title": "Mridang",
   "unit_title": "Welcome to My World",
@@ -425,7 +426,8 @@
             "gives",
             "information"
           ],
-          "model_answer": "The accessible bus stop sign gives information through both large print and raised dots."
+          "model_answer": "The accessible bus stop sign gives information through both large print and raised dots.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -867,7 +869,8 @@
                 "rough",
                 "bumps"
               ],
-              "model_answer": "Smooth means having no rough bumps. The smooth cup rests on the shelf."
+              "model_answer": "Smooth means having no rough bumps. The smooth cup rests on the shelf.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use the object clue and the way information is gathered. Keep the action meaning from the visible definition. Use only the passage. To understand and use sensory and respect words, include both details.",
@@ -1036,7 +1039,8 @@
                 "gives",
                 "information"
               ],
-              "model_answer": "The accessible bus stop sign gives information through both large print and raised dots."
+              "model_answer": "The accessible bus stop sign gives information through both large print and raised dots.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use the object clue and the way information is gathered. Connect the information to the way it was found. Use the same skill in this new scene. To understand and use sensory and respect words, include both details.",
@@ -1110,7 +1114,8 @@
                 "touch",
                 "notice"
               ],
-              "model_answer": "Kavya uses her sense of touch to notice that the box feels light."
+              "model_answer": "Kavya uses her sense of touch to notice that the box feels light.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use the object clue and the way information is gathered. Use the texture word for an access feature. Use the same skill in this new scene. To understand and use sensory and respect words, include all 3 details.",
@@ -1271,7 +1276,8 @@
                 "sound",
                 "hear"
               ],
-              "model_answer": "A rustle is a soft moving sound. I hear a rustle when paper slips across my desk."
+              "model_answer": "A rustle is a soft moving sound. I hear a rustle when paper slips across my desk.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -11121,6 +11127,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

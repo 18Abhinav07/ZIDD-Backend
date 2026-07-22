@@ -109,7 +109,7 @@ LEVELS: list[dict[str, Any]] = [
                 (
                     "Dev forgets the name of a tune. He asks his cousin, visits the music room, and remembers lullaby when he reads a labelled song card.",
                     "Sequence all three search steps and identify the memory trigger.",
-                    "Dev asks his cousin, visits the music room, and remembers lullaby after reading the labelled card.",
+                    "Dev asks his cousin, visits the music room, reads the labelled card, and remembers lullaby.",
                     [
                         evidence("Orders cousin and music room.", "asks his cousin", "visits the music room"),
                         evidence("Names the labelled card trigger.", "labelled card", "remembers lullaby"),
@@ -118,7 +118,7 @@ LEVELS: list[dict[str, Any]] = [
                 (
                     "Sana seeks the word marigold. Her grandfather suggests the balcony, where an orange flower beside its label helps her recall it.",
                     "Tell how the search moves and why it ends.",
-                    "Sana follows her grandfather's balcony clue and remembers marigold from the orange flower and label.",
+                    "Sana follows her grandfather's balcony clue, sees the orange flower and label, and remembers marigold.",
                     [
                         evidence("Uses the balcony route clue.", "balcony clue", "suggests the balcony"),
                         evidence("Explains the flower-label trigger.", "orange flower", "remembers marigold"),
@@ -136,7 +136,7 @@ LEVELS: list[dict[str, Any]] = [
                 ("Lata forgets the word jasmine. A neighbour points to a scented white flower with a name card.", "Explain which clue restores Lata's word.", "The scented white flower and its name card help Lata remember jasmine.", [evidence("Links the flower card to jasmine.", "white flower", "name card", "remember jasmine")]),
                 ("First Noor asks the driver. Next she checks the lost-property desk. There she sees her badge marked Falcon.", "Retell the route to the remembered team name.", "Noor asks the driver, checks the desk, and remembers Falcon from the marked badge.", [evidence("Orders driver, desk, and badge.", "asks the driver", "checks the desk", "marked badge")]),
                 ("Aman sees a spinning wheel and suddenly recalls the word pinwheel.", "State the visible cause and memory result.", "Seeing the spinning wheel causes Aman to remember pinwheel.", [evidence("Connects the wheel sight to remembering.", "spinning wheel", "remember pinwheel")]),
-                ("Reva asks a teacher where to look, opens the science box, and recognises a magnet by its red-blue ends.", "Give the search action and recognition clue.", "Reva opens the science box and recognises the magnet from its red and blue ends.", [evidence("Includes the box action and colour clue.", "science box", "red and blue ends", "recognises the magnet")]),
+                ("Reva asks a teacher where to look, opens the science box, and recognises a magnet by its red-blue ends.", "Give the search action and recognition clue.", "Reva opens the science box, sees the red and blue ends, and recognises the magnet.", [evidence("Includes the box action and colour clue.", "science box", "red and blue ends", "recognises the magnet")]),
             ],
             ordered=True,
         ),
@@ -379,7 +379,7 @@ EXTRA_DEPTH = {
             (
                 "Pema forgets the word helmet. She asks the games teacher, opens the safety cupboard, and recognises it from a hard round cap.",
                 "Retell Pema's search in order and explain why it ends.",
-                "Pema asks the games teacher, opens the safety cupboard, and remembers helmet when she sees the hard round cap.",
+                "Pema asks the games teacher, opens the safety cupboard, sees the hard round cap, and remembers helmet.",
                 [
                     evidence("States the first helper.", "asks the games teacher", "games teacher is asked first"),
                     evidence("States the next place.", "opens the safety cupboard", "checks the safety cupboard"),
@@ -706,9 +706,10 @@ LAUNCH_DEPTH = {
                 (
                     "Leena forgets sprout in the garden. The gardener shows a tiny green shoot pushing through soil, and Leena recalls the word.",
                     "Retell how Leena's word search ends.",
-                    "The gardener shows Leena the tiny green shoot, and that soil clue helps her remember sprout.",
+                    "The gardener shows Leena the tiny green shoot; that soil clue helps her remember sprout.",
                     [
-                        evidence("States the shown clue.", "tiny green shoot", "gardener shows Leena"),
+                        evidence("Names the gardener action.", "gardener shows Leena"),
+                        evidence("States the shown clue.", "tiny green shoot"),
                         evidence("Links the soil detail.", "that soil clue", "pushing through soil"),
                         evidence("States the result.", "remember sprout", "recalls the word sprout"),
                     ],
@@ -942,7 +943,7 @@ def _assessment_form(label: str) -> list[dict[str, Any]]:
             open_task("Word set: name / your / spell / please", "Arrange the polite statement.", "Please spell your name.", [evidence("Uses complete correct order.", "please spell your name"), evidence("Uses every word.", "spell", "name")], skills=[S["sentence_order"]]),
             open_task("Unfinished question: where is my name card", "Add the correct beginning and end mark.", "Where is my name card?", [evidence("Uses a capital beginning.", "Where"), evidence("Uses a question mark.", "?")], skills=[S["punctuation"]]),
             open_task("Profile facts: Name: Amol. Hobby: collecting smooth stones.", "Write one complete introduction with both facts.", "My name is Amol, and I enjoy collecting smooth stones.", [evidence("States Amol's name.", "name is Amol"), evidence("Includes collecting smooth stones.", "collecting smooth stones")], skills=[S["sentence"]]),
-            open_task("Uma asks the guard, checks the shelf, and remembers atlas when she sees a book of maps.", "Retell the search and name the memory trigger.", "Uma asks the guard, checks the shelf, and remembers atlas from the book of maps.", [evidence("Orders guard before shelf.", "asks the guard", "checks the shelf"), evidence("Links maps to atlas.", "book of maps", "remembers atlas")], skills=[S["comprehension"], S["sequence"]], ordered=True),
+            open_task("Uma asks the guard, checks the shelf, and remembers atlas when she sees a book of maps.", "Retell the search and name the memory trigger.", "Uma asks the guard, checks the shelf, finds the book of maps, and remembers atlas.", [evidence("Orders guard before shelf.", "asks the guard", "checks the shelf"), evidence("Links maps to atlas.", "book of maps", "remembers atlas")], skills=[S["comprehension"], S["sequence"]], ordered=True),
             open_task("A polite reply is courteous, showing respect to the listener.", "Explain courteous and use a chapter word with the same idea.", "Courteous means respectful. A courteous child says please when asking for help.", [evidence("Explains respectful.", "means respectful"), evidence("Uses polite language accurately.", "says please", "asking for help")], skills=[S["word_context"], S["word_use"], S["spelling"]]),
             open_task("Word set: where / did / Rina / keep / her / red ribbon", "Build and punctuate the complete question.", "Where did Rina keep her red ribbon?", [evidence("Uses correct question order.", "where did Rina keep her red ribbon", "Rina keep her red ribbon"), evidence("Uses capital and question mark.", "Where did Rina", "red ribbon?")], skills=[S["sentence_order"], S["punctuation"]]),
         ]
@@ -956,7 +957,7 @@ def _assessment_form(label: str) -> list[dict[str, Any]]:
         open_task("Word set: could / you / please / lend / me / the / blue crayon", "Arrange the polite request.", "Could you please lend me the blue crayon?", [evidence("Uses correct request order.", "could you please lend me", "please lend me"), evidence("Uses all supplied words.", "blue crayon", "lend me the blue crayon")], skills=[S["sentence_order"]]),
         open_task("Unfinished line: thank you for the helpful clue", "Repair the statement boundaries.", "Thank you for the helpful clue.", [evidence("Uses a capital beginning.", "Thank"), evidence("Uses a full stop.", ".")], skills=[S["punctuation"]]),
         open_task("Profile facts: Name: Simran. Favourite game: kho-kho.", "Write one complete introduction using both facts.", "My name is Simran, and my favourite game is kho-kho.", [evidence("States Simran's name.", "name is Simran"), evidence("Includes kho-kho as favourite game.", "favourite game is kho-kho")], skills=[S["sentence"]]),
-        open_task("Veer asks his aunt, visits the balcony, and remembers basil after reading a plant label.", "Give the ordered route and final trigger.", "Veer asks his aunt, visits the balcony, and remembers basil from the plant label.", [evidence("Orders aunt before balcony.", "asks his aunt", "visits the balcony"), evidence("Links label to basil.", "plant label", "remembers basil")], skills=[S["comprehension"], S["sequence"]], ordered=True),
+        open_task("Veer asks his aunt, visits the balcony, and remembers basil after reading a plant label.", "Give the ordered route and final trigger.", "Veer asks his aunt, visits the balcony, reads the plant label, and remembers basil.", [evidence("Orders aunt before balcony.", "asks his aunt", "visits the balcony"), evidence("Links label to basil.", "plant label", "remembers basil")], skills=[S["comprehension"], S["sequence"]], ordered=True),
         open_task("The clue is familiar, meaning it was known before. Use familiar with a correctly spelled chapter word.", "State the meaning and write the new use.", "Familiar means known before. The familiar name helped Jatin remember his team.", [evidence("Explains known before.", "known before"), evidence("Uses familiar and remember accurately.", "familiar name", "remember his team")], skills=[S["word_context"], S["word_use"], S["spelling"]]),
         open_task("Word set: where / did / find / label / the / you", "Build the finished question with correct punctuation.", "Where did you find the label?", [evidence("Uses correct question order.", "where did you find the label"), evidence("Uses capital and question mark.", "Where", "?")], skills=[S["sentence_order"], S["punctuation"]]),
     ]

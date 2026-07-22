@@ -41,11 +41,23 @@ MAX_PLACEMENT_ITEMS = (
     + MAX_CONFIRMATORY_ITEMS
 )
 MIN_SCORABLE_FOR_TERMINAL_PLACEMENT = 8
+_PLACEMENT_CONTENT_INTEGRITY_BLOCKERS = frozenset(
+    {
+        "missing_authored_same_track_item",
+        "missing_additional_authored_same_track_confirmatory_item",
+    }
+)
 SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS = 240
 TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS = 300
 CONFIRMATORY_LEARNER_TIME_BUDGET_SECONDS = 180
 PLACEMENT_LEARNER_TIME_BUDGET_SECONDS = 720
 PRIVATE_PLACEMENT_TIMING_KEY = "_placement_item_timing"
+_OUTER_TIME_BUDGET_TERMINAL_REASONS = frozenset(
+    {
+        "placement_learner_time_budget_exhausted",
+        "watchlist_after_placement_learner_time_budget_exhausted",
+    }
+)
 
 PlacementStage = Literal["snapshot", "targeted_diagnostic", "confirmatory"]
 PlacementClassification = Literal["pass", "fail", "ambiguous", "unscorable"]
@@ -403,7 +415,7 @@ def resume_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
         raise ValueError("placement_resume_evidence_unavailable")
     if (
         _outer_learner_budget_reason(state) is not None
-        and state.terminal_reason != "placement_learner_time_budget_exhausted"
+        and state.terminal_reason not in _OUTER_TIME_BUDGET_TERMINAL_REASONS
     ):
         raise ValueError("placement_resume_evidence_unavailable")
 
@@ -421,9 +433,11 @@ def resume_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
     snapshot_ids = tuple(
         track_id
         for track_id in unresolved_ids
-        if state.track_states[track_id].status == "pending"
-        and (track := tracks.get(track_id)) is not None
-        and track.snapshot_item.item_id not in answered
+        if _has_resumable_snapshot_item(
+            state.track_states[track_id],
+            tracks.get(track_id),
+            answered,
+        )
     )
     targeted_ids = tuple(
         track_id
@@ -439,7 +453,35 @@ def resume_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
         is not None
     )
 
-    if state.stage == "confirmatory" and confirmatory_ids:
+    if snapshot_ids:
+        # A stage timeout may have ended the snapshot before every breadth
+        # check was served. Resume that unfinished evidence first; it is more
+        # informative and must not be displaced by a later-stage variant.
+        restored_tracks = {
+            track_id: _restore_snapshot_stage_status(track_state)
+            for track_id, track_state in state.track_states.items()
+        }
+        for track_id in snapshot_ids:
+            track_state = restored_tracks[track_id]
+            if track_state.status != "pending":
+                restored_tracks[track_id] = replace(
+                    track_state,
+                    status="pending",
+                    unresolved_reason=None,
+                    boundary_band=None,
+                )
+        resumed_state = replace(
+            state,
+            stage="snapshot",
+            track_states=_frozen_mapping(restored_tracks),
+            pending_track_ids=(),
+            confirmatory_track_ids=(),
+            terminal_status=None,
+            terminal_reason=None,
+            stage_items=0,
+            stage_elapsed_seconds=0,
+        )
+    elif state.stage == "confirmatory" and confirmatory_ids:
         resumed_state = replace(
             state,
             stage="confirmatory",
@@ -456,17 +498,6 @@ def resume_placement(envelope: PlacementEnvelope) -> PlacementEnvelope:
             stage="targeted_diagnostic",
             pending_track_ids=targeted_ids,
             confirmatory_track_ids=confirmatory_ids,
-            terminal_status=None,
-            terminal_reason=None,
-            stage_items=0,
-            stage_elapsed_seconds=0,
-        )
-    elif snapshot_ids:
-        resumed_state = replace(
-            state,
-            stage="snapshot",
-            pending_track_ids=(),
-            confirmatory_track_ids=(),
             terminal_status=None,
             terminal_reason=None,
             stage_items=0,
@@ -1169,6 +1200,55 @@ def _as_watchlist(
     )
 
 
+def _has_resumable_snapshot_item(
+    track_state: PlacementTrackState,
+    track: PlacementTrack | None,
+    answered: set[str],
+) -> bool:
+    """Return true only for untouched snapshot evidence safely deferred by time."""
+
+    if track is None or track.snapshot_item.item_id in answered:
+        return False
+    if track_state.status == "pending":
+        return True
+    return (
+        track_state.status == "unresolved"
+        and track_state.unresolved_reason == "snapshot_budget_unanswered"
+        and not track_state.evidence
+    )
+
+
+def _restore_snapshot_stage_status(
+    track_state: PlacementTrackState,
+) -> PlacementTrackState:
+    """Recover one clear snapshot result after an incomplete placement closes.
+
+    Finalizing insufficient evidence intentionally marks non-final tracks as a
+    watchlist. When a timed snapshot is resumed, a single snapshot result is
+    still valid provisional evidence. Later-stage evidence is never reset here
+    because it carries a stricter boundary signal.
+    """
+
+    if len(track_state.evidence) != 1:
+        return track_state
+    evidence = track_state.evidence[0]
+    if evidence.stage != "snapshot":
+        return track_state
+    status = {
+        "pass": "provisional_ready",
+        "fail": "provisional_weak",
+        "ambiguous": "ambiguous",
+    }.get(evidence.classification)
+    if status is None:
+        return track_state
+    return replace(
+        track_state,
+        status=status,
+        unresolved_reason=None,
+        boundary_band=None,
+    )
+
+
 def _targeted_item(
     track: PlacementTrack,
     track_state: PlacementTrackState,
@@ -1397,29 +1477,27 @@ def _finalize_target_ready(state: PlacementSessionState) -> PlacementSessionStat
     )
 
 
-def _finalize_with_watchlist(
+def _finalize_target_access_with_watchlist(
     state: PlacementSessionState,
     *,
     budget_reason: str | None,
 ) -> PlacementSessionState:
     track_states: dict[str, PlacementTrackState] = {}
     skill_states = dict(state.skill_states)
-    seeded_ready_skills = False
+    seeded_skill_ids: set[str] = set()
     for track_id, track in state.track_states.items():
-        if track.status in {"provisional_ready", "resolved_ready"}:
-            resolved = replace(
-                track,
-                status="resolved_ready",
-                unresolved_reason=None,
+        if track.status == "resolved_ready":
+            current = skill_states.get(track.primary_skill_id) or SkillReadinessState(
+                skill_id=track.primary_skill_id
             )
-            current = skill_states.get(resolved.primary_skill_id) or SkillReadinessState(
-                skill_id=resolved.primary_skill_id
-            )
-            skill_states[resolved.primary_skill_id] = apply_placement_ready_seed(
+            skill_states[track.primary_skill_id] = apply_placement_ready_seed(
                 current,
                 confidence=1.0,
             )
-            seeded_ready_skills = True
+            seeded_skill_ids.add(track.primary_skill_id)
+            resolved = track
+        elif track.status == "provisional_ready":
+            resolved = track
         else:
             resolved = _as_watchlist(
                 track,
@@ -1434,11 +1512,40 @@ def _finalize_with_watchlist(
         confirmatory_track_ids=(),
         terminal_status="target_ready",
         terminal_reason=(
+            f"target_access_with_watchlist_after_{budget_reason}"
+            if budget_reason
+            else "target_access_with_nonblocking_watchlist"
+        ),
+        readiness_seeds_applied=bool(seeded_skill_ids),
+    )
+
+
+def _finalize_insufficient_with_watchlist(
+    state: PlacementSessionState,
+    *,
+    budget_reason: str | None,
+) -> PlacementSessionState:
+    """End honestly when the learner has not supplied enough scorable evidence."""
+
+    track_states = {
+        track_id: _as_watchlist(
+            track,
+            reason="nonblocking_uncertainty_watchlist",
+        )
+        for track_id, track in state.track_states.items()
+    }
+    return replace(
+        state,
+        track_states=_frozen_mapping(track_states),
+        pending_track_ids=(),
+        confirmatory_track_ids=(),
+        terminal_status="insufficient_evidence",
+        terminal_reason=(
             f"watchlist_after_{budget_reason}"
             if budget_reason
             else "nonblocking_uncertainty_watchlist"
         ),
-        readiness_seeds_applied=seeded_ready_skills,
+        readiness_seeds_applied=False,
     )
 
 
@@ -1471,10 +1578,42 @@ def _finalize_from_available_evidence(
             ),
             readiness_seeds_applied=False,
         )
-    return _finalize_with_watchlist(
+    if any(
+        track.unresolved_reason in _PLACEMENT_CONTENT_INTEGRITY_BLOCKERS
+        for track in state.track_states.values()
+    ):
+        # This is an authored-content failure, not learner uncertainty. Do not
+        # convert a missing same-skill question into target-class access.
+        return _finalize_insufficient_with_watchlist(
+            state,
+            budget_reason=budget_reason,
+        )
+    if (
+        budget_reason is None
+        and state.scorable_answers >= MIN_SCORABLE_FOR_TERMINAL_PLACEMENT
+        and _all_remaining_tracks_are_watchlist_eligible(state)
+    ):
+        return _finalize_target_access_with_watchlist(
+            state,
+            budget_reason=budget_reason,
+        )
+    return _finalize_insufficient_with_watchlist(
         state,
         budget_reason=budget_reason,
     )
+
+
+def _all_remaining_tracks_are_watchlist_eligible(
+    state: PlacementSessionState,
+) -> bool:
+    tracks = _tracks_by_id(state)
+    for track_id, track_state in state.track_states.items():
+        if track_state.status in {"provisional_ready", "resolved_ready"}:
+            continue
+        track = tracks.get(track_id)
+        if track is None or not track.watchlist_eligible:
+            return False
+    return True
 
 
 def _resolve_authored_floor_failures(

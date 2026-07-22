@@ -4,13 +4,14 @@
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "e244a163abcaf027e7479bf85496a781a1b0aae439e6b1d61bdaadc602f271a4",
+  "runtime_sha256": "7c07b21687c3ea127dd92380660322a577e96e2a12cbc9f057d2d60d0d1cc66d",
   "chapter_id": "eng_c4_ch03",
   "chapter_no": 3,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Be Smart, Be Safe",
   "book_title": "Santoor",
   "unit_title": "My Land",
@@ -10708,7 +10709,8 @@
                 "waited",
                 "crossing"
               ],
-              "model_answer": "A pedestrian is a person travelling on foot; the pedestrian waited for the crossing signal."
+              "model_answer": "A pedestrian is a person travelling on foot; the pedestrian waited for the crossing signal.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -18780,6 +18782,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

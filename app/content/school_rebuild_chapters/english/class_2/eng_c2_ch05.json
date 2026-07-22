@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "7ffcd93319a99b6ed129ff9bb2cd2b8d8800f2c712039cc388b52b18162d9dbb",
+  "runtime_sha256": "124f5f05eac226fe64b63725df1d01a25ded0de429772ef5d619ec46ce928b8e",
   "chapter_id": "eng_c2_ch05",
   "chapter_no": 5,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "Come Back Soon",
   "book_title": "Mridang",
   "unit_title": "Going Places",
@@ -412,7 +413,8 @@
             "travel",
             "beyond"
           ],
-          "model_answer": "The class uses a bus as its vehicle to travel beyond the town."
+          "model_answer": "The class uses a bus as its vehicle to travel beyond the town.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -954,7 +956,8 @@
                 "home",
                 "lake"
               ],
-              "model_answer": "Leena will return home from the lake in the evening."
+              "model_answer": "Leena will return home from the lake in the evening.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -1036,7 +1039,8 @@
                 "travel",
                 "beyond"
               ],
-              "model_answer": "The class uses a bus as its vehicle to travel beyond the town."
+              "model_answer": "The class uses a bus as its vehicle to travel beyond the town.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each travel word to movement, place, or direction clues. Use position within the trip. Use the same skill in this new scene. To understand and use transport vocabulary, include all 4 details.",
@@ -1440,7 +1444,8 @@
                 "island",
                 "clinic"
               ],
-              "model_answer": "The boat makes a journey to the island clinic to deliver medicine."
+              "model_answer": "The boat makes a journey to the island clinic to deliver medicine.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each travel word to movement, place, or direction clues. Use the ticket and payment clues to explain the word. Remember the skill, then check the passage. To understand and use transport vocabulary, include both details.",
@@ -1514,7 +1519,8 @@
                 "travel",
                 "zoya"
               ],
-              "model_answer": "A fare is the money paid for travel. Zoya keeps the exact bus fare in her small purse."
+              "model_answer": "A fare is the money paid for travel. Zoya keeps the exact bus fare in her small purse.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each travel word to movement, place, or direction clues. Build meaning from the repeated two-place journey. Remember the skill, then check the passage. To understand and use transport vocabulary, include both details.",
@@ -11128,6 +11134,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

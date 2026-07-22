@@ -22,7 +22,7 @@ _OPAQUE_ITEM_ID = re.compile(
     r"spv_c02_t0[78]_v06|"
     r"spv_c03_t0[378]_v06|"
     r"spv_c04_t0[378]_v06|"
-    r"spv_c05_t0[38]_v06)$"
+    r"spv_c05_t0[1-8]_v06)$"
 )
 _REVIEW_MANIFEST_REFERENCE = "app/content/school_rebuild_placement_review_manifest.json"
 _REVIEW_MANIFEST_PATH = Path(__file__).with_name(

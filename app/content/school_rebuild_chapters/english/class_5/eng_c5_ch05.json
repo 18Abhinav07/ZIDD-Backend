@@ -6,7 +6,7 @@
     "Unsupported two-difference animal comparison was replaced with a fully supplied fact card; repetitive review requires an identification limit and safe verification step.",
     "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch05."
   ],
-  "runtime_sha256": "9332eee8e5a7d92f7c3ee6b8dbfbd984f3ad64dc1e16bacbf9ff269f18ca66f0",
+  "runtime_sha256": "f9032c9c8ee4ec128ac2114a814380cc1956332d765c44d3d48f4707fdf8a187",
   "chapter_id": "eng_c5_ch05",
   "chapter_no": 5,
   "content_version": "2026-07-15.5",
@@ -4571,7 +4571,7 @@
                   "id": "limit",
                   "description": "Rejects the absolute invisible-everywhere claim.",
                   "any_of": [
-                    "not invisible everywhere",
+                    "does not make a frog invisible everywhere",
                     "does not guarantee hiding"
                   ]
                 },
@@ -4585,7 +4585,7 @@
                 }
               ],
               "forbidden_phrases": [
-                "invisible everywhere",
+                "camouflage makes every frog invisible everywhere",
                 "never seen"
               ],
               "min_response_words": 18,
@@ -4611,7 +4611,7 @@
                 "guarantee",
                 "hiding"
               ],
-              "model_answer": "Camouflage does not make a frog invisible everywhere; it may make the frog harder to notice when its appearance matches the surrounding setting. Reference evidence states: not invisible everywhere; matches the setting."
+              "model_answer": "Camouflage does not make a frog invisible everywhere; it may make the frog harder to notice when its appearance matches the setting."
             },
             {
               "teaching_block": "Link a supplied body feature or action to a specific advantage without making a universal claim. Retrieve the construct, then verify it against the passage. Use the visible passage to practise inference reason and reason answer; include both details.",
@@ -12646,14 +12646,14 @@
                   "min_quality": 0.7
                 },
                 {
-                  "id": "frog_instruction_and_research:transfer:4:record",
-                  "description": "Records only visible differences.",
+                  "id": "frog_instruction_and_research:transfer:4:safety",
+                  "description": "Preserves the no-tasting and no-touching rule.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
-                  "id": "frog_instruction_and_research:transfer:4:safety",
-                  "description": "Preserves the no-tasting and no-touching rule.",
+                  "id": "frog_instruction_and_research:transfer:4:record",
+                  "description": "Records only visible differences.",
                   "required": true,
                   "min_quality": 0.7
                 },
@@ -12687,17 +12687,17 @@
                   ]
                 },
                 {
-                  "id": "frog_instruction_and_research:transfer:4:record",
-                  "description": "Records only visible differences.",
-                  "any_of": [
-                    "Record only visible differences"
-                  ]
-                },
-                {
                   "id": "frog_instruction_and_research:transfer:4:safety",
                   "description": "Preserves the no-tasting and no-touching rule.",
                   "any_of": [
                     "without tasting or touching the water"
+                  ]
+                },
+                {
+                  "id": "frog_instruction_and_research:transfer:4:record",
+                  "description": "Records only visible differences.",
+                  "any_of": [
+                    "Record only visible differences"
                   ]
                 },
                 {
@@ -12717,8 +12717,8 @@
                 "frog_instruction_and_research:transfer:4:label",
                 "frog_instruction_and_research:transfer:4:fill",
                 "frog_instruction_and_research:transfer:4:compare",
-                "frog_instruction_and_research:transfer:4:record",
                 "frog_instruction_and_research:transfer:4:safety",
+                "frog_instruction_and_research:transfer:4:record",
                 "frog_instruction_and_research:transfer:4:return"
               ],
               "schema_version": "school-activity-v2",
@@ -13716,14 +13716,14 @@
             "min_quality": 0.7
           },
           {
-            "id": "eng_c5_ch05_assess_a13:record",
-            "description": "Records the amount and empties the bottle.",
+            "id": "eng_c5_ch05_assess_a13:reason",
+            "description": "Explains the eye-level accuracy reason.",
             "required": true,
             "min_quality": 0.7
           },
           {
-            "id": "eng_c5_ch05_assess_a13:reason",
-            "description": "Explains the eye-level accuracy reason.",
+            "id": "eng_c5_ch05_assess_a13:record",
+            "description": "Records the amount and empties the bottle.",
             "required": true,
             "min_quality": 0.7
           }
@@ -13765,17 +13765,17 @@
             ]
           },
           {
-            "id": "eng_c5_ch05_assess_a13:record",
-            "description": "Records the amount and empties the bottle.",
-            "any_of": [
-              "Record the amount and empty the bottle"
-            ]
-          },
-          {
             "id": "eng_c5_ch05_assess_a13:reason",
             "description": "Explains the eye-level accuracy reason.",
             "any_of": [
               "for a more accurate measurement"
+            ]
+          },
+          {
+            "id": "eng_c5_ch05_assess_a13:record",
+            "description": "Records the amount and empties the bottle.",
+            "any_of": [
+              "Record the amount and empty the bottle"
             ]
           }
         ],
@@ -13790,8 +13790,8 @@
           "eng_c5_ch05_assess_a13:marks",
           "eng_c5_ch05_assess_a13:placement",
           "eng_c5_ch05_assess_a13:measure",
-          "eng_c5_ch05_assess_a13:record",
-          "eng_c5_ch05_assess_a13:reason"
+          "eng_c5_ch05_assess_a13:reason",
+          "eng_c5_ch05_assess_a13:record"
         ],
         "relevance_terms": [
           "adult",

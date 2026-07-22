@@ -40,7 +40,13 @@ class ChargeOutcome:
     compensatable: bool
 
 
-async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
+async def resolve_gate(
+    store,
+    user_id: str,
+    node_id: str,
+    *,
+    test_mode: bool = False,
+) -> GateDecision:
     """Decide the price to START a session on `node_id`.
 
     Raises KeyError if the node id is unknown (the route maps that to 404).
@@ -54,6 +60,50 @@ async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
         return GateDecision(True, 0, "", "", False, False, "demo_unlimited")
 
     module = module_of(node_id)  # KeyError -> unknown node -> 404 at the route
+
+    if get_settings().billing_policy == "journey":
+        # Canonical School has a dedicated route gate below. Keep the retired
+        # legacy School module free so no old endpoint is accidentally turned
+        # into a charge path during migration.
+        if module == SCHOOL_ID:
+            return GateDecision(True, 0, "", "", False, False, "legacy_school_retired")
+        if module == COMM_ID:
+            scope = "career_communication_module"
+            if await store.has_unlock(user_id, scope, COMM_ID):
+                return GateDecision(True, 0, scope, COMM_ID, False, True, "owned")
+            return GateDecision(
+                False,
+                pricing.CAREER_SKILL_COST,
+                scope,
+                COMM_ID,
+                True,
+                False,
+                "career_communication_unlock",
+            )
+        if module in (INT_ID, GD_ID):
+            if test_mode:
+                return GateDecision(
+                    False,
+                    pricing.CAREER_TEST_ATTEMPT_COST,
+                    "career_test_attempt",
+                    node_id,
+                    False,
+                    False,
+                    "career_test_attempt",
+                )
+            scope = "career_prep_skill"
+            if await store.has_unlock(user_id, scope, node_id):
+                return GateDecision(True, 0, scope, node_id, False, True, "owned")
+            return GateDecision(
+                False,
+                pricing.CAREER_SKILL_COST,
+                scope,
+                node_id,
+                True,
+                False,
+                "career_prep_skill_unlock",
+            )
+        return GateDecision(True, 0, "", "", False, False, "free_unmetered")
 
     # 2. School English: teaching is a free funnel.
     if module == SCHOOL_ID:
@@ -80,6 +130,41 @@ async def resolve_gate(store, user_id: str, node_id: str) -> GateDecision:
     # Unknown module: fail OPEN to free so a future registry addition never
     # hard-walls a learner before its pricing is defined.
     return GateDecision(True, 0, "", "", False, False, "free_unmetered")
+
+
+async def resolve_school_chapter_gate(
+    store,
+    user_id: str,
+    *,
+    subject_id: str,
+    class_no: int,
+    chapter_id: str,
+) -> GateDecision:
+    """Price a canonical School chapter after the route validates access.
+
+    The stable entitlement reference is content identity, never a generated
+    session or a client id. A retry, reload, masterclass, or future session for
+    that chapter therefore cannot debit the learner a second time.
+    """
+    if get_settings().billing_mode == "disabled":
+        return GateDecision(True, 0, "", "", False, False, "billing_disabled")
+    if await store.is_demo(user_id):
+        return GateDecision(True, 0, "", "", False, False, "demo_unlimited")
+    if get_settings().billing_policy != "journey":
+        return GateDecision(True, 0, "", "", False, False, "free_teaching")
+    ref_id = f"{subject_id}:class_{int(class_no)}:{chapter_id}"
+    scope = "school_chapter"
+    if await store.has_unlock(user_id, scope, ref_id):
+        return GateDecision(True, 0, scope, ref_id, False, True, "owned")
+    return GateDecision(
+        False,
+        pricing.SCHOOL_CHAPTER_COST,
+        scope,
+        ref_id,
+        True,
+        False,
+        "school_chapter_unlock",
+    )
 
 
 async def charge(

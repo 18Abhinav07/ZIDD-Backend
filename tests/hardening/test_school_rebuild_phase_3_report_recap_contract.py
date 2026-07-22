@@ -118,6 +118,34 @@ def test_evidence_free_incomplete_report_keeps_overall_class_unknown(terminal_st
     assert public["active_learning_class_no"] is None
 
 
+def test_unknown_terminal_placement_status_fails_closed_to_insufficient_evidence():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    malformed = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            terminal_status="unknown_terminal_status",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(malformed)},
+        learning_events=[],
+    )
+
+    assert report["placement_status"] == "insufficient_evidence"
+    assert report["unlock_state"] == "locked"
+    assert report["allowed_next_actions"] == ["start_placement"]
+
+
 def test_incomplete_report_emits_class_when_three_target_anchors_agree():
     envelope = placement.new_placement_envelope({
         "profile_version_id": "profile-version",
@@ -389,6 +417,49 @@ def test_only_confirmed_weak_tracks_become_recap_modules_and_unresolved_tracks_s
             "status": "needs_confirmation",
         }
     ]
+
+
+def test_nonblocking_watchlist_unlocks_target_with_an_explicit_deviation_note():
+    envelope = placement.new_placement_envelope({
+        "profile_version_id": "profile-version",
+        "subject_ids": ["english"],
+        "target_class_no": 5,
+        "preferred_teaching_language": "en",
+        "prior_difficulty_signals": [],
+    })
+    track_states = dict(envelope.state.track_states)
+    first_track_id = next(iter(track_states))
+    first_track = track_states[first_track_id]
+    track_states[first_track_id] = replace(
+        first_track,
+        status="unresolved",
+        unresolved_reason="insufficient_boundary_evidence",
+    )
+    terminal = replace(
+        envelope,
+        state=replace(
+            envelope.state,
+            track_states=track_states,
+            scorable_answers=8,
+            terminal_status="target_ready",
+            terminal_reason="nonblocking_uncertainty_watchlist",
+        ),
+    )
+
+    report = build_placement_report(
+        user_id="test_user",
+        placement_session_id="placement-session",
+        placement_row={"state_json": placement.envelope_to_json(terminal)},
+        learning_events=[],
+    )
+    public = public_placement_report(report)
+
+    assert report["placement_status"] == "target_ready"
+    assert report["unlock_state"] == "target_unlocked"
+    assert report["active_learning_class_no"] == 5
+    assert report["watchlist_skills"]
+    assert "watchlist" in report["deviation_note"].lower()
+    assert public["deviation_note"] == report["deviation_note"]
 
 
 def test_resolved_ready_track_is_not_reclassified_as_a_recap_gap_by_low_ema():

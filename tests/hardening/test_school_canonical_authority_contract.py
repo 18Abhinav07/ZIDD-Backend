@@ -209,10 +209,10 @@ EXPECTED_PLACEMENT_ITEM = {
     "options": ["angry", "heavy", "small"],
 }
 EXPECTED_PLACEMENT_RESPONSE_SHA256 = (
-    "0eb2f368f562f4a5445987b591c8bd361b3deb32adca1d6b53b65620d5f36c9a"
+    "ea094d2351f63e19b1dddd149ffb93bb9f9410d17760841464294af9c8e5ec1b"
 )
 EXPECTED_CURRICULUM_RESPONSE_SHA256 = (
-    "b8bf95a609f999b50e768d2b5c0eb86f1beb8e42340cb01867e44980f812e4f5"
+    "5a8668147b93a978fce97b82058e1f7da128b89d5f21ebb87113f232b7a6f810"
 )
 
 
@@ -259,7 +259,7 @@ def test_app_mounts_one_complete_canonical_school_authority():
         if method not in {"HEAD", "OPTIONS"}
     ]
 
-    expected_route_count = 27 + len(RETIRED_SCHOOL_ENDPOINT_SPECS)
+    expected_route_count = 29 + len(RETIRED_SCHOOL_ENDPOINT_SPECS)
     assert len(CANONICAL_SCHOOL_AUTHORITY) == expected_route_count
     assert len(registrations) == expected_route_count
     assert registrations.count(("GET", "/school/state", "school_state")) == 1

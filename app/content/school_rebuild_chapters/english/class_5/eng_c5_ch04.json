@@ -4,9 +4,10 @@
     "Manifest hash SHA-256: a8ab91af70c0021c8353a1303f9b3b02d57a1da6a7d5674997a349016463035f",
     "Visible story authority now explains the silent signal and guarded-door timing without requiring hidden chapter recall.",
     "Sanctuary and bird-care tasks now grade each requested fact, action, limit, and ordered step independently; the repeated causal review became a visitor-notice transfer.",
-    "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch04."
+    "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch04.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
   ],
-  "runtime_sha256": "4a84d8bd19615b0bc07499507990f679574e6550a7d710c0a244e16dbaca1317",
+  "runtime_sha256": "efbd5a7468bb000e87fef17c7a15555cc2366308b363a35309ef2fdeae87efc7",
   "chapter_id": "eng_c5_ch04",
   "chapter_no": 4,
   "content_version": "2026-07-15.5",
@@ -474,7 +475,7 @@
             "unlatches",
             "opens"
           ],
-          "model_answer": "The puppy's scratching is the signal, Dev responds by unlatching the gate, and the puppy then runs to its owner. Reference evidence states: puppy scratches; Dev unlatches."
+          "model_answer": "The puppy scratches twice as the signal, Dev unlatches the gate in response, and the puppy runs to its owner."
         }
       },
       "episode_kind": "comprehension_studio",
@@ -983,7 +984,7 @@
                 "hears",
                 "reported"
               ],
-              "model_answer": "The bird heard the reported signal, copied the still pose, was lifted outside the opened cage, and then flew away. Reference evidence states: receives a distant signal; copies the signal; flies away."
+              "model_answer": "The bird hears the reported signal, becomes still, is lifted outside the opened cage, and then flies away."
             },
             {
               "teaching_block": "Reconstruct the chain without changing who spoke or when each action happened. Use your own words while preserving every required idea.",
@@ -1079,7 +1080,7 @@
                 "rohan",
                 "switches"
               ],
-              "model_answer": "Amina gives the instruction, Rohan performs the lamp signal, and Amina leaves quietly after seeing it. Reference evidence states: Rohan switches."
+              "model_answer": "Amina gives the instruction, Rohan gives the signal by switching off the porch lamp, and Amina leaves quietly after seeing it."
             }
           ]
         },
@@ -1183,7 +1184,7 @@
                 "unlatches",
                 "opens"
               ],
-              "model_answer": "The puppy's scratching is the signal, Dev responds by unlatching the gate, and the puppy then runs to its owner. Reference evidence states: puppy scratches; Dev unlatches."
+              "model_answer": "The puppy scratches twice as the signal, Dev unlatches the gate in response, and the puppy runs to its owner."
             },
             {
               "teaching_block": "Reconstruct the chain without changing who spoke or when each action happened. Separate what is stated from what can reasonably be inferred.",
@@ -1471,7 +1472,7 @@
                 "gives",
                 "instruction"
               ],
-              "model_answer": "Coach Mira gives the instruction; Kabir hears her whistle, starts running, and finally crosses the finish line. Reference evidence states: Coach Mira says; Kabir begins."
+              "model_answer": "Coach Mira says to wait for her whistle. Kabir begins after the whistle and finally crosses the finish line."
             }
           ]
         },
@@ -3607,7 +3608,8 @@
             "immediately",
             "chicks"
           ],
-          "model_answer": "Distressed means worried or upset; Asha's immediate check is the clue. I felt distressed when my pet went missing. Reference evidence states: checked immediately."
+          "model_answer": "Distressed means worried or upset; Asha's immediate check is the clue. I felt distressed when my pet went missing. Reference evidence states: checked immediately.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Explain the context clue, state the meaning, and use the expression in a precise new sentence. Apply the same reasoning to a different setting and justify it.",
@@ -3988,7 +3990,8 @@
                 "immediately",
                 "chicks"
               ],
-              "model_answer": "Distressed means worried or upset; Asha's immediate check is the clue. I felt distressed when my pet went missing. Reference evidence states: checked immediately."
+              "model_answer": "Distressed means worried or upset; Asha's immediate check is the clue. I felt distressed when my pet went missing. Reference evidence states: checked immediately.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Explain the context clue, state the meaning, and use the expression in a precise new sentence. State the relationship and support it with the relevant detail.",
@@ -4781,7 +4784,8 @@
                 "means",
                 "paused"
               ],
-              "model_answer": "Hesitated means paused because Mina was uncertain. In a new sentence: Arav hesitated before choosing the steeper path because loose stones covered it."
+              "model_answer": "Hesitated means paused because Mina was uncertain. In a new sentence: Arav hesitated before choosing the steeper path because loose stones covered it.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use nearby actions and results to infer meaning, then place the expression in a precise new sentence. Retrieve the construct, then verify it against the passage. Use the visible passage to practise word meaning context and chapter word usage; include both details.",
@@ -6007,7 +6011,8 @@
                 "rehearsed",
                 "performed"
               ],
-              "model_answer": "The dance troupe rehearsed together before entering the stage for its performance."
+              "model_answer": "The dance troupe rehearsed together before entering the stage for its performance.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -8165,7 +8170,8 @@
             "animals",
             "food"
           ],
-          "model_answer": "At low tide, exposed mudflats give wading birds access to small animals they can eat. Reference evidence states: mudflats contain small animals; low tide exposes."
+          "model_answer": "At low tide, exposed mudflats give wading birds access to small animals they can eat. Reference evidence states: mudflats contain small animals; low tide exposes.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "retrieval_challenge",
@@ -8843,7 +8849,8 @@
                 "animals",
                 "food"
               ],
-              "model_answer": "At low tide, exposed mudflats give wading birds access to small animals they can eat. Reference evidence states: mudflats contain small animals; low tide exposes."
+              "model_answer": "At low tide, exposed mudflats give wading birds access to small animals they can eat. Reference evidence states: mudflats contain small animals; low tide exposes.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "State the packet's main idea, select relevant evidence, and avoid adding knowledge that the packet does not contain. Use your own words while preserving every required idea.",
@@ -9107,7 +9114,8 @@
                 "protects",
                 "ground"
               ],
-              "model_answer": "A small nesting island protects ground nests, while a marked no-entry edge separates visitors and volunteers observe from the far bank. The packet does not provide a total bird population."
+              "model_answer": "A small nesting island protects ground nests, while a marked no-entry edge separates visitors and volunteers observe from the far bank. The packet does not provide a total bird population.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -11849,6 +11857,7 @@
               "description": "Places the bowl in shade on a stable surface.",
               "any_of": [
                 "place in shade",
+                "place it in shade",
                 "stable surface"
               ]
             },
@@ -11857,7 +11866,8 @@
               "description": "Includes daily refreshing.",
               "any_of": [
                 "refresh daily",
-                "change water each day"
+                "change water each day",
+                "refresh the water every day"
               ]
             },
             {
@@ -11900,7 +11910,7 @@
             "fill",
             "place"
           ],
-          "model_answer": "First wash a shallow bowl and fill it with clean water. Next, ask an adult to place it in shade on a stable surface. Finally, refresh the water every day so it stays safe and useful. Reference evidence states: refresh daily."
+          "model_answer": "First wash a shallow bowl and fill it with clean water. Next, place it in shade on a stable surface. Then refresh the water every day. Finally, ask an adult to check that the bowl cannot tip, so it stays safe and useful."
         },
         "transfer_check": {
           "teaching_block": "Write a complete ordered procedure using only safe supplied facts and a clear final purpose. Transfer the sequencing pattern to a new bird-care task.",
@@ -12396,6 +12406,7 @@
                   "description": "Places the bowl in shade on a stable surface.",
                   "any_of": [
                     "place in shade",
+                    "place it in shade",
                     "stable surface"
                   ]
                 },
@@ -12404,7 +12415,8 @@
                   "description": "Includes daily refreshing.",
                   "any_of": [
                     "refresh daily",
-                    "change water each day"
+                    "change water each day",
+                    "refresh the water every day"
                   ]
                 },
                 {
@@ -12450,7 +12462,7 @@
                 "fill",
                 "place"
               ],
-              "model_answer": "First wash a shallow bowl and fill it with clean water. Next, ask an adult to place it in shade on a stable surface. Finally, refresh the water every day so it stays safe and useful. Reference evidence states: refresh daily."
+              "model_answer": "First wash a shallow bowl and fill it with clean water. Next, place it in shade on a stable surface. Then refresh the water every day. Finally, ask an adult to check that the bowl cannot tip, so it stays safe and useful."
             },
             {
               "teaching_block": "Write a complete ordered procedure using only safe supplied facts and a clear final purpose. State the relationship and support it with the relevant detail.",
@@ -14605,7 +14617,8 @@
           "after",
           "looked"
         ],
-        "model_answer": "Look after means care for. I will look after the clean water bowls while the caretaker is away."
+        "model_answer": "Look after means care for. I will look after the clean water bowls while the caretaker is away.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c5_ch04_assess_b08",
@@ -14797,7 +14810,8 @@
           "removed",
           "loose"
         ],
-        "model_answer": "The centre protected the pond habitat by removing hazards and keeping visitors on the marked path. Reference evidence states: cleaned the pond edge; protected the habitat."
+        "model_answer": "The centre protected the pond habitat by removing hazards and keeping visitors on the marked path. Reference evidence states: cleaned the pond edge; protected the habitat.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c5_ch04_assess_b13",
@@ -15035,5 +15049,5 @@
     ]
   },
   "reviewed_by": "Codex bounded school semantic review",
-  "reviewed_at": "2026-07-16T13:45:08+05:30"
+  "reviewed_at": "2026-07-21T11:20:00+05:30"
 }

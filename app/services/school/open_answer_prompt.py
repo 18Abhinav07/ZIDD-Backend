@@ -41,9 +41,9 @@ def build_school_open_answer_prompt(
             "A keyword is not proof by itself. Mark a criterion unmet when an "
             "answer mentions a fact and then denies it, reverses the authored "
             "roles, repeats keywords without a coherent claim, or gives "
-            "irrelevant fluent prose. Flag likely copied wording in blockers as "
-            "copied_exemplar when the learner text appears memorized rather than "
-            "independently expressed.\n\n"
+            "irrelevant fluent prose. Do not add copied_exemplar to blockers: "
+            "copy detection against protected exemplars is backend-owned, and "
+            "a learner may repeat necessary words from the visible passage.\n\n"
         )
     return (
         "You are Zidd's strict School Rebuild long-writing evaluator. Evaluate "

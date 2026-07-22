@@ -113,9 +113,11 @@ class GeminiKeyPoolExhaustedError(RuntimeError):
         *,
         attempted_slots: Iterable[int] = (),
         retry_after_seconds: float | None = None,
+        model_unavailable: bool = False,
     ) -> None:
         self.attempted_slots = tuple(sorted(set(attempted_slots)))
         self.retry_after_seconds = retry_after_seconds
+        self.model_unavailable = bool(model_unavailable)
         suffix = (
             f"; retry_after_seconds={retry_after_seconds:.3f}"
             if retry_after_seconds is not None
@@ -127,6 +129,9 @@ class GeminiKeyPoolExhaustedError(RuntimeError):
 @dataclass
 class _CredentialState:
     permanently_disabled: bool = False
+    # A model can be unavailable for one Google project but healthy for a
+    # different model scope using the same API key.
+    model_unavailable: bool = False
     cooldown_until: float = 0.0
     transient_failure_count: int = 0
     failure_epoch: int = 0
@@ -135,7 +140,9 @@ class _CredentialState:
 class GeminiCredentialManager:
     """Select credentials without repeating a slot in one logical operation."""
 
+    _DEFAULT_QUOTA_SCOPE = "__default__"
     _AUTH_FAILURE_STATUS = {401, 403}
+    _MODEL_UNAVAILABLE_STATUS = {404}
     _RATE_LIMIT_STATUS = {429}
     _TRANSIENT_STATUS = {408, 500, 502, 503, 504}
     _RATE_LIMIT_BASE_SECONDS = 60.0
@@ -156,6 +163,14 @@ class GeminiCredentialManager:
         self._active_slot = 0
         self._request_cursor = 0
         self._states = [_CredentialState() for _ in keys]
+        # Gemini quota is model-scoped. A 429 for Flash-Lite must not mark the
+        # same credential unavailable for a separate configured fallback model.
+        self._states_by_quota_scope: dict[str, list[_CredentialState]] = {
+            self._DEFAULT_QUOTA_SCOPE: self._states
+        }
+        # Credential authentication is independent of model quotas. A key that
+        # returns 401/403 must be avoided by every model chain immediately.
+        self._globally_disabled_slots: set[int] = set()
         self._clients: dict[int, genai.Client] = {}
         self._lock = Lock()
 
@@ -170,11 +185,30 @@ class GeminiCredentialManager:
     def active_client(self) -> genai.Client:
         return self.active_client_with_slot()[1]
 
-    def active_client_with_slot(self) -> tuple[int, genai.Client]:
+    def _quota_scope(self, quota_scope: str | None) -> str:
+        normalized = str(quota_scope or "").strip()
+        return normalized or self._DEFAULT_QUOTA_SCOPE
+
+    def _states_for_scope(self, quota_scope: str | None) -> list[_CredentialState]:
+        scope = self._quota_scope(quota_scope)
+        states = self._states_by_quota_scope.get(scope)
+        if states is None:
+            states = [_CredentialState() for _ in self._keys]
+            self._states_by_quota_scope[scope] = states
+        return states
+
+    def active_client_with_slot(
+        self,
+        *,
+        quota_scope: str | None = None,
+    ) -> tuple[int, genai.Client]:
         with self._lock:
-            slot = self._next_healthy_slot(self._active_slot)
+            slot = self._next_healthy_slot(
+                self._active_slot,
+                quota_scope=quota_scope,
+            )
             if slot is None:
-                raise self._pool_exhausted(())
+                raise self._pool_exhausted((), quota_scope=quota_scope)
             self._active_slot = slot
             return slot, self._client_for_slot(slot)
 
@@ -182,11 +216,13 @@ class GeminiCredentialManager:
         self,
         *,
         attempted_slots: Iterable[int] = (),
+        quota_scope: str | None = None,
     ) -> tuple[int, genai.Client]:
         """Round-robin normal requests across every healthy credential."""
 
         slot, client, _failure_epoch = self.request_attempt_with_slot(
-            attempted_slots=attempted_slots
+            attempted_slots=attempted_slots,
+            quota_scope=quota_scope,
         )
         return slot, client
 
@@ -194,6 +230,7 @@ class GeminiCredentialManager:
         self,
         *,
         attempted_slots: Iterable[int] = (),
+        quota_scope: str | None = None,
     ) -> tuple[int, genai.Client, int]:
         """Lease a healthy slot and its current failure epoch atomically."""
 
@@ -202,11 +239,16 @@ class GeminiCredentialManager:
             slot = self._next_healthy_slot(
                 self._request_cursor,
                 attempted_slots=attempted,
+                quota_scope=quota_scope,
             )
             if slot is None:
-                raise self._pool_exhausted(attempted)
+                raise self._pool_exhausted(attempted, quota_scope=quota_scope)
             self._request_cursor = (slot + 1) % len(self._keys)
-            return slot, self._client_for_slot(slot), self._states[slot].failure_epoch
+            return (
+                slot,
+                self._client_for_slot(slot),
+                self._states_for_scope(quota_scope)[slot].failure_epoch,
+            )
 
     def _client_for_slot(self, slot: int) -> genai.Client:
         client = self._clients.get(slot)
@@ -220,14 +262,18 @@ class GeminiCredentialManager:
         start: int,
         *,
         attempted_slots: frozenset[int] = frozenset(),
+        quota_scope: str | None = None,
     ) -> int | None:
         now = self._clock()
+        states = self._states_for_scope(quota_scope)
         for offset in range(len(self._keys)):
             slot = (start + offset) % len(self._keys)
-            state = self._states[slot]
+            state = states[slot]
             if (
                 slot not in attempted_slots
+                and slot not in self._globally_disabled_slots
                 and not state.permanently_disabled
+                and not state.model_unavailable
                 and state.cooldown_until <= now
             ):
                 return slot
@@ -236,33 +282,55 @@ class GeminiCredentialManager:
     def _pool_exhausted(
         self,
         attempted_slots: Iterable[int],
+        *,
+        quota_scope: str | None = None,
     ) -> GeminiKeyPoolExhaustedError:
         now = self._clock()
+        states = self._states_for_scope(quota_scope)
+        eligible_scope_states = [
+            state
+            for slot, state in enumerate(states)
+            if slot not in self._globally_disabled_slots
+        ]
         retry_delays = [
             max(0.0, state.cooldown_until - now)
-            for state in self._states
-            if not state.permanently_disabled and state.cooldown_until > now
+            for slot, state in enumerate(states)
+            if (
+                slot not in self._globally_disabled_slots
+                and not state.permanently_disabled
+                and not state.model_unavailable
+                and state.cooldown_until > now
+            )
         ]
         return GeminiKeyPoolExhaustedError(
             attempted_slots=attempted_slots,
             retry_after_seconds=min(retry_delays) if retry_delays else None,
+            model_unavailable=bool(eligible_scope_states) and all(
+                state.model_unavailable for state in eligible_scope_states
+            ),
         )
 
-    def record_success(self, slot: int) -> None:
+    def record_success(self, slot: int, *, quota_scope: str | None = None) -> None:
         with self._lock:
-            self._record_success_locked(slot)
+            self._record_success_locked(slot, quota_scope=quota_scope)
 
-    def record_success_if_current(self, slot: int, failure_epoch: int) -> bool:
+    def record_success_if_current(
+        self,
+        slot: int,
+        failure_epoch: int,
+        *,
+        quota_scope: str | None = None,
+    ) -> bool:
         """Ignore success from work that started before a newer slot failure."""
 
         with self._lock:
-            if self._states[slot].failure_epoch != failure_epoch:
+            if self._states_for_scope(quota_scope)[slot].failure_epoch != failure_epoch:
                 return False
-            self._record_success_locked(slot)
+            self._record_success_locked(slot, quota_scope=quota_scope)
             return True
 
-    def _record_success_locked(self, slot: int) -> None:
-        state = self._states[slot]
+    def _record_success_locked(self, slot: int, *, quota_scope: str | None = None) -> None:
+        state = self._states_for_scope(quota_scope)[slot]
         state.cooldown_until = 0.0
         state.transient_failure_count = 0
         self._active_slot = slot
@@ -274,14 +342,23 @@ class GeminiCredentialManager:
         status: int | None = None,
         retry_after_seconds: float | None = None,
         transport_failure: bool = False,
+        quota_scope: str | None = None,
     ) -> bool:
         """Record one failed attempt and report whether another slot is eligible."""
 
         with self._lock:
-            state = self._states[attempted_slot]
+            state = self._states_for_scope(quota_scope)[attempted_slot]
             if status in self._AUTH_FAILURE_STATUS:
                 state.failure_epoch += 1
                 state.permanently_disabled = True
+                self._globally_disabled_slots.add(attempted_slot)
+                state.cooldown_until = 0.0
+            elif (
+                status in self._MODEL_UNAVAILABLE_STATUS
+                and quota_scope not in {None, self._DEFAULT_QUOTA_SCOPE}
+            ):
+                state.failure_epoch += 1
+                state.model_unavailable = True
                 state.cooldown_until = 0.0
             elif status in self._RATE_LIMIT_STATUS:
                 state.failure_epoch += 1
@@ -317,7 +394,8 @@ class GeminiCredentialManager:
                 return False
 
             replacement = self._next_healthy_slot(
-                (attempted_slot + 1) % len(self._keys)
+                (attempted_slot + 1) % len(self._keys),
+                quota_scope=quota_scope,
             )
             if replacement is not None:
                 self._active_slot = replacement
@@ -329,12 +407,14 @@ class GeminiCredentialManager:
         *,
         attempted_slot: int | None = None,
         retry_after_seconds: float | None = None,
+        quota_scope: str | None = None,
     ) -> bool:
         failed_slot = self._active_slot if attempted_slot is None else attempted_slot
         return self.record_failure(
             attempted_slot=failed_slot,
             status=status,
             retry_after_seconds=retry_after_seconds,
+            quota_scope=quota_scope,
         )
 
 

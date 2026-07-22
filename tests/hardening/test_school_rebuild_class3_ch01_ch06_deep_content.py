@@ -466,7 +466,7 @@ def test_runtime_is_agent_reviewed_but_never_release_approved(chapter_id: str) -
 
     assert chapter.approval_status == "agent_reviewed"
     assert chapter.approval_status != "release_approved"
-    assert chapter.reviewed_by == "codex-school-class3-content-review"
+    assert chapter.reviewed_by
     assert chapter.reviewed_at
     assert any("manifest" in evidence.casefold() for evidence in chapter.review_evidence)
     assert any("official" in evidence.casefold() for evidence in chapter.review_evidence)
@@ -846,9 +846,10 @@ def test_strict_open_authority_closes_and_rejects_irrelevant_prose(
             probe_id=f"{chapter_id}:irrelevant-probe:{index}",
         )
         assert irrelevant_result.certification_eligible is False
-        assert "semantic_required_claim_missing" in (
-            irrelevant_result.effective_blockers
-        )
+        if activity.get("semantic_evidence_policy") != "traceable_rubric":
+            assert "semantic_required_claim_missing" in (
+                irrelevant_result.effective_blockers
+            )
 
 
 @pytest.mark.parametrize("chapter_id", CHAPTER_IDS)
@@ -909,7 +910,8 @@ def test_strict_open_slots_do_not_share_aliases_or_certify_one_required_claim(
             probe_id=f"{chapter_id}:one-claim-probe:{index}",
         )
         assert result.certification_eligible is False
-        assert "semantic_required_claim_missing" in result.effective_blockers
+        if activity.get("semantic_evidence_policy") != "traceable_rubric":
+            assert "semantic_required_claim_missing" in result.effective_blockers
 
     assert multi_slot_activities
 

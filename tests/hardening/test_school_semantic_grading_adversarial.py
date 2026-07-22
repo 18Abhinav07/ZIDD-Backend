@@ -90,6 +90,7 @@ def _context(
     certifying_language: str | None = "en",
     semantic_claim_slots: tuple[dict, ...] = (),
     ordered_semantic_claim_slot_ids: tuple[str, ...] = (),
+    actor_action_receiver_slot_ids: tuple[str, str, str] | None = None,
     forbidden_phrases: tuple[str, ...] = (),
 ) -> SchoolOpenEvaluationContext:
     return SchoolOpenEvaluationContext(
@@ -113,6 +114,7 @@ def _context(
         certifying_language=certifying_language,
         semantic_claim_slots=semantic_claim_slots,
         ordered_semantic_claim_slot_ids=ordered_semantic_claim_slot_ids,
+        actor_action_receiver_slot_ids=actor_action_receiver_slot_ids,
         forbidden_phrases=forbidden_phrases,
     )
 
@@ -322,6 +324,7 @@ def test_inflated_model_cannot_certify_reversed_authored_roles():
                 {"id": "receiver", "aliases": ("Gita",)},
             ),
             ordered_semantic_claim_slot_ids=("helper", "action", "receiver"),
+            actor_action_receiver_slot_ids=("helper", "action", "receiver"),
         ),
     )
 
@@ -341,11 +344,52 @@ def test_inflated_model_cannot_certify_passive_role_reversal():
                 {"id": "receiver", "aliases": ("Gita",)},
             ),
             ordered_semantic_claim_slot_ids=("helper", "action", "receiver"),
+            actor_action_receiver_slot_ids=("helper", "action", "receiver"),
         ),
     )
 
     assert "semantic_passive_role_reversal" in validated.effective_blockers
     assert validated.certification_eligible is False
+
+
+def test_ordered_procedure_does_not_infer_actor_action_receiver_roles():
+    answer = "First wash the bowl. Next place it by the window."
+    validated = validate_school_open_evaluation(
+        _payload(answer=answer),
+        context=_context(
+            answer,
+            relevance_terms=("bowl", "window"),
+            semantic_claim_slots=(
+                {"id": "wash", "aliases": ("wash",)},
+                {"id": "place", "aliases": ("place",)},
+                {"id": "window", "aliases": ("window",)},
+            ),
+            ordered_semantic_claim_slot_ids=("wash", "place", "window"),
+        ),
+    )
+
+    assert "semantic_role_order_mismatch" not in validated.effective_blockers
+    assert "semantic_passive_role_reversal" not in validated.effective_blockers
+    assert validated.certification_eligible is True
+
+
+def test_ordered_composite_slot_does_not_create_a_false_order_mismatch():
+    answer = "They will refill it when it is empty."
+    validated = validate_school_open_evaluation(
+        _payload(answer=answer),
+        context=_context(
+            answer,
+            relevance_terms=("refill", "empty"),
+            semantic_claim_slots=(
+                {"id": "expansion", "aliases": ("They will",)},
+                {"id": "sentence", "aliases": (answer,)},
+            ),
+            ordered_semantic_claim_slot_ids=("expansion", "sentence"),
+        ),
+    )
+
+    assert "semantic_role_order_mismatch" not in validated.effective_blockers
+    assert validated.certification_eligible is True
 
 
 def test_inflated_model_cannot_certify_missing_required_semantic_action():
@@ -360,6 +404,7 @@ def test_inflated_model_cannot_certify_missing_required_semantic_action():
                 {"id": "receiver", "aliases": ("Gita",)},
             ),
             ordered_semantic_claim_slot_ids=("helper", "action", "receiver"),
+            actor_action_receiver_slot_ids=("helper", "action", "receiver"),
         ),
     )
 
@@ -701,6 +746,7 @@ def test_inflated_model_cannot_certify_participial_passive_role_reversal():
                 {"id": "receiver", "aliases": ("Gita",)},
             ),
             ordered_semantic_claim_slot_ids=("helper", "action", "receiver"),
+            actor_action_receiver_slot_ids=("helper", "action", "receiver"),
         ),
     )
 

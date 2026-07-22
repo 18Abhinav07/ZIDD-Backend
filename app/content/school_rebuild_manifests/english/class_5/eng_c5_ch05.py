@@ -2802,7 +2802,7 @@ MANIFEST = json.loads(r'''{
               "id": "limit",
               "description": "Rejects the absolute invisible-everywhere claim.",
               "any_of": [
-                "not invisible everywhere",
+                "does not make a frog invisible everywhere",
                 "does not guarantee hiding"
               ]
             },
@@ -2816,7 +2816,7 @@ MANIFEST = json.loads(r'''{
             }
           ],
           "forbidden_phrases": [
-            "invisible everywhere",
+            "camouflage makes every frog invisible everywhere",
             "never seen"
           ],
           "min_response_words": 18,
@@ -2827,7 +2827,7 @@ MANIFEST = json.loads(r'''{
             "guarantee",
             "hiding"
           ],
-          "model_answer": "Camouflage does not make a frog invisible everywhere; it may make the frog harder to notice when its appearance matches the surrounding setting. Reference evidence states: not invisible everywhere; matches the setting.",
+          "model_answer": "Camouflage does not make a frog invisible everywhere; it may make the frog harder to notice when its appearance matches the setting.",
           "pass_score": 0.8
         },
         {
@@ -9942,8 +9942,8 @@ _repair_open(
         _evidence("label", "Labels all three jars first.", "First label the clear jars A, B, and C"),
         _evidence("fill", "Uses an adult to fill from marked points.", "let an adult fill them at the marked points"),
         _evidence("compare", "Compares jar colour on the white tray.", "white tray and compare their colour"),
-        _evidence("record", "Records only visible differences.", "Record only visible differences"),
         _evidence("safety", "Preserves the no-tasting and no-touching rule.", "without tasting or touching the water"),
+        _evidence("record", "Records only visible differences.", "Record only visible differences"),
         _evidence("return", "Seals and returns the jars to the adult.", "seal the jars and return them to the adult"),
     ],
     ordered=True,
@@ -10000,8 +10000,8 @@ _repair_open(
         _evidence("marks", "Adds equal centimetre marks.", "Mark equal centimetre lines"),
         _evidence("placement", "Places the bottle in an open area.", "place the bottle in an open area"),
         _evidence("measure", "Reads the water at eye level after rain.", "After rain, read at eye level"),
-        _evidence("record", "Records the amount and empties the bottle.", "Record the amount and empty the bottle"),
         _evidence("reason", "Explains the eye-level accuracy reason.", "for a more accurate measurement"),
+        _evidence("record", "Records the amount and empties the bottle.", "Record the amount and empty the bottle"),
     ],
     ordered=True,
 )

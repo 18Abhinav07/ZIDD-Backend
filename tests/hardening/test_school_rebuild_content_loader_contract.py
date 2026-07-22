@@ -774,6 +774,31 @@ def test_activity_deterministic_grading_rejects_neither_mechanism():
         LiveChapterActivity.model_validate(payload)
 
 
+def test_selected_option_rejects_productive_skill_evidence():
+    activity = _activity_payload()
+    activity["knowledge_components"] = ["writing.summary_own_words"]
+
+    with pytest.raises(
+        ValidationError,
+        match="selected_option_cannot_evidence_productive_skill",
+    ):
+        LiveChapterActivity.model_validate(activity)
+
+    assessment = next(
+        item
+        for item in _valid_assessment(_wise_parrot_payload())["items"]
+        if item["options"]
+    )
+    assessment["grading_mode"] = "selected_option"
+    assessment["skill_ids"] = ["writing.summary_own_words"]
+
+    with pytest.raises(
+        ValidationError,
+        match="selected_option_cannot_evidence_productive_skill",
+    ):
+        LiveChapterAssessmentItem.model_validate(assessment)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -1277,6 +1302,19 @@ def test_live_loader_rejects_content_changed_without_reviewed_hash(tmp_path):
 
     with pytest.raises(ValueError, match="live_chapter_runtime_hash_mismatch"):
         load_live_chapter_file(tampered)
+
+
+def test_live_loader_rejects_model_answer_language_in_learner_content(tmp_path):
+    source = (
+        LIVE_CHAPTER_ROOT / "english" / "class_5" / "eng_c5_ch01.json"
+    )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    activity = payload["levels"][0]["teaching_steps"][0]["activity"]
+    activity["passage"] += "\n\nModel answer: This must not be shown to a learner."
+    malformed = _write_hashed_chapter(tmp_path, payload)
+
+    with pytest.raises(ValueError, match="live_chapter_learner_model_answer_label"):
+        load_live_chapter_file(malformed)
 
 
 def test_approved_loader_rejects_valid_hashed_internal_chapter_id_mismatch(

@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.content.school.content_schema import SchoolRubricEvaluation
 from app.content.school_rebuild_schema import (
     GradingMode,
+    SemanticEvidencePolicy,
     SchoolOpenSemanticValidatorId,
 )
 from app.services.school.semantic_evidence import (
@@ -37,8 +38,14 @@ class SchoolOpenAnswerRetryableError(RuntimeError):
     retryable = True
     evidence = None
 
-    def __init__(self, code: str) -> None:
+    def __init__(
+        self,
+        code: str,
+        *,
+        retry_after_seconds: float | None = None,
+    ) -> None:
         self.code = code
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(code)
 
 
@@ -113,8 +120,10 @@ class SchoolOpenEvaluationContext(SchoolEvaluationContext):
     certifying_language: str | None = None
     semantic_claim_slots: tuple["SchoolSemanticClaimSlot", ...] = ()
     ordered_semantic_claim_slot_ids: tuple[str, ...] = ()
+    actor_action_receiver_slot_ids: tuple[str, str, str] | None = None
     forbidden_phrases: tuple[str, ...] = ()
     semantic_validator_id: SchoolOpenSemanticValidatorId | None = None
+    semantic_evidence_policy: SemanticEvidencePolicy = "literal_aliases"
 
     @field_validator(
         "relevance_terms",
@@ -167,6 +176,14 @@ class SchoolOpenEvaluationContext(SchoolEvaluationContext):
             self.ordered_semantic_claim_slot_ids
         ).issubset(slot_ids):
             raise ValueError("school_open_semantic_claim_order_invalid")
+        if self.actor_action_receiver_slot_ids is not None:
+            role_ids = tuple(self.actor_action_receiver_slot_ids)
+            if (
+                len(set(role_ids)) != len(role_ids)
+                or not set(role_ids).issubset(slot_ids)
+                or tuple(self.ordered_semantic_claim_slot_ids[:3]) != role_ids
+            ):
+                raise ValueError("school_open_actor_action_receiver_slots_invalid")
         return self
 
 
@@ -394,6 +411,11 @@ def school_open_context_from_activity(
         and activity.get("grading_mode") != "strict_open_rubric"
     ):
         raise ValueError("semantic_validator_requires_strict_open_rubric")
+    if (
+        activity.get("actor_action_receiver_slot_ids") is not None
+        and activity.get("grading_mode") != "strict_open_rubric"
+    ):
+        raise ValueError("actor_action_receiver_slots_require_strict_open_rubric")
     item_id = activity.get("activity_id") or activity.get("item_id")
     explicit_relevance = tuple(activity.get("relevance_terms") or ())
     relevance_terms = tuple(
@@ -445,10 +467,20 @@ def school_open_context_from_activity(
             str(item)
             for item in activity.get("ordered_concept_slot_ids") or ()
         ),
+        actor_action_receiver_slot_ids=(
+            tuple(
+                str(item)
+                for item in activity.get("actor_action_receiver_slot_ids") or ()
+            )
+            or None
+        ),
         forbidden_phrases=tuple(
             str(item) for item in activity.get("forbidden_phrases") or ()
         ),
         semantic_validator_id=activity.get("semantic_validator_id"),
+        semantic_evidence_policy=(
+            activity.get("semantic_evidence_policy") or "literal_aliases"
+        ),
     )
 
 class SchoolTypedCriterion(BaseModel):
@@ -1194,92 +1226,94 @@ def _school_open_backend_blockers(
         if unique_ratio <= 0.5 and max(token_counts.values(), default=0) >= 3:
             blockers.append("repeated_keyword_gaming")
 
-    slots = {slot.id: slot for slot in context.semantic_claim_slots}
-    criteria_by_id = {
-        criterion.id: criterion for criterion in evaluation.criteria
-    }
-    minimum_quality_by_id = {
-        policy.id: policy.min_quality for policy in context.criterion_policies
-    }
-    first_positions: dict[str, int] = {}
-    first_spans: dict[str, tuple[int, int]] = {}
-    for slot_id, slot in slots.items():
-        matches = [
-            span
-            for alias in slot.aliases
-            for span in _alias_matches(answer, alias)
-        ]
-        if matches:
-            first = min(matches, key=lambda span: span[0])
-            first_positions[slot_id] = first[0]
-            first_spans[slot_id] = first
-            continue
+    if context.semantic_evidence_policy == "literal_aliases":
+        slots = {slot.id: slot for slot in context.semantic_claim_slots}
+        criteria_by_id = {
+            criterion.id: criterion for criterion in evaluation.criteria
+        }
+        minimum_quality_by_id = {
+            policy.id: policy.min_quality for policy in context.criterion_policies
+        }
+        first_positions: dict[str, int] = {}
+        first_spans: dict[str, tuple[int, int]] = {}
+        for slot_id, slot in slots.items():
+            matches = [
+                span
+                for alias in slot.aliases
+                for span in _alias_matches(answer, alias)
+            ]
+            if matches:
+                first = min(matches, key=lambda span: span[0])
+                first_positions[slot_id] = first[0]
+                first_spans[slot_id] = first
+                continue
 
-        criterion = criteria_by_id.get(slot_id)
-        if (
-            criterion is None
-            or not criterion.met
-            or criterion.quality < minimum_quality_by_id.get(slot_id, 1.0)
-            or not authored_evidence_can_prove_criterion(
-                slot.description,
-                criterion.evidence_quote,
+            criterion = criteria_by_id.get(slot_id)
+            if (
+                criterion is None
+                or not criterion.met
+                or criterion.quality < minimum_quality_by_id.get(slot_id, 1.0)
+                or not authored_evidence_can_prove_criterion(
+                    slot.description,
+                    criterion.evidence_quote,
+                )
+            ):
+                continue
+            evidence_matches = _alias_matches(
+                answer,
+                _normalized_answer_text(criterion.evidence_quote),
             )
-        ):
-            continue
-        evidence_matches = _alias_matches(
-            answer,
-            _normalized_answer_text(criterion.evidence_quote),
-        )
-        if evidence_matches:
-            first = min(evidence_matches, key=lambda span: span[0])
-            first_positions[slot_id] = first[0]
-            first_spans[slot_id] = first
-    if slots and set(first_positions) != set(slots):
-        blockers.append("semantic_required_claim_missing")
+            if evidence_matches:
+                first = min(evidence_matches, key=lambda span: span[0])
+                first_positions[slot_id] = first[0]
+                first_spans[slot_id] = first
+        if slots and set(first_positions) != set(slots):
+            blockers.append("semantic_required_claim_missing")
 
-    span_owners: dict[tuple[int, int], list[str]] = {}
-    for slot_id, span in first_spans.items():
-        span_owners.setdefault(span, []).append(slot_id)
+        span_owners: dict[tuple[int, int], list[str]] = {}
+        for slot_id, span in first_spans.items():
+            span_owners.setdefault(span, []).append(slot_id)
 
-    def shares_authored_component(owners: list[str]) -> bool:
-        descriptions = []
-        for owner in owners:
-            description = re.sub(
-                r"\s+required\s+part\s+\d+\s*\.?\s*$",
-                "",
-                slots[owner].description.strip(),
-                flags=re.IGNORECASE,
-            )
-            normalized = _normalized_answer_text(description)
-            if not normalized:
-                return False
-            descriptions.append(normalized)
-        return len(set(descriptions)) == 1
+        def shares_authored_component(owners: list[str]) -> bool:
+            descriptions = []
+            for owner in owners:
+                description = re.sub(
+                    r"\s+required\s+part\s+\d+\s*\.?\s*$",
+                    "",
+                    slots[owner].description.strip(),
+                    flags=re.IGNORECASE,
+                )
+                normalized = _normalized_answer_text(description)
+                if not normalized:
+                    return False
+                descriptions.append(normalized)
+            return len(set(descriptions)) == 1
 
-    if any(
-        len(owners) > 1 and not shares_authored_component(owners)
-        for owners in span_owners.values()
-    ):
-        blockers.append("semantic_evidence_span_reused")
-
-    ordered_ids = context.ordered_semantic_claim_slot_ids
-    if ordered_ids and set(ordered_ids).issubset(first_positions):
         if any(
-            first_positions[left] >= first_positions[right]
-            for left, right in zip(ordered_ids, ordered_ids[1:])
+            len(owners) > 1 and not shares_authored_component(owners)
+            for owners in span_owners.values()
         ):
-            blockers.append("semantic_role_order_mismatch")
-        if len(ordered_ids) >= 3 and all(
-            slot_id in first_spans for slot_id in ordered_ids[:3]
-        ):
-            actor_id, action_id, receiver_id = ordered_ids[:3]
-            actor_span = first_spans[actor_id]
-            action_span = first_spans[action_id]
-            receiver_span = first_spans[receiver_id]
-            if actor_span[0] < action_span[0] < receiver_span[0]:
-                after_action = answer[action_span[1] : receiver_span[0]]
-                if re.search(r"\bby\b", after_action):
-                    blockers.append("semantic_passive_role_reversal")
+            blockers.append("semantic_evidence_span_reused")
+
+        ordered_ids = context.ordered_semantic_claim_slot_ids
+        if ordered_ids and set(ordered_ids).issubset(first_positions):
+            if any(
+                first_positions[left] > first_positions[right]
+                for left, right in zip(ordered_ids, ordered_ids[1:])
+            ):
+                blockers.append("semantic_role_order_mismatch")
+            role_slot_ids = context.actor_action_receiver_slot_ids
+            if role_slot_ids is not None and all(
+                slot_id in first_spans for slot_id in role_slot_ids
+            ):
+                actor_id, action_id, receiver_id = role_slot_ids
+                actor_span = first_spans[actor_id]
+                action_span = first_spans[action_id]
+                receiver_span = first_spans[receiver_id]
+                if actor_span[0] < action_span[0] < receiver_span[0]:
+                    after_action = answer[action_span[1] : receiver_span[0]]
+                    if re.search(r"\bby\b", after_action):
+                        blockers.append("semantic_passive_role_reversal")
     return tuple(dict.fromkeys(blockers))
 
 

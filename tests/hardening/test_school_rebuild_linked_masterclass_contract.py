@@ -11,6 +11,7 @@ from app.api import school_rebuild_routes
 from app.main import app
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_masterclass as masterclass
+from app.services.school import evaluation_jobs
 from tests.hardening.test_school_rebuild_curriculum_transfer_contract import (
     _answer,
     _new_state,
@@ -29,6 +30,10 @@ from tests.hardening.test_school_rebuild_curriculum_v2_runtime import (
     _pause_for_masterclass as _pause_v2_for_masterclass,
     _state as _new_v2_state,
 )
+
+
+def _run(coro):
+    return asyncio.run(coro)
 
 
 def _paused_parent(monkeypatch) -> dict:
@@ -197,6 +202,431 @@ def test_snapshot_only_resumes_the_completed_child_attached_to_the_interrupt(
     assert resumable is None
 
 
+def test_state_repairs_one_matching_orphaned_masterclass_child(store, monkeypatch):
+    profile = _seed_school_profile(store, target_class_no=3)
+    _seed_direct_curriculum_report_lineage(store, profile)
+    parent_id = str(uuid4())
+    parent_state = _paused_parent(monkeypatch)
+    parent_state["profile_version_id"] = profile["profile_version_id"]
+    _run(
+        store.upsert_school_session(
+            session_id=parent_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="paused_for_masterclass",
+            current_stage="0",
+            linked_session_id=None,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=parent_state,
+        )
+    )
+    child_id = str(uuid4())
+    child_state = masterclass.new_masterclass_state(
+        curriculum_session_id=parent_id,
+        curriculum_state=parent_state,
+    )
+    _run(
+        store.upsert_school_session(
+            session_id=child_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="masterclass",
+            subject_id="english",
+            class_no=3,
+            status="active",
+            current_stage="focused_practice",
+            linked_session_id=parent_id,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=child_state,
+        )
+    )
+
+    state = TestClient(app).get("/school/state", headers=AUTH)
+
+    assert state.status_code == 200, state.text
+    assert state.json()["active_flow"] == "masterclass"
+    assert state.json()["active_session_id"] == child_id
+    repaired_parent = _run(store.get_school_session("test_user", parent_id))
+    assert (
+        repaired_parent["state_json"]["active_interrupt"]["masterclass_session_id"]
+        == child_id
+    )
+
+
+def test_queued_masterclass_answer_keeps_recovered_child_pending(store, monkeypatch):
+    """The browser must not regain an actionable detour during semantic grading."""
+
+    profile = _seed_school_profile(store, target_class_no=3)
+    _seed_direct_curriculum_report_lineage(store, profile)
+    parent_id = str(uuid4())
+    parent_state = _paused_parent(monkeypatch)
+    parent_state["profile_version_id"] = profile["profile_version_id"]
+    active_level = next(
+        level
+        for level in parent_state["levels"]
+        if level["level_id"] == parent_state["active_interrupt"]["level_id"]
+    )
+    active_level.pop("teaching_steps", None)
+    active_level["checks"]["independent_check"] = {
+        "teaching_block": "Explain the mismatch in a complete sentence.",
+        "passage": "Ravi looks for the brush while it is still behind his ear.",
+        "prompt": "Explain why the situation is humorous.",
+        "options": [],
+        "accepted_answers": [],
+        "grading_mode": "strict_open_rubric",
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "relevant_english_response",
+        "pass_score": 0.75,
+        "rubric_criteria": [
+            {
+                "id": "humorous_contrast",
+                "description": "Explains the search and the visible brush clue.",
+                "required": True,
+                "min_quality": 0.7,
+            }
+        ],
+        "min_response_words": 6,
+        "relevance_terms": ["Ravi", "brush", "behind his ear"],
+        "certifying_language": "en",
+        "knowledge_components": list(active_level["skill_ids"]),
+    }
+    child_id = str(uuid4())
+    child_state = masterclass.new_masterclass_state(
+        curriculum_session_id=parent_id,
+        curriculum_state=parent_state,
+    )
+    child_state["phase_index"] = 1
+    activity = masterclass.current_activity(child_state)
+    assert activity["evaluation_mode"] == "llm_rubric"
+
+    _run(
+        store.upsert_school_session(
+            session_id=parent_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="paused_for_masterclass",
+            current_stage="0",
+            linked_session_id=None,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=parent_state,
+        )
+    )
+    _run(
+        store.upsert_school_session(
+            session_id=child_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="masterclass",
+            subject_id="english",
+            class_no=3,
+            status="active",
+            current_stage="focused_practice",
+            linked_session_id=parent_id,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=child_state,
+        )
+    )
+
+    client = TestClient(app)
+    queued = client.post(
+        f"/school/masterclass/{child_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": (
+                "Ravi looks for the brush even though it is behind his ear, "
+                "so the search makes the situation humorous."
+            ),
+        },
+    )
+
+    assert queued.status_code == 202, queued.text
+    state = client.get("/school/state", headers=AUTH)
+    assert state.status_code == 200, state.text
+    body = state.json()
+    assert body["active_flow"] == "masterclass"
+    assert body["active_session_id"] == child_id
+    assert body["status"] == "awaiting_evaluation"
+    assert body["next_action"] is None
+    assert body["allowed_next_actions"] == []
+    assert body["blocked_reason"] == "answer_evaluation_in_progress"
+
+
+def test_fully_authored_supported_masterclass_answer_bypasses_queue_and_provider(
+    store,
+    monkeypatch,
+):
+    """A factual support check should resolve from its authored evidence alone."""
+
+    profile = _seed_school_profile(store, target_class_no=3)
+    _seed_direct_curriculum_report_lineage(store, profile)
+    parent_id = str(uuid4())
+    parent_state = _paused_parent(monkeypatch)
+    parent_state["profile_version_id"] = profile["profile_version_id"]
+    active_level = next(
+        level
+        for level in parent_state["levels"]
+        if level["level_id"] == parent_state["active_interrupt"]["level_id"]
+    )
+    active_level.pop("teaching_steps", None)
+    active_level["checks"]["masterclass"] = {
+        "teaching_block": "Keep each supplied event in order.",
+        "passage": "First the wind rose; next the kite string snapped; then the kite dropped into a field.",
+        "prompt": "Turn the supplied kite events into a short past-tense story in order.",
+        "options": [],
+        "accepted_answers": [],
+        "grading_mode": "strict_open_rubric",
+        "response_mode": "paragraph",
+        "evaluation_mode": "llm_rubric",
+        "preflight_rule": "relevant_english_response",
+        "pass_score": 0.75,
+        "rubric_criteria": [
+            {"id": "wind", "description": "Keeps the wind rising first.", "required": True, "min_quality": 0.7},
+            {"id": "string", "description": "Keeps the string snapping next.", "required": True, "min_quality": 0.7},
+            {"id": "field", "description": "Keeps the kite dropping into the field last.", "required": True, "min_quality": 0.7},
+        ],
+        "concept_slots": [
+            {"id": "wind", "description": "Keeps the wind rising first.", "any_of": ["wind rose"]},
+            {"id": "string", "description": "Keeps the string snapping next.", "any_of": ["kite string snapped", "string snapped"]},
+            {"id": "field", "description": "Keeps the kite dropping into the field last.", "any_of": ["kite dropped into a field"]},
+        ],
+        "ordered_concept_slot_ids": ["wind", "string", "field"],
+        "semantic_evidence_policy": "literal_aliases",
+        "min_response_words": 10,
+        "relevance_terms": ["wind", "kite", "field"],
+        "knowledge_components": list(active_level["skill_ids"]),
+    }
+    child_id = str(uuid4())
+    child_state = masterclass.new_masterclass_state(
+        curriculum_session_id=parent_id,
+        curriculum_state=parent_state,
+    )
+    activity = masterclass.current_activity(child_state)
+    assert activity["evidence_role"] == "supported"
+
+    _run(
+        store.upsert_school_session(
+            session_id=parent_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="paused_for_masterclass",
+            current_stage="0",
+            linked_session_id=None,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=parent_state,
+        )
+    )
+    _run(
+        store.upsert_school_session(
+            session_id=child_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="masterclass",
+            subject_id="english",
+            class_no=3,
+            status="active",
+            current_stage="focused_practice",
+            linked_session_id=parent_id,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=child_state,
+        )
+    )
+
+    async def queue_must_not_run(**_kwargs):
+        raise AssertionError("fully authored supported practice must not queue")
+
+    monkeypatch.setattr(
+        store,
+        "claim_and_enqueue_school_evaluation_job",
+        queue_must_not_run,
+        raising=False,
+    )
+    combined_context_calls: list[tuple[str, str, str]] = []
+
+    async def combined_context(*, user_id, session_id, activity_id):
+        combined_context_calls.append((user_id, session_id, activity_id))
+        return {
+            "active_profile": await store.get_active_school_profile_version(user_id),
+            "school_session": await store.get_school_session(user_id, session_id),
+            "answer_request": await store.get_school_answer_request(
+                user_id,
+                session_id,
+                activity_id,
+            ),
+        }
+
+    monkeypatch.setattr(
+        store,
+        "get_school_masterclass_answer_context",
+        combined_context,
+        raising=False,
+    )
+    response = TestClient(app).post(
+        f"/school/masterclass/{child_id}/answer",
+        headers=AUTH,
+        json={
+            "activity_id": activity["activity_id"],
+            "answer": "First the wind rose. Next the kite string snapped, and then the kite dropped into a field.",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["last_feedback"]["correct"] is True
+    assert combined_context_calls == [
+        ("test_user", child_id, activity["activity_id"])
+    ]
+
+
+def test_state_does_not_expose_a_mismatched_orphaned_masterclass_child(store, monkeypatch):
+    profile = _seed_school_profile(store, target_class_no=3)
+    _seed_direct_curriculum_report_lineage(store, profile)
+    parent_id = str(uuid4())
+    parent_state = _paused_parent(monkeypatch)
+    parent_state["profile_version_id"] = profile["profile_version_id"]
+    _run(
+        store.upsert_school_session(
+            session_id=parent_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=3,
+            status="paused_for_masterclass",
+            current_stage="0",
+            linked_session_id=None,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=parent_state,
+        )
+    )
+    child_state = masterclass.new_masterclass_state(
+        curriculum_session_id=parent_id,
+        curriculum_state=parent_state,
+    )
+    child_state["interrupt_id"] = "different-interrupt"
+    child_id = str(uuid4())
+    _run(
+        store.upsert_school_session(
+            session_id=child_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="masterclass",
+            subject_id="english",
+            class_no=3,
+            status="active",
+            current_stage="focused_practice",
+            linked_session_id=parent_id,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=child_state,
+        )
+    )
+
+    state = TestClient(app).get("/school/state", headers=AUTH)
+
+    assert state.status_code == 200, state.text
+    assert state.json()["active_session_id"] == parent_id
+    assert state.json()["next_action"] == "start_masterclass"
+    repaired_parent = _run(store.get_school_session("test_user", parent_id))
+    assert not repaired_parent["state_json"]["active_interrupt"].get(
+        "masterclass_session_id"
+    )
+
+
+def test_state_reconciles_a_lineage_fallback_before_deriving_navigation(store, monkeypatch):
+    profile = _seed_school_profile(store, target_class_no=5)
+    _seed_direct_curriculum_report_lineage(store, profile)
+    state = _advance_v2_to_phase(_new_v2_state(), "independent_application")
+    trigger = curriculum._current_activity(state)
+    level = state["levels"][0]
+    level["v2_support_mode"] = "bridge"
+    level["v2_trigger_activity_id"] = trigger["activity_id"]
+    level["v2_return_activity_id"] = trigger["activity_id"]
+    level["v2_trigger_skill_ids"] = trigger["assessed_skill_ids"]
+    level["v2_active_misconception_tags"] = ["context_ignored"]
+    state.update({
+        "status": "active",
+        "phase": "needs_support",
+        "active_interrupt": None,
+        "profile_version_id": profile["profile_version_id"],
+        "support_required": {
+            "reason": "authored_targeted_support_unavailable",
+            "attempt_count": 2,
+            "weak_skill_ids": list(trigger["assessed_skill_ids"]),
+            "remediation_skill_ids": list(trigger["assessed_skill_ids"]),
+            "focus": "Use a detail as evidence",
+        },
+    })
+    parent_id = str(uuid4())
+    _run(
+        store.upsert_school_session(
+            session_id=parent_id,
+            user_id="test_user",
+            api_version="rebuild",
+            flow_type="curriculum",
+            subject_id="english",
+            class_no=5,
+            status="active",
+            current_stage="0",
+            linked_session_id=None,
+            profile_version_id=profile["profile_version_id"],
+            source_placement_report_id="placement-report",
+            state_json=state,
+        )
+    )
+    original_snapshot = store.get_school_state_snapshot
+    parent_row = _run(store.get_school_session("test_user", parent_id))
+
+    async def stale_snapshot(user_id: str):
+        snapshot = await original_snapshot(user_id)
+        raw_curriculum = dict(snapshot["curriculum_session"])
+        snapshot["curriculum_session"] = {
+            **raw_curriculum,
+            "source_placement_report_id": "obsolete-report",
+        }
+        return snapshot
+
+    async def fallback_curriculum(*_args, **_kwargs):
+        return deepcopy(parent_row)
+
+    monkeypatch.setattr(store, "get_school_state_snapshot", stale_snapshot)
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "_latest_curriculum_for_profile",
+        fallback_curriculum,
+    )
+    monkeypatch.setattr(
+        curriculum,
+        "session_content_version_is_current",
+        lambda _session: True,
+    )
+
+    response = TestClient(app).get("/school/state", headers=AUTH)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["active_session_id"] == parent_id, response.json()
+    assert response.json()["next_action"] == "start_masterclass", response.json()
+    repaired_parent = _run(store.get_school_session("test_user", parent_id))
+    assert repaired_parent["status"] == "paused_for_masterclass"
+    assert repaired_parent["state_json"]["phase"] == "paused_for_masterclass"
+
+
 def _deep_masterclass_parent() -> dict:
     chapter = deepcopy(curriculum._available_chapters("english", 5)[1])
     level = next(
@@ -354,6 +784,71 @@ def test_authored_v2_masterclass_uses_deep_fresh_remediation_sequence():
         )
 
 
+def test_deep_masterclass_reuses_distinct_authored_checks_only_after_variants_are_exhausted():
+    parent = _deep_masterclass_parent()
+    level = parent["levels"][0]
+    for phase in ("independent_application", "transfer"):
+        step = next(
+            item for item in level["teaching_steps"] if item["phase"] == phase
+        )
+        level.setdefault("used_variant_ids", []).extend(
+            candidate["variant_id"] for candidate in step["variant_pool"]
+        )
+
+    child = masterclass.new_masterclass_state(
+        curriculum_session_id="curriculum-1",
+        curriculum_state=parent,
+    )
+
+    assert [
+        item["source_activity_id"]
+        for item in child["phase_activity_pools"]["independent_check"]
+    ] == [f"{level['level_id']}:check:independent_check"]
+    assert [
+        item["source_activity_id"]
+        for item in child["phase_activity_pools"]["transfer_check"]
+    ] == [f"{level['level_id']}:check:transfer_check"]
+
+
+def test_every_live_level_has_a_certifying_retention_fallback_after_variant_exhaustion():
+    for class_no in (2, 3, 4, 5):
+        for chapter in curriculum._available_chapters("english", class_no):
+            for raw_level in chapter["levels"]:
+                level = deepcopy(raw_level)
+                for phase in ("independent_application", "transfer"):
+                    step = next(
+                        item
+                        for item in level["teaching_steps"]
+                        if item["phase"] == phase
+                    )
+                    level.setdefault("used_variant_ids", []).extend(
+                        candidate["variant_id"]
+                        for candidate in step["variant_pool"]
+                    )
+                child = masterclass.new_masterclass_state(
+                    curriculum_session_id="curriculum-probe",
+                    curriculum_state={
+                        "status": "paused_for_masterclass",
+                        "phase": "paused_for_masterclass",
+                        "chapter": {"chapter_id": chapter["chapter_id"]},
+                        "levels": [level],
+                        "active_interrupt": {
+                            "interrupt_id": f"{level['level_id']}:masterclass:2",
+                            "level_id": level["level_id"],
+                            "trigger_count": 2,
+                        },
+                    },
+                )
+                for remediation_phase, check_kind in (
+                    ("independent_check", "independent_check"),
+                    ("transfer_check", "transfer_check"),
+                ):
+                    assert [
+                        item["source_activity_id"]
+                        for item in child["phase_activity_pools"][remediation_phase]
+                    ] == [f"{level['level_id']}:check:{check_kind}"]
+
+
 def test_v2_masterclass_starts_with_the_broadest_trigger_skill_support():
     chapter = deepcopy(curriculum._available_chapters("english", 5)[0])
     level = next(
@@ -447,6 +942,37 @@ def test_failed_deep_masterclass_phase_rotates_to_a_fresh_authored_activity():
         second["passage"],
         second["prompt"],
     )
+
+
+def test_masterclass_feedback_names_the_missing_reasoning_not_the_hidden_answer():
+    feedback = masterclass._masterclass_failure_feedback({
+        "criteria": [
+            {
+                "id": "sound_lab_independent_application_v2_pattern",
+                "met": True,
+            },
+            {
+                "id": "sound_lab_independent_application_v2_first_meaning",
+                "met": True,
+            },
+            {
+                "id": "sound_lab_independent_application_v2_second_meaning",
+                "met": False,
+            },
+            {
+                "id": "sound_lab_independent_application_v2_original_usage",
+                "met": True,
+            },
+        ],
+        "model_answer": (
+            "Rain means water falling from clouds, while train means a rail "
+            "vehicle."
+        ),
+    })
+
+    assert "what each word means in that context" in feedback
+    assert "rail vehicle" not in feedback
+    assert "water falling from clouds" not in feedback
 
 
 def test_masterclass_reports_answered_and_current_source_variants_as_consumed():
@@ -806,12 +1332,12 @@ def test_linked_masterclass_routes_verify_child_completion_before_parent_resume(
         "knowledge_components": list(active_level["skill_ids"]),
     }
 
-    async def passing_evaluator(**kwargs):
-        return _passing_open_evaluation(kwargs["activity"], kwargs["answer"])
+    async def passing_evaluator(activity, answer, **_kwargs):
+        return _passing_open_evaluation(activity, answer)
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         passing_evaluator,
     )
     accepted_answer = _authored_masterclass_answer(parent_state)
@@ -839,6 +1365,11 @@ def test_linked_masterclass_routes_verify_child_completion_before_parent_resume(
     assert started.status_code == 200, started.text
     child = started.json()
     child_id = child["session_id"]
+    attached_parent = _run(store.get_school_session("test_user", parent_session_id))
+    assert (
+        attached_parent["state_json"]["active_interrupt"]["masterclass_session_id"]
+        == child_id
+    )
 
     premature = client.post(
         f"/school/curriculum/{parent_session_id}/resume-masterclass",
@@ -881,6 +1412,21 @@ def test_linked_masterclass_routes_verify_child_completion_before_parent_resume(
                 "answer": phase_answers[expected_phase],
             },
         )
+        if response.status_code == 202:
+            assert _run(
+                evaluation_jobs.run_one_school_evaluation_job(
+                    store=store,
+                    processor=school_rebuild_routes.process_school_evaluation_job,
+                    max_attempts=2,
+                )
+            ) is True
+            response = client.get(
+                f"/school/masterclass/{child_id}",
+                headers=AUTH,
+            )
+            assert response.json()["linked_curriculum"]["session_id"] == (
+                parent_session_id
+            )
         assert response.status_code == 200, response.text
         current = response.json()
         child_events = [

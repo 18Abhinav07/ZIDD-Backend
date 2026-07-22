@@ -2,6 +2,7 @@
 
 Health + DB-ping + the session engine (decision graph, SSE turn streaming).
 """
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,7 @@ from sqlalchemy import text
 
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
+from app.ai.provider import warm_gemini_provider
 from app.api.me_routes import router as me_router
 from app.api.onboarding_routes import router as profile_onboarding_router
 from app.api.routes import onboarding as onboarding_router
@@ -24,6 +26,11 @@ from app.db.schema_guard import validate_runtime_schema
 from app.storage import get_storage
 from app.services.school.authority import validate_canonical_school_routes
 from app.services.school.availability import school_availability
+from app.services.school.evaluation_jobs import (
+    notify_school_evaluation_job_enqueued,
+    run_school_evaluation_worker,
+)
+from app.services.school.evaluation_policy import school_evaluation_policy
 from app.services.session_service import load_sessions, save_sessions
 from app.middleware.auth import JWTAuthMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -34,6 +41,28 @@ if _school_runtime_enabled:
     from app.api.school_rebuild_routes import router as school_router
 else:
     from app.api.school_availability_routes import router as school_router
+
+_STORAGE_BOOT_PROBE_ATTEMPTS = 5
+_STORAGE_BOOT_PROBE_INITIAL_DELAY_SECONDS = 0.5
+
+
+async def _storage_is_writable_for_boot(storage) -> bool:
+    """Absorb a brief pooler handshake failure without hiding a real outage."""
+
+    for attempt in range(_STORAGE_BOOT_PROBE_ATTEMPTS):
+        try:
+            if await storage.ping_writable():
+                return True
+        except Exception:
+            # The final false result preserves the existing fail-closed boot
+            # contract. Individual probe errors are intentionally not allowed
+            # to bring the process up with an unknown persistence state.
+            pass
+        if attempt < _STORAGE_BOOT_PROBE_ATTEMPTS - 1:
+            await asyncio.sleep(
+                _STORAGE_BOOT_PROBE_INITIAL_DELAY_SECONDS * (2**attempt)
+            )
+    return False
 
 
 @asynccontextmanager
@@ -48,16 +77,56 @@ async def lifespan(app: FastAPI):
                 "A runtime Supabase transaction-pooler URL is required. "
                 "Qwen/Ollama may run locally, but product data is cloud-only."
             )
-        if not await get_storage().ping_writable():
+        if not await _storage_is_writable_for_boot(get_storage()):
             raise RuntimeError("Supabase/Postgres is not writable; refusing to boot.")
-        await validate_runtime_schema()
+        await validate_runtime_schema(
+            school_runtime_enabled=_school_runtime_enabled,
+        )
+        if getattr(settings, "ai_backend", "local") in {"gemini", "cloud"}:
+            # A configured key can still lack access to the selected model.
+            # Record a bounded, real readiness result before learner traffic.
+            await warm_gemini_provider(
+                timeout=min(
+                    5.0,
+                    float(getattr(settings, "gemini_request_timeout_seconds", 30.0)),
+                ),
+            )
     # Durability #1: restore any disk-persisted live sessions (no-op if disabled).
     load_sessions()
-    yield
-    # Flush once more so a clean shutdown never loses the latest turn.
-    save_sessions()
-    engine = get_engine()
-    await engine.dispose()
+    evaluation_worker_stop: asyncio.Event | None = None
+    evaluation_worker_task: asyncio.Task | None = None
+    if _school_runtime_enabled and settings.app_env.lower() != "test":
+        from app.api.school_rebuild_routes import process_school_evaluation_job
+
+        evaluation_policy = school_evaluation_policy(settings)
+        evaluation_worker_stop = asyncio.Event()
+        evaluation_worker_task = asyncio.create_task(
+            run_school_evaluation_worker(
+                store=get_storage(),
+                processor=process_school_evaluation_job,
+                max_attempts=evaluation_policy.max_worker_attempts,
+                stop_event=evaluation_worker_stop,
+                processor_timeout_seconds=(
+                    evaluation_policy.worker_stall_timeout_seconds
+                ),
+            ),
+            name="school-evaluation-worker",
+        )
+    try:
+        yield
+    finally:
+        if evaluation_worker_stop is not None and evaluation_worker_task is not None:
+            evaluation_worker_stop.set()
+            notify_school_evaluation_job_enqueued()
+            try:
+                await asyncio.wait_for(evaluation_worker_task, timeout=5.0)
+            except TimeoutError:
+                evaluation_worker_task.cancel()
+                await asyncio.gather(evaluation_worker_task, return_exceptions=True)
+        # Flush once more so a clean shutdown never loses the latest turn.
+        save_sessions()
+        engine = get_engine()
+        await engine.dispose()
 
 
 app = FastAPI(title="Zidd Engine", version="0.0.1", lifespan=lifespan)

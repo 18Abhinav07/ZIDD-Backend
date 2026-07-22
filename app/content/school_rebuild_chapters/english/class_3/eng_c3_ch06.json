@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "0d7bc76a61bfcba1bca1120d0c52256df78a1a02c890772c9187db0852539569",
+  "runtime_sha256": "193c21d9847c036387c67f75d3366747605b60bc62b20a342709870d4d264ac8",
   "chapter_id": "eng_c3_ch06",
   "chapter_no": 6,
-  "content_version": "2026-07-15.2",
-  "certification_version": "2026-07-15.2",
+  "content_version": "2026-07-15.2.semantic-evidence-v1",
+  "certification_version": "2026-07-15.2.semantic-evidence-v1",
   "title": "Paper Boats",
   "book_title": "Santoor",
   "unit_title": "Toys and Games",
@@ -9310,7 +9311,8 @@
             "adjusted the strap",
             "sat comfortably"
           ],
-          "model_answer": "Adjusted means changed slightly to improve fit or performance. New sentence: I adjusted the strap so the bag sat comfortably. Key ideas: improve travel."
+          "model_answer": "Adjusted means changed slightly to improve fit or performance. New sentence: I adjusted the strap so the bag sat comfortably. Key ideas: improve travel.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_1": {
           "teaching_block": "Worked example - Practise step one: Card: The leaf raft drifted, moving slowly wherever the gentle current carried it. Answer: Drifted means moved slowly without being steered. New sentence: A loose balloon drifted across the quiet hall. Fix it this way: Find the defining movement or change, write a short synonym, then test a genuinely new sentence by replacing the target word with that synonym. Use the new card for another case. Try the first step, then answer.",
@@ -9437,7 +9439,8 @@
             "parallel chalk lines",
             "running lane"
           ],
-          "model_answer": "Parallel means side by side in the same direction without meeting. New sentence: Two parallel chalk lines marked the running lane. Key ideas: without crossing."
+          "model_answer": "Parallel means side by side in the same direction without meeting. New sentence: Two parallel chalk lines marked the running lane. Key ideas: without crossing.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_3": {
           "teaching_block": "Worked example - Practise the full method: Card: Mina protested, clearly objecting when someone used her model without permission. Answer: objected or spoke against an action Fix it this way: Find the defining movement or change, write a short synonym, then test a genuinely new sentence by replacing the target word with that synonym. Use the new card for another case. Check your full answer.",
@@ -9533,7 +9536,8 @@
             "timer resolved",
             "turn argument"
           ],
-          "model_answer": "Resolved means settled so the conflict no longer continued. New sentence: A timer resolved the argument about whose turn came next. Key ideas: problem settled; conflict ended; turn argument."
+          "model_answer": "Resolved means settled so the conflict no longer continued. New sentence: A timer resolved the argument about whose turn came next. Key ideas: problem settled; conflict ended; turn argument.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -9627,7 +9631,8 @@
             "nudged the box",
             "closer"
           ],
-          "model_answer": "Nudged means pushed gently a short distance. New sentence: I nudged the box closer with one finger. Key ideas: small gentle push."
+          "model_answer": "Nudged means pushed gently a short distance. New sentence: I nudged the box closer with one finger. Key ideas: small gentle push.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -9721,7 +9726,8 @@
             "hesitated before",
             "wet path"
           ],
-          "model_answer": "Hesitated means paused because of uncertainty. New sentence: Arun hesitated before stepping onto the wet path."
+          "model_answer": "Hesitated means paused because of uncertainty. New sentence: Arun hesitated before stepping onto the wet path.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -9927,7 +9933,8 @@
                 "balloon drifted",
                 "across hall"
               ],
-              "model_answer": "Drifted means moved slowly without being steered. New sentence: A loose balloon drifted across the quiet hall. Key ideas: across hall."
+              "model_answer": "Drifted means moved slowly without being steered. New sentence: A loose balloon drifted across the quiet hall. Key ideas: across hall.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -10230,7 +10237,8 @@
                 "nudged the box",
                 "closer"
               ],
-              "model_answer": "Nudged means pushed gently a short distance. New sentence: I nudged the box closer with one finger. Key ideas: small gentle push."
+              "model_answer": "Nudged means pushed gently a short distance. New sentence: I nudged the box closer with one finger. Key ideas: small gentle push.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -10329,7 +10337,8 @@
                 "steady stool",
                 "did not wobble"
               ],
-              "model_answer": "Steady means stable and not shaking or tipping. New sentence: The steady stool did not wobble on the floor. Key ideas: not tipping."
+              "model_answer": "Steady means stable and not shaking or tipping. New sentence: The steady stool did not wobble on the floor. Key ideas: not tipping.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -10634,7 +10643,8 @@
                 "hesitated before",
                 "wet path"
               ],
-              "model_answer": "Hesitated means paused because of uncertainty. New sentence: Arun hesitated before stepping onto the wet path."
+              "model_answer": "Hesitated means paused because of uncertainty. New sentence: Arun hesitated before stepping onto the wet path.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -10733,7 +10743,8 @@
                 "neighbours cooperated",
                 "move table"
               ],
-              "model_answer": "Cooperated means worked together toward a shared result. New sentence: The neighbours cooperated to move the heavy table. Key ideas: move table."
+              "model_answer": "Cooperated means worked together toward a shared result. New sentence: The neighbours cooperated to move the heavy table. Key ideas: move table.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -11010,7 +11021,8 @@
                 "paint spread",
                 "across paper"
               ],
-              "model_answer": "Spread means moved or extended over a larger area. New sentence: The blue paint spread across the damp paper. Key ideas: extended over larger area; wider floor; across paper."
+              "model_answer": "Spread means moved or extended over a larger area. New sentence: The blue paint spread across the damp paper. Key ideas: extended over larger area; wider floor; across paper.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the word using the given movement, contrast, or result clue. Use the focus word in a fresh complete sentence with the same meaning. Write in complete sentences.",
@@ -11109,7 +11121,8 @@
                 "acknowledged",
                 "count was wrong"
               ],
-              "model_answer": "Acknowledged means admitted or accepted that something was true. New sentence: Meera acknowledged that the first count was wrong. Key ideas: moved without asking."
+              "model_answer": "Acknowledged means admitted or accepted that something was true. New sentence: Meera acknowledged that the first count was wrong. Key ideas: moved without asking.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -13865,7 +13878,8 @@
           "small gentle push",
           "nudged the box"
         ],
-        "model_answer": "Nudged means gave a small gentle push. I nudged the box closer with one finger."
+        "model_answer": "Nudged means gave a small gentle push. I nudged the box closer with one finger.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch06:assessment:11",
@@ -14576,7 +14590,8 @@
           "timer resolved",
           "turn argument"
         ],
-        "model_answer": "Resolved means settled. A timer resolved the argument about whose turn came next. Key ideas: turn argument."
+        "model_answer": "Resolved means settled. A timer resolved the argument about whose turn came next. Key ideas: turn argument.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch06:assessment:25",
@@ -14795,6 +14810,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

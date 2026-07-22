@@ -5,13 +5,14 @@
     "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
     "Static learner-copy review found zero prompts over 30 words, focus-label leaks, known generator-padding phrases, malformed transition slots, repeated independent/transfer teaching blocks, or non-distinct support roles in ch07-ch12.",
     "scripts/audit_school_rebuild_content.py --class 4 reported school_rebuild_content_ok chapters=12 issues=0 on 2026-07-16.",
-    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only."
+    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "31dfafaee9d53e859ca94e69c10a44e7ee502b4204bde4abd0fb329963399ba1",
+  "runtime_sha256": "80c2884842aa41d55c44ea1dc1c649b290cdce04e634c06da3eb9e37e905430e",
   "chapter_id": "eng_c4_ch07",
   "chapter_no": 7,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Fit Body, Fit Mind, Fit Nation",
   "book_title": "Santoor",
   "unit_title": "Fun with Games",
@@ -820,7 +821,8 @@
                 "describes",
                 "happy"
               ],
-              "model_answer": "Cheerful describes a happy encouraging mood, which Tara brought to the practice circle."
+              "model_answer": "Cheerful describes a happy encouraging mood, which Tara brought to the practice circle.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "In the rhythmic skipping set story, a topic guess is not enough; the nearby action and result must fit the meaning. Follow one clue, then check the answer against the result.",
@@ -893,7 +895,8 @@
                 "means",
                 "following"
               ],
-              "model_answer": "Rhythmic means following a repeated beat or pattern, as Nakul did while skipping."
+              "model_answer": "Rhythmic means following a repeated beat or pattern, as Nakul did while skipping.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -13866,7 +13869,8 @@
                 "fitness",
                 "double"
               ],
-              "model_answer": "Ira spells fitness with double s and explains that both repeated letters remain in the word."
+              "model_answer": "Ira spells fitness with double s and explains that both repeated letters remain in the word.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "In the jogging double g story, say the word slowly, then check every written letter and its position. Follow one clue, then check the answer against the result.",
@@ -13937,7 +13941,8 @@
                 "double",
                 "jogging"
               ],
-              "model_answer": "Zoya preserves double g in jogging and uses the correct spelling for a morning routine."
+              "model_answer": "Zoya preserves double g in jogging and uses the correct spelling for a morning routine.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -16124,6 +16129,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

@@ -1,0 +1,1407 @@
+{
+  "chapters": [
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "252ee80d203338fc02ad706b32068e8b25420495143fb38fc72037296fba6b40",
+          "node_id": "bicycle_word_classes:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "332c2dff7a561ad11f37ada916bb38157992bac30b0102e4344d348ea0aa1b08",
+          "node_id": "bicycle_words_in_action:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "0e6fb79ad149358f142620640fe26b44f336415f0d38541c140e82bfc62dddf4",
+          "node_id": "bicycle_words_in_action:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "f4a786e755ce0b7b446462cd64421b7b8eeb2f30d7f941bc2ece7a0bb517e49b",
+          "node_id": "bicycle_words_in_action:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "f5139dcd23ff2a1395fd1390abbcfd1dabcde621cc2e955fb09b705b87f8ff48",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch01",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "35d2fe433f8f805e933418c9cf0498a05d04b5e0c0996bb1aa8fc2ec54e8bfa7",
+          "node_id": "game_opposite_words:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a7c4ca2d71037869155b271453e73951334236aa287cafff13a4e2f4ee3be5e9",
+          "node_id": "game_words_in_context:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "fc96b6517559ebc010646250c1c9a84ad1c93bf90b58f63fc4605e29676dccbe",
+          "node_id": "game_words_in_context:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "8f50d44260ee17abdd41795c2dc9c56c7142de2f268948c0041b2ae3a294abf0",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch02",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "712dd1789e81247206fdf410a59878db2f9454742969bf315769ad9e20ef0b2a",
+          "node_id": "animal_action_words:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "1119a959d4b28a2b28daf463a61d926bd7ba9b2e0765f15b784d6681b0ba7722",
+          "node_id": "animal_action_words:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "fac18c7752086a9e8e090e8e6c5c18024d143b581fda950f04edf407bd36b72c",
+          "node_id": "animal_action_words:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a5f531fc7917fddfc7515e186cfe3ae587979da9615b7ca2f2426402c8b5ef5d",
+          "node_id": "animal_action_words:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "fe34c5011391e7618b8bde91323ac32d59645a853e956305a6da30a64e13134b",
+          "node_id": "animal_action_words:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "5aed70ecd217f9393ce95f35bc9ddb8906ebd08a88e4393d5bb1286134af3534",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch03",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "6b6f75340c62589fbbafe65e6dc3a433c7b7076a297b18b0495d69e280606155",
+          "node_id": "sense_words_in_context:independent:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "7f7404066af6b0fe2d250f2462e1f765d3023a003df8333ce6c70bf27ca8bd2a",
+          "node_id": "sense_words_in_context:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "24169247c7c54366fb7af7aa751ce74f587372634dace426d9b7efedd8033266",
+          "node_id": "sense_words_in_context:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "9673e3fd26a80bb19b0e0a259b7fdeaaae4283b98c4202e3b7718165a338b453",
+          "node_id": "sense_words_in_context:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "46fc5030f759c0404ca0586fb1e1d10e64b6f3809835553889f0099044ad367b",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch04",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "30af840f53a48ba3facf27f9cbc1510f216076429b89d760161e4bf01293ab01",
+          "node_id": "journey_transport_words:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "6644649770671e95dc9607270f79e03e3e566fcd5cb54b1e85173840c3d9d81d",
+          "node_id": "journey_transport_words:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "9757cc255deab22f3df71bdaa55ccc9fbece226694f31948049a76691965f7f2",
+          "node_id": "journey_transport_words:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "d38ebf3c220768cdaad847fc16439184d9fdfc21abaf7c8777c11742da0417e9",
+          "node_id": "journey_transport_words:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "6b06c4169f71280b1f975706733047d1b21421696862e3ab0c13057760f2e253",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch05",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "e2c935d283fb4fc8d9446c405eddc2804642f60b73029b51f6f007ce4a92378b",
+          "node_id": "route_landmark_words:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "038a3b24a0e3e5241b2b1f1c038b02665c03af9043713c2ee90c30bf57983e56",
+          "node_id": "route_landmark_words:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "898c2a193d61d11294016868b6b154256f301ae0b2638d63ef1c0bfa052d5994",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch06",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "c12c8925ffef2ef26fface66dbc730943c67c87be45ec7126d536777a0d3b344",
+          "node_id": "town_place_words:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "94416a6e72179b0234ec8160826626272da5488c8686962a05b81d6ad4be2ea5",
+          "node_id": "town_place_words:review:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "75592ed9ffd679d5be70c28d7104cbb26d7a577a0292911731f9fca01fbf667b",
+          "node_id": "town_place_words:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "19930b3060e4dd12c5eae4cec4da80dee6f768c5fa7cdb2fe6514840abd46cc3",
+          "node_id": "town_place_words:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.1",
+      "base_content_version": "2026-07-15.1",
+      "base_manifest_sha256": "45f2ba9b395c137127c6311fca6d695cb1a553377800a81c6524fdd7e6a6ebc8",
+      "certification_version": "2026-07-15.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch07",
+      "content_version": "2026-07-15.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "9c3fe01cd7c29143d5b8219bdae08b6a85cd26f6ea0b517b0986185d910d5e75",
+          "node_id": "eng_c2_ch08:cloud_word_spelling:guided:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "29492dcab1de9016e06961a7b3eb0e064ab6a203b4fc383d8683baa4b23cb523",
+          "node_id": "eng_c2_ch08:cloud_word_spelling:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "d283b768caab6d94d2cb1bd7dce8c3b2d61adda9f2432cf16060663a3bec726b",
+          "node_id": "eng_c2_ch08:sky_words_in_context:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a222c9f714dd9440474e2fe904b898463908ed631386f9623d4dc1df172b1736",
+          "node_id": "eng_c2_ch08:sky_words_in_context:independent:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a44ea9f2a708629bd83308476a04a02bfe18f75587814486f7606a98799b0c05",
+          "node_id": "eng_c2_ch08:sky_words_in_context:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "895811022997ae5171cb60e9b531af1a5c33f0f06576bf82e3e60fd7a265b6eb",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch08",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "660c78d2ebf543458b10585ecf8d0ccbdc7252c909251f95c2d85741c5453b40",
+          "node_id": "eng_c2_ch09:identity_sentence_writer:revision_level_2:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "cada104f238953d1f03f52f17bec0367ff210c8d93dee43b5f3491e75d835c90",
+          "node_id": "eng_c2_ch09:visible_name_spellings:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "0f8606ba6b9e1629f196b0fe6f128204241d2c1ba2f0c0763688c6c62f818dc2",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch09",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "253fbb678c407850401c2f327c2c136ff38463635eceeaf244ebc297b05a6f10",
+          "node_id": "eng_c2_ch10:printed_bird_spellings:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4b186f9a79811fd4510931548ae63b6d223fc76f26c6fc41e7f61db9fc8bd111",
+          "node_id": "eng_c2_ch10:printed_bird_spellings:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "fc12afae7bb24c42666a5e28f0fa08b353c92597a8ed0350688f770c768a6891",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch10",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "579aaa667987c5dea09ed052a5ff97a16e5c27d85b585482a205932e8a14b2e2",
+          "node_id": "eng_c2_ch11:visible_cleanup_spellings:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "fa9290cf8ecd6f5df6d2972ccb7c5b602d5d438573cb96f7c36b82516c528976",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch11",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "8e2971dad85474af97f10a7009e12691b962a08508b5d3668e111e94505f623c",
+          "node_id": "eng_c2_ch12:amount_and_kindness_words:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "85fe5573c0e39f6a89c04e920fdf73d3562fa419f40eddf48736e4a3945b42bb",
+          "node_id": "eng_c2_ch12:visible_harmony_spellings:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "57a2f3b4e8537d995462030f674c2137e24050b5ee66e79e6fb0e04f5696e250",
+          "node_id": "eng_c2_ch12:visible_harmony_spellings:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "b1d90d4080c70fe7f6665dfb46d39db3309f10dcee2bf247556fef4beca06a0e",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch12",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "c2eea00a7cfee97793e3dd5c68dd8802f13aa38991c72f2e25ee2d859eea1dfd",
+          "node_id": "eng_c2_ch13:visible_culture_spellings:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-class2-deep-v2",
+      "base_content_version": "2026-07-15.class2-deep.2",
+      "base_manifest_sha256": "70d26f9bf7f7c61741ffb483ae1a9b5df1ce804366f165550fbc83f0e7c53037",
+      "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c2_ch13",
+      "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "bfc18331c7957c59da8817e59e46fc6300a4d08d22564a37671f8341306379fb",
+          "node_id": "eng_c3_ch02:assessment:06",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b33c2479158b8100b24805cdbc073fa2c5471b7c9f128a50b191807de00099d0",
+          "node_id": "eng_c3_ch02:assessment:20",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "7dc809bfacaa464272a0c417b7f30e8e4eefe9b1252ef000a8c32d671c9e9b45",
+          "node_id": "rescue_words_in_context:guided:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "58cbabcf26916d68ab804301b6cac68d7cdae97c73706d9ea694044ca4f0713b",
+          "node_id": "rescue_words_in_context:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "7a82771368be4d9f5fdd1cedc59a12d17eb969dedb16d90dbd22aea67adc94c4",
+          "node_id": "rescue_words_in_context:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "5b873157ed9da488ce713c54c4d24106fc2583139333f2a20bef033d54279367",
+          "node_id": "rescue_words_in_context:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4bcc545a21b74ab874e0c8d0f907d6ec86e417212187685b155ef58e120226e2",
+          "node_id": "rescue_words_in_context:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "598600d6d084caec689cf2e0a971fd792cc6143ac1adfdc17c5562b4337df1e5",
+          "node_id": "rescue_words_in_context:independent:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "f4eaf2d10c653d3a31f5383df0022262fe3cf8cd6a5fcb9c9c32ca209b6276d0",
+          "node_id": "rescue_words_in_context:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "6297569e6baf8235beb689c81d9dc4978c13db3cad2ad4b56e159714b93011f2",
+          "node_id": "rescue_words_in_context:masterclass:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "6aee6ee6af89e20fe192e9cdd8c5c07b6707b828e768195a73d57755a1db660a",
+          "node_id": "rescue_words_in_context:review:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "dce921da4135203fe61c7d2072c248558beaecd2bab61de610158d76503b2b05",
+          "node_id": "rescue_words_in_context:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "5a20ebd8660828c29c4209310a57642f36b210d260522b94257a461343952ec1",
+          "node_id": "rescue_words_in_context:revision_level_2:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "1f628f949cb92fd5f2f6353856767c47175e9b9ed8c4b94b1563256dd382918a",
+          "node_id": "rescue_words_in_context:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "5eac1bc83d94f6cd36722a11ed4b7a9987104aa2e8a455c9b949d0788953de07",
+          "node_id": "rescue_words_in_context:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a6ff1e5a66b611ca94066a1a597b595d3b609a0ec10c041faea3e19204ad4874",
+          "node_id": "rescue_words_in_context:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "c95568f6b503d9147aa29811885d6e5c37ca150020321734cd0753f03a094647",
+          "node_id": "rescue_words_in_context:transfer:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4b1340ff2a2e527a71f1218223301b78ae1095972f13d0826e76d5d8ab1c02ad",
+          "node_id": "rescue_words_in_context:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.2",
+      "base_content_version": "2026-07-15.2",
+      "base_manifest_sha256": "ca62aa998cca607d35a5812c58694184701b9323e5b383ba2a4ddb32cddd0c21",
+      "certification_version": "2026-07-15.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch02",
+      "content_version": "2026-07-15.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "9f88d12ec6fcfff8556a5f41d4dab0514c93359f08284ceb9e85e801cbabc39c",
+          "node_id": "clear_pronouns_and_traits:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.2",
+      "base_content_version": "2026-07-15.2",
+      "base_manifest_sha256": "5274608bcd229501888bc8b80942c2024bf59d24183fb02fb99c4ff122d822b0",
+      "certification_version": "2026-07-15.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch03",
+      "content_version": "2026-07-15.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "7cf200072a7f0a716262044a69b7de51825e7d7111f6a40d94687779560aa95d",
+          "node_id": "eng_c3_ch04:assessment:12",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "99dede8d9b41524b515e59e063c98b142900b8cd35ea9d9ad8b2bc43e18fe845",
+          "node_id": "eng_c3_ch04:assessment:26",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "74c9ff481d322e0862e946692b7c06b5dcc499bb9cac5ac6877e28e4d24889c2",
+          "node_id": "outdoor_words_in_context:guided:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a1e0ae469e72250112892577f21d3de053e788ef940d33f9fe1b0b2401e894a6",
+          "node_id": "outdoor_words_in_context:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "2477f66f4d277a89688a1dd3d4a2011d69b5a8f0603ff08f33db9642c105026d",
+          "node_id": "outdoor_words_in_context:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "f46f1052b8dda92dd8d8f7dd2435329dcafbf39685085bc3bff1a5564738515e",
+          "node_id": "outdoor_words_in_context:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "c565c726a4c3e9e52ceb2dc28961d7ab3e1ce7b9073056feb2b434cee2ac3992",
+          "node_id": "outdoor_words_in_context:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "43272bb9ffc06a98fea03ec73e5a07fbb0df200c1023dd2292be1aa3978578a6",
+          "node_id": "outdoor_words_in_context:independent:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "2eeb179a36ae92cff7cb3fc68535e1bfaa5c9118bfc3eb64bd19ea748ee6e967",
+          "node_id": "outdoor_words_in_context:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "3fddd23160f6c63f66df04b9c9326d21e61d35c5ce4d70f7bda3e8ad0a4c90b5",
+          "node_id": "outdoor_words_in_context:masterclass:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "c3c603f818db97d98d1ed4797135fd199bdcf7653d9975576bac285516c0069e",
+          "node_id": "outdoor_words_in_context:review:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "3ab569090d9930f39e31e507d9f3e1bb2990a02218537b1f17ab6afa78ea2e74",
+          "node_id": "outdoor_words_in_context:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "aa1253950968e8af13fe32f17ce63b4257a27f3430007bb2ea14bd04546a96d5",
+          "node_id": "outdoor_words_in_context:revision_level_2:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "1cb3e1516f9177587ae16bf3e1db9d3c9836194de1342c68dc4a1e0769d36055",
+          "node_id": "outdoor_words_in_context:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4a864a1848c8ffc13c0315ce14b7cc0dcadf9c1b3da018e2487f69df550eded4",
+          "node_id": "outdoor_words_in_context:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "9f01d594d95b5a2c360d99d151f8d1d0c80caf9c7d96db0a177cff022c0b5b2b",
+          "node_id": "outdoor_words_in_context:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "06261a3d6b57f0927a3f24484553a4f912d90d67330375d8adfb77d090fb9719",
+          "node_id": "outdoor_words_in_context:transfer:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.2",
+      "base_content_version": "2026-07-15.2",
+      "base_manifest_sha256": "33b90b84c5823cd0bef4acb33c7614b9e1a55dc3e0eb5ebbd6f8068c2e90be5b",
+      "certification_version": "2026-07-15.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch04",
+      "content_version": "2026-07-15.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "34b093f8b339768b913f150abe8c178bc5de9ce1731dcbdd4ccf5b1b41792045",
+          "node_id": "describing_toys_in_context:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b21dad89da71df2417bfc591f7c86bd76fd697e975dcbb71e4aafd40d63152d5",
+          "node_id": "describing_toys_in_context:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "43335decea9ead3418f313e6bd520756afb15ccfed1980f89bfdb764eb35ae41",
+          "node_id": "describing_toys_in_context:independent:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "72c6370827c8a91df3febd70016a047fd3d580402e00ac62ded66675f07727c9",
+          "node_id": "describing_toys_in_context:independent:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "be63b8628cff414ee773ce68c113434ff747d819327a99948104583067beafff",
+          "node_id": "describing_toys_in_context:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "128a66ee50fae05677d74942fa99d99ddcdde63219c871289ca6d829b6dcd77d",
+          "node_id": "describing_toys_in_context:transfer:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "3bc1db7b8ae9f35f9a4606b0baa8ed7520becacd7e1ea574081c0aa499da9fac",
+          "node_id": "eng_c3_ch05:assessment:08",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "30f4da80ce13753c6308939c86bbbf4b45d73bea3a5f0fdbfcc3381253d04082",
+          "node_id": "eng_c3_ch05:assessment:22",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.2",
+      "base_content_version": "2026-07-15.2",
+      "base_manifest_sha256": "463a768fa03955b5254de5ad6fbb76be6f151f8a522b9330e92757f9f3764d25",
+      "certification_version": "2026-07-15.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch05",
+      "content_version": "2026-07-15.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "c35c1fc14f5a5bd248313d72050c29055a96bfa4d916d5935ec1910bda48311b",
+          "node_id": "eng_c3_ch06:assessment:10",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b6b7f5b17f9b6b8c7904811ca4b059d1c7e0685f9d9ca4e2b1e1693d0a9a2e93",
+          "node_id": "eng_c3_ch06:assessment:24",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "90d4a30675dabfe7a9d298a7d301faf72296578fd98a0b7af20e3719a011dd47",
+          "node_id": "water_play_words:guided:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "ed405c28cc04523bd6ec82a9b5a090a505391807ffd3cde28398c98fc915c4ca",
+          "node_id": "water_play_words:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4a7ccd629d15391e5b03015da4d49d0a8607f5a4c65171b0713f4b5f2bc3956e",
+          "node_id": "water_play_words:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "d109847cf2170ed43754c56a9fe57db23052139d36755abebd9661f932f1b250",
+          "node_id": "water_play_words:masterclass:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "1050a402df6530209550c5226cbee356a36a83c361352a0133ba0fb682ad3632",
+          "node_id": "water_play_words:review:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "f8126c35f19229a628f1b8088e005e16ede8c0d525119fd3072fcdb1c2b9a0c1",
+          "node_id": "water_play_words:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "df22bbada955660a8ddc6ecbcb4d17ff019a1afe7e11af21aae75ff4ee0f20aa",
+          "node_id": "water_play_words:revision_level_2:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "cb969ae8332babeff56c76b5af3e43fdbc611d49b241b8b2bd24959b4a8c0aef",
+          "node_id": "water_play_words:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "095e70eba4b2b5844ded7896996e2b6c536e294e93df87feba6189927154cb06",
+          "node_id": "water_play_words:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a67988b33bd1fa9f4c77ab89a85699d78593ba66f2467fcc2094c4bb662e17f4",
+          "node_id": "water_play_words:transfer:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.2",
+      "base_content_version": "2026-07-15.2",
+      "base_manifest_sha256": "37d1d98f8f61b6576dafb9c4f8936d059941dbcbe662251ad4c4666795e08ed5",
+      "certification_version": "2026-07-15.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch06",
+      "content_version": "2026-07-15.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "413fc71ec00654bfc9fcd632b5d3c14fdb9f7cb8996650768e16fb39cd06c82f",
+          "node_id": "eng_c3_ch07:assessment:08",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-deep-class3-v1",
+      "base_content_version": "2026-07-15.deep-v1",
+      "base_manifest_sha256": "8dcd4138e906b67a34d637e6fc988e6e6fcd12386e9dc48c033e4e97c1ec1ed6",
+      "certification_version": "school-deep-class3-v1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch07",
+      "content_version": "2026-07-15.deep-v1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "9f8807824ddfa39ddbd723e753f81cc8da11e09723b873d0f1661dfdc6e10b38",
+          "node_id": "eng_c3_ch10:night_context_words:independent_1:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "5f3e24f70c0a0e3edf5a8bce28336be3e939d55470e87339d8bc736c97d583e2",
+          "node_id": "eng_c3_ch10:night_context_words:transfer_4:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-deep-class3-v1",
+      "base_content_version": "2026-07-15.deep-v1",
+      "base_manifest_sha256": "b42dfdf6fd845974a92a3f3ccc5e2c2d6618a59b4b66ece851c7bb4ff908053f",
+      "certification_version": "school-deep-class3-v1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch10",
+      "content_version": "2026-07-15.deep-v1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "6b7eac8031af5d0070c44876f7d218b7203237ac579751901ba6f83f5b4b0454",
+          "node_id": "eng_c3_ch12:mission_words_nouns:review_4:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "school-deep-class3-v1",
+      "base_content_version": "2026-07-15.deep-v1",
+      "base_manifest_sha256": "a5418dba7de6d161992d8d19c311402cf82d8123b30ea6872d5e308f4142ff9a",
+      "certification_version": "school-deep-class3-v1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c3_ch12",
+      "content_version": "2026-07-15.deep-v1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "3c614974a1597b1aa72a2c99326ac1fca75d61b4fdac715857dc05e4fa56193b",
+          "node_id": "eng_c4_ch01:together_words_in_context:bridge:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "d2770df39ab04f90c7480f230bfdfcfebfa3b70f3aa15ebcfacc83a40836eb61",
+          "node_id": "eng_c4_ch01:together_words_in_context:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "1d1cce37d1d6d88963d56336c7af187d07aa02cddd72610d52e16a428f12226c",
+          "node_id": "eng_c4_ch01:together_words_in_context:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "c6b6061b3d162adfacfc78013300a99161658690c9f5f532a3a20cab67cfd12e",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch01",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "e267344dc5db01ed945c564233733f573e7274a2d56b15cbdbd113e6532ad097",
+          "node_id": "eng_c4_ch02:assessment-a-core:assessment:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "d03de29187d3ab923bb4fec828cca6b9949b9a309f20de28774e748064608f19",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch02",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "3a3cca70f027b24a7e3a2236e9525c11219f8c5a969d3b951248dee6785c7be8",
+          "node_id": "eng_c4_ch03:safety_nouns_and_terms:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "488b19dd56a950b2dbd290f82cf9af0c72dc2768f50c32a6363cf782a664503d",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch03",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "8050d58e8ec71e319501b2cb42974d71786daf100e936bba1b95d538cd670cc4",
+          "node_id": "eng_c4_ch04:focus_words_in_context:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a60591de320fca375bd99920fdc76e1ed6beed199e00ef03deab1b938c1ac8c5",
+          "node_id": "eng_c4_ch04:focus_words_in_context:revision_level_2:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a253883fccdd9495998dfad6f3c35e925760bbb4d0b89cfa8c7f231325d31732",
+          "node_id": "eng_c4_ch04:focus_words_in_context:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "2791434b7400791e030ccdaa90fe96005adededa9f678f2ba4bd5d2cad479e3c",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch04",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "7319f4b2c48adfcd45df8244bdcd932f8fbbf3d6d6fc30ec98e53835dff88dbe",
+          "node_id": "eng_c4_ch05:stag_words_and_description:review:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "9d84243ce10c0fa9ef3e9aa144d3d5ef089595b81930173d1c9150aa8cc25481",
+          "node_id": "eng_c4_ch05:stag_words_and_description:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "6598b42398af69d4ce086d351a7db84f156121dae207bc40675e98cef7d4b9d1",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch05",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "b1d5ae68c5efa30a603d457f3502068501857bef173c7183c21e618d193a27b0",
+          "node_id": "eng_c4_ch06:braille_access_vocabulary:review:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "a6c58dbdf1b777a3a4d886669f0d35c593046765d9e51cecb167b1dd2918efd2",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch06",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "229e7ca4cc0bb02628e25307bce53ba5fc6bd09280297dd90020c76886801bed",
+          "node_id": "fit_context_vocabulary:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "e00b8466dbdc6a28275f8c3a7275e9be5279cf5363fff486c1e0a5095b6e41f7",
+          "node_id": "fit_context_vocabulary:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "0b4078272114b0d2901893341dca89970dcbbb80922f00499a9b3dbb83d2e655",
+          "node_id": "fit_double_letter_spelling:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "a8fe58a326cfc7b98d1a5822faaecba9422d177d6210874d767497a9b21e260b",
+          "node_id": "fit_double_letter_spelling:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "fec952a5a8288213cb5a7289f6db6f9ff4ac5559f3bbdfda589c8c1b434a4bf9",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch07",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifests rebuilt ch07-ch12; the focused Class 4 deep-content suite passed 138 content and semantic checks before review metadata was applied.",
+        "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "50b2228db97a755d05d4a4f408b1487065e9ba7296a16c450636ad61b7fb8a2b",
+          "node_id": "lagori_context_vocabulary:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "e7955e2b57e36e7231315148899988df6dfea0ec2a6e5985b262f71945ce18be",
+          "node_id": "lagori_context_vocabulary:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "73911ad4904b17050b5d03dcff6473b38594df187f3eab5d132893b3b34e93d8",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch08",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifests rebuilt ch07-ch12; the focused Class 4 deep-content suite passed 138 content and semantic checks before review metadata was applied.",
+        "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "a88a3f1886ab7ab5cd45ef8cd1ff81cc10564a61aed34e522ff1b5d16dac5e82",
+          "node_id": "hekko_role_vocabulary:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "0bad56c24c828a7fa76f35b00f49893aa1c95ae4e1fcb1cc49108b2ed28cfbd3",
+          "node_id": "hekko_role_vocabulary:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "6f3ede5a8e134acf0dddd74343d3e6d1f7d6fccbf9c4f6742df2d4919899804e",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch09",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifests rebuilt ch07-ch12; the focused Class 4 deep-content suite passed 138 content and semantic checks before review metadata was applied.",
+        "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "03df585a94cabd6e9f212ea6b2380b96ea80084c3251b902c7a3489f46ab876d",
+          "node_id": "mountain_context_vocabulary:guided:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "ed34b8d1a7eee70be1ccf251e5e7dd7735e900196fc1cab41ede9d5535404c65",
+          "node_id": "mountain_context_vocabulary:guided:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "def208ecdfaaf232e776204a6d8b373c801e37442d0e9252865604d500b2a70e",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c4_ch11",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifests rebuilt ch07-ch12; the focused Class 4 deep-content suite passed 138 content and semantic checks before review metadata was applied.",
+        "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "42b35697f383dd5d8d63d50091a956ee49ea4966231ef4a92badd0733314fbe3",
+          "node_id": "scooter_context_vocabulary:independent:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b2727c4bd830255a0ea9abd2e29059d668765b1b44a8e50bbb535d097cb7a156",
+          "node_id": "scooter_context_vocabulary:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "4b8ff927514fd36ef2478062c828346517323e9462d2a5b29b55b86edde87d3d",
+          "node_id": "scooter_context_vocabulary:review:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "0e1bbb13f28d048c31212a2c299a1fde274d189f5a0e4b79183f5eecc81d5118",
+          "node_id": "scooter_context_vocabulary:revision_level_3:5",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b6ccecbfba1e44d50dee143c4cf98bdcab6c908254b3992421442500662c7e67",
+          "node_id": "scooter_event_sequence:review:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "b692f503bbc2a25e4fdd55f831f0ce0fdffbf2cac53a67dffd04e020e49a7327",
+          "node_id": "scooter_summary_and_profile:guided:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "30d879f44a61a86c36a5d950279b14162faddf248cd0364b9d52299f73e849bb",
+          "node_id": "scooter_summary_and_profile:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.4",
+      "base_content_version": "2026-07-15.4",
+      "base_manifest_sha256": "1aae71da75387e5169a44bb3b293b74b195e13eb593b00d81d302167b03de384",
+      "certification_version": "2026-07-15.4.semantic-evidence-v2",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch02",
+      "content_version": "2026-07-15.4.semantic-evidence-v2",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Focused semantic and Chapter 2 contract regressions",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
+      ],
+      "runtime_activity_overrides": [
+        {
+          "fingerprint": "f8f20bb69e6fc70da56260e0ce80c9504b69851dade79b8a2789f113c597d617",
+          "runtime_path": "/levels/0/teaching_steps/4/variant_pool/0",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You tracked the object from the cause of its movement to its final location.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "92bff2aacd33cb4886e00dbdedc5bf6a1a86a02469098806f12010165dc45b2c",
+          "runtime_path": "/levels/0/teaching_steps/4/variant_pool/1",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You linked each event so the object's route had a clear cause and outcome.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "201c2ee9d1c88a791dd7d152b26de22cb097b43ad9b4805727dcac2d07fbace0",
+          "runtime_path": "/levels/0/teaching_steps/4/variant_pool/2",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You kept the route focused on the object's beginning, movement, and ending.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "02eb3a26213c927ca0f922e18054ed170b2f3e17493ebcbae94e8cccacb2afc6",
+          "runtime_path": "/levels/0/teaching_steps/4/variant_pool/3",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You explained the object's route from where it began to where it ended.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "dca71f2a22a35dca3f2e210fca9a1d59a98d48d16114d38909ad5bfa32dfb3a0",
+          "runtime_path": "/levels/0/teaching_steps/5/variant_pool/0",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You put the route in order and named the central event.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "7b84587576d21f225ccdc4f969fbbba5f9cf28607c52bf098721bd1a9a774805",
+          "runtime_path": "/levels/0/teaching_steps/5/variant_pool/1",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You summarized the route clearly without losing the important movement.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "6d682b65efff52d50aa4ebe59abdef47ec9a7e59b64b978c0416fb1d378d831f",
+          "runtime_path": "/levels/0/teaching_steps/5/variant_pool/2",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You explained each movement and connected it to the overall journey.",
+          "target_misconception_tags": null
+        },
+        {
+          "fingerprint": "b6ccecbfba1e44d50dee143c4cf98bdcab6c908254b3992421442500662c7e67",
+          "runtime_path": "/levels/0/teaching_steps/5/variant_pool/3",
+          "semantic_evidence_policy": null,
+          "success_feedback": "You separated the cause, movement, and outcome before stating the central event.",
+          "target_misconception_tags": null
+        }
+      ]
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "ed34fc4525d114307049ea84eefb3510f839c5876c906c6c189dd47047f7815a",
+          "node_id": "rainbow_sound_and_contrast:review:2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.5",
+      "base_content_version": "2026-07-15.5",
+      "base_manifest_sha256": "b4b4eae13377562067af6e4f69a4d22334ad80e7914999012d09cc71ef0e01f9",
+      "certification_version": "2026-07-15.5.semantic-alias-v3",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch03",
+      "content_version": "2026-07-15.5.semantic-alias-v3",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Chapter-scoped semantic audit split multi-part prompts into independent rubric and concept slots with matching learner guidance.",
+        "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch03.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit.",
+        "Semantic browser false-negative regressions: the bridge connection criterion accepts the authored equivalent phrase 'connects the reeds with the old fort', and the ribbon review accepts a complete nonliteral image explanation without weakening any required claim."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "b20e643c932a3fa8df3c5aff9ba618a2240a4c58ca03d103e8221b2d599c6208",
+          "node_id": "eng_c5_ch04_assess_b07",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "d6e15d0b3afb3307c1d11b6a349e2365c25c731434285c289c0cd94201136cb1",
+          "node_id": "eng_c5_ch04_assess_b12",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "7588b8638ca9e5cce654b8c5865009126c63e0a217a5a9a9ce8ae564f66405f3",
+          "node_id": "wise_parrot_bird_sanctuary:transfer:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "aaa0173c15682e02b3b290952a5438668e45c80ce536681d8099ba01e262bcaa",
+          "node_id": "wise_parrot_bird_sanctuary:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "dda01e863d3c158d9dcd57cb653e718cb3b85a4d159c16cac2518e42ef112888",
+          "node_id": "wise_parrot_collective_nouns:transfer:4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "55de6f834c33cc813f9790f63ffba0e7b16e11c8d2b3109873f4238a07ca5097",
+          "node_id": "wise_parrot_words_phrases:independent:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "ff4693c491db1f4cbe9d670703b1d322b463c56d785e3cccb9901fbc767edf28",
+          "node_id": "wise_parrot_words_phrases:review:3",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-15.5",
+      "base_content_version": "2026-07-15.5",
+      "base_manifest_sha256": "baf3be1652fa25131b1c4f9d12a1c29601cd1d8e2992da03b3848b4694e3ae5f",
+      "certification_version": "2026-07-15.5",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch04",
+      "content_version": "2026-07-15.5",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Runtime compiler and test_school_rebuild_class5_ch03_ch05_semantic_quality.py passed for eng_c5_ch04.",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "0430ffdcbf4e8d015be3cea60c66a032dc06e609605130d6099bb86d9b004f71",
+          "node_id": "eng_c5_ch06-assessment-tank-design-inference-5",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.2",
+      "base_content_version": "2026-07-16.2",
+      "base_manifest_sha256": "9aa430b04b39fd87c0ee14ec77b3fc029e64819afb7ea21361db2cf2ddb6ea86",
+      "certification_version": "2026-07-16.2.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch06",
+      "content_version": "2026-07-16.2.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "dcecde19a2fe81053bbb0d3ecda73d7f2691c3cb4f5daf0f2fb89560fd5b70d7",
+          "node_id": "gilli-prefix-formation:revision_level_3:1",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "745c95ee66c27a06c3e585541f17277b8533049b8ffae8d02ecb7a502f2802c1",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch07",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
+      ],
+      "runtime_activity_overrides": []
+    },
+    {
+      "activity_overrides": [
+        {
+          "fingerprint": "63f5c0fa9745f8b27c338e753cd9e96e18d33958422bed8279035d880d8d77d4",
+          "node_id": "eng_c5_ch08-assessment-panchayat-fairness-reasoning-4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "c741e685f408159a88f36c575fe675a6837c93d46a0cecbe65b55d48832f1944",
+          "node_id": "eng_c5_ch08-assessment-panchayat-sequence-summary-4",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "2f4e0b9e9a9aa0ce280d2a8fbb5949f8f1dfe2dc254904a09bf6f4d1b4d5dfda",
+          "node_id": "panchayat-first-person-letter-review-2",
+          "semantic_evidence_policy": "traceable_rubric"
+        },
+        {
+          "fingerprint": "ffb6e7643b6898fbab65bb45380ae38e1a7fa841e6ca030e1d0d2b60e56024ab",
+          "node_id": "panchayat-language-relations-transfer-2",
+          "semantic_evidence_policy": "traceable_rubric"
+        }
+      ],
+      "base_certification_version": "2026-07-16.1",
+      "base_content_version": "2026-07-16.1",
+      "base_manifest_sha256": "623ca017a45fe8cac3e63a052966d86856014d73edb419b0dbad3490ea85f1fc",
+      "certification_version": "2026-07-16.1.semantic-evidence-v1",
+      "change_id": "semantic-evidence-corpus-review-2026-07-21",
+      "chapter_id": "eng_c5_ch08",
+      "content_version": "2026-07-16.1.semantic-evidence-v1",
+      "fingerprint_schema_version": "school-manifest-activity-v3",
+      "review_evidence": [
+        "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
+        "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
+      ],
+      "runtime_activity_overrides": []
+    }
+  ],
+  "schema_version": "school-manifest-reconciliation-v1"
+}

@@ -15,7 +15,10 @@ Model routing (architecture-v3 §59 routing table):
   summary    -> Groq 70B
 """
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+import logging
+import time
 
 from app.ai.clients import get_gemini_client, get_groq_client
 from app.ai.local import ollama_complete, ollama_stream, ollama_structured
@@ -57,7 +60,7 @@ from app.services.rubrics import get_rubric
 
 GROQ_70B = "llama-3.3-70b-versatile"
 GROQ_8B = "llama-3.1-8b-instant"
-GEMINI_FLASH = "gemini-2.5-flash-lite"
+GEMINI_FLASH = "gemini-3.1-flash-lite"
 
 
 def _local() -> bool:
@@ -103,6 +106,25 @@ _MAX_PREP_STRUCTURAL_REPAIR_CALLS = 2
 
 
 from app.middleware.rate_limit import llm_semaphore
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def _career_llm_slot(operation: str):
+    """Keep existing concurrency semantics while exposing queue time safely."""
+
+    started_at = time.perf_counter()
+    async with llm_semaphore:
+        logger.info(
+            "ai_queue_acquired %s",
+            {
+                "operation": operation,
+                "lane": "career_request",
+                "wait_ms": round((time.perf_counter() - started_at) * 1000),
+            },
+        )
+        yield
 
 
 def _expected_criterion_ids(packet) -> list[str]:
@@ -284,7 +306,7 @@ async def evaluate_answer(
         behavior=behavior,
         career_context=career_context,
     )
-    async with llm_semaphore:
+    async with _career_llm_slot("diagnosis"):
         if _local():
             return await ollama_structured(prompt, DiagnosisEval)
         return await structured_generate("diagnosis", prompt, DiagnosisEval)
@@ -305,7 +327,7 @@ async def evaluate_prep_answer(
     rubric = get_rubric(node.id)
     packet = build_evaluation_packet(packet_state, node, user_input, rubric)
     prompt = build_prep_eval_prompt(packet.model_dump(), career_context=career_context)
-    async with llm_semaphore:
+    async with _career_llm_slot("prep_evaluation"):
         first = await _call_prep_structured(prompt)
         invalid_ids = _structurally_invalid_criterion_ids(packet, first)
         if invalid_ids:
@@ -355,7 +377,7 @@ async def evaluate_prep_answer(
 async def evaluate_placement(module_title: str, writing_sample: str) -> PlacementEval:
     """Structured CEFR estimate from an onboarding writing sample."""
     prompt = build_placement_prompt(module_title, writing_sample)
-    async with llm_semaphore:
+    async with _career_llm_slot("career_placement"):
         if _local():
             return await ollama_structured(prompt, PlacementEval)
         return await structured_generate("career_placement", prompt, PlacementEval)
@@ -380,7 +402,7 @@ async def evaluate_simulation(
         career_context=career_context,
         task_type=task_type,
     )
-    async with llm_semaphore:
+    async with _career_llm_slot("simulation_report"):
         if _local():
             return await ollama_structured(prompt, SimulationReport)
         return await structured_generate("simulation_report", prompt, SimulationReport)
@@ -411,7 +433,7 @@ async def direct_simulation(
         scenario_config=scenario_config,
         career_context=career_context,
     )
-    async with llm_semaphore:
+    async with _career_llm_slot("simulation_director"):
         if _local():
             return await ollama_structured(prompt, DirectorDecision)
         return await structured_generate("simulation_director", prompt, DirectorDecision)
@@ -433,7 +455,7 @@ async def evaluate_assessment_turn(
         learner_turn=learner_turn,
         turn_context=turn_context,
     )
-    async with llm_semaphore:
+    async with _career_llm_slot("assessment_turn"):
         if _local():
             return await ollama_structured(prompt, AssessmentTurnCall)
         return await structured_generate("assessment_turn", prompt, AssessmentTurnCall)
@@ -449,7 +471,7 @@ async def select_next_content(
     single-candidate fast path synthesizes its decision without touching the
     model. The caller validates/backstops the returned decision."""
     prompt = build_selector_prompt(snapshot, candidates)
-    async with llm_semaphore:
+    async with _career_llm_slot("content_selection"):
         if _local():
             return await ollama_structured(prompt, SelectionDecision)
         return await structured_generate("content_selection", prompt, SelectionDecision)
@@ -466,7 +488,7 @@ async def generate_game_item(
     Structured call — same pattern as evaluate_answer. Returns FillBlankGame;
     teach_node stores it as pending_game in state (no pending/stream GenSpec)."""
     prompt = build_teach_game_prompt(node, diagnosis, coach, career_context=career_context)
-    async with llm_semaphore:
+    async with _career_llm_slot("fill_blank_game"):
         if _local():
             return await ollama_structured(prompt, FillBlankGame)
         return await structured_generate("fill_blank_game", prompt, FillBlankGame)
@@ -474,7 +496,7 @@ async def generate_game_item(
 
 async def stream_generation(spec: GenSpec) -> AsyncIterator[str]:
     """Stream a pedagogy generation token-by-token from the chosen provider."""
-    async with llm_semaphore:
+    async with _career_llm_slot(spec.kind):
         if _local():
             async for chunk in ollama_stream(spec.prompt):
                 yield chunk
@@ -515,7 +537,7 @@ async def _stream_gemini(model: str, prompt: str) -> AsyncIterator[str]:
 async def summarize_session(node: Concept, messages: list[dict]) -> str:
     """Writes the <=200-token memory summary at session end."""
     prompt = build_summary_prompt(node, messages)
-    async with llm_semaphore:
+    async with _career_llm_slot("summary"):
         if _local():
             return await ollama_complete(prompt)
         return await get_ai_provider().complete(

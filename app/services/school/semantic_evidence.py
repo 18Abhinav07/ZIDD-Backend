@@ -51,7 +51,6 @@ _NAMED_RELATION_WORDS = frozenset(
     }
 )
 
-
 def authored_evidence_can_prove_criterion(
     description: str,
     evidence: str,
@@ -91,7 +90,13 @@ def authored_evidence_can_prove_criterion(
         or ("from" in evidence_words and "to" in evidence_words)
         or re.search(r"[.!?;:]\s+[^\W\d_]", evidence, flags=re.UNICODE)
     )
-    return explicit_join and len(content_words) >= 4
+    paired_place_relation = bool(
+        "connection" in description_words
+        and "between" in description_words
+        and {"place", "places"}.intersection(description_words)
+        and "with" in evidence_words
+    )
+    return (explicit_join or paired_place_relation) and len(content_words) >= 4
 
 
 def correct_semantic_criterion(

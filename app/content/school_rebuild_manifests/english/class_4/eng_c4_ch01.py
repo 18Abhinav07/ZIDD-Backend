@@ -544,6 +544,7 @@ def _semantic_aliases(phrases: list[str]) -> list[str]:
 def evidence(
     description: str,
     *acceptable_phrases: Any,
+    as_single_claim: bool = False,
 ) -> dict[str, Any]:
     if not acceptable_phrases:
         raise ValueError("class4_semantic_evidence_requires_phrases")
@@ -551,6 +552,7 @@ def evidence(
         return {
             "description": description,
             "phrases": list(acceptable_phrases),
+            "as_single_claim": as_single_claim,
         }
     if all(
         isinstance(group, (list, tuple))
@@ -663,6 +665,15 @@ def _close_requirements_against_model(
                 )
             continue
         phrases = requirement["phrases"]
+        if requirement.get("as_single_claim"):
+            # This author-declared claim can be demonstrated through any of
+            # its anchored paraphrases. It must stay one rubric criterion;
+            # otherwise the tutor turns a fluent explanation into keyword
+            # counting.
+            expanded_requirements.append(
+                (description, _aliases_for_phrases(model_answer, phrases))
+            )
+            continue
         split_required = len(phrases) > 1 and all(
             _phrase_in_model(model_answer, phrase) for phrase in phrases
         )
@@ -1521,8 +1532,20 @@ LEVELS = [
                 "One plank cannot cross the stream, but many fitted planks become a bridge for the whole village.",
                 "Interpret the bridge image and state the poem-like message.",
                 "The fitted planks represent people combining different contributions, and together they create a useful path that none could make alone.",
-                E("Interprets the planks as different contributions.", "planks represent people", "different contributions"),
-                E("States what the combined effort achieves.", "create a useful path", "none could make alone"),
+                E(
+                    "Interprets the planks as different contributions.",
+                    "planks represent people",
+                    "different contributions",
+                    "people can do difficult work together",
+                    as_single_claim=True,
+                ),
+                E(
+                    "States what the combined effort achieves.",
+                    "create a useful path",
+                    "none could make alone",
+                    "teamwork helps a whole village cross problems",
+                    as_single_claim=True,
+                ),
             ),
             O(
                 "garden-watering",
@@ -1553,8 +1576,21 @@ LEVELS = [
                 "Many short ribbons are tied in a line. Together they steady a kite that had twisted wildly above the field.",
                 "How does the ribbon image support a message about unity?",
                 "Each ribbon is small, but the connected line steadies the kite, showing that united efforts can restore balance.",
-                E("Explains the difference between each ribbon and the connected line.", "each ribbon is small", "connected line steadies the kite"),
-                E("States the message about united effort.", "united efforts can restore balance", "unity creates balance"),
+                E(
+                    "Explains how separate ribbons become a steady connected line.",
+                    "each ribbon is small",
+                    "connected line steadies the kite",
+                    "ribbons are separate but together they keep the kite steady",
+                    as_single_claim=True,
+                ),
+                E(
+                    "States the message about united effort.",
+                    "united efforts can restore balance",
+                    "unity creates balance",
+                    "people can join their different strengths to solve a problem as one team",
+                    "working together helps make the kite steady",
+                    as_single_claim=True,
+                ),
             ),
             O(
                 "library-chain",
@@ -1690,8 +1726,22 @@ LEVELS = [
                 "The team of cooks collaborated on lunch: one prepared vegetables, another measured spices, and a third watched the stove. Team is a collective noun.",
                 "Explain collaborated and show why team is the collective noun for the cooks.",
                 "Collaborated means worked on connected parts of one task. Team is a collective noun because it names all the cooks as one working group.",
-                E("Uses the roles to infer connected teamwork.", "worked on connected parts", "one task"),
-                E("Explains the collective noun from the same setting.", "team is a collective noun", "all the cooks as one working group"),
+                E(
+                    "Uses the roles to infer collaborative work toward one shared outcome.",
+                    "worked on connected parts of one task",
+                    "worked together by doing different jobs for lunch",
+                    "different jobs for the same lunch",
+                    "cooks worked together on the lunch",
+                    as_single_claim=True,
+                ),
+                E(
+                    "Explains team as a collective noun for all cooks together.",
+                    "team is a collective noun because it names all the cooks as one working group",
+                    "team is a collective noun because it names all the cooks as one group",
+                    "team names all the cooks as one group",
+                    "team names the cooks together",
+                    as_single_claim=True,
+                ),
             ),
             O(
                 "garden-support",

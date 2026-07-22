@@ -4,13 +4,14 @@
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "73ed0b577c3f92ced1662cfeb527633083d4d44466414d9e5831b653450a43ba",
+  "runtime_sha256": "f5dff6414824198420259952efe6b137e776584ecd32e73f24b8a6477f1fd979",
   "chapter_id": "eng_c4_ch06",
   "chapter_no": 6,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Braille",
   "book_title": "Santoor",
   "unit_title": "My Beautiful World",
@@ -9524,7 +9525,8 @@
                 "finds",
                 "brings"
               ],
-              "model_answer": "Retrieves means finds and brings back stored information or an object for use. A clear shelf code helps a reader retrieve the correct book."
+              "model_answer": "Retrieves means finds and brings back stored information or an object for use. A clear shelf code helps a reader retrieve the correct book.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         }
@@ -13859,13 +13861,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c4_ch06:braille_access_procedure:transfer:3:requirement-1",
-                  "description": "Explains this required idea: one approved number sample is made with the corner guide before many copies.",
+                  "description": "Explains this required idea: make one approved number sample with the corner guide before making many copies.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch06:braille_access_procedure:transfer:3:requirement-2",
-                  "description": "Explains this required idea: three-reader identification and correction happen before sample approval.",
+                  "description": "Explains this required idea: ask all three readers to find and identify it, correct any spacing problem, and approve the sample.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -13873,22 +13875,21 @@
               "concept_slots": [
                 {
                   "id": "eng_c4_ch06:braille_access_procedure:transfer:3:requirement-1",
-                  "description": "Explains this required idea: one approved number sample is made with the corner guide before many copies.",
+                  "description": "Explains this required idea: make one approved number sample with the corner guide before making many copies.",
                   "any_of": [
-                    "one approved number sample is made with the corner guide before many copies",
-                    "a single approved number sample is made with the corner guide before many copies",
-                    "guide before many copies",
-                    "approve the sample before making twenty copies"
+                    "make one approved number sample with the corner guide before making many copies",
+                    "make a single approved number sample with the corner guide before making many copies",
+                    "before making many copies"
                   ]
                 },
                 {
                   "id": "eng_c4_ch06:braille_access_procedure:transfer:3:requirement-2",
-                  "description": "Explains this required idea: three-reader identification and correction happen before sample approval.",
+                  "description": "Explains this required idea: ask all three readers to find and identify it, correct any spacing problem, and approve the sample.",
                   "any_of": [
-                    "three reader identification and correction happen before sample approval",
-                    "3 reader identification and correction happen before sample approval",
-                    "happen before sample approval",
-                    "three readers to find and identify it. Correct"
+                    "ask all three readers to find and identify it correct any spacing problem and approve the sample",
+                    "ask all 3 readers to find and identify it correct any spacing problem and approve the sample",
+                    "spacing problem approve sample",
+                    "ask all three readers to find and identify it, correct any spacing problem, and approve the sample"
                   ]
                 }
               ],
@@ -13918,20 +13919,20 @@
                 "braille_access_procedure:core-misconception"
               ],
               "relevance_terms": [
-                "one approved number sample is made with the corner guide before many copies",
-                "a single approved number sample is made with the corner guide before many copies",
-                "guide before many copies",
-                "approve the sample before making twenty copies",
-                "three reader identification and correction happen before sample approval",
-                "3 reader identification and correction happen before sample approval",
-                "happen before sample approval",
-                "three readers to find and identify it. correct",
-                "emboss",
+                "make one approved number sample with the corner guide before making many copies",
+                "make a single approved number sample with the corner guide before making many copies",
+                "before making many copies",
+                "ask all three readers to find and identify it correct any spacing problem and approve the sample",
+                "ask all 3 readers to find and identify it correct any spacing problem and approve the sample",
+                "spacing problem approve sample",
+                "ask all three readers to find and identify it, correct any spacing problem, and approve the sample",
                 "approved",
                 "number",
-                "corner"
+                "sample",
+                "corner",
+                "guide"
               ],
-              "model_answer": "First emboss the approved number on one card using the corner guide. Next ask all three readers to find and identify it. Correct any spacing problem and approve the sample before making twenty copies."
+              "model_answer": "First make one approved number sample with the corner guide before making many copies. Next ask all three readers to find and identify it, correct any spacing problem, and approve the sample."
             },
             {
               "teaching_block": "Braille, Build a clear accessibility procedure: A useful procedure begins with preparation, gives actions in working order, and ends with a check that confirms the result for the intended user. For the pantry tactile labels transfer, Use the visible passage to practise order instructions and write a usable procedure with checks; include both details.",
@@ -19613,6 +19614,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

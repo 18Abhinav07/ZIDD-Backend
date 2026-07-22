@@ -4,13 +4,14 @@
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "3f31f07a7777f6a517832d702225e4d95b14cf3c61f1f717d68fea4b476c894e",
+  "runtime_sha256": "838246b4dc64bec129f2a2dc7b4a25cb3aeb26efcb9ef1ca218b2d08684cb732",
   "chapter_id": "eng_c4_ch04",
   "chapter_no": 4,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "One Thing at a Time",
   "book_title": "Santoor",
   "unit_title": "My Beautiful World",
@@ -2690,7 +2691,8 @@
             "pause",
             "refresh"
           ],
-          "model_answer": "Brief means lasting a short time; a brief pause can refresh a tired learner."
+          "model_answer": "Brief means lasting a short time; a brief pause can refresh a tired learner.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_3": {
           "teaching_block": "Worked reasoning: Planning and checking prove intention; speed is not stated. Check your answer: Box the behaviour clue and outcome clue, paraphrase the meaning between them, and require both clues to reappear in a different form in the new sentence. Next step: connect the meaning to the visible preparation.",
@@ -4182,7 +4184,8 @@
                 "important",
                 "prioritize"
               ],
-              "model_answer": "Prioritizes means chooses the most urgent or important task first. I prioritize finishing tomorrow's science notes before decorating the cover."
+              "model_answer": "Prioritizes means chooses the most urgent or important task first. I prioritize finishing tomorrow's science notes before decorating the cover.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -4476,7 +4479,8 @@
                 "period",
                 "water"
               ],
-              "model_answer": "Sustain means keep something going for a period of time. A water break helps me sustain careful badminton practice through the whole session."
+              "model_answer": "Sustain means keep something going for a period of time. A water break helps me sustain careful badminton practice through the whole session.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "One Thing at a Time, Use focus vocabulary accurately: Use the nearby behaviour and outcome to infer meaning, then preserve that relationship when using the word in a new context. For the methodical seed count review, Use the visible passage to practise infer word meaning and transfer target words to new contexts; include both details.",
@@ -7377,13 +7381,13 @@
           "rubric_criteria": [
             {
               "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-1",
-              "description": "Places worksheet completion before music practice. Required detail 1: worksheet before practising.",
+              "description": "Places worksheet completion before music practice. Required detail 1: completes.",
               "required": true,
               "min_quality": 0.7
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-2",
-              "description": "Places worksheet completion before music practice. Required detail 2: completes.",
+              "description": "Places worksheet completion before music practice. Required detail 2: worksheet before practising.",
               "required": true,
               "min_quality": 0.7
             },
@@ -7403,18 +7407,18 @@
           "concept_slots": [
             {
               "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-1",
-              "description": "Places worksheet completion before music practice. Required detail 1: worksheet before practising.",
+              "description": "Places worksheet completion before music practice. Required detail 1: completes.",
               "any_of": [
-                "worksheet before practising",
-                "worksheet prior to practising"
+                "completes",
+                "finishes"
               ]
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-2",
-              "description": "Places worksheet completion before music practice. Required detail 2: completes.",
+              "description": "Places worksheet completion before music practice. Required detail 2: worksheet before practising.",
               "any_of": [
-                "completes",
-                "finishes"
+                "worksheet before practising",
+                "worksheet prior to practising"
               ]
             },
             {
@@ -7460,10 +7464,10 @@
             "writing.summary_own_words"
           ],
           "relevance_terms": [
-            "worksheet before practising",
-            "worksheet prior to practising",
             "completes",
             "finishes",
+            "worksheet before practising",
+            "worksheet prior to practising",
             "pauses for water",
             "pauses for drinking water",
             "pauses water",
@@ -7508,13 +7512,13 @@
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-4",
-              "description": "Connects the order to avoiding a rush. Required detail 1: without last-minute rushing.",
+              "description": "Connects the order to avoiding a rush. Required detail 1: leaves on time.",
               "required": true,
               "min_quality": 0.7
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-5",
-              "description": "Connects the order to avoiding a rush. Required detail 2: leaves on time.",
+              "description": "Connects the order to avoiding a rush. Required detail 2: without last-minute rushing.",
               "required": true,
               "min_quality": 0.7
             }
@@ -7546,19 +7550,19 @@
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-4",
-              "description": "Connects the order to avoiding a rush. Required detail 1: without last-minute rushing.",
+              "description": "Connects the order to avoiding a rush. Required detail 1: leaves on time.",
               "any_of": [
-                "without last minute rushing",
-                "without final minute rushing",
-                "without last-minute rushing"
+                "leaves on time",
+                "leaves time"
               ]
             },
             {
               "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-5",
-              "description": "Connects the order to avoiding a rush. Required detail 2: leaves on time.",
+              "description": "Connects the order to avoiding a rush. Required detail 2: without last-minute rushing.",
               "any_of": [
-                "leaves on time",
-                "leaves time"
+                "without last minute rushing",
+                "without final minute rushing",
+                "without last-minute rushing"
               ]
             }
           ],
@@ -7593,11 +7597,11 @@
             "prior to breakfast",
             "checks her materials",
             "verifies her materials",
+            "leaves on time",
+            "leaves time",
             "without last minute rushing",
             "without final minute rushing",
             "without last-minute rushing",
-            "leaves on time",
-            "leaves time",
             "leena"
           ],
           "model_answer": "Leena reviews one focused card before breakfast, then checks her materials and leaves on time, so preparation happens without last-minute rushing."
@@ -8024,13 +8028,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-1",
-                  "description": "Places worksheet completion before music practice. Required detail 1: worksheet before practising.",
+                  "description": "Places worksheet completion before music practice. Required detail 1: completes.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-2",
-                  "description": "Places worksheet completion before music practice. Required detail 2: completes.",
+                  "description": "Places worksheet completion before music practice. Required detail 2: worksheet before practising.",
                   "required": true,
                   "min_quality": 0.7
                 },
@@ -8050,18 +8054,18 @@
               "concept_slots": [
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-1",
-                  "description": "Places worksheet completion before music practice. Required detail 1: worksheet before practising.",
+                  "description": "Places worksheet completion before music practice. Required detail 1: completes.",
                   "any_of": [
-                    "worksheet before practising",
-                    "worksheet prior to practising"
+                    "completes",
+                    "finishes"
                   ]
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:independent:1:requirement-2",
-                  "description": "Places worksheet completion before music practice. Required detail 2: completes.",
+                  "description": "Places worksheet completion before music practice. Required detail 2: worksheet before practising.",
                   "any_of": [
-                    "completes",
-                    "finishes"
+                    "worksheet before practising",
+                    "worksheet prior to practising"
                   ]
                 },
                 {
@@ -8110,10 +8114,10 @@
                 "focus_routine_sequence:core-misconception"
               ],
               "relevance_terms": [
-                "worksheet before practising",
-                "worksheet prior to practising",
                 "completes",
                 "finishes",
+                "worksheet before practising",
+                "worksheet prior to practising",
                 "pauses for water",
                 "pauses for drinking water",
                 "pauses water",
@@ -8490,13 +8494,13 @@
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-4",
-                  "description": "Connects the order to avoiding a rush. Required detail 1: without last-minute rushing.",
+                  "description": "Connects the order to avoiding a rush. Required detail 1: leaves on time.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-5",
-                  "description": "Connects the order to avoiding a rush. Required detail 2: leaves on time.",
+                  "description": "Connects the order to avoiding a rush. Required detail 2: without last-minute rushing.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -8528,19 +8532,19 @@
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-4",
-                  "description": "Connects the order to avoiding a rush. Required detail 1: without last-minute rushing.",
+                  "description": "Connects the order to avoiding a rush. Required detail 1: leaves on time.",
                   "any_of": [
-                    "without last minute rushing",
-                    "without final minute rushing",
-                    "without last-minute rushing"
+                    "leaves on time",
+                    "leaves time"
                   ]
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:transfer:1:requirement-5",
-                  "description": "Connects the order to avoiding a rush. Required detail 2: leaves on time.",
+                  "description": "Connects the order to avoiding a rush. Required detail 2: without last-minute rushing.",
                   "any_of": [
-                    "leaves on time",
-                    "leaves time"
+                    "without last minute rushing",
+                    "without final minute rushing",
+                    "without last-minute rushing"
                   ]
                 }
               ],
@@ -8578,11 +8582,11 @@
                 "prior to breakfast",
                 "checks her materials",
                 "verifies her materials",
+                "leaves on time",
+                "leaves time",
                 "without last minute rushing",
                 "without final minute rushing",
                 "without last-minute rushing",
-                "leaves on time",
-                "leaves time",
                 "leena"
               ],
               "model_answer": "Leena reviews one focused card before breakfast, then checks her materials and leaves on time, so preparation happens without last-minute rushing."
@@ -8955,13 +8959,13 @@
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:review:1:requirement-5",
-                  "description": "States that each stage prepares the next before Friday. Required detail 1: each stage prepares the next.",
+                  "description": "States that each stage prepares the next before Friday. Required detail 1: presenting Friday.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:review:1:requirement-6",
-                  "description": "States that each stage prepares the next before Friday. Required detail 2: presenting Friday.",
+                  "description": "States that each stage prepares the next before Friday. Required detail 2: each stage prepares the next.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -9001,19 +9005,19 @@
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:review:1:requirement-5",
-                  "description": "States that each stage prepares the next before Friday. Required detail 1: each stage prepares the next.",
+                  "description": "States that each stage prepares the next before Friday. Required detail 1: presenting Friday.",
                   "any_of": [
-                    "each stage prepares the next",
-                    "every stage prepares the next",
-                    "each stage prepares next"
+                    "presenting Friday",
+                    "presenting on Friday"
                   ]
                 },
                 {
                   "id": "eng_c4_ch04:focus_routine_sequence:review:1:requirement-6",
-                  "description": "States that each stage prepares the next before Friday. Required detail 2: presenting Friday.",
+                  "description": "States that each stage prepares the next before Friday. Required detail 2: each stage prepares the next.",
                   "any_of": [
-                    "presenting Friday",
-                    "presenting on Friday"
+                    "each stage prepares the next",
+                    "every stage prepares the next",
+                    "each stage prepares next"
                   ]
                 }
               ],
@@ -9054,11 +9058,11 @@
                 "the idea of drafting",
                 "revision",
                 "the idea of revision",
+                "presenting friday",
+                "presenting on friday",
                 "each stage prepares the next",
                 "every stage prepares the next",
                 "each stage prepares next",
-                "presenting friday",
-                "presenting on friday",
                 "moves",
                 "topic",
                 "choice",
@@ -18790,6 +18794,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

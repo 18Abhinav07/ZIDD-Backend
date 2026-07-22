@@ -60,6 +60,11 @@ DEFAULT_MIGRATIONS = [
     ROOT / "app/db/migrations/2026-07-16-retire-legacy-school-shared-sessions.sql",
     ROOT / "app/db/migrations/2026-07-17-memory-embedding-provenance.sql",
     ROOT / "app/db/migrations/2026-07-18-school-evaluation-jobs.sql",
+    ROOT / "app/db/migrations/2026-07-18-school-evaluation-jobs-fk-repair.sql",
+    ROOT / "app/db/migrations/2026-07-19-school-evaluation-job-retry-schedule.sql",
+    ROOT / "app/db/migrations/2026-07-19-school-evaluation-job-request-metadata.sql",
+    ROOT / "app/db/migrations/2026-07-20-unified-credit-wallet.sql",
+    ROOT / "app/db/migrations/2026-07-20-school-placement-watchlist-deviation.sql",
 ]
 
 SCHOOL_ADDITIVE_RECONCILIATION_MIGRATION = (

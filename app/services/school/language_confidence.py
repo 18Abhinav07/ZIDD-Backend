@@ -103,6 +103,36 @@ def apply_curriculum_language_signal(
     )
 
 
+def curriculum_language_evaluation(
+    activity: dict,
+    evaluation: dict,
+) -> dict | None:
+    """Return real English-production evidence, never tutor-supplied choices.
+
+    Curriculum correctness and English production are separate signals. A
+    learner can demonstrate comprehension through a selected option, but the
+    option's wording belongs to the authored tutor rather than the learner.
+    Language confidence therefore accepts only unscaffolded, certifying text
+    responses in the English subject; readiness remains independent of this
+    preference signal.
+    """
+
+    if not bool(evaluation.get("scored", True)):
+        return None
+    if str(activity.get("evidence_role") or "") != "certifying":
+        return None
+    if str(activity.get("certifying_language") or "").casefold() not in _ENGLISH_LANGUAGE_CODES:
+        return None
+    if str(activity.get("interaction_type") or "") not in {
+        "short_text",
+        "paragraph_text",
+    }:
+        return None
+    if activity.get("options"):
+        return None
+    return evaluation
+
+
 async def persist_language_confidence(store, state: LanguageConfidenceState) -> None:
     await store.upsert_school_language_confidence(
         user_id=state.user_id,
@@ -131,6 +161,7 @@ __all__ = [
     "LanguageConfidenceState",
     "apply_curriculum_language_signal",
     "apply_language_signal",
+    "curriculum_language_evaluation",
     "load_language_confidence",
     "persist_language_confidence",
 ]

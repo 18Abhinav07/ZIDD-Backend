@@ -4281,7 +4281,7 @@ MANIFEST = json.loads(r'''{
             "18 to 22 August",
             "repairs begin sooner"
           ],
-          "model_answer": "SPOT A LEAK? REPORT IT. Class 5 learners can write the location on the leak card and submit it at the office desk from 18 to 22 August. Quick reporting helps repairs begin sooner.",
+          "model_answer": "REPORT LEAKS WITH A LEAK CARD. Class 5 learners can write the location on the leak card and submit it at the office desk from 18 to 22 August. Quick reporting helps repairs begin sooner.",
           "pass_score": 0.8,
           "ordered_concept_slot_ids": [
             "action",
@@ -7486,6 +7486,23 @@ def _repair_open_authority() -> None:
 
 
 _ATOMIC_REQUIREMENT_REPAIRS = {
+    "tank-inquiry-procedure-independent-1": [
+        (
+            "steps",
+            "Orders verification and repair tracking.",
+            "First list each classroom once, then verify whether it has a drip, a loose handle, or both",
+        ),
+        (
+            "result",
+            "States the intended accurate outcome.",
+            "Next group repairs by fault and record completion",
+        ),
+        (
+            "selection",
+            "Uses the overlap fact correctly.",
+            "classroom with both problems must not be counted as two separate rooms",
+        ),
+    ],
     "tank-purpose-sequence-transfer-2": [
         (
             "main_idea",

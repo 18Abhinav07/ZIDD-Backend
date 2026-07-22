@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 from pathlib import Path
 
 import pytest
@@ -95,6 +96,19 @@ def _step(phase: str) -> dict:
             ),
         ],
     }
+
+
+def _prompt_values(value: object) -> list[str]:
+    if isinstance(value, dict):
+        prompts = [str(value["prompt"]) for key in ("prompt",) if key in value]
+        return prompts + [
+            prompt
+            for nested in value.values()
+            for prompt in _prompt_values(nested)
+        ]
+    if isinstance(value, list):
+        return [prompt for nested in value for prompt in _prompt_values(nested)]
+    return []
 
 
 def _state() -> dict:
@@ -208,7 +222,8 @@ def test_wrong_v2_answer_routes_to_support_then_fresh_authored_variant():
     assert support["support_mode"] == "bridge"
     assert state["feedback_v2"]["retry_policy"] == "bridge_then_fresh_variant"
     assert state["feedback_v2"]["criterion_gap"]
-    assert "distractor-guided_practice-a" in state["feedback_v2"]["response_excerpt"]
+    assert state["feedback_v2"]["response_excerpt"] == ""
+    assert "distractor-guided_practice-a" not in repr(state["feedback_v2"])
 
     state, _ = _answer_current(state, "support-answer")
     retry = curriculum._current_activity(state)
@@ -219,7 +234,7 @@ def test_wrong_v2_answer_routes_to_support_then_fresh_authored_variant():
     assert state["hot_session_memory"]["active_support_count"] == 1
 
 
-def test_v2_feedback_uses_the_visible_prompt_instead_of_internal_rubric_ids():
+def test_v2_feedback_uses_public_task_guidance_without_prompt_echo():
     state = _advance_to_guided(_state())
     activity = curriculum._current_activity(state)
 
@@ -228,7 +243,8 @@ def test_v2_feedback_uses_the_visible_prompt_instead_of_internal_rubric_ids():
 
     assert "authored answer match" not in feedback["criterion_gap"].casefold()
     assert "required idea" not in feedback["criterion_gap"].casefold()
-    assert activity["prompt"] in feedback["criterion_gap"]
+    assert activity["prompt"] not in feedback["criterion_gap"]
+    assert "visible question" in feedback["criterion_gap"].casefold()
 
 
 def test_v2_feedback_names_a_safe_own_words_gap_without_leaking_an_answer():
@@ -268,21 +284,92 @@ def test_v2_feedback_names_a_safe_own_words_gap_without_leaking_an_answer():
     gap = feedback["criterion_gap"].casefold()
     assert "own words" in gap
     assert "copy" in gap
-    assert prompt.casefold() in gap
+    assert prompt.casefold() not in gap
+    assert "visible task" in gap
     assert "summary:guided:1:own_words" not in gap
 
 
-def test_v2_success_feedback_is_anchored_to_the_learners_saved_answer():
-    state = _advance_to_guided(_state())
+def test_v2_success_feedback_names_the_public_thinking_move_without_answer_text():
+    answer = "The drums, flutes, and claps make a warm welcome together."
+    feedback = curriculum._v2_feedback_action(
+        activity={
+            "prompt": "Explain how the sound image develops a message about a team.",
+            "grading_mode": "strict_open_rubric",
+        },
+        answer=answer,
+        evaluation={
+            "correct": True,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+        },
+        next_action="advance",
+        updated_state={"status": "active", "phase": "learning"},
+    )
 
-    state, _ = _answer_current(state, "answer-guided_practice-a")
-    feedback = state["feedback_v2"]
+    assert feedback["what_worked"] == (
+        "You connected the sound image to the teamwork message."
+    )
+    assert answer not in repr(feedback)
 
-    assert "answer-guided_practice-a" in feedback["what_worked"]
-    assert "required idea" not in feedback["what_worked"].casefold()
+
+def test_v2_success_feedback_names_main_idea_and_image_move():
+    answer = "The main idea is cooperation, and the image shows linked effort."
+    feedback = curriculum._v2_feedback_action(
+        activity={
+            "prompt": "Give the main idea and explain what the hand-to-hand image adds.",
+            "grading_mode": "strict_open_rubric",
+        },
+        answer=answer,
+        evaluation={
+            "correct": True,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+        },
+        next_action="advance",
+        updated_state={"status": "active", "phase": "learning"},
+    )
+
+    assert feedback["what_worked"] == (
+        "You stated the main idea and explained what the image adds."
+    )
+    assert answer not in repr(feedback)
 
 
-def test_v2_success_feedback_uses_validated_evidence_beyond_the_answer_prefix():
+def test_v2_success_feedback_prioritizes_inference_over_the_generic_sentence_word():
+    feedback = curriculum._v2_feedback_action(
+        activity={
+            "prompt": (
+                "Infer supported and explain why bunch is the collective noun "
+                "in the sentence."
+            ),
+            "grading_mode": "strict_open_rubric",
+        },
+        answer=(
+            "Supported means helped hold the plants upright. Bunch names the "
+            "stakes together."
+        ),
+        evaluation={
+            "correct": True,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+        },
+        next_action="advance",
+        updated_state={"status": "active", "phase": "learning"},
+    )
+
+    assert feedback["what_worked"] == (
+        "You explained the word from its context and showed why the group word fits."
+    )
+    assert "completed the sentence" not in feedback["what_worked"].casefold()
+
+
+def test_v2_success_feedback_uses_the_public_prompt_not_private_evidence():
     evidence = "the atlas clue proves where Ria searched"
     internal_focus = "support an inference with a visible clue"
     answer = ("A long opening sentence without the useful detail. " * 5) + evidence
@@ -311,9 +398,153 @@ def test_v2_success_feedback_uses_validated_evidence_beyond_the_answer_prefix():
         updated_state={"status": "active", "phase": "learning"},
     )
 
-    assert evidence in feedback["what_worked"]
+    assert feedback["what_worked"] == "You used a clue to support your answer."
+    assert evidence not in repr(feedback)
     assert internal_focus not in feedback["what_worked"]
     assert "private_criterion_id" not in repr(feedback)
+
+
+@pytest.mark.parametrize(
+    ("prompt", "expected"),
+    (
+        (
+            "Where should Leena look first? State the situation and use one passage detail to support your inference.",
+            "You used the visible action to decide where to look first.",
+        ),
+        (
+            "Explain the central situation and why it is humorous.",
+            "You explained the mismatch between what the character believes and what the reader can see.",
+        ),
+        (
+            "What can the reader infer is causing the dark stage? Use the visible clue.",
+            "You used the visible clue to make a careful inference.",
+        ),
+        (
+            "What does scanned mean here? Use scanned in a new sentence.",
+            "You worked out the word from its context and used it naturally in a new sentence.",
+        ),
+        (
+            "Infer peered and use the word in another setting.",
+            "You inferred the word's meaning from context and used it in a new setting.",
+        ),
+        (
+            "Explain glanced, contrast it with stared, and use glanced in a new sentence.",
+            "You compared the two meanings and used the word in a fresh sentence.",
+        ),
+        (
+            "What would you do first? Use because for your reason and but for what you would avoid.",
+            "You gave a clear next step, a reason, and a careful contrast.",
+        ),
+        (
+            "Which order runs from lightest to heaviest?",
+            "You ordered the items by the stated attribute.",
+        ),
+        (
+            "Arrange from the least to the greatest capacity.",
+            "You ordered the items by the stated attribute.",
+        ),
+        (
+            "Create a sentence with a new pair phrase and a location detail.",
+            "You used a new pair phrase and placed it clearly.",
+        ),
+    ),
+)
+def test_v2_success_feedback_names_the_public_reasoning_move(prompt, expected):
+    feedback = curriculum._v2_feedback_action(
+        activity={"prompt": prompt, "grading_mode": "strict_open_rubric"},
+        answer="A learner response that supports the requested reasoning.",
+        evaluation={
+            "correct": True,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+        },
+        next_action="advance",
+        updated_state={"status": "active", "phase": "learning"},
+    )
+
+    assert feedback["what_worked"] == expected
+
+
+@pytest.mark.parametrize(
+    ("skill_id", "expected"),
+    (
+        ("vocab.spelling", "You checked the letters and used the standard spelling."),
+        ("vocab.antonyms", "You chose an opposite that fits the sentence."),
+        (
+            "grammar.prepositions",
+            "You used a position word that fits the situation.",
+        ),
+        (
+            "grammar.sentence_order",
+            "You put the words in an order that makes a clear sentence.",
+        ),
+        (
+            "grammar.tense_usage",
+            "You matched the verb form to the time in the sentence.",
+        ),
+        (
+            "writing.summary_own_words",
+            "You retold the idea in your own words.",
+        ),
+        (
+            "vocab.attribute_ordering",
+            "You ordered the items by the stated attribute.",
+        ),
+    ),
+)
+def test_v2_success_feedback_uses_closed_skill_move_when_prompt_is_general(
+    skill_id,
+    expected,
+):
+    feedback = curriculum._v2_feedback_action(
+        activity={
+            "prompt": "Respond to this new practice example.",
+            "grading_mode": "strict_open_rubric",
+            "assessed_skill_ids": [skill_id],
+        },
+        answer="A learner response that stays private.",
+        evaluation={
+            "correct": True,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": [],
+            "misconception_tags": [],
+        },
+        next_action="advance",
+        updated_state={"status": "active", "phase": "learning"},
+    )
+
+    assert feedback["what_worked"] == expected
+
+
+def test_v2_corrective_feedback_uses_closed_spelling_coaching_without_key_leak():
+    feedback = curriculum._v2_feedback_action(
+        activity={
+            "prompt": "Rewrite the whole word using standard spelling.",
+            "grading_mode": "strict_open_rubric",
+            "assessed_skill_ids": ["vocab.spelling"],
+        },
+        answer="A learner response that stays private.",
+        evaluation={
+            "correct": False,
+            "scored": True,
+            "criteria": [],
+            "missing_criteria": ["spelling:letter_pattern"],
+            "misconception_tags": ["letter_order_error"],
+        },
+        next_action="bridge_then_fresh_variant",
+        updated_state={"status": "active", "phase": "learning"},
+    )
+
+    assert feedback["what_worked"] == "That spelling needs another careful look."
+    assert feedback["criterion_gap"] == (
+        "Compare each letter with the familiar word pattern before you write it again. "
+        "Re-read the visible task and include every requested part in your own words."
+    )
+    assert "private" not in repr(feedback).casefold()
+    assert "learner response" not in repr(feedback).casefold()
 
 
 @pytest.mark.parametrize("correct", (True, False))
@@ -340,8 +571,8 @@ def test_v2_feedback_does_not_duplicate_terminal_evidence_punctuation(correct):
         updated_state={"status": "active", "phase": "learning"},
     )
 
-    assert '.".' not in feedback["what_worked"]
-    assert feedback["what_worked"].endswith('."')
+    assert evidence not in repr(feedback)
+    assert not feedback["what_worked"].endswith('..')
 
 
 def test_v2_miss_feedback_never_copies_hidden_rubric_descriptions():
@@ -381,7 +612,8 @@ def test_v2_miss_feedback_never_copies_hidden_rubric_descriptions():
     assert "PRIVATE_RUBRIC_SENTINEL" not in serialized
     assert "MODEL_ANSWER_SENTINEL" not in serialized
     assert "ACCEPTED_ANSWER_SENTINEL" not in serialized
-    assert "Why did Ria return to the atlas?" in feedback["criterion_gap"]
+    assert "Why did Ria return to the atlas?" not in feedback["criterion_gap"]
+    assert "visible task" in feedback["criterion_gap"].casefold()
 
 
 def test_v2_supported_choice_feedback_corrects_without_revealing_the_answer():
@@ -408,7 +640,8 @@ def test_v2_supported_choice_feedback_corrects_without_revealing_the_answer():
 
     assert feedback["what_worked"] == "That choice does not fit the visible clue yet."
     assert "Eliminate each choice with a visible clue" in feedback["criterion_gap"]
-    assert "Which phrase names the matching unit naturally?" in feedback["criterion_gap"]
+    assert "Which phrase names the matching unit naturally?" not in feedback["criterion_gap"]
+    assert "visible question" in feedback["criterion_gap"].casefold()
     assert "a pair of gloves" not in repr(feedback)
 
 
@@ -749,6 +982,22 @@ def test_v2_experience_activity_without_assessed_skills_has_no_memory_note():
     assert "private old gap" not in activity["teaching_block"]
 
 
+def test_live_school_prompts_do_not_claim_unrendered_underlining():
+    chapter_root = (
+        Path(__file__).resolve().parents[2]
+        / "app/content/school_rebuild_chapters/english"
+    )
+    violations = {
+        str(path.relative_to(chapter_root)): [
+            prompt
+            for prompt in _prompt_values(json.loads(path.read_text(encoding="utf-8")))
+            if "underlined" in prompt.casefold()
+        ]
+        for path in sorted(chapter_root.rglob("*.json"))
+    }
+    assert {path: prompts for path, prompts in violations.items() if prompts} == {}
+
+
 def test_live_class5_chapter1_has_nine_compact_disjoint_teaching_cycles():
     path = (
         Path(__file__).resolve().parents[2]
@@ -814,6 +1063,52 @@ def test_live_class5_chapter1_has_nine_compact_disjoint_teaching_cycles():
         ]
         assert certifying
         assert all(activity.certifying_language == "en" for activity in certifying)
+
+
+def test_live_class5_chapter1_poem_to_story_planning_moves_stay_formative_until_written_work():
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "app/content/school_rebuild_chapters/english/class_5/eng_c5_ch01.json"
+    )
+    chapter = load_live_chapter_file(path)
+    level = next(
+        item
+        for item in chapter.levels
+        if item.level_id == "papas_spectacles_poem_to_story"
+    )
+    steps = {step.phase: step for step in level.teaching_steps or ()}
+    guided = {
+        activity.variant_id: activity
+        for activity in steps["guided_practice"].variant_pool or ()
+    }
+
+    assert "reading.event_sequence" not in level.skill_ids
+    assert steps["co_construct"].activity.knowledge_components == []
+    assert steps["co_construct"].activity.evidence_role == "formative"
+    assert steps["co_construct"].activity.success_feedback == (
+        "You protected the original event while planning the story."
+    )
+    assert guided["papas_spectacles_poem_to_story:guided:v1"].knowledge_components == []
+    assert guided["papas_spectacles_poem_to_story:guided:v1"].evidence_role == "formative"
+    assert guided["papas_spectacles_poem_to_story:guided:v1"].success_feedback == (
+        "You established the story scene from the supplied details."
+    )
+    assert guided["papas_spectacles_poem_to_story:guided:v2"].knowledge_components == []
+    assert guided["papas_spectacles_poem_to_story:guided:v2"].evidence_role == "formative"
+    assert guided["papas_spectacles_poem_to_story:guided:v2"].success_feedback == (
+        "You put the actions in an order a reader can follow."
+    )
+    assert guided["papas_spectacles_poem_to_story:guided:v3"].knowledge_components == [
+        "grammar.tense_usage"
+    ]
+    assert guided["papas_spectacles_poem_to_story:guided:v3"].success_feedback == (
+        "You kept one tense for the story events."
+    )
+    assert guided["papas_spectacles_poem_to_story:guided:v4"].knowledge_components == []
+    assert guided["papas_spectacles_poem_to_story:guided:v4"].evidence_role == "formative"
+    assert guided["papas_spectacles_poem_to_story:guided:v4"].success_feedback == (
+        "You included the result that gives the story a clear ending."
+    )
 
 
 def test_live_chapter2_own_words_rubric_is_visible_in_the_learner_prompt():
@@ -1099,6 +1394,19 @@ def _passing_answer(activity: dict) -> tuple[str, SchoolRubricEvaluation | None]
     if activity.get("options"):
         answer = str((activity.get("accepted_answers") or [])[0])
         return answer, None
+    if activity.get("grading_mode") == "ordered_slots":
+        slots_by_id = {
+            str(slot.get("id") or ""): slot
+            for slot in activity.get("concept_slots") or []
+        }
+        ordered_ids = list(activity.get("ordered_concept_slot_ids") or [])
+        ordered_answer = [
+            str((slots_by_id[slot_id].get("any_of") or [slot_id])[0])
+            for slot_id in ordered_ids
+            if slot_id in slots_by_id
+        ]
+        assert ordered_answer
+        return ", ".join(ordered_answer), None
     if (
         activity.get("evaluation_mode") != "llm_rubric"
         and activity.get("accepted_answers")

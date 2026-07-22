@@ -38,9 +38,13 @@ def _class_5_inference_items():
         for item in placement_tracks_for("english", 5)
         if item.track_id == "english.c5.inference"
     )
-    return (
-        track.snapshot_item,
-        *(item for band in track.bands for item in band.variants),
+    return tuple(
+        item
+        for item in (
+            track.snapshot_item,
+            *(item for band in track.bands for item in band.variants),
+        )
+        if item.evaluation_mode == "strict_rubric"
     )
 
 

@@ -63,10 +63,10 @@ LEVELS: list[dict[str, Any]] = [
                 (
                     "A small crow borrows a ribbon, struts beside the pond, and loses the ribbon in a gust. Later he guides two chicks safely to a branch.",
                     "Sequence the crow's actions and identify the action that shows a good quality.",
-                    "The crow borrows and loses the ribbon, then shows care by guiding two chicks safely to a branch.",
+                    "The crow borrows and loses the ribbon, then guides two chicks safely to a branch. This shows care.",
                     [
                         evidence("Keeps borrowing before losing.", "borrows", "loses the ribbon"),
-                        evidence("Names guiding chicks as the caring action.", "guiding two chicks", "shows care")
+                        evidence("Names guiding chicks as the caring action.", "guides two chicks", "shows care")
                     ],
                 ),
                 (
@@ -86,7 +86,7 @@ LEVELS: list[dict[str, Any]] = [
                 (
                     "A plain brown dog wears a sparkling collar for a show. The collar breaks, yet the dog finds a lost child by following footprints.",
                     "Transfer the action-result lesson and explain what truly earns praise.",
-                    "The collar breaks, but the dog's useful tracking action earns praise because it helps find the child.",
+                    "The collar breaks, then the dog's tracking action helps find the child and earns praise.",
                     [
                         evidence("Includes the broken decoration.", "collar breaks"),
                         evidence("Links praise to finding the child.", "tracking action", "find the child", "earns praise")
@@ -683,7 +683,7 @@ LAUNCH_DEPTH = {
                 (
                     "For the nature display, Diya finds a loose feather, checks that no bird is nearby, asks the park guide, and places it in a clear box after permission.",
                     "Sequence Diya's careful choices from finding to display.",
-                    "Diya finds the loose feather, checks for a bird, asks the guide, and displays it only after receiving permission.",
+                    "Diya finds the loose feather, checks for a bird, asks the guide, and after receiving permission, displays it.",
                     [
                         evidence("States the discovery.", "finds the loose feather", "Diya finds"),
                         evidence("States the bird check.", "checks for a bird", "no bird is nearby"),
@@ -711,7 +711,7 @@ LAUNCH_DEPTH = {
                     "Explain Omar's comparison, choice, and evidence.",
                     "Omar compares the heavy card with light paper and chooses the light wing because the fan can move it.",
                     [
-                        evidence("States the comparison.", "heavy card with light paper", "compares"),
+                        evidence("States the comparison.", "compares", "heavy card with light paper"),
                         evidence("States the choice.", "chooses the light wing", "light wing"),
                         evidence("Uses the movement evidence.", "because the fan can move it", "moves in the fan's breeze"),
                     ],

@@ -892,7 +892,7 @@ LAUNCH_DEPTH = {
                 (
                     "For a family-food inquiry, Ana asks her father for the dish name, watches her aunt shape the dough, and writes the ingredients after tasting with permission.",
                     "Sequence Ana's respectful inquiry from question to notes.",
-                    "Ana asks for the dish name, watches her aunt shape the dough, and writes the ingredients after receiving permission to taste.",
+                    "Ana asks for the dish name, watches her aunt shape the dough, and, after receiving permission to taste, writes the ingredients.",
                     [
                         evidence("States the first question.", "asks for the dish name", "asks her father"),
                         evidence("States the observation.", "watches her aunt shape the dough", "shape the dough"),

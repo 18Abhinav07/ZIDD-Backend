@@ -4,13 +4,14 @@
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "ec0439790783ef1e06b409f7dfffce800240dfea61f8a01a291abd35415594ab",
+  "runtime_sha256": "efeea585c34d1c7870edd9e37ce7730e68eef0dec7ea00bd80c523071bf45dec",
   "chapter_id": "eng_c4_ch05",
   "chapter_no": 5,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "The Old Stag",
   "book_title": "Santoor",
   "unit_title": "My Beautiful World",
@@ -6711,7 +6712,8 @@
                 "something",
                 "drinking-water"
               ],
-              "model_answer": "Replenish means fill or supply something again after part has been used. We replenish the drinking-water pot after the afternoon break."
+              "model_answer": "Replenish means fill or supply something again after part has been used. We replenish the drinking-water pot after the afternoon break.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -7120,7 +7122,8 @@
                 "avoid",
                 "waste"
               ],
-              "model_answer": "Conserves means uses a limited resource carefully to avoid waste. We conserve paper by using blank backs for rough notes."
+              "model_answer": "Conserves means uses a limited resource carefully to avoid waste. We conserve paper by using blank backs for rough notes.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         }
@@ -18530,6 +18533,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

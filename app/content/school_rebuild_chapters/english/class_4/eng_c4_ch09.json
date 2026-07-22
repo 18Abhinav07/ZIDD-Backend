@@ -5,13 +5,14 @@
     "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
     "Static learner-copy review found zero prompts over 30 words, focus-label leaks, known generator-padding phrases, malformed transition slots, repeated independent/transfer teaching blocks, or non-distinct support roles in ch07-ch12.",
     "scripts/audit_school_rebuild_content.py --class 4 reported school_rebuild_content_ok chapters=12 issues=0 on 2026-07-16.",
-    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only."
+    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "108f75ca606c1569ddba6caf0a243c1b7e45d56395bc96ad650e40f532a75411",
+  "runtime_sha256": "b190c6fe7ed6eaeace1052aa5ec8b408d8aeef4bd7c7a67992e23ed438537268",
   "chapter_id": "eng_c4_ch09",
   "chapter_no": 9,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "Hekko",
   "book_title": "Santoor",
   "unit_title": "Fun with Games",
@@ -829,7 +830,8 @@
                 "means",
                 "contesting"
               ],
-              "model_answer": "Surrender means stop contesting and yield, which Tara does after being surrounded."
+              "model_answer": "Surrender means stop contesting and yield, which Tara does after being surrounded.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "In the declared result story, a topic guess is not enough; the nearby action and result must fit the meaning. Follow one clue, then check the answer against the result.",
@@ -902,7 +904,8 @@
                 "means",
                 "announced"
               ],
-              "model_answer": "Declared means announced formally, and Nakul hears the official declare the result."
+              "model_answer": "Declared means announced formally, and Nakul hears the official declare the result.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -18021,6 +18024,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

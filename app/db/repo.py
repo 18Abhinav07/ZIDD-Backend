@@ -8,13 +8,21 @@ surface to callers instead of silently losing learner state.
 import asyncio
 import hashlib
 import json
+import math
 import time
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.billing.wallet import (
+    CreditLot,
+    allocate_spend,
+    recovery_credit_amount,
+    wallet_summary,
+)
 from app.content.skills import coerce_skill_id
 from app.db.cancellation import finish_cleanup
 
@@ -31,6 +39,15 @@ _SCHOOL_ANSWER_REQUEST_STALE_SECONDS = 120
 _SCHOOL_EVALUATION_JOB_LEASE_SECONDS = 120
 _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS = 10 * 60
 _SCHOOL_EVALUATION_JOB_DEFAULT_LEASE_OWNER = "school-evaluation-worker"
+_SCHOOL_EVALUATION_JOB_MAX_RETRY_DELAY_SECONDS = 15 * 60
+_PLACEMENT_RETRY_TIMING_FIELDS = frozenset(
+    {
+        "item_id",
+        "retry_pending",
+        "accrued_learner_seconds",
+        "presented_at",
+    }
+)
 _SCHOOL_ACTIVE_SESSION_STATUSES = {"active", "paused_for_masterclass"}
 _SCHOOL_TERMINAL_SESSION_STATUSES = {
     "complete",
@@ -50,6 +67,47 @@ def _validate_learning_domain_task(domain: str, task_type: str) -> None:
         raise ValueError("school_learning_task_domain_mismatch")
     if normalized_domain == "career" and is_school_task:
         raise ValueError("career_learning_task_domain_mismatch")
+
+
+def _validated_placement_retry_timing(
+    placement_retry_timing: dict | None,
+    *,
+    activity_id: str,
+) -> dict | None:
+    """Accept only the server-generated retry-timing patch shape."""
+    if placement_retry_timing is None:
+        return None
+    error = ValueError("invalid_school_evaluation_job_placement_retry_timing")
+    if (
+        not isinstance(placement_retry_timing, dict)
+        or set(placement_retry_timing) != _PLACEMENT_RETRY_TIMING_FIELDS
+    ):
+        raise error
+    item_id = placement_retry_timing.get("item_id")
+    presented_at = placement_retry_timing.get("presented_at")
+    accrued_learner_seconds = placement_retry_timing.get("accrued_learner_seconds")
+    if (
+        not isinstance(item_id, str)
+        or item_id != activity_id
+        or placement_retry_timing.get("retry_pending") is not True
+        or isinstance(accrued_learner_seconds, bool)
+        or not isinstance(accrued_learner_seconds, (int, float))
+        or not math.isfinite(float(accrued_learner_seconds))
+        or float(accrued_learner_seconds) < 0
+        or not isinstance(presented_at, str)
+        or not presented_at
+    ):
+        raise error
+    try:
+        datetime.fromisoformat(presented_at)
+    except ValueError as exc:
+        raise error from exc
+    return {
+        "item_id": item_id,
+        "retry_pending": True,
+        "accrued_learner_seconds": float(accrued_learner_seconds),
+        "presented_at": presented_at,
+    }
 
 # ---------- profiles ----------
 
@@ -125,6 +183,11 @@ async def resolve_google_login(
     email: str,
     name: str,
     welcome_credits: int,
+    *,
+    beta_credit_grant_enabled: bool = False,
+    beta_credit_grant_credits: int = 0,
+    beta_credit_grant_campaign_id: str = "",
+    beta_credit_grant_expires_at: datetime | None = None,
 ) -> dict:
     """Resolve/link/create a Google learner in one DB transaction.
 
@@ -133,6 +196,20 @@ async def resolve_google_login(
     transaction pooler that made first login painfully slow. Keep this path on
     one AsyncSession and one commit.
     """
+    if beta_credit_grant_enabled:
+        if beta_credit_grant_credits <= 0:
+            raise ValueError("beta_credit_grant_credits_must_be_positive")
+        if not beta_credit_grant_campaign_id.strip():
+            raise ValueError("beta_credit_grant_campaign_id_required")
+        if beta_credit_grant_expires_at is None:
+            raise ValueError("beta_credit_grant_expiry_required")
+        if (
+            beta_credit_grant_expires_at.tzinfo is None
+            or beta_credit_grant_expires_at.utcoffset() is None
+        ):
+            raise ValueError("beta_credit_grant_expiry_must_be_timezone_aware")
+        if beta_credit_grant_expires_at <= datetime.now(timezone.utc):
+            raise ValueError("beta_credit_grant_expiry_must_be_future")
     user_id = f"google:{google_sub}"
     try:
         result = await session.execute(
@@ -195,8 +272,18 @@ async def resolve_google_login(
             },
         )
         row = result.mappings().first()
-        await session.commit()
         if row:
+            if beta_credit_grant_enabled:
+                await _grant_credit_lot(
+                    session,
+                    user_id=str(row["user_id"]),
+                    amount=int(beta_credit_grant_credits),
+                    reason="beta_credit_grant",
+                    source="beta_grant",
+                    grant_key=f"beta:{beta_credit_grant_campaign_id}",
+                    expires_at=beta_credit_grant_expires_at,
+                )
+            await session.commit()
             return {
                 "user_id": row["user_id"],
                 "is_new_user": bool(row["is_new_user"]),
@@ -214,6 +301,17 @@ async def resolve_google_login(
     )
     if not profile:
         raise KeyError(f"could not resolve Google profile for {email}")
+    if beta_credit_grant_enabled:
+        await _grant_credit_lot(
+            session,
+            user_id=str(profile["user_id"]),
+            amount=int(beta_credit_grant_credits),
+            reason="beta_credit_grant",
+            source="beta_grant",
+            grant_key=f"beta:{beta_credit_grant_campaign_id}",
+            expires_at=beta_credit_grant_expires_at,
+        )
+        await session.commit()
     return {"user_id": profile["user_id"], "is_new_user": False}
 
 
@@ -499,11 +597,24 @@ async def get_school_state_snapshot(
                                     EXTRACT(EPOCH FROM (now() - a.updated_at))
                                 ),
                                 'stale', EXTRACT(EPOCH FROM (now() - a.updated_at))
-                                    >= :stale_seconds
+                                    >= :stale_seconds,
+                                'evaluation_job_status', job.status,
+                                'evaluation_job_within_deadline',
+                                    job.status IN ('queued', 'running')
+                                    AND job.created_at > now() - (
+                                        CAST(:evaluation_deadline_seconds AS integer)
+                                        * INTERVAL '1 second'
+                                    )
                             )
                             ORDER BY a.updated_at DESC
                         )
                         FROM school_answer_requests AS a
+                        LEFT JOIN school_evaluation_jobs AS job
+                          ON job.session_id = a.session_id
+                         AND job.activity_id = a.activity_id
+                         AND job.user_id = a.user_id
+                         AND job.answer_hash = a.answer_hash
+                         AND job.answer_claim_token = a.claim_token
                         WHERE a.user_id = :uid
                           AND a.session_id IN (
                               SELECT session_id FROM relevant_answer_sessions
@@ -525,6 +636,7 @@ async def get_school_state_snapshot(
         {
             "uid": user_id,
             "stale_seconds": _SCHOOL_ANSWER_REQUEST_STALE_SECONDS,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
         },
     )
     row = result.mappings().first()
@@ -1199,42 +1311,351 @@ async def activate_school_profile_draft(
         raise
 
 
-async def deduct_credit(
-    session: AsyncSession, user_id: str, amount: int, reason: str
-) -> bool:
-    """Spend `amount` credits. Returns True if allowed/charged.
-
-    Judge/demo bypass (architecture-v3 §621): demo_unlimited profiles are
-    NEVER charged and ALWAYS allowed — zero paywalls for XPRIZE judges.
-    """
-    profile = await get_profile(session, user_id)
-    if profile is None:
-        return False
-    if profile["demo_unlimited"]:
-        return True
-    # Atomic spend: the balance check and the decrement are a single guarded
-    # UPDATE (`credits >= :amt`). A Python-side read-then-write (TOCTOU) lets two
-    # concurrent spends both pass the check and both subtract — double-spend. The
-    # WHERE guard makes the row engine arbitrate: at most one wins, and
-    # rowcount == 0 means insufficient funds at write time.
+async def _lock_wallet_profile(session: AsyncSession, user_id: str) -> dict | None:
+    """Lock one learner's wallet before examining idempotency or lots."""
     result = await session.execute(
         text(
-            "UPDATE learner_profiles SET credits = credits - :amt "
-            "WHERE user_id = :uid AND credits >= :amt"
+            """
+            SELECT user_id, demo_unlimited
+            FROM learner_profiles
+            WHERE user_id = :uid
+            FOR UPDATE
+            """
         ),
-        {"amt": amount, "uid": user_id},
+        {"uid": user_id},
     )
-    if result.rowcount == 0:
+    row = result.mappings().first()
+    return dict(row) if row else None
+
+
+async def _ensure_legacy_credit_lot(session: AsyncSession, user_id: str) -> None:
+    """Make pre-lot balances spendable exactly once after the migration."""
+    await session.execute(
+        text(
+            """
+            INSERT INTO credit_lots (
+                user_id, source, grant_key, original_credits, remaining_credits
+            )
+            SELECT user_id, 'legacy_migrated', 'legacy_balance_v1', credits, credits
+            FROM learner_profiles
+            WHERE user_id = :uid
+              AND credits > 0
+              AND NOT EXISTS (SELECT 1 FROM credit_lots WHERE user_id = :uid)
+            ON CONFLICT (user_id, grant_key) DO NOTHING
+            """
+        ),
+        {"uid": user_id},
+    )
+
+
+async def _expire_wallet_lots(session: AsyncSession, user_id: str) -> None:
+    """Zero expired grants before every observable balance or debit."""
+    await session.execute(
+        text(
+            """
+            UPDATE credit_lots
+            SET remaining_credits = 0
+            WHERE user_id = :uid
+              AND remaining_credits > 0
+              AND expires_at IS NOT NULL
+              AND expires_at <= now()
+            """
+        ),
+        {"uid": user_id},
+    )
+
+
+async def _wallet_lots_for_update(
+    session: AsyncSession,
+    user_id: str,
+) -> list[CreditLot]:
+    result = await session.execute(
+        text(
+            """
+            SELECT id, source, remaining_credits, expires_at
+            FROM credit_lots
+            WHERE user_id = :uid
+              AND remaining_credits > 0
+              AND (expires_at IS NULL OR expires_at > now())
+            ORDER BY
+                CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END,
+                expires_at NULLS LAST,
+                id
+            FOR UPDATE
+            """
+        ),
+        {"uid": user_id},
+    )
+    return [
+        CreditLot(
+            lot_id=int(row["id"]),
+            source=str(row["source"]),
+            remaining_credits=int(row["remaining_credits"]),
+            expires_at=row["expires_at"],
+        )
+        for row in result.mappings().all()
+    ]
+
+
+async def _sync_cached_wallet_balance(session: AsyncSession, user_id: str) -> int:
+    result = await session.execute(
+        text(
+            """
+            UPDATE learner_profiles
+            SET credits = COALESCE(
+                (SELECT SUM(remaining_credits) FROM credit_lots WHERE user_id = :uid),
+                0
+            )
+            WHERE user_id = :uid
+            RETURNING credits
+            """
+        ),
+        {"uid": user_id},
+    )
+    row = result.mappings().first()
+    if row is None:
+        raise KeyError(user_id)
+    return int(row["credits"])
+
+
+async def _spend_wallet_credits(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    amount: int,
+    reason: str,
+    idempotency_key: str | None = None,
+) -> tuple[bool, bool]:
+    """Apply one wallet debit without committing.
+
+    Returns `(allowed, newly_charged)`. The profile row serializes all wallet
+    decisions for a learner. A single debit event may draw from several lots,
+    which `credit_lot_spends` records for a precise later refund.
+    """
+    if amount < 0:
+        raise ValueError("credit_amount_must_not_be_negative")
+    profile = await _lock_wallet_profile(session, user_id)
+    if profile is None:
+        return False, False
+    if bool(profile["demo_unlimited"]):
+        return True, False
+    if idempotency_key:
+        existing = await session.execute(
+            text(
+                """
+                SELECT delta, reason
+                FROM credit_transactions
+                WHERE user_id = :uid AND idempotency_key = :key
+                """
+            ),
+            {"uid": user_id, "key": idempotency_key},
+        )
+        row = existing.mappings().first()
+        if row is not None:
+            if int(row["delta"]) != -amount or str(row["reason"]) != reason:
+                raise ValueError("credit_idempotency_key_reused_with_different_payload")
+            return True, False
+    if amount == 0:
+        return True, False
+    await _ensure_legacy_credit_lot(session, user_id)
+    await _expire_wallet_lots(session, user_id)
+    lots = await _wallet_lots_for_update(session, user_id)
+    allocations = allocate_spend(
+        lots,
+        amount=amount,
+        now=datetime.now(timezone.utc),
+    )
+    if allocations is None:
+        await _sync_cached_wallet_balance(session, user_id)
+        return False, False
+    inserted = await session.execute(
+        text(
+            """
+            INSERT INTO credit_transactions (user_id, delta, reason, idempotency_key)
+            VALUES (:uid, :delta, :reason, :key)
+            RETURNING id
+            """
+        ),
+        {
+            "uid": user_id,
+            "delta": -amount,
+            "reason": reason,
+            "key": idempotency_key,
+        },
+    )
+    transaction_id = int(inserted.scalar_one())
+    for lot_id, debit in allocations:
+        updated = await session.execute(
+            text(
+                """
+                UPDATE credit_lots
+                SET remaining_credits = remaining_credits - :amount
+                WHERE id = :lot_id
+                  AND remaining_credits >= :amount
+                """
+            ),
+            {"lot_id": lot_id, "amount": debit},
+        )
+        if updated.rowcount != 1:
+            raise RuntimeError("credit_lot_balance_changed_during_locked_debit")
+        await session.execute(
+            text(
+                """
+                INSERT INTO credit_lot_spends (transaction_id, lot_id, amount)
+                VALUES (:transaction_id, :lot_id, :amount)
+                """
+            ),
+            {
+                "transaction_id": transaction_id,
+                "lot_id": lot_id,
+                "amount": debit,
+            },
+        )
+    await _sync_cached_wallet_balance(session, user_id)
+    return True, True
+
+
+async def _grant_credit_lot(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    amount: int,
+    reason: str,
+    source: str,
+    grant_key: str,
+    expires_at: datetime | None = None,
+) -> bool:
+    """Create one idempotent lot and matching grant ledger entry, no commit."""
+    if amount < 0:
+        raise ValueError("grant_amount_must_not_be_negative")
+    profile = await _lock_wallet_profile(session, user_id)
+    if profile is None:
+        raise KeyError(user_id)
+    await _ensure_legacy_credit_lot(session, user_id)
+    result = await session.execute(
+        text(
+            """
+            INSERT INTO credit_lots (
+                user_id, source, grant_key, original_credits, remaining_credits, expires_at
+            )
+            VALUES (:uid, :source, :grant_key, :amount, :amount, :expires_at)
+            ON CONFLICT (user_id, grant_key) DO NOTHING
+            RETURNING id
+            """
+        ),
+        {
+            "uid": user_id,
+            "source": source,
+            "grant_key": grant_key,
+            "amount": amount,
+            "expires_at": expires_at,
+        },
+    )
+    if result.scalar_one_or_none() is None:
         return False
     await session.execute(
         text(
-            "INSERT INTO credit_transactions (user_id, delta, reason) "
-            "VALUES (:uid, :delta, :reason)"
+            """
+            INSERT INTO credit_transactions (user_id, delta, reason, idempotency_key)
+            VALUES (:uid, :delta, :reason, :key)
+            """
         ),
-        {"uid": user_id, "delta": -amount, "reason": reason},
+        {
+            "uid": user_id,
+            "delta": amount,
+            "reason": reason,
+            "key": f"grant:{grant_key}",
+        },
     )
-    await session.commit()
+    await _sync_cached_wallet_balance(session, user_id)
     return True
+
+
+async def _restore_wallet_debit_allocations(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    transaction_id: int,
+    amount: int,
+) -> None:
+    """Restore a debit's original lots or issue recovery credit if they expired."""
+    allocations = await session.execute(
+        text(
+            """
+            SELECT lot_id, amount
+            FROM credit_lot_spends
+            WHERE transaction_id = :transaction_id
+            ORDER BY lot_id
+            FOR UPDATE
+            """
+        ),
+        {"transaction_id": transaction_id},
+    )
+    rows = list(allocations.mappings().all())
+    allocation_total = sum(int(row["amount"]) for row in rows)
+    restored_amount = 0
+    for row in rows:
+        debit = int(row["amount"])
+        updated = await session.execute(
+            text(
+                """
+                UPDATE credit_lots
+                SET remaining_credits = LEAST(
+                    original_credits,
+                    remaining_credits + :amount
+                )
+                WHERE id = :lot_id
+                  AND (expires_at IS NULL OR expires_at > now())
+                """
+            ),
+            {"lot_id": row["lot_id"], "amount": debit},
+        )
+        if updated.rowcount == 1:
+            restored_amount += debit
+    recovery_amount = recovery_credit_amount(
+        amount=amount,
+        allocation_total=allocation_total,
+        restored_amount=restored_amount,
+    )
+    if recovery_amount:
+        await session.execute(
+            text(
+                """
+                INSERT INTO credit_lots (
+                    user_id, source, grant_key, original_credits, remaining_credits
+                )
+                VALUES (:uid, 'promo', :grant_key, :amount, :amount)
+                ON CONFLICT (user_id, grant_key) DO NOTHING
+                """
+            ),
+            {
+                "uid": user_id,
+                "grant_key": f"refund:{transaction_id}",
+                "amount": recovery_amount,
+            },
+        )
+    await _sync_cached_wallet_balance(session, user_id)
+
+
+async def deduct_credit(
+    session: AsyncSession, user_id: str, amount: int, reason: str
+) -> bool:
+    """Spend from expiring lots first, preserving paid credit where possible."""
+    try:
+        allowed, _charged = await _spend_wallet_credits(
+            session,
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
+        )
+        if not allowed:
+            await session.rollback()
+            return False
+        await session.commit()
+        return True
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def deduct_credit_once(
@@ -1245,54 +1666,15 @@ async def deduct_credit_once(
     idempotency_key: str,
 ) -> bool:
     """Atomically debit one metered action at most once per user/key."""
-    profile = await get_profile(session, user_id)
-    if profile is None:
-        return False
-    if profile["demo_unlimited"]:
-        return True
     try:
-        inserted = await session.execute(
-            text(
-                """
-                INSERT INTO credit_transactions (user_id, delta, reason, idempotency_key)
-                VALUES (:uid, :delta, :reason, :key)
-                ON CONFLICT (user_id, idempotency_key)
-                    WHERE idempotency_key IS NOT NULL
-                DO NOTHING
-                RETURNING id
-                """
-            ),
-            {
-                "uid": user_id,
-                "delta": -amount,
-                "reason": reason,
-                "key": idempotency_key,
-            },
+        allowed, _charged = await _spend_wallet_credits(
+            session,
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
+            idempotency_key=idempotency_key,
         )
-        if inserted.first() is None:
-            existing = await session.execute(
-                text(
-                    """
-                    SELECT delta, reason
-                    FROM credit_transactions
-                    WHERE user_id = :uid AND idempotency_key = :key
-                    """
-                ),
-                {"uid": user_id, "key": idempotency_key},
-            )
-            row = existing.mappings().first()
-            await session.rollback()
-            if not row or int(row["delta"]) != -amount or str(row["reason"]) != reason:
-                raise ValueError("credit_idempotency_key_reused_with_different_payload")
-            return True
-        debited = await session.execute(
-            text(
-                "UPDATE learner_profiles SET credits = credits - :amt "
-                "WHERE user_id = :uid AND credits >= :amt"
-            ),
-            {"amt": amount, "uid": user_id},
-        )
-        if debited.rowcount == 0:
+        if not allowed:
             await session.rollback()
             return False
         await session.commit()
@@ -1311,6 +1693,10 @@ async def refund_idempotent_charge(
 ) -> bool:
     """Reverse one keyed debit, preserving a net-zero audit trail for retries."""
     try:
+        profile = await _lock_wallet_profile(session, user_id)
+        if profile is None:
+            await session.rollback()
+            return False
         released = await session.execute(
             text(
                 """
@@ -1324,12 +1710,15 @@ async def refund_idempotent_charge(
             ),
             {"uid": user_id, "key": idempotency_key, "delta": -amount},
         )
-        if released.first() is None:
+        transaction_id = released.scalar_one_or_none()
+        if transaction_id is None:
             await session.rollback()
             return False
-        await session.execute(
-            text("UPDATE learner_profiles SET credits = credits + :amt WHERE user_id = :uid"),
-            {"amt": amount, "uid": user_id},
+        await _restore_wallet_debit_allocations(
+            session,
+            user_id=user_id,
+            transaction_id=int(transaction_id),
+            amount=amount,
         )
         await session.execute(
             text(
@@ -1363,11 +1752,6 @@ async def charge_and_unlock(
     without charging, and the atomic balance guard (credits >= :amt) returns
     False on insufficient funds without a partial write.
     """
-    profile = await get_profile(session, user_id)
-    if profile is None:
-        return False, False
-    if profile["demo_unlimited"]:
-        return True, False
     try:
         # Insert the unlock FIRST and let ON CONFLICT arbitrate idempotency: an
         # already-owned (user, scope, ref) inserts 0 rows, so only a FRESH unlock
@@ -1386,31 +1770,20 @@ async def charge_and_unlock(
             {"u": user_id, "s": scope, "r": ref_id, "c": amount},
         )
         if unlock_result.rowcount == 0:
-            # Already owned: discard the no-op insert and do not charge again.
-            await session.rollback()
+            # Already owned: the unique unlock is the durable entitlement.
+            await session.commit()
             return True, False
-        # Fresh unlock — now debit. The balance check and decrement are one
-        # statement so concurrent spends cannot both pass. rowcount == 0 =>
-        # insufficient funds: roll back the unlock too.
-        result = await session.execute(
-            text(
-                "UPDATE learner_profiles SET credits = credits - :amt "
-                "WHERE user_id = :uid AND credits >= :amt"
-            ),
-            {"amt": amount, "uid": user_id},
+        allowed, charged = await _spend_wallet_credits(
+            session,
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
         )
-        if result.rowcount == 0:
+        if not allowed:
             await session.rollback()
             return False, False
-        await session.execute(
-            text(
-                "INSERT INTO credit_transactions (user_id, delta, reason) "
-                "VALUES (:uid, :delta, :reason)"
-            ),
-            {"uid": user_id, "delta": -amount, "reason": reason},
-        )
         await session.commit()
-        return True, True
+        return True, charged
     except Exception:
         # Any failure mid-transaction rolls back the whole unit: no debit, no
         # ledger row, no unlock.
@@ -2127,6 +2500,11 @@ async def compensate_claimed_attempt_charge(
             await session.rollback()
             return False
 
+        profile = await _lock_wallet_profile(session, user_id)
+        if profile is None:
+            await session.rollback()
+            return False
+
         released = await session.execute(
             text(
                 """
@@ -2146,15 +2524,15 @@ async def compensate_claimed_attempt_charge(
                 "debit_reason": debit_reason,
             },
         )
-        if released.first() is None:
+        transaction_id = released.scalar_one_or_none()
+        if transaction_id is None:
             raise RuntimeError("claimed_start_charge_missing")
-
-        credited = await session.execute(
-            text("UPDATE learner_profiles SET credits = credits + :amt WHERE user_id = :uid"),
-            {"amt": amount, "uid": user_id},
+        await _restore_wallet_debit_allocations(
+            session,
+            user_id=user_id,
+            transaction_id=int(transaction_id),
+            amount=amount,
         )
-        if credited.rowcount != 1:
-            raise RuntimeError("claimed_start_profile_missing")
         await session.execute(
             text(
                 """
@@ -4148,28 +4526,34 @@ async def upsert_school_session(
     profile_version_id: str | None = None,
     source_placement_report_id: str | None = None,
     _commit: bool = True,
+    _profile_lineage_locked: bool = False,
+    _locked_existing_session: dict | None = None,
 ) -> None:
     if api_version != "rebuild" and status in _SCHOOL_ACTIVE_SESSION_STATUSES:
         raise ValueError("archived_school_api_version")
     if api_version == "rebuild":
-        await _lock_school_profile_lineage(session, user_id)
-        existing_result = await session.execute(
-            text(
-                """
-                SELECT status,
-                       profile_version_id::text AS profile_version_id,
-                       source_placement_report_id::text AS source_placement_report_id
-                FROM school_sessions
-                WHERE session_id = CAST(:session_id AS uuid)
-                  AND user_id = :uid
-                LIMIT 1
-                FOR UPDATE
-                """
-            ),
-            {"session_id": session_id, "uid": user_id},
-        )
-        existing_row = existing_result.mappings().first()
-        existing = dict(existing_row) if existing_row else None
+        if not _profile_lineage_locked:
+            await _lock_school_profile_lineage(session, user_id)
+        if _locked_existing_session is None:
+            existing_result = await session.execute(
+                text(
+                    """
+                    SELECT status,
+                           profile_version_id::text AS profile_version_id,
+                           source_placement_report_id::text AS source_placement_report_id
+                    FROM school_sessions
+                    WHERE session_id = CAST(:session_id AS uuid)
+                      AND user_id = :uid
+                    LIMIT 1
+                    FOR UPDATE
+                    """
+                ),
+                {"session_id": session_id, "uid": user_id},
+            )
+            existing_row = existing_result.mappings().first()
+            existing = dict(existing_row) if existing_row else None
+        else:
+            existing = dict(_locked_existing_session)
         effective_profile_version_id = profile_version_id
         if existing:
             existing_profile_version_id = existing.get("profile_version_id")
@@ -4363,6 +4747,97 @@ async def get_or_create_school_session(
             return winner
         await session.rollback()
         raise ValueError("school_session_start_conflict") from exc
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def create_and_attach_school_masterclass(
+    session: AsyncSession,
+    *,
+    parent_session: dict,
+    expected_parent_state: dict,
+    child_session: dict,
+) -> dict | None:
+    """Atomically create one linked masterclass and attach it to its parent.
+
+    A paused curriculum session is the durable authority for a masterclass.
+    Creating the child in a separate transaction leaves a learner stranded if
+    the process stops before the parent receives the child ID, so both rows
+    are committed together under the existing user-lineage lock.
+    """
+
+    user_id = str(parent_session["user_id"])
+    parent_session_id = str(parent_session["session_id"])
+    child_session_id = str(child_session["session_id"])
+    if (
+        str(child_session.get("user_id") or "") != user_id
+        or str(child_session.get("linked_session_id") or "") != parent_session_id
+        or child_session.get("flow_type") != "masterclass"
+    ):
+        raise ValueError("invalid_masterclass_parent_link")
+    try:
+        await _lock_school_profile_lineage(session, user_id)
+        parent_result = await session.execute(
+            text(
+                """
+                SELECT state_json
+                FROM school_sessions
+                WHERE session_id = CAST(:session_id AS uuid)
+                  AND user_id = :uid
+                FOR UPDATE
+                """
+            ),
+            {"session_id": parent_session_id, "uid": user_id},
+        )
+        current_parent_state = parent_result.scalar_one_or_none()
+        if isinstance(current_parent_state, str):
+            current_parent_state = json.loads(current_parent_state)
+        if (
+            current_parent_state is None
+            or dict(current_parent_state) != dict(expected_parent_state)
+        ):
+            await session.rollback()
+            return None
+
+        existing_child = await get_active_school_session(
+            session,
+            user_id,
+            str(child_session["api_version"]),
+            "masterclass",
+            str(child_session["subject_id"]),
+            int(child_session["class_no"]),
+            profile_version_id=child_session.get("profile_version_id"),
+            source_placement_report_id=child_session.get(
+                "source_placement_report_id"
+            ),
+        )
+        if (
+            existing_child is not None
+            and str(existing_child.get("session_id") or "") != child_session_id
+        ):
+            await session.rollback()
+            return None
+
+        await upsert_school_session(session, **child_session, _commit=False)
+        await upsert_school_session(session, **parent_session, _commit=False)
+        child = await get_school_session(session, user_id, child_session_id)
+        if child is None:
+            raise RuntimeError("masterclass_session_create_failed")
+        await session.commit()
+        return child
+    except IntegrityError as exc:
+        constraint_name = getattr(getattr(exc, "orig", None), "constraint_name", None)
+        if constraint_name is None:
+            constraint_name = getattr(
+                getattr(getattr(exc, "orig", None), "diag", None),
+                "constraint_name",
+                None,
+            )
+        await session.rollback()
+        if constraint_name == "idx_school_sessions_one_active_flow":
+            return None
+        raise
     except Exception:
         await session.rollback()
         raise
@@ -4769,12 +5244,15 @@ async def persist_school_answer_attempt(
     request_activity_id: str | None = None,
     request_answer_hash: str | None = None,
     request_claim_token: str | None = None,
+    request_claim_if_absent: bool = False,
     response_json: dict | None = None,
     placement_report: dict | None = None,
     projection_evidence: dict | None = None,
     language_evaluation: dict | None = None,
     evaluation_job_completion: dict | None = None,
-) -> None:
+    placement_presentation_item_id: str | None = None,
+    placement_presentation_at: datetime | None = None,
+) -> dict:
     """Commit one canonical School answer transition and its evidence atomically."""
     try:
         user_id = str(school_session["user_id"])
@@ -4790,9 +5268,12 @@ async def persist_school_answer_attempt(
         if request_activity_id is not None:
             if (
                 request_answer_hash is None
-                or request_claim_token is None
                 or response_json is None
             ):
+                raise ValueError("invalid_school_answer_request_completion")
+            if request_claim_if_absent and request_claim_token is not None:
+                raise ValueError("invalid_school_answer_request_claim_mode")
+            if not request_claim_if_absent and request_claim_token is None:
                 raise ValueError("invalid_school_answer_request_completion")
             request_row = (
                 await session.execute(
@@ -4813,7 +5294,74 @@ async def persist_school_answer_attempt(
                     },
                 )
             ).mappings().first()
-            if (
+            if request_claim_if_absent:
+                if request_row is None:
+                    request_claim_token = str(uuid4())
+                    await session.execute(
+                        text(
+                            """
+                            INSERT INTO school_answer_requests
+                                (session_id, activity_id, user_id, answer_hash,
+                                 claim_token, status, response_json)
+                            VALUES
+                                (CAST(:session_id AS uuid), :activity_id, :uid,
+                                 :answer_hash, :claim_token, 'processing', NULL)
+                            """
+                        ),
+                        {
+                            "session_id": school_session["session_id"],
+                            "activity_id": request_activity_id,
+                            "uid": user_id,
+                            "answer_hash": request_answer_hash,
+                            "claim_token": request_claim_token,
+                        },
+                    )
+                else:
+                    existing_status = str(request_row["status"] or "")
+                    existing_hash = str(request_row["answer_hash"] or "")
+                    if existing_status == "completed":
+                        if existing_hash != request_answer_hash:
+                            raise ValueError("duplicate_evidence_conflict")
+                        replay = request_row["response_json"]
+                        if isinstance(replay, str):
+                            replay = json.loads(replay)
+                        await session.rollback()
+                        return {
+                            "outcome": "replayed",
+                            "response_json": dict(replay or {}),
+                        }
+                    if existing_status == "processing":
+                        raise ValueError("stale_school_answer_request")
+                    if existing_status != "failed":
+                        raise ValueError("stale_school_answer_request")
+                    request_claim_token = str(uuid4())
+                    reclaimed = await session.execute(
+                        text(
+                            """
+                            UPDATE school_answer_requests
+                            SET answer_hash = :answer_hash,
+                                claim_token = :claim_token,
+                                status = 'processing',
+                                response_json = NULL,
+                                updated_at = now()
+                            WHERE session_id = CAST(:session_id AS uuid)
+                              AND activity_id = :activity_id
+                              AND user_id = :uid
+                              AND status = 'failed'
+                            RETURNING activity_id
+                            """
+                        ),
+                        {
+                            "session_id": school_session["session_id"],
+                            "activity_id": request_activity_id,
+                            "uid": user_id,
+                            "answer_hash": request_answer_hash,
+                            "claim_token": request_claim_token,
+                        },
+                    )
+                    if reclaimed.scalar_one_or_none() is None:
+                        raise ValueError("stale_school_answer_request")
+            elif (
                 request_row is None
                 or request_row["status"] != "processing"
                 or request_row["answer_hash"] != request_answer_hash
@@ -4867,7 +5415,10 @@ async def persist_school_answer_attempt(
         result = await session.execute(
             text(
                 """
-                SELECT state_json
+                SELECT state_json,
+                       status,
+                       profile_version_id::text AS profile_version_id,
+                       source_placement_report_id::text AS source_placement_report_id
                 FROM school_sessions
                 WHERE session_id = CAST(:session_id AS uuid) AND user_id = :uid
                 FOR UPDATE
@@ -4878,7 +5429,12 @@ async def persist_school_answer_attempt(
                 "uid": user_id,
             },
         )
-        current_state = result.scalar_one_or_none()
+        locked_session_row = result.mappings().first()
+        current_state = (
+            locked_session_row.get("state_json")
+            if locked_session_row is not None
+            else None
+        )
         if isinstance(current_state, str):
             current_state = json.loads(current_state)
         if current_state is None or dict(current_state) != dict(expected_state_json):
@@ -4926,6 +5482,27 @@ async def persist_school_answer_attempt(
                 profile["user_id"] = user_id
 
         session_to_write = dict(school_session)
+        if (placement_presentation_item_id is None) != (
+            placement_presentation_at is None
+        ):
+            raise ValueError("invalid_school_placement_presentation")
+        if placement_presentation_item_id is not None:
+            if (
+                placement_presentation_at is None
+                or placement_presentation_at.tzinfo is None
+                or placement_presentation_at.utcoffset() is None
+            ):
+                raise ValueError("invalid_school_placement_presentation")
+            from app.services.school_rebuild_placement import (
+                PRIVATE_PLACEMENT_TIMING_KEY,
+            )
+
+            placement_state_json = dict(session_to_write.get("state_json") or {})
+            placement_state_json[PRIVATE_PLACEMENT_TIMING_KEY] = {
+                "item_id": placement_presentation_item_id,
+                "presented_at": placement_presentation_at.isoformat(),
+            }
+            session_to_write["state_json"] = placement_state_json
         if language_evaluation is not None:
             from app.services.school.language_confidence import (
                 LanguageConfidenceState,
@@ -4978,7 +5555,20 @@ async def persist_school_answer_attempt(
             raise ValueError("duplicate_evidence_conflict")
         for profile in profile_upserts:
             await upsert_learner_skill_profile(session, **profile, commit=False)
-        await upsert_school_session(session, **session_to_write, _commit=False)
+        await upsert_school_session(
+            session,
+            **session_to_write,
+            _commit=False,
+            _profile_lineage_locked=(
+                school_session.get("api_version") == "rebuild"
+            ),
+            _locked_existing_session=(
+                dict(locked_session_row)
+                if locked_session_row is not None
+                and school_session.get("api_version") == "rebuild"
+                else None
+            ),
+        )
         if placement_report is not None:
             await upsert_school_placement_report(
                 session,
@@ -5073,6 +5663,7 @@ async def persist_school_answer_attempt(
             if completed.scalar_one_or_none() is None:
                 raise ValueError("stale_school_answer_request")
         await session.commit()
+        return {"outcome": "persisted"}
     except asyncio.CancelledError:
         await finish_cleanup(session.rollback())
         raise
@@ -5128,12 +5719,13 @@ async def persist_school_curriculum_attempt(
     request_activity_id: str | None = None,
     request_answer_hash: str | None = None,
     request_claim_token: str | None = None,
+    request_claim_if_absent: bool = False,
     response_json: dict | None = None,
     projection_evidence: dict | None = None,
     language_evaluation: dict | None = None,
     evaluation_job_completion: dict | None = None,
-) -> None:
-    await persist_school_answer_attempt(
+) -> dict:
+    return await persist_school_answer_attempt(
         session,
         learning_event=learning_event,
         school_session=school_session,
@@ -5141,11 +5733,1253 @@ async def persist_school_curriculum_attempt(
         request_activity_id=request_activity_id,
         request_answer_hash=request_answer_hash,
         request_claim_token=request_claim_token,
+        request_claim_if_absent=request_claim_if_absent,
         response_json=response_json,
         projection_evidence=projection_evidence,
         language_evaluation=language_evaluation,
         evaluation_job_completion=evaluation_job_completion,
     )
+
+
+async def persist_school_deterministic_curriculum_attempt(
+    session: AsyncSession,
+    *,
+    learning_event: dict,
+    school_session: dict,
+    expected_state_json: dict,
+    request_activity_id: str,
+    request_answer_hash: str,
+    response_json: dict,
+    projection_evidence: dict | None,
+    language_evaluation: dict | None,
+    evaluation_job_completion: dict | None = None,
+) -> dict:
+    """Persist a direct curriculum answer in one claim read and one bulk write.
+
+    Deterministic answers do not need an evaluator job or a separate claim
+    round trip. This keeps the same replay, profile-lineage, evidence, and
+    compare-and-set guarantees as queued answers while avoiding the older
+    serial generic persistence path.
+    """
+
+    user_id = str(school_session.get("user_id") or "")
+    session_id = str(school_session.get("session_id") or "")
+    profile_version_id = str(school_session.get("profile_version_id") or "")
+    if (
+        school_session.get("api_version") != "rebuild"
+        or school_session.get("flow_type") != "curriculum"
+        or not user_id
+        or not session_id
+        or not profile_version_id
+        or not request_activity_id
+        or not request_answer_hash
+        or not isinstance(expected_state_json, dict)
+        or not isinstance(response_json, dict)
+        or evaluation_job_completion is not None
+    ):
+        raise ValueError("invalid_school_deterministic_curriculum_attempt")
+    if (
+        str(learning_event.get("user_id") or "") != user_id
+        or str(learning_event.get("session_id") or "") != session_id
+    ):
+        raise ValueError("invalid_school_deterministic_curriculum_attempt")
+    _validate_learning_domain_task(
+        str(learning_event.get("domain") or ""),
+        str(learning_event.get("task_type") or ""),
+    )
+    embedded_profile_version_id = (school_session.get("state_json") or {}).get(
+        "profile_version_id"
+    )
+    if (
+        embedded_profile_version_id not in (None, "")
+        and str(embedded_profile_version_id) != profile_version_id
+    ):
+        raise ValueError("school_session_lineage_conflict")
+
+    try:
+        context_result = await session.execute(
+            text(
+                """
+                WITH advisory_lock AS (
+                    SELECT pg_advisory_xact_lock(
+                        hashtext('zidd_school_answer:' || :uid)
+                    )
+                ),
+                learner_lineage AS (
+                    SELECT learner.user_id
+                    FROM learner_profiles AS learner
+                    CROSS JOIN advisory_lock
+                    WHERE learner.user_id = :uid
+                    FOR UPDATE
+                ),
+                active_profile AS (
+                    SELECT profile.profile_version_id::text AS profile_version_id
+                    FROM school_profile_versions AS profile
+                    CROSS JOIN learner_lineage
+                    WHERE profile.user_id = :uid
+                      AND profile.profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND profile.status = 'active'
+                    FOR SHARE
+                ),
+                locked_request AS (
+                    SELECT request.status AS request_status,
+                           request.answer_hash AS request_answer_hash,
+                           request.claim_token AS request_claim_token,
+                           request.response_json AS request_response_json
+                    FROM school_answer_requests AS request
+                    CROSS JOIN active_profile
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                    FOR UPDATE
+                ),
+                claimed_request AS (
+                    INSERT INTO school_answer_requests
+                        (session_id, activity_id, user_id, answer_hash,
+                         claim_token, status, response_json)
+                    SELECT CAST(:session_id AS uuid), :activity_id, :uid,
+                           :answer_hash, :claim_token, 'processing', NULL
+                    FROM active_profile
+                    WHERE NOT EXISTS (SELECT 1 FROM locked_request)
+                    RETURNING status AS request_status,
+                              answer_hash AS request_answer_hash,
+                              claim_token AS request_claim_token,
+                              response_json AS request_response_json,
+                              'claimed'::text AS request_origin
+                ),
+                reclaimed_request AS (
+                    UPDATE school_answer_requests AS request
+                    SET answer_hash = :answer_hash,
+                        claim_token = :claim_token,
+                        status = 'processing',
+                        response_json = NULL,
+                        updated_at = now()
+                    FROM locked_request
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                      AND locked_request.request_status = 'failed'
+                    RETURNING request.status AS request_status,
+                              request.answer_hash AS request_answer_hash,
+                              request.claim_token AS request_claim_token,
+                              request.response_json AS request_response_json,
+                              'reclaimed'::text AS request_origin
+                ),
+                request_resolution AS (
+                    SELECT request_status, request_answer_hash,
+                           request_claim_token, request_response_json,
+                           'existing'::text AS request_origin
+                    FROM locked_request
+                    WHERE request_status <> 'failed'
+                    UNION ALL
+                    SELECT request_status, request_answer_hash,
+                           request_claim_token, request_response_json,
+                           request_origin
+                    FROM claimed_request
+                    UNION ALL
+                    SELECT request_status, request_answer_hash,
+                           request_claim_token, request_response_json,
+                           request_origin
+                    FROM reclaimed_request
+                ),
+                locked_session AS (
+                    SELECT school.state_json AS session_state_json,
+                           school.status AS session_status,
+                           school.profile_version_id::text AS session_profile_version_id
+                    FROM school_sessions AS school
+                    CROSS JOIN active_profile
+                    WHERE school.session_id = CAST(:session_id AS uuid)
+                      AND school.user_id = :uid
+                    FOR UPDATE
+                ),
+                locked_profiles AS (
+                    SELECT profile.user_id, profile.domain, profile.skill_id,
+                           profile.module_id, profile.task_type, profile.mastery,
+                           profile.readiness, profile.confidence, profile.attempts,
+                           profile.strengths_json, profile.gaps_json,
+                           profile.evidence_json,
+                           profile.recommended_next_action,
+                           profile.source_summary
+                    FROM learner_skill_profiles AS profile
+                    CROSS JOIN active_profile
+                    WHERE profile.user_id = :uid
+                      AND profile.domain = 'school'
+                    FOR UPDATE
+                ),
+                profile_snapshot AS (
+                    SELECT COALESCE(
+                        jsonb_agg(to_jsonb(locked_profiles)), '[]'::jsonb
+                    ) AS profile_rows_json
+                    FROM locked_profiles
+                ),
+                locked_language AS (
+                    SELECT language.en_production_confidence AS language_confidence,
+                           language.total_signals AS language_total_signals
+                    FROM school_language_confidence AS language
+                    CROSS JOIN active_profile
+                    WHERE language.user_id = :uid
+                    FOR UPDATE
+                )
+                SELECT
+                    (SELECT profile_version_id FROM active_profile)
+                        AS active_profile_version_id,
+                    request_resolution.request_origin,
+                    request_resolution.request_status,
+                    request_resolution.request_answer_hash,
+                    request_resolution.request_claim_token,
+                    request_resolution.request_response_json,
+                    (SELECT session_state_json FROM locked_session)
+                        AS session_state_json,
+                    (SELECT session_status FROM locked_session) AS session_status,
+                    (SELECT session_profile_version_id FROM locked_session)
+                        AS session_profile_version_id,
+                    (SELECT profile_rows_json FROM profile_snapshot)
+                        AS profile_rows_json,
+                    (SELECT language_confidence FROM locked_language)
+                        AS language_confidence,
+                    (SELECT language_total_signals FROM locked_language)
+                        AS language_total_signals
+                FROM request_resolution
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "activity_id": request_activity_id,
+                "profile_version_id": profile_version_id,
+                "answer_hash": request_answer_hash,
+                "claim_token": str(uuid4()),
+            },
+        )
+        context = dict(context_result.mappings().first() or {})
+        if str(context.get("active_profile_version_id") or "") != profile_version_id:
+            raise ValueError("stale_school_profile_lineage")
+        request_origin = str(context.get("request_origin") or "")
+        request_status = str(context.get("request_status") or "")
+        existing_hash = str(context.get("request_answer_hash") or "")
+        request_claim_token = str(context.get("request_claim_token") or "")
+        if request_origin == "existing":
+            if request_status == "completed":
+                if existing_hash != request_answer_hash:
+                    raise ValueError("duplicate_evidence_conflict")
+                replay = context.get("request_response_json")
+                if isinstance(replay, str):
+                    replay = json.loads(replay)
+                await session.commit()
+                return {
+                    "outcome": "replayed",
+                    "response_json": dict(replay or {}),
+                }
+            raise ValueError("stale_school_answer_request")
+        if (
+            request_origin not in {"claimed", "reclaimed"}
+            or request_status != "processing"
+            or existing_hash != request_answer_hash
+            or not request_claim_token
+        ):
+            raise ValueError("stale_school_answer_request")
+        if (
+            str(context.get("session_profile_version_id") or "")
+            != profile_version_id
+            or str(context.get("session_status") or "")
+            not in _SCHOOL_ACTIVE_SESSION_STATUSES
+        ):
+            raise ValueError("stale_school_session_transition")
+        current_state = context.get("session_state_json")
+        if isinstance(current_state, str):
+            current_state = json.loads(current_state)
+        if not isinstance(current_state, dict) or current_state != expected_state_json:
+            raise ValueError("stale_school_answer_session")
+
+        profile_rows = context.get("profile_rows_json") or []
+        if isinstance(profile_rows, str):
+            profile_rows = json.loads(profile_rows)
+        if not isinstance(profile_rows, list):
+            raise ValueError("invalid_school_projection_context")
+        profile_upserts: list[dict] = []
+        if projection_evidence is not None:
+            from app.services.school.projection import (
+                SchoolAttemptEvidence,
+                derive_school_projection_delta,
+                enrich_school_projection_evidence,
+            )
+
+            projection = SchoolAttemptEvidence.from_dict(
+                enrich_school_projection_evidence(
+                    projection_evidence,
+                    learning_event=learning_event,
+                    user_id=user_id,
+                    session_id=session_id,
+                    activity_id=request_activity_id,
+                    answer_hash=request_answer_hash,
+                )
+            )
+            profile_upserts = derive_school_projection_delta(
+                projection,
+                [dict(row) for row in profile_rows if isinstance(row, dict)],
+            )
+            for profile in profile_upserts:
+                profile["user_id"] = user_id
+
+        session_to_write = dict(school_session)
+        language_update: dict | None = None
+        if language_evaluation is not None:
+            from app.services.school.language_confidence import (
+                LanguageConfidenceState,
+                apply_curriculum_language_signal,
+            )
+
+            language_state = apply_curriculum_language_signal(
+                LanguageConfidenceState(
+                    user_id=user_id,
+                    en_production_confidence=float(
+                        context.get("language_confidence") or 0.0
+                    ),
+                    total_signals=int(context.get("language_total_signals") or 0),
+                ),
+                language_evaluation,
+            )
+            state_json = dict(session_to_write.get("state_json") or {})
+            state_json.update(
+                en_production_confidence=language_state.en_production_confidence,
+                language_signal_count=language_state.total_signals,
+            )
+            session_to_write["state_json"] = state_json
+            language_update = {
+                "user_id": user_id,
+                "en_production_confidence": language_state.en_production_confidence,
+                "total_signals": language_state.total_signals,
+            }
+
+        mutation_result = await session.execute(
+            text(
+                """
+                WITH inserted_event AS (
+                    INSERT INTO learning_events
+                        (source_event_key, user_id, domain, task_type, module_id,
+                         session_id, node_id, skill_id, source, attempt_type, score,
+                         confidence, criteria_json, evidence_json, blockers, gap,
+                         scenario_json, caveats, model_name, prompt_version)
+                    VALUES
+                        (:source_event_key, :uid, :event_domain, :event_task_type,
+                         :event_module_id, :event_session_id, :event_node_id,
+                         :event_skill_id, :event_source, :event_attempt_type,
+                         :event_score, :event_confidence,
+                         CAST(:event_criteria_json AS jsonb),
+                         CAST(:event_evidence_json AS jsonb),
+                         CAST(:event_blockers AS jsonb), :event_gap,
+                         CAST(:event_scenario_json AS jsonb),
+                         CAST(:event_caveats AS jsonb), :event_model_name,
+                         :event_prompt_version)
+                    ON CONFLICT (source_event_key) DO NOTHING
+                    RETURNING source_event_key
+                ),
+                profile_input AS (
+                    SELECT *
+                    FROM jsonb_to_recordset(CAST(:profile_upserts_json AS jsonb))
+                    AS profile(
+                        user_id text, domain text, skill_id text, module_id text,
+                        task_type text, mastery real, readiness real,
+                        confidence real, attempts integer, strengths_json jsonb,
+                        gaps_json jsonb, evidence_json jsonb,
+                        recommended_next_action text, source_summary text
+                    )
+                ),
+                upserted_profiles AS (
+                    INSERT INTO learner_skill_profiles
+                        (user_id, domain, skill_id, module_id, task_type, mastery,
+                         readiness, confidence, attempts, strengths_json, gaps_json,
+                         evidence_json, recommended_next_action, source_summary)
+                    SELECT profile.user_id, profile.domain, profile.skill_id,
+                           profile.module_id, profile.task_type, profile.mastery,
+                           profile.readiness, profile.confidence, profile.attempts,
+                           profile.strengths_json, profile.gaps_json,
+                           profile.evidence_json,
+                           profile.recommended_next_action, profile.source_summary
+                    FROM profile_input AS profile
+                    CROSS JOIN inserted_event
+                    ON CONFLICT (user_id, domain, skill_id) DO UPDATE SET
+                        module_id = EXCLUDED.module_id,
+                        task_type = EXCLUDED.task_type,
+                        mastery = CASE
+                            WHEN EXCLUDED.domain = 'school' THEN EXCLUDED.mastery
+                            ELSE GREATEST(
+                                learner_skill_profiles.mastery, EXCLUDED.mastery
+                            )
+                        END,
+                        readiness = EXCLUDED.readiness,
+                        confidence = EXCLUDED.confidence,
+                        attempts = GREATEST(
+                            learner_skill_profiles.attempts, EXCLUDED.attempts
+                        ),
+                        last_seen_at = now(),
+                        strengths_json = EXCLUDED.strengths_json,
+                        gaps_json = EXCLUDED.gaps_json,
+                        evidence_json = EXCLUDED.evidence_json,
+                        recommended_next_action = EXCLUDED.recommended_next_action,
+                        source_summary = EXCLUDED.source_summary,
+                        updated_at = now()
+                    RETURNING skill_id
+                ),
+                language_input AS (
+                    SELECT CAST(:language_update_json AS jsonb) AS value
+                    WHERE CAST(:language_update_json AS jsonb) <> 'null'::jsonb
+                ),
+                upserted_language AS (
+                    INSERT INTO school_language_confidence
+                        (user_id, en_production_confidence, total_signals)
+                    SELECT value->>'user_id',
+                           (value->>'en_production_confidence')::real,
+                           (value->>'total_signals')::integer
+                    FROM language_input
+                    CROSS JOIN inserted_event
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        en_production_confidence = EXCLUDED.en_production_confidence,
+                        total_signals = EXCLUDED.total_signals,
+                        updated_at = now()
+                    RETURNING user_id
+                ),
+                transitioned_session AS (
+                    UPDATE school_sessions AS school
+                    SET status = :session_status,
+                        current_stage = :session_current_stage,
+                        state_json = CAST(:session_state_json AS jsonb),
+                        updated_at = now(),
+                        completed_at = CASE
+                            WHEN :session_status IN (
+                                'complete', 'abandoned', 'expired',
+                                'insufficient_evidence'
+                            ) THEN COALESCE(school.completed_at, now())
+                            ELSE school.completed_at
+                        END
+                    FROM inserted_event
+                    WHERE school.session_id = CAST(:session_id AS uuid)
+                      AND school.user_id = :uid
+                      AND school.profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND school.status IN ('active', 'paused_for_masterclass')
+                      AND school.state_json = CAST(:expected_state_json AS jsonb)
+                    RETURNING school.session_id
+                ),
+                completed_request AS (
+                    UPDATE school_answer_requests AS request
+                    SET status = 'completed',
+                        response_json = CAST(:response_json AS jsonb),
+                        updated_at = now()
+                    FROM transitioned_session
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                      AND request.answer_hash = :answer_hash
+                      AND request.claim_token = :answer_claim_token
+                      AND request.status = 'processing'
+                    RETURNING request.activity_id
+                )
+                SELECT
+                    EXISTS (SELECT 1 FROM inserted_event) AS inserted,
+                    EXISTS (SELECT 1 FROM transitioned_session)
+                        AS session_transitioned,
+                    EXISTS (SELECT 1 FROM completed_request) AS request_completed,
+                    (SELECT COUNT(*) FROM upserted_profiles) AS profile_upsert_count,
+                    (SELECT COUNT(*) FROM upserted_language) AS language_upsert_count
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "activity_id": request_activity_id,
+                "profile_version_id": profile_version_id,
+                "expected_state_json": json.dumps(expected_state_json),
+                "session_status": str(session_to_write["status"]),
+                "session_current_stage": str(
+                    session_to_write.get("current_stage") or ""
+                ),
+                "session_state_json": json.dumps(
+                    session_to_write.get("state_json") or {}
+                ),
+                "answer_hash": request_answer_hash,
+                "answer_claim_token": request_claim_token,
+                "response_json": json.dumps(response_json),
+                "profile_upserts_json": json.dumps(profile_upserts),
+                "language_update_json": json.dumps(language_update),
+                "source_event_key": learning_event["source_event_key"],
+                "event_domain": learning_event["domain"],
+                "event_task_type": learning_event["task_type"],
+                "event_module_id": learning_event.get("module_id") or "",
+                "event_session_id": learning_event.get("session_id"),
+                "event_node_id": learning_event.get("node_id") or "",
+                "event_skill_id": learning_event["skill_id"],
+                "event_source": learning_event["source"],
+                "event_attempt_type": learning_event.get("attempt_type") or "",
+                "event_score": float(learning_event.get("score") or 0.0),
+                "event_confidence": float(learning_event.get("confidence") or 0.0),
+                "event_criteria_json": json.dumps(
+                    learning_event.get("criteria_json") or []
+                ),
+                "event_evidence_json": json.dumps(
+                    learning_event.get("evidence_json") or {}
+                ),
+                "event_blockers": json.dumps(learning_event.get("blockers") or []),
+                "event_gap": learning_event.get("gap") or "",
+                "event_scenario_json": json.dumps(
+                    learning_event.get("scenario_json") or {}
+                ),
+                "event_caveats": json.dumps(learning_event.get("caveats") or []),
+                "event_model_name": learning_event.get("model_name"),
+                "event_prompt_version": learning_event.get("prompt_version"),
+            },
+        )
+        mutation = dict(mutation_result.mappings().first() or {})
+        if not mutation.get("inserted"):
+            raise ValueError("duplicate_evidence_conflict")
+        if not mutation.get("session_transitioned"):
+            raise ValueError("stale_school_answer_session")
+        if not mutation.get("request_completed"):
+            raise ValueError("stale_school_answer_request")
+        await session.commit()
+        return {"outcome": "persisted"}
+    except asyncio.CancelledError:
+        await finish_cleanup(session.rollback())
+        raise
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def persist_school_evaluated_curriculum_attempt(
+    session: AsyncSession,
+    *,
+    learning_event: dict,
+    school_session: dict,
+    expected_state_json: dict,
+    request_activity_id: str,
+    request_answer_hash: str,
+    request_claim_token: str,
+    response_json: dict,
+    projection_evidence: dict | None,
+    language_evaluation: dict | None,
+    evaluation_job_completion: dict,
+) -> dict:
+    """Persist a queued curriculum answer in one locked read plus one bulk write.
+
+    This is deliberately narrower than ``persist_school_answer_attempt``. It
+    is only valid after the evaluator worker owns a live lease, so it can keep
+    all the existing fences while avoiding serial cross-region queries for
+    every learner-profile projection.
+    """
+
+    user_id = str(school_session.get("user_id") or "")
+    session_id = str(school_session.get("session_id") or "")
+    profile_version_id = str(school_session.get("profile_version_id") or "")
+    if (
+        school_session.get("api_version") != "rebuild"
+        or school_session.get("flow_type") != "curriculum"
+        or not user_id
+        or not session_id
+        or not profile_version_id
+        or not request_activity_id
+        or not request_answer_hash
+        or not request_claim_token
+        or not isinstance(expected_state_json, dict)
+        or not isinstance(response_json, dict)
+        or not isinstance(evaluation_job_completion, dict)
+    ):
+        raise ValueError("invalid_school_evaluated_curriculum_attempt")
+    if (
+        str(learning_event.get("user_id") or "") != user_id
+        or str(learning_event.get("session_id") or "") != session_id
+    ):
+        raise ValueError("invalid_school_evaluated_curriculum_attempt")
+    _validate_learning_domain_task(
+        str(learning_event.get("domain") or ""),
+        str(learning_event.get("task_type") or ""),
+    )
+    if (
+        (school_session.get("state_json") or {}).get("profile_version_id")
+        not in (None, "", profile_version_id)
+    ):
+        raise ValueError("school_session_lineage_conflict")
+
+    required_identity = {
+        "user_id": user_id,
+        "session_id": session_id,
+        "activity_id": str(request_activity_id),
+        "answer_hash": str(request_answer_hash),
+        "answer_claim_token": str(request_claim_token),
+    }
+    if any(
+        str(evaluation_job_completion.get(key) or "") != value
+        for key, value in required_identity.items()
+    ):
+        raise ValueError("invalid_school_evaluation_job_completion")
+    lease_owner = str(evaluation_job_completion.get("lease_owner") or "").strip()
+    lease_token = str(evaluation_job_completion.get("lease_token") or "").strip()
+    try:
+        lease_version = int(evaluation_job_completion.get("lease_version"))
+    except (TypeError, ValueError):
+        lease_version = 0
+    job_response_json = evaluation_job_completion.get("response_json")
+    job_result_data = evaluation_job_completion.get("result_data")
+    if (
+        not lease_owner
+        or not lease_token
+        or lease_version <= 0
+        or not isinstance(job_response_json, dict)
+        or not isinstance(job_result_data, dict)
+        or job_response_json != response_json
+    ):
+        raise ValueError("invalid_school_evaluation_job_completion")
+
+    try:
+        context_result = await session.execute(
+            text(
+                """
+                WITH advisory_lock AS (
+                    SELECT pg_advisory_xact_lock(
+                        hashtext('zidd_school_answer:' || :uid)
+                    )
+                ),
+                learner_lineage AS (
+                    SELECT learner.user_id
+                    FROM learner_profiles AS learner
+                    CROSS JOIN advisory_lock
+                    WHERE learner.user_id = :uid
+                    FOR UPDATE
+                ),
+                active_profile AS (
+                    SELECT profile.profile_version_id::text AS profile_version_id
+                    FROM school_profile_versions AS profile
+                    CROSS JOIN learner_lineage
+                    WHERE profile.user_id = :uid
+                      AND profile.profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND profile.status = 'active'
+                    FOR SHARE
+                ),
+                locked_request AS (
+                    SELECT request.status AS request_status,
+                           request.answer_hash AS request_answer_hash,
+                           request.claim_token AS request_claim_token,
+                           request.response_json AS request_response_json
+                    FROM school_answer_requests AS request
+                    CROSS JOIN active_profile
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                    FOR UPDATE
+                ),
+                locked_session AS (
+                    SELECT school.state_json AS session_state_json,
+                           school.status AS session_status,
+                           school.profile_version_id::text AS session_profile_version_id
+                    FROM school_sessions AS school
+                    CROSS JOIN active_profile
+                    WHERE school.session_id = CAST(:session_id AS uuid)
+                      AND school.user_id = :uid
+                    FOR UPDATE
+                ),
+                locked_profiles AS (
+                    SELECT profile.user_id, profile.domain, profile.skill_id,
+                           profile.module_id, profile.task_type, profile.mastery,
+                           profile.readiness, profile.confidence, profile.attempts,
+                           profile.strengths_json, profile.gaps_json,
+                           profile.evidence_json,
+                           profile.recommended_next_action,
+                           profile.source_summary
+                    FROM learner_skill_profiles AS profile
+                    CROSS JOIN active_profile
+                    WHERE profile.user_id = :uid
+                      AND profile.domain = 'school'
+                    FOR UPDATE
+                ),
+                profile_snapshot AS (
+                    SELECT COALESCE(
+                        jsonb_agg(to_jsonb(locked_profiles)), '[]'::jsonb
+                    ) AS profile_rows_json
+                    FROM locked_profiles
+                ),
+                locked_language AS (
+                    SELECT language.en_production_confidence AS language_confidence,
+                           language.total_signals AS language_total_signals
+                    FROM school_language_confidence AS language
+                    CROSS JOIN active_profile
+                    WHERE language.user_id = :uid
+                    FOR UPDATE
+                ),
+                locked_job AS (
+                    SELECT job.status AS job_status,
+                           job.answer_hash AS job_answer_hash,
+                           job.answer_claim_token AS job_answer_claim_token,
+                           job.user_id AS job_user_id,
+                           job.lease_owner AS job_lease_owner,
+                           job.lease_token AS job_lease_token,
+                           job.lease_version AS job_lease_version
+                    FROM school_evaluation_jobs AS job
+                    CROSS JOIN active_profile
+                    WHERE job.session_id = CAST(:session_id AS uuid)
+                      AND job.activity_id = :activity_id
+                      AND job.user_id = :uid
+                    FOR UPDATE
+                )
+                SELECT
+                    (SELECT profile_version_id FROM active_profile)
+                        AS active_profile_version_id,
+                    (SELECT request_status FROM locked_request) AS request_status,
+                    (SELECT request_answer_hash FROM locked_request)
+                        AS request_answer_hash,
+                    (SELECT request_claim_token FROM locked_request)
+                        AS request_claim_token,
+                    (SELECT request_response_json FROM locked_request)
+                        AS request_response_json,
+                    (SELECT session_state_json FROM locked_session)
+                        AS session_state_json,
+                    (SELECT session_status FROM locked_session) AS session_status,
+                    (SELECT session_profile_version_id FROM locked_session)
+                        AS session_profile_version_id,
+                    (SELECT profile_rows_json FROM profile_snapshot)
+                        AS profile_rows_json,
+                    (SELECT language_confidence FROM locked_language)
+                        AS language_confidence,
+                    (SELECT language_total_signals FROM locked_language)
+                        AS language_total_signals,
+                    (SELECT job_status FROM locked_job) AS job_status,
+                    (SELECT job_answer_hash FROM locked_job) AS job_answer_hash,
+                    (SELECT job_answer_claim_token FROM locked_job)
+                        AS job_answer_claim_token,
+                    (SELECT job_user_id FROM locked_job) AS job_user_id,
+                    (SELECT job_lease_owner FROM locked_job) AS job_lease_owner,
+                    (SELECT job_lease_token FROM locked_job) AS job_lease_token,
+                    (SELECT job_lease_version FROM locked_job) AS job_lease_version
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "activity_id": request_activity_id,
+                "profile_version_id": profile_version_id,
+            },
+        )
+        context = dict(context_result.mappings().first() or {})
+        if str(context.get("active_profile_version_id") or "") != profile_version_id:
+            raise ValueError("stale_school_profile_lineage")
+        if (
+            str(context.get("request_status") or "") != "processing"
+            or str(context.get("request_answer_hash") or "") != request_answer_hash
+            or str(context.get("request_claim_token") or "") != request_claim_token
+        ):
+            raise ValueError("stale_school_answer_request")
+        if (
+            str(context.get("session_profile_version_id") or "")
+            != profile_version_id
+            or str(context.get("session_status") or "")
+            not in _SCHOOL_ACTIVE_SESSION_STATUSES
+        ):
+            raise ValueError("stale_school_session_transition")
+        current_state = context.get("session_state_json")
+        if isinstance(current_state, str):
+            current_state = json.loads(current_state)
+        if not isinstance(current_state, dict) or current_state != expected_state_json:
+            raise ValueError("stale_school_answer_session")
+        if (
+            str(context.get("job_status") or "") != "running"
+            or str(context.get("job_answer_hash") or "") != request_answer_hash
+            or str(context.get("job_answer_claim_token") or "") != request_claim_token
+            or str(context.get("job_user_id") or "") != user_id
+            or str(context.get("job_lease_owner") or "") != lease_owner
+            or str(context.get("job_lease_token") or "") != lease_token
+            or int(context.get("job_lease_version") or 0) != lease_version
+        ):
+            raise ValueError("stale_school_evaluation_job")
+
+        profile_rows = context.get("profile_rows_json") or []
+        if isinstance(profile_rows, str):
+            profile_rows = json.loads(profile_rows)
+        if not isinstance(profile_rows, list):
+            raise ValueError("invalid_school_projection_context")
+        profile_upserts: list[dict] = []
+        if projection_evidence is not None:
+            from app.services.school.projection import (
+                SchoolAttemptEvidence,
+                derive_school_projection_delta,
+                enrich_school_projection_evidence,
+            )
+
+            projection = SchoolAttemptEvidence.from_dict(
+                enrich_school_projection_evidence(
+                    projection_evidence,
+                    learning_event=learning_event,
+                    user_id=user_id,
+                    session_id=session_id,
+                    activity_id=request_activity_id,
+                    answer_hash=request_answer_hash,
+                )
+            )
+            profile_upserts = derive_school_projection_delta(
+                projection,
+                [dict(row) for row in profile_rows if isinstance(row, dict)],
+            )
+            for profile in profile_upserts:
+                profile["user_id"] = user_id
+
+        session_to_write = dict(school_session)
+        language_update: dict | None = None
+        if language_evaluation is not None:
+            from app.services.school.language_confidence import (
+                LanguageConfidenceState,
+                apply_curriculum_language_signal,
+            )
+
+            language_state = apply_curriculum_language_signal(
+                LanguageConfidenceState(
+                    user_id=user_id,
+                    en_production_confidence=float(
+                        context.get("language_confidence") or 0.0
+                    ),
+                    total_signals=int(context.get("language_total_signals") or 0),
+                ),
+                language_evaluation,
+            )
+            state_json = dict(session_to_write.get("state_json") or {})
+            state_json.update(
+                en_production_confidence=language_state.en_production_confidence,
+                language_signal_count=language_state.total_signals,
+            )
+            session_to_write["state_json"] = state_json
+            language_update = {
+                "user_id": user_id,
+                "en_production_confidence": language_state.en_production_confidence,
+                "total_signals": language_state.total_signals,
+            }
+
+        mutation_result = await session.execute(
+            text(
+                """
+                WITH inserted_event AS (
+                    INSERT INTO learning_events
+                        (source_event_key, user_id, domain, task_type, module_id,
+                         session_id, node_id, skill_id, source, attempt_type, score,
+                         confidence, criteria_json, evidence_json, blockers, gap,
+                         scenario_json, caveats, model_name, prompt_version)
+                    VALUES
+                        (:source_event_key, :uid, :event_domain, :event_task_type,
+                         :event_module_id, :event_session_id, :event_node_id,
+                         :event_skill_id, :event_source, :event_attempt_type,
+                         :event_score, :event_confidence,
+                         CAST(:event_criteria_json AS jsonb),
+                         CAST(:event_evidence_json AS jsonb),
+                         CAST(:event_blockers AS jsonb), :event_gap,
+                         CAST(:event_scenario_json AS jsonb),
+                         CAST(:event_caveats AS jsonb), :event_model_name,
+                         :event_prompt_version)
+                    ON CONFLICT (source_event_key) DO NOTHING
+                    RETURNING source_event_key
+                ),
+                profile_input AS (
+                    SELECT *
+                    FROM jsonb_to_recordset(CAST(:profile_upserts_json AS jsonb))
+                    AS profile(
+                        user_id text, domain text, skill_id text, module_id text,
+                        task_type text, mastery real, readiness real,
+                        confidence real, attempts integer, strengths_json jsonb,
+                        gaps_json jsonb, evidence_json jsonb,
+                        recommended_next_action text, source_summary text
+                    )
+                ),
+                upserted_profiles AS (
+                    INSERT INTO learner_skill_profiles
+                        (user_id, domain, skill_id, module_id, task_type, mastery,
+                         readiness, confidence, attempts, strengths_json, gaps_json,
+                         evidence_json, recommended_next_action, source_summary)
+                    SELECT profile.user_id, profile.domain, profile.skill_id,
+                           profile.module_id, profile.task_type, profile.mastery,
+                           profile.readiness, profile.confidence, profile.attempts,
+                           profile.strengths_json, profile.gaps_json,
+                           profile.evidence_json,
+                           profile.recommended_next_action, profile.source_summary
+                    FROM profile_input AS profile
+                    CROSS JOIN inserted_event
+                    ON CONFLICT (user_id, domain, skill_id) DO UPDATE SET
+                        module_id = EXCLUDED.module_id,
+                        task_type = EXCLUDED.task_type,
+                        mastery = CASE
+                            WHEN EXCLUDED.domain = 'school' THEN EXCLUDED.mastery
+                            ELSE GREATEST(
+                                learner_skill_profiles.mastery, EXCLUDED.mastery
+                            )
+                        END,
+                        readiness = EXCLUDED.readiness,
+                        confidence = EXCLUDED.confidence,
+                        attempts = GREATEST(
+                            learner_skill_profiles.attempts, EXCLUDED.attempts
+                        ),
+                        last_seen_at = now(),
+                        strengths_json = EXCLUDED.strengths_json,
+                        gaps_json = EXCLUDED.gaps_json,
+                        evidence_json = EXCLUDED.evidence_json,
+                        recommended_next_action = EXCLUDED.recommended_next_action,
+                        source_summary = EXCLUDED.source_summary,
+                        updated_at = now()
+                    RETURNING skill_id
+                ),
+                language_input AS (
+                    SELECT CAST(:language_update_json AS jsonb) AS value
+                    WHERE CAST(:language_update_json AS jsonb) <> 'null'::jsonb
+                ),
+                upserted_language AS (
+                    INSERT INTO school_language_confidence
+                        (user_id, en_production_confidence, total_signals)
+                    SELECT value->>'user_id',
+                           (value->>'en_production_confidence')::real,
+                           (value->>'total_signals')::integer
+                    FROM language_input
+                    CROSS JOIN inserted_event
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        en_production_confidence = EXCLUDED.en_production_confidence,
+                        total_signals = EXCLUDED.total_signals,
+                        updated_at = now()
+                    RETURNING user_id
+                ),
+                transitioned_session AS (
+                    UPDATE school_sessions AS school
+                    SET status = :session_status,
+                        current_stage = :session_current_stage,
+                        state_json = CAST(:session_state_json AS jsonb),
+                        updated_at = now(),
+                        completed_at = CASE
+                            WHEN :session_status IN (
+                                'complete', 'abandoned', 'expired',
+                                'insufficient_evidence'
+                            ) THEN COALESCE(school.completed_at, now())
+                            ELSE school.completed_at
+                        END
+                    FROM inserted_event
+                    WHERE school.session_id = CAST(:session_id AS uuid)
+                      AND school.user_id = :uid
+                      AND school.profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND school.status IN ('active', 'paused_for_masterclass')
+                      AND school.state_json = CAST(:expected_state_json AS jsonb)
+                    RETURNING school.session_id
+                ),
+                completed_job AS (
+                    UPDATE school_evaluation_jobs AS job
+                    SET status = 'completed',
+                        response_json = CAST(:evaluation_job_response_json AS jsonb),
+                        result_data = CAST(:evaluation_job_result_data AS jsonb),
+                        last_error_code = NULL,
+                        error_json = NULL,
+                        lease_owner = NULL,
+                        lease_token = NULL,
+                        lease_expires_at = NULL,
+                        completed_at = now(),
+                        updated_at = now()
+                    FROM transitioned_session
+                    WHERE job.session_id = CAST(:session_id AS uuid)
+                      AND job.activity_id = :activity_id
+                      AND job.user_id = :uid
+                      AND job.answer_hash = :answer_hash
+                      AND job.answer_claim_token = :answer_claim_token
+                      AND job.lease_owner = :lease_owner
+                      AND job.lease_token = :lease_token
+                      AND job.lease_version = :lease_version
+                      AND job.status = 'running'
+                      AND job.lease_expires_at > now()
+                      AND EXISTS (
+                          SELECT 1
+                          FROM school_answer_requests AS request
+                          WHERE request.session_id = job.session_id
+                            AND request.activity_id = job.activity_id
+                            AND request.user_id = job.user_id
+                            AND request.answer_hash = job.answer_hash
+                            AND request.claim_token = job.answer_claim_token
+                            AND request.status = 'processing'
+                      )
+                    RETURNING job.activity_id
+                ),
+                completed_request AS (
+                    UPDATE school_answer_requests AS request
+                    SET status = 'completed',
+                        response_json = CAST(:response_json AS jsonb),
+                        updated_at = now()
+                    FROM completed_job
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                      AND request.answer_hash = :answer_hash
+                      AND request.claim_token = :answer_claim_token
+                      AND request.status = 'processing'
+                    RETURNING request.activity_id
+                )
+                SELECT
+                    EXISTS (SELECT 1 FROM inserted_event) AS inserted,
+                    EXISTS (SELECT 1 FROM transitioned_session)
+                        AS session_transitioned,
+                    EXISTS (SELECT 1 FROM completed_job) AS job_completed,
+                    EXISTS (SELECT 1 FROM completed_request) AS request_completed,
+                    (SELECT COUNT(*) FROM upserted_profiles) AS profile_upsert_count,
+                    (SELECT COUNT(*) FROM upserted_language) AS language_upsert_count
+                """
+            ),
+            {
+                "uid": user_id,
+                "session_id": session_id,
+                "activity_id": request_activity_id,
+                "profile_version_id": profile_version_id,
+                "expected_state_json": json.dumps(expected_state_json),
+                "session_status": str(session_to_write["status"]),
+                "session_current_stage": str(
+                    session_to_write.get("current_stage") or ""
+                ),
+                "session_state_json": json.dumps(
+                    session_to_write.get("state_json") or {}
+                ),
+                "answer_hash": request_answer_hash,
+                "answer_claim_token": request_claim_token,
+                "lease_owner": lease_owner,
+                "lease_token": lease_token,
+                "lease_version": lease_version,
+                "response_json": json.dumps(response_json),
+                "evaluation_job_response_json": json.dumps(job_response_json),
+                "evaluation_job_result_data": json.dumps(job_result_data),
+                "profile_upserts_json": json.dumps(profile_upserts),
+                "language_update_json": json.dumps(language_update),
+                "source_event_key": learning_event["source_event_key"],
+                "event_domain": learning_event["domain"],
+                "event_task_type": learning_event["task_type"],
+                "event_module_id": learning_event.get("module_id") or "",
+                "event_session_id": learning_event.get("session_id"),
+                "event_node_id": learning_event.get("node_id") or "",
+                "event_skill_id": learning_event["skill_id"],
+                "event_source": learning_event["source"],
+                "event_attempt_type": learning_event.get("attempt_type") or "",
+                "event_score": float(learning_event.get("score") or 0.0),
+                "event_confidence": float(learning_event.get("confidence") or 0.0),
+                "event_criteria_json": json.dumps(
+                    learning_event.get("criteria_json") or []
+                ),
+                "event_evidence_json": json.dumps(
+                    learning_event.get("evidence_json") or {}
+                ),
+                "event_blockers": json.dumps(learning_event.get("blockers") or []),
+                "event_gap": learning_event.get("gap") or "",
+                "event_scenario_json": json.dumps(
+                    learning_event.get("scenario_json") or {}
+                ),
+                "event_caveats": json.dumps(learning_event.get("caveats") or []),
+                "event_model_name": learning_event.get("model_name"),
+                "event_prompt_version": learning_event.get("prompt_version"),
+            },
+        )
+        mutation = dict(mutation_result.mappings().first() or {})
+        if not mutation.get("inserted"):
+            raise ValueError("duplicate_evidence_conflict")
+        if not mutation.get("session_transitioned"):
+            raise ValueError("stale_school_answer_session")
+        if not mutation.get("job_completed"):
+            raise ValueError("stale_school_evaluation_job")
+        if not mutation.get("request_completed"):
+            raise ValueError("stale_school_answer_request")
+        await session.commit()
+        return {"outcome": "persisted"}
+    except asyncio.CancelledError:
+        await finish_cleanup(session.rollback())
+        raise
+    except Exception:
+        await session.rollback()
+        raise
+
+
+async def persist_school_curriculum_experience_step(
+    session: AsyncSession,
+    *,
+    school_session: dict,
+    expected_state_json: dict,
+    request_activity_id: str,
+    request_answer_hash: str,
+    response_json: dict,
+) -> dict:
+    """Advance an unscored curriculum acknowledgement without evidence writes.
+
+    A ``continue`` activity changes the durable lesson position but does not
+    measure a skill. Sending it through ``persist_school_answer_attempt``
+    needlessly locks every School skill profile and records a zero-value
+    learning event. This focused transaction keeps the same request replay,
+    profile-lineage, and session CAS guarantees while avoiding those unrelated
+    reads and writes.
+    """
+
+    user_id = str(school_session["user_id"])
+    session_id = str(school_session["session_id"])
+    profile_version_id = str(school_session.get("profile_version_id") or "")
+    if (
+        school_session.get("api_version") != "rebuild"
+        or school_session.get("flow_type") != "curriculum"
+        or not profile_version_id
+        or not request_activity_id
+        or not request_answer_hash
+    ):
+        raise ValueError("invalid_school_curriculum_experience_step")
+    embedded_profile_version_id = (school_session.get("state_json") or {}).get(
+        "profile_version_id"
+    )
+    if (
+        embedded_profile_version_id not in (None, "")
+        and str(embedded_profile_version_id) != profile_version_id
+    ):
+        raise ValueError("school_session_lineage_conflict")
+
+    try:
+        result = await session.execute(
+            text(
+                """
+                WITH advisory_lock AS (
+                    SELECT pg_advisory_xact_lock(
+                        hashtext('zidd_school_answer:' || :uid)
+                    )
+                ),
+                learner_lineage AS (
+                    SELECT learner.user_id
+                    FROM learner_profiles AS learner
+                    CROSS JOIN advisory_lock
+                    WHERE learner.user_id = :uid
+                    FOR UPDATE
+                ),
+                active_profile AS (
+                    SELECT profile.profile_version_id
+                    FROM school_profile_versions AS profile
+                    CROSS JOIN learner_lineage
+                    WHERE profile.user_id = :uid
+                      AND profile.profile_version_id = CAST(:profile_version_id AS uuid)
+                      AND profile.status = 'active'
+                    FOR SHARE
+                ),
+                locked_request AS (
+                    SELECT request.status, request.answer_hash,
+                           request.response_json, request.claim_token
+                    FROM school_answer_requests AS request
+                    CROSS JOIN active_profile
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                    FOR UPDATE
+                ),
+                claimed_request AS (
+                    INSERT INTO school_answer_requests
+                        (session_id, activity_id, user_id, answer_hash,
+                         claim_token, status, response_json)
+                    SELECT CAST(:session_id AS uuid), :activity_id, :uid,
+                           :answer_hash, :claim_token, 'completed',
+                           CAST(:response_json AS jsonb)
+                    FROM active_profile
+                    WHERE NOT EXISTS (SELECT 1 FROM locked_request)
+                    RETURNING status, answer_hash, response_json, claim_token,
+                              'claimed'::text AS origin
+                ),
+                reclaimed_request AS (
+                    UPDATE school_answer_requests AS request
+                    SET answer_hash = :answer_hash,
+                        claim_token = :claim_token,
+                        status = 'completed',
+                        response_json = CAST(:response_json AS jsonb),
+                        updated_at = now()
+                    FROM locked_request
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                      AND request.user_id = :uid
+                      AND locked_request.status = 'failed'
+                    RETURNING request.status, request.answer_hash,
+                              request.response_json, request.claim_token,
+                              'reclaimed'::text AS origin
+                ),
+                request_resolution AS (
+                    SELECT status, answer_hash, response_json, claim_token,
+                           'existing'::text AS origin
+                    FROM locked_request
+                    WHERE status <> 'failed'
+                    UNION ALL
+                    SELECT status, answer_hash, response_json, claim_token, origin
+                    FROM claimed_request
+                    UNION ALL
+                    SELECT status, answer_hash, response_json, claim_token, origin
+                    FROM reclaimed_request
+                ),
+                transitioned_session AS (
+                    UPDATE school_sessions AS school
+                    SET status = :status,
+                        current_stage = :current_stage,
+                        state_json = CAST(:state_json AS jsonb),
+                        updated_at = now(),
+                        completed_at = CASE
+                            WHEN :status IN (
+                                'complete', 'abandoned', 'expired',
+                                'insufficient_evidence'
+                            ) THEN COALESCE(school.completed_at, now())
+                            ELSE school.completed_at
+                        END
+                    FROM request_resolution
+                    CROSS JOIN active_profile
+                    WHERE request_resolution.origin IN ('claimed', 'reclaimed')
+                      AND school.session_id = CAST(:session_id AS uuid)
+                      AND school.user_id = :uid
+                      AND school.api_version = 'rebuild'
+                      AND school.flow_type = 'curriculum'
+                      AND school.status = 'active'
+                      AND school.profile_version_id = active_profile.profile_version_id
+                      AND school.state_json = CAST(:expected_state_json AS jsonb)
+                    RETURNING school.session_id
+                )
+                SELECT request_resolution.origin,
+                       request_resolution.status,
+                       request_resolution.answer_hash,
+                       request_resolution.response_json,
+                       EXISTS(
+                           SELECT 1 FROM transitioned_session
+                       ) AS session_transitioned
+                FROM request_resolution
+                """
+            ),
+            {
+                "uid": user_id,
+                "profile_version_id": profile_version_id,
+                "session_id": session_id,
+                "activity_id": request_activity_id,
+                "answer_hash": request_answer_hash,
+                "claim_token": str(uuid4()),
+                "response_json": json.dumps(response_json),
+                "status": str(school_session["status"]),
+                "current_stage": str(school_session.get("current_stage") or ""),
+                "state_json": json.dumps(school_session.get("state_json") or {}),
+                "expected_state_json": json.dumps(expected_state_json or {}),
+            },
+        )
+        row = result.mappings().first()
+        if row is None:
+            raise ValueError("stale_school_profile_lineage")
+        origin = str(row["origin"] or "")
+        status = str(row["status"] or "")
+        existing_hash = str(row["answer_hash"] or "")
+        if origin == "existing":
+            if status == "completed":
+                if existing_hash != request_answer_hash:
+                    raise ValueError("duplicate_evidence_conflict")
+                replay = row["response_json"]
+                if isinstance(replay, str):
+                    replay = json.loads(replay)
+                await session.commit()
+                return {
+                    "outcome": "replayed",
+                    "response_json": dict(replay or {}),
+                }
+            raise ValueError("stale_school_answer_request")
+        if origin not in {"claimed", "reclaimed"} or not bool(
+            row["session_transitioned"]
+        ):
+            raise ValueError("stale_school_answer_session")
+        await session.commit()
+        return {"outcome": "persisted"}
+    except asyncio.CancelledError:
+        await finish_cleanup(session.rollback())
+        raise
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def get_school_answer_request(
@@ -5157,17 +6991,37 @@ async def get_school_answer_request(
     result = await session.execute(
         text(
             """
-            SELECT session_id::text AS session_id, activity_id, user_id, answer_hash,
-                   claim_token,
-                   status, response_json, created_at, updated_at,
-                   EXTRACT(EPOCH FROM (now() - updated_at)) AS age_seconds
-            FROM school_answer_requests
-            WHERE session_id = CAST(:session_id AS uuid)
-              AND activity_id = :activity_id
-              AND user_id = :uid
+            SELECT request.session_id::text AS session_id, request.activity_id,
+                   request.user_id, request.answer_hash, request.claim_token,
+                   request.status, request.response_json, request.created_at,
+                   request.updated_at,
+                   EXTRACT(EPOCH FROM (now() - request.updated_at)) AS age_seconds,
+                   job.status AS evaluation_job_status,
+                   (
+                       job.status IN ('queued', 'running')
+                       AND job.created_at > now() - (
+                           CAST(:evaluation_deadline_seconds AS integer)
+                           * INTERVAL '1 second'
+                       )
+                   ) AS evaluation_job_within_deadline
+            FROM school_answer_requests AS request
+            LEFT JOIN school_evaluation_jobs AS job
+              ON job.session_id = request.session_id
+             AND job.activity_id = request.activity_id
+             AND job.user_id = request.user_id
+             AND job.answer_hash = request.answer_hash
+             AND job.answer_claim_token = request.claim_token
+            WHERE request.session_id = CAST(:session_id AS uuid)
+              AND request.activity_id = :activity_id
+              AND request.user_id = :uid
             """
         ),
-        {"session_id": session_id, "activity_id": activity_id, "uid": user_id},
+        {
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "uid": user_id,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
+        },
     )
     row = result.mappings().first()
     if not row:
@@ -5180,6 +7034,428 @@ async def get_school_answer_request(
         and float(data.get("age_seconds") or 0.0) >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
     )
     return data
+
+
+async def get_school_placement_answer_context(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+) -> dict:
+    """Load the placement-answer preflight in one database round trip.
+
+    School placement answers need three related values after authentication:
+    the active School profile, exact session, and any prior idempotency
+    request. Fetching them through independently
+    pooled store calls made deterministic multiple-choice answers pay multiple
+    cross-region round trips. The values are a read snapshot only; the claim
+    and final answer transition remain their existing atomic operations.
+    """
+
+    result = await session.execute(
+        text(
+            """
+            WITH active_profile AS (
+                SELECT to_jsonb(profile) AS payload
+                FROM school_profile_versions AS profile
+                WHERE profile.user_id = :uid AND profile.status = 'active'
+                ORDER BY profile.activated_at DESC NULLS LAST, profile.updated_at DESC
+                LIMIT 1
+            ),
+            placement_session AS (
+                SELECT to_jsonb(school_session) AS payload
+                FROM school_sessions AS school_session
+                WHERE school_session.user_id = :uid
+                  AND school_session.session_id = CAST(:session_id AS uuid)
+                LIMIT 1
+            ),
+            answer_request AS (
+                SELECT
+                    to_jsonb(request)
+                    || jsonb_build_object(
+                        'age_seconds', EXTRACT(EPOCH FROM (now() - request.updated_at)),
+                        'evaluation_job_status', job.status,
+                        'evaluation_job_within_deadline', (
+                            job.status IN ('queued', 'running')
+                            AND job.created_at > now() - (
+                                CAST(:evaluation_deadline_seconds AS integer)
+                                * INTERVAL '1 second'
+                            )
+                        )
+                    ) AS payload
+                FROM school_answer_requests AS request
+                LEFT JOIN school_evaluation_jobs AS job
+                  ON job.session_id = request.session_id
+                 AND job.activity_id = request.activity_id
+                 AND job.user_id = request.user_id
+                 AND job.answer_hash = request.answer_hash
+                 AND job.answer_claim_token = request.claim_token
+                WHERE request.session_id = CAST(:session_id AS uuid)
+                  AND request.activity_id = :activity_id
+                  AND request.user_id = :uid
+                LIMIT 1
+            )
+            SELECT
+                (SELECT payload FROM active_profile) AS active_profile,
+                (SELECT payload FROM placement_session) AS school_session,
+                (SELECT payload FROM answer_request) AS answer_request
+            """
+        ),
+        {
+            "uid": user_id,
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
+        },
+    )
+    row = result.mappings().one()
+
+    def payload_dict(value: object) -> dict | None:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return dict(value) if isinstance(value, dict) else None
+
+    request = payload_dict(row.get("answer_request"))
+    if request is not None:
+        request["stale"] = bool(
+            request.get("status") == "processing"
+            and float(request.get("age_seconds") or 0.0)
+            >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+        )
+    return {
+        "active_profile": payload_dict(row.get("active_profile")),
+        "school_session": payload_dict(row.get("school_session")),
+        "answer_request": request,
+    }
+
+
+async def get_school_masterclass_answer_context(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+) -> dict:
+    """Load a masterclass-answer preflight from one database connection.
+
+    This deliberately mirrors the placement preflight rather than moving the
+    answer claim into a read query. The returned rows are only an authorization
+    and idempotency snapshot; claim and answer persistence retain their
+    existing fenced transactions.
+    """
+
+    result = await session.execute(
+        text(
+            """
+            WITH active_profile AS (
+                SELECT to_jsonb(profile) AS payload
+                FROM school_profile_versions AS profile
+                WHERE profile.user_id = :uid AND profile.status = 'active'
+                ORDER BY profile.activated_at DESC NULLS LAST, profile.updated_at DESC
+                LIMIT 1
+            ),
+            masterclass_session AS (
+                SELECT to_jsonb(school_session) AS payload
+                FROM school_sessions AS school_session
+                WHERE school_session.user_id = :uid
+                  AND school_session.session_id = CAST(:session_id AS uuid)
+                LIMIT 1
+            ),
+            answer_request AS (
+                SELECT
+                    to_jsonb(request)
+                    || jsonb_build_object(
+                        'age_seconds', EXTRACT(EPOCH FROM (now() - request.updated_at)),
+                        'evaluation_job_status', job.status,
+                        'evaluation_job_within_deadline', (
+                            job.status IN ('queued', 'running')
+                            AND job.created_at > now() - (
+                                CAST(:evaluation_deadline_seconds AS integer)
+                                * INTERVAL '1 second'
+                            )
+                        )
+                    ) AS payload
+                FROM school_answer_requests AS request
+                LEFT JOIN school_evaluation_jobs AS job
+                  ON job.session_id = request.session_id
+                 AND job.activity_id = request.activity_id
+                 AND job.user_id = request.user_id
+                 AND job.answer_hash = request.answer_hash
+                 AND job.answer_claim_token = request.claim_token
+                WHERE request.session_id = CAST(:session_id AS uuid)
+                  AND request.activity_id = :activity_id
+                  AND request.user_id = :uid
+                LIMIT 1
+            )
+            SELECT
+                (SELECT payload FROM active_profile) AS active_profile,
+                (SELECT payload FROM masterclass_session) AS school_session,
+                (SELECT payload FROM answer_request) AS answer_request
+            """
+        ),
+        {
+            "uid": user_id,
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
+        },
+    )
+    row = result.mappings().one()
+
+    def payload_dict(value: object) -> dict | None:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return dict(value) if isinstance(value, dict) else None
+
+    request = payload_dict(row.get("answer_request"))
+    if request is not None:
+        request["stale"] = bool(
+            request.get("status") == "processing"
+            and float(request.get("age_seconds") or 0.0)
+            >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+        )
+    return {
+        "active_profile": payload_dict(row.get("active_profile")),
+        "school_session": payload_dict(row.get("school_session")),
+        "answer_request": request,
+    }
+
+
+async def get_school_answer_status_context(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+) -> dict:
+    """Load the complete public-lineage snapshot for one pending School answer.
+
+    This is intentionally narrower than the learner dashboard: a status poll
+    needs exactly one session, its source report, optional linked parent, and
+    the idempotency request.  It must never hydrate every profile, report, or
+    active session merely to learn whether an evaluator has completed.
+    """
+
+    result = await session.execute(
+        text(
+            """
+            WITH active_profile AS (
+                SELECT to_jsonb(profile) AS payload
+                FROM school_profile_versions AS profile
+                WHERE profile.user_id = :uid AND profile.status = 'active'
+                ORDER BY profile.activated_at DESC NULLS LAST, profile.updated_at DESC
+                LIMIT 1
+            ),
+            target_session AS (
+                SELECT school_session.*
+                FROM school_sessions AS school_session
+                WHERE school_session.user_id = :uid
+                  AND school_session.session_id = CAST(:session_id AS uuid)
+                LIMIT 1
+            ),
+            placement_report AS (
+                SELECT to_jsonb(report) AS payload
+                FROM school_placement_reports AS report
+                JOIN target_session AS school_session
+                  ON school_session.source_placement_report_id = report.report_id
+                WHERE report.user_id = :uid
+                LIMIT 1
+            ),
+            linked_parent AS (
+                SELECT to_jsonb(parent_session) AS payload
+                FROM school_sessions AS parent_session
+                JOIN target_session AS child_session
+                  ON parent_session.session_id = child_session.linked_session_id
+                WHERE parent_session.user_id = :uid
+                LIMIT 1
+            ),
+            answer_request AS (
+                SELECT
+                    to_jsonb(request)
+                    || jsonb_build_object(
+                        'age_seconds', EXTRACT(EPOCH FROM (now() - request.updated_at)),
+                        'evaluation_job_status', job.status,
+                        'evaluation_job_within_deadline', (
+                            job.status IN ('queued', 'running')
+                            AND job.created_at > now() - (
+                                CAST(:evaluation_deadline_seconds AS integer)
+                                * INTERVAL '1 second'
+                            )
+                        )
+                    ) AS payload
+                FROM school_answer_requests AS request
+                LEFT JOIN school_evaluation_jobs AS job
+                  ON job.session_id = request.session_id
+                 AND job.activity_id = request.activity_id
+                 AND job.user_id = request.user_id
+                 AND job.answer_hash = request.answer_hash
+                 AND job.answer_claim_token = request.claim_token
+                WHERE request.session_id = CAST(:session_id AS uuid)
+                  AND request.activity_id = :activity_id
+                  AND request.user_id = :uid
+                LIMIT 1
+            )
+            SELECT
+                (SELECT payload FROM active_profile) AS active_profile,
+                (SELECT to_jsonb(school_session) FROM target_session AS school_session)
+                    AS school_session,
+                (SELECT payload FROM placement_report) AS placement_report,
+                (SELECT payload FROM linked_parent) AS linked_parent,
+                (SELECT payload FROM answer_request) AS answer_request
+            """
+        ),
+        {
+            "uid": user_id,
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
+        },
+    )
+    row = result.mappings().one()
+
+    def payload_dict(value: object) -> dict | None:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return dict(value) if isinstance(value, dict) else None
+
+    request = payload_dict(row.get("answer_request"))
+    if request is not None:
+        request["stale"] = bool(
+            request.get("status") == "processing"
+            and float(request.get("age_seconds") or 0.0)
+            >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+        )
+    report = payload_dict(row.get("placement_report"))
+    return {
+        "active_profile": payload_dict(row.get("active_profile")),
+        "school_session": payload_dict(row.get("school_session")),
+        "placement_report": (
+            _school_placement_report_from_row(report) if report is not None else None
+        ),
+        "linked_parent": payload_dict(row.get("linked_parent")),
+        "answer_request": request,
+    }
+
+
+async def get_school_curriculum_answer_context(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+) -> dict:
+    """Load a curriculum-answer preflight without hydrating School home state.
+
+    A curriculum submission needs the exact persisted session, its source
+    placement report, the active profile, and a possible idempotency request.
+    The learner dashboard snapshot also materializes linked sessions and every
+    School skill profile, which adds avoidable cross-region payload and query
+    work to each answer. This read remains non-authoritative: the claim and
+    final transition keep their existing fenced transactions.
+    """
+
+    result = await session.execute(
+        text(
+            """
+            WITH active_profile AS (
+                SELECT to_jsonb(profile) AS payload
+                FROM school_profile_versions AS profile
+                WHERE profile.user_id = :uid AND profile.status = 'active'
+                ORDER BY profile.activated_at DESC NULLS LAST, profile.updated_at DESC
+                LIMIT 1
+            ),
+            curriculum_session AS (
+                SELECT school_session.*
+                FROM school_sessions AS school_session
+                WHERE school_session.user_id = :uid
+                  AND school_session.session_id = CAST(:session_id AS uuid)
+                LIMIT 1
+            ),
+            placement_report AS (
+                SELECT to_jsonb(report) AS payload
+                FROM school_placement_reports AS report
+                JOIN curriculum_session AS school_session
+                  ON school_session.source_placement_report_id = report.report_id
+                WHERE report.user_id = :uid
+                LIMIT 1
+            ),
+            answer_request AS (
+                SELECT
+                    to_jsonb(request)
+                    || jsonb_build_object(
+                        'age_seconds', EXTRACT(EPOCH FROM (now() - request.updated_at)),
+                        'evaluation_job_status', job.status,
+                        'evaluation_job_within_deadline', (
+                            job.status IN ('queued', 'running')
+                            AND job.created_at > now() - (
+                                CAST(:evaluation_deadline_seconds AS integer)
+                                * INTERVAL '1 second'
+                            )
+                        )
+                    ) AS payload
+                FROM school_answer_requests AS request
+                LEFT JOIN school_evaluation_jobs AS job
+                  ON job.session_id = request.session_id
+                 AND job.activity_id = request.activity_id
+                 AND job.user_id = request.user_id
+                 AND job.answer_hash = request.answer_hash
+                 AND job.answer_claim_token = request.claim_token
+                WHERE request.session_id = CAST(:session_id AS uuid)
+                  AND request.activity_id = :activity_id
+                  AND request.user_id = :uid
+                LIMIT 1
+            )
+            SELECT
+                (SELECT payload FROM active_profile) AS active_profile,
+                (SELECT to_jsonb(school_session) FROM curriculum_session AS school_session)
+                    AS school_session,
+                (SELECT payload FROM placement_report) AS placement_report,
+                (SELECT payload FROM answer_request) AS answer_request
+            """
+        ),
+        {
+            "uid": user_id,
+            "session_id": session_id,
+            "activity_id": activity_id,
+            "evaluation_deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS,
+        },
+    )
+    row = result.mappings().one()
+
+    def payload_dict(value: object) -> dict | None:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return dict(value) if isinstance(value, dict) else None
+
+    request = payload_dict(row.get("answer_request"))
+    if request is not None:
+        request["stale"] = bool(
+            request.get("status") == "processing"
+            and float(request.get("age_seconds") or 0.0)
+            >= _SCHOOL_ANSWER_REQUEST_STALE_SECONDS
+        )
+    report = payload_dict(row.get("placement_report"))
+    return {
+        "active_profile": payload_dict(row.get("active_profile")),
+        "school_session": payload_dict(row.get("school_session")),
+        "placement_report": (
+            _school_placement_report_from_row(report) if report is not None else None
+        ),
+        "answer_request": request,
+    }
 
 
 async def claim_school_answer_request(
@@ -5389,7 +7665,13 @@ async def renew_school_answer_request(
 
 def _school_evaluation_job_from_row(row) -> dict:
     data = dict(row)
-    for key in ("expected_state_json", "error_json", "response_json", "result_data"):
+    for key in (
+        "expected_state_json",
+        "request_metadata_json",
+        "error_json",
+        "response_json",
+        "result_data",
+    ):
         if isinstance(data.get(key), str):
             data[key] = json.loads(data[key])
     return data
@@ -5407,6 +7689,7 @@ def _school_evaluation_job_queue_view(job: dict) -> dict:
             "max_attempts",
             "lease_version",
             "lease_expires_at",
+            "next_attempt_at",
             "last_error_code",
             "error_json",
             "created_at",
@@ -5426,6 +7709,16 @@ def _school_evaluation_job_expected_state_digest(expected_state_json: dict) -> s
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _school_evaluation_job_request_metadata(
+    request_metadata: dict | None,
+) -> dict:
+    if request_metadata is None:
+        return {}
+    if not isinstance(request_metadata, dict):
+        raise ValueError("invalid_school_evaluation_job_request_metadata")
+    return request_metadata
 
 
 def _school_evaluation_job_lease_seconds(lease_seconds: int) -> int:
@@ -5449,6 +7742,22 @@ def _school_evaluation_job_lease_owner(lease_owner: str) -> str:
     return normalized
 
 
+def _school_evaluation_job_retry_after_seconds(
+    retry_after_seconds: float | int | None,
+) -> float:
+    try:
+        normalized = float(retry_after_seconds or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid_school_evaluation_job_retry_after_seconds") from exc
+    if (
+        not math.isfinite(normalized)
+        or normalized < 0
+        or normalized > _SCHOOL_EVALUATION_JOB_MAX_RETRY_DELAY_SECONDS
+    ):
+        raise ValueError("invalid_school_evaluation_job_retry_after_seconds")
+    return normalized
+
+
 async def get_school_evaluation_job(
     session: AsyncSession,
     user_id: str,
@@ -5459,10 +7768,11 @@ async def get_school_evaluation_job(
         text(
             """
             SELECT session_id::text AS session_id, activity_id, user_id,
-                   raw_answer, expected_state_json, expected_state_digest,
+                   raw_answer, expected_state_json, request_metadata_json,
+                   expected_state_digest,
                    answer_hash, answer_claim_token, flow_type, evaluation_mode,
                    status, attempts, max_attempts, lease_owner, lease_token,
-                   lease_version, lease_expires_at, last_error_code, error_json,
+                   lease_version, lease_expires_at, next_attempt_at, last_error_code, error_json,
                    response_json, result_data, created_at, updated_at, started_at,
                    completed_at, failed_at, cancelled_at
             FROM school_evaluation_jobs
@@ -5488,7 +7798,7 @@ async def get_school_evaluation_job_status(
         text(
             """
             SELECT session_id::text AS session_id, activity_id, status,
-                   attempts, max_attempts, last_error_code,
+                   attempts, max_attempts, next_attempt_at, last_error_code,
                    created_at, updated_at, started_at, completed_at,
                    failed_at, cancelled_at
             FROM school_evaluation_jobs
@@ -5503,6 +7813,338 @@ async def get_school_evaluation_job_status(
     return dict(row) if row else None
 
 
+async def claim_and_enqueue_school_evaluation_job_atomic(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+    activity_id: str,
+    raw_answer: str,
+    expected_state_json: dict,
+    answer_hash: str,
+    flow_type: str,
+    evaluation_mode: str,
+    max_attempts: int = 3,
+    request_metadata: dict | None = None,
+) -> dict:
+    """Durably enqueue one semantic answer with one locked database mutation.
+
+    The generic queue method remains the compatibility fallback for stores that
+    do not have Postgres transaction support.  This path keeps its exact
+    duplicate and fencing outcomes, but avoids serial cross-region round trips
+    before the learner can receive the durable ``awaiting_evaluation`` response.
+    """
+    if not isinstance(raw_answer, str):
+        raise ValueError("invalid_school_evaluation_job_answer")
+    if not isinstance(expected_state_json, dict):
+        raise ValueError("invalid_school_evaluation_job_expected_state")
+    normalized_flow_type = str(flow_type or "").strip()
+    normalized_evaluation_mode = str(evaluation_mode or "").strip()
+    if not normalized_flow_type or not normalized_evaluation_mode:
+        raise ValueError("invalid_school_evaluation_job_mode")
+
+    normalized_max_attempts = _school_evaluation_job_max_attempts(max_attempts)
+    normalized_request_metadata = _school_evaluation_job_request_metadata(
+        request_metadata
+    )
+    expected_state_digest = _school_evaluation_job_expected_state_digest(
+        expected_state_json
+    )
+    replacement_claim_token = str(uuid4())
+    params = {
+        "uid": user_id,
+        "session_id": session_id,
+        "activity_id": activity_id,
+        "raw_answer": raw_answer,
+        "expected_state_json": json.dumps(expected_state_json),
+        "request_metadata_json": json.dumps(normalized_request_metadata),
+        "expected_state_digest": expected_state_digest,
+        "answer_hash": answer_hash,
+        "flow_type": normalized_flow_type,
+        "evaluation_mode": normalized_evaluation_mode,
+        "max_attempts": normalized_max_attempts,
+        "replacement_claim_token": replacement_claim_token,
+        "answer_lock_key": f"school-answer:{session_id}:{activity_id}",
+        "job_lock_key": f"school-evaluation-job:{session_id}:{activity_id}",
+    }
+
+    try:
+        result = await session.execute(
+            text(
+                """
+                WITH locks AS MATERIALIZED (
+                    SELECT
+                        pg_advisory_xact_lock(
+                            hashtext(:answer_lock_key)::bigint
+                        ) AS answer_lock,
+                        pg_advisory_xact_lock(
+                            hashtext(:job_lock_key)::bigint
+                        ) AS job_lock
+                ),
+                request_row AS MATERIALIZED (
+                    SELECT
+                        request.user_id AS request_user_id,
+                        request.answer_hash AS request_answer_hash,
+                        request.claim_token AS request_claim_token,
+                        request.status AS request_status,
+                        request.response_json AS request_response_json
+                    FROM school_answer_requests AS request
+                    CROSS JOIN locks
+                    WHERE request.session_id = CAST(:session_id AS uuid)
+                      AND request.activity_id = :activity_id
+                    FOR UPDATE OF request
+                ),
+                job_row AS MATERIALIZED (
+                    SELECT
+                        job.session_id::text AS queue_session_id,
+                        job.activity_id AS queue_activity_id,
+                        job.user_id AS job_user_id,
+                        job.raw_answer AS job_raw_answer,
+                        job.expected_state_digest AS job_expected_state_digest,
+                        job.request_metadata_json AS job_request_metadata_json,
+                        job.answer_hash AS job_answer_hash,
+                        job.answer_claim_token AS job_answer_claim_token,
+                        job.flow_type AS job_flow_type,
+                        job.evaluation_mode AS job_evaluation_mode,
+                        job.status AS queue_status,
+                        job.attempts AS queue_attempts,
+                        job.max_attempts AS queue_max_attempts,
+                        job.lease_version AS queue_lease_version,
+                        job.lease_expires_at AS queue_lease_expires_at,
+                        job.next_attempt_at AS queue_next_attempt_at,
+                        job.last_error_code AS queue_last_error_code,
+                        job.error_json AS queue_error_json,
+                        job.created_at AS queue_created_at,
+                        job.updated_at AS queue_updated_at,
+                        job.started_at AS queue_started_at,
+                        job.completed_at AS queue_completed_at,
+                        job.failed_at AS queue_failed_at,
+                        job.cancelled_at AS queue_cancelled_at
+                    FROM school_evaluation_jobs AS job
+                    CROSS JOIN locks
+                    WHERE job.session_id = CAST(:session_id AS uuid)
+                      AND job.activity_id = :activity_id
+                    FOR UPDATE OF job
+                ),
+                candidate AS MATERIALIZED (
+                    SELECT
+                        request_row.*,
+                        job_row.*,
+                        CASE
+                            WHEN request_row.request_status = 'processing'
+                                THEN request_row.request_claim_token
+                            ELSE :replacement_claim_token
+                        END AS claim_token
+                    FROM locks
+                    LEFT JOIN request_row ON TRUE
+                    LEFT JOIN job_row ON TRUE
+                ),
+                decision AS MATERIALIZED (
+                    SELECT
+                        candidate.*,
+                        CASE
+                            WHEN candidate.request_user_id IS NOT NULL
+                             AND candidate.request_user_id <> :uid
+                                THEN 'conflict'
+                            WHEN candidate.request_status = 'completed'
+                                THEN 'completed'
+                            WHEN candidate.request_user_id IS NOT NULL
+                             AND candidate.request_status NOT IN ('processing', 'failed')
+                                THEN 'conflict'
+                            WHEN candidate.request_status = 'processing'
+                             AND candidate.request_answer_hash <> :answer_hash
+                                THEN 'conflict'
+                            WHEN candidate.queue_session_id IS NOT NULL
+                             AND candidate.job_user_id = :uid
+                             AND candidate.job_answer_hash = :answer_hash
+                             AND candidate.job_answer_claim_token = candidate.claim_token
+                             AND candidate.job_raw_answer = :raw_answer
+                             AND candidate.job_expected_state_digest = :expected_state_digest
+                             AND candidate.job_request_metadata_json = CAST(:request_metadata_json AS jsonb)
+                             AND candidate.job_flow_type = :flow_type
+                             AND candidate.job_evaluation_mode = :evaluation_mode
+                             AND candidate.queue_max_attempts = :max_attempts
+                             AND candidate.queue_status IN ('queued', 'running')
+                                THEN 'in_progress'
+                            WHEN candidate.queue_session_id IS NOT NULL
+                             AND candidate.queue_status NOT IN ('failed', 'cancelled')
+                                THEN 'conflict'
+                            ELSE 'queued'
+                        END AS outcome
+                    FROM candidate
+                ),
+                request_write AS (
+                    INSERT INTO school_answer_requests (
+                        session_id, activity_id, user_id, answer_hash, claim_token, status
+                    )
+                    SELECT
+                        CAST(:session_id AS uuid), :activity_id, :uid,
+                        :answer_hash, decision.claim_token, 'processing'
+                    FROM decision
+                    WHERE decision.outcome = 'queued'
+                    ON CONFLICT (session_id, activity_id) DO UPDATE
+                    SET status = 'processing',
+                        response_json = NULL,
+                        answer_hash = EXCLUDED.answer_hash,
+                        claim_token = EXCLUDED.claim_token,
+                        updated_at = now()
+                    WHERE school_answer_requests.user_id = :uid
+                      AND school_answer_requests.status = 'failed'
+                    RETURNING session_id
+                ),
+                job_write AS (
+                    INSERT INTO school_evaluation_jobs (
+                        session_id, activity_id, user_id, raw_answer,
+                        expected_state_json, request_metadata_json,
+                        expected_state_digest, answer_hash, answer_claim_token,
+                        flow_type, evaluation_mode, status, max_attempts
+                    )
+                    SELECT
+                        CAST(:session_id AS uuid), :activity_id, :uid, :raw_answer,
+                        CAST(:expected_state_json AS jsonb),
+                        CAST(:request_metadata_json AS jsonb),
+                        :expected_state_digest, :answer_hash, decision.claim_token,
+                        :flow_type, :evaluation_mode, 'queued', :max_attempts
+                    FROM decision
+                    LEFT JOIN request_write ON TRUE
+                    WHERE decision.outcome = 'queued'
+                    ON CONFLICT (session_id, activity_id) DO UPDATE
+                    SET user_id = EXCLUDED.user_id,
+                        raw_answer = EXCLUDED.raw_answer,
+                        expected_state_json = EXCLUDED.expected_state_json,
+                        request_metadata_json = EXCLUDED.request_metadata_json,
+                        expected_state_digest = EXCLUDED.expected_state_digest,
+                        answer_hash = EXCLUDED.answer_hash,
+                        answer_claim_token = EXCLUDED.answer_claim_token,
+                        flow_type = EXCLUDED.flow_type,
+                        evaluation_mode = EXCLUDED.evaluation_mode,
+                        status = 'queued',
+                        attempts = 0,
+                        max_attempts = EXCLUDED.max_attempts,
+                        lease_owner = NULL,
+                        lease_token = NULL,
+                        lease_expires_at = NULL,
+                        next_attempt_at = now(),
+                        last_error_code = NULL,
+                        error_json = NULL,
+                        response_json = NULL,
+                        result_data = NULL,
+                        created_at = now(),
+                        updated_at = now(),
+                        started_at = NULL,
+                        completed_at = NULL,
+                        failed_at = NULL,
+                        cancelled_at = NULL
+                    WHERE school_evaluation_jobs.status IN ('failed', 'cancelled')
+                    RETURNING
+                        session_id::text AS queue_session_id,
+                        activity_id AS queue_activity_id,
+                        status AS queue_status,
+                        attempts AS queue_attempts,
+                        max_attempts AS queue_max_attempts,
+                        lease_version AS queue_lease_version,
+                        lease_expires_at AS queue_lease_expires_at,
+                        next_attempt_at AS queue_next_attempt_at,
+                        last_error_code AS queue_last_error_code,
+                        error_json AS queue_error_json,
+                        created_at AS queue_created_at,
+                        updated_at AS queue_updated_at,
+                        started_at AS queue_started_at,
+                        completed_at AS queue_completed_at,
+                        failed_at AS queue_failed_at,
+                        cancelled_at AS queue_cancelled_at
+                )
+                SELECT
+                    decision.outcome,
+                    decision.claim_token,
+                    CASE
+                        WHEN decision.outcome = 'completed'
+                            THEN decision.request_response_json
+                        ELSE NULL
+                    END AS response_json,
+                    COALESCE(job_write.queue_session_id, decision.queue_session_id)
+                        AS queue_session_id,
+                    COALESCE(job_write.queue_activity_id, decision.queue_activity_id)
+                        AS queue_activity_id,
+                    COALESCE(job_write.queue_status, decision.queue_status)
+                        AS queue_status,
+                    COALESCE(job_write.queue_attempts, decision.queue_attempts)
+                        AS queue_attempts,
+                    COALESCE(job_write.queue_max_attempts, decision.queue_max_attempts)
+                        AS queue_max_attempts,
+                    COALESCE(job_write.queue_lease_version, decision.queue_lease_version)
+                        AS queue_lease_version,
+                    COALESCE(job_write.queue_lease_expires_at, decision.queue_lease_expires_at)
+                        AS queue_lease_expires_at,
+                    COALESCE(job_write.queue_next_attempt_at, decision.queue_next_attempt_at)
+                        AS queue_next_attempt_at,
+                    COALESCE(job_write.queue_last_error_code, decision.queue_last_error_code)
+                        AS queue_last_error_code,
+                    COALESCE(job_write.queue_error_json, decision.queue_error_json)
+                        AS queue_error_json,
+                    COALESCE(job_write.queue_created_at, decision.queue_created_at)
+                        AS queue_created_at,
+                    COALESCE(job_write.queue_updated_at, decision.queue_updated_at)
+                        AS queue_updated_at,
+                    COALESCE(job_write.queue_started_at, decision.queue_started_at)
+                        AS queue_started_at,
+                    COALESCE(job_write.queue_completed_at, decision.queue_completed_at)
+                        AS queue_completed_at,
+                    COALESCE(job_write.queue_failed_at, decision.queue_failed_at)
+                        AS queue_failed_at,
+                    COALESCE(job_write.queue_cancelled_at, decision.queue_cancelled_at)
+                        AS queue_cancelled_at
+                FROM decision
+                LEFT JOIN job_write ON TRUE
+                """
+            ),
+            params,
+        )
+        row = result.mappings().first()
+        if row is None:
+            raise RuntimeError("school_evaluation_job_atomic_enqueue_missing")
+        data = dict(row)
+        outcome = str(data.get("outcome") or "")
+        if outcome == "completed":
+            await session.rollback()
+            response = data.get("response_json")
+            if isinstance(response, str):
+                response = json.loads(response)
+            return {"outcome": "completed", "response_json": response}
+        if outcome == "conflict":
+            await session.rollback()
+            return {"outcome": "conflict"}
+
+        queue_fields = {
+            key.removeprefix("queue_"): value
+            for key, value in data.items()
+            if key.startswith("queue_")
+        }
+        if outcome == "queued":
+            if not queue_fields.get("session_id"):
+                await session.rollback()
+                raise RuntimeError("school_evaluation_job_insert_missing")
+            await session.commit()
+            return {
+                "outcome": "queued",
+                "claim_token": str(data["claim_token"]),
+                "job": queue_fields,
+            }
+        if outcome == "in_progress":
+            await session.rollback()
+            return {
+                "outcome": "in_progress",
+                "claim_token": str(data["claim_token"]),
+                "job": queue_fields,
+            }
+
+        await session.rollback()
+        raise RuntimeError("invalid_school_evaluation_job_atomic_enqueue_outcome")
+    except Exception:
+        await session.rollback()
+        raise
+
+
 async def claim_and_enqueue_school_evaluation_job(
     session: AsyncSession,
     *,
@@ -5515,6 +8157,7 @@ async def claim_and_enqueue_school_evaluation_job(
     flow_type: str,
     evaluation_mode: str,
     max_attempts: int = 3,
+    request_metadata: dict | None = None,
 ) -> dict:
     """Atomically own one answer request and leave it with a matching job."""
     if not isinstance(raw_answer, str):
@@ -5526,6 +8169,9 @@ async def claim_and_enqueue_school_evaluation_job(
     if not normalized_flow_type or not normalized_evaluation_mode:
         raise ValueError("invalid_school_evaluation_job_mode")
     normalized_max_attempts = _school_evaluation_job_max_attempts(max_attempts)
+    normalized_request_metadata = _school_evaluation_job_request_metadata(
+        request_metadata
+    )
     expected_state_digest = _school_evaluation_job_expected_state_digest(
         expected_state_json
     )
@@ -5556,10 +8202,7 @@ async def claim_and_enqueue_school_evaluation_job(
         request_row = request_result.mappings().first()
         request = dict(request_row) if request_row else None
         if request is not None:
-            if (
-                request.get("user_id") != user_id
-                or request.get("answer_hash") != answer_hash
-            ):
+            if request.get("user_id") != user_id:
                 await session.rollback()
                 return {"outcome": "conflict"}
             if request.get("status") == "completed":
@@ -5569,6 +8212,12 @@ async def claim_and_enqueue_school_evaluation_job(
                     response = json.loads(response)
                 return {"outcome": "completed", "response_json": response}
             if request.get("status") not in {"processing", "failed"}:
+                await session.rollback()
+                return {"outcome": "conflict"}
+            if (
+                request.get("status") == "processing"
+                and request.get("answer_hash") != answer_hash
+            ):
                 await session.rollback()
                 return {"outcome": "conflict"}
             claim_token = (
@@ -5583,7 +8232,8 @@ async def claim_and_enqueue_school_evaluation_job(
             text(
                 """
                 SELECT session_id::text AS session_id, activity_id, user_id,
-                       raw_answer, expected_state_json, expected_state_digest,
+                       raw_answer, expected_state_json, request_metadata_json,
+                       expected_state_digest,
                        answer_hash, answer_claim_token, flow_type, evaluation_mode,
                        status, attempts, max_attempts, lease_owner, lease_token,
                        lease_version, lease_expires_at, last_error_code, error_json,
@@ -5610,6 +8260,8 @@ async def claim_and_enqueue_school_evaluation_job(
             same_payload = (
                 existing.get("raw_answer") == raw_answer
                 and existing.get("expected_state_digest") == expected_state_digest
+                and existing.get("request_metadata_json")
+                == normalized_request_metadata
                 and existing.get("flow_type") == normalized_flow_type
                 and existing.get("evaluation_mode") == normalized_evaluation_mode
                 and existing.get("max_attempts") == normalized_max_attempts
@@ -5680,6 +8332,7 @@ async def claim_and_enqueue_school_evaluation_job(
                     SET user_id = :uid,
                         raw_answer = :raw_answer,
                         expected_state_json = CAST(:expected_state_json AS jsonb),
+                        request_metadata_json = CAST(:request_metadata_json AS jsonb),
                         expected_state_digest = :expected_state_digest,
                         answer_hash = :answer_hash,
                         answer_claim_token = :answer_claim_token,
@@ -5691,6 +8344,7 @@ async def claim_and_enqueue_school_evaluation_job(
                         lease_owner = NULL,
                         lease_token = NULL,
                         lease_expires_at = NULL,
+                        next_attempt_at = now(),
                         last_error_code = NULL,
                         error_json = NULL,
                         response_json = NULL,
@@ -5705,7 +8359,8 @@ async def claim_and_enqueue_school_evaluation_job(
                       AND activity_id = :activity_id
                       AND status IN ('failed', 'cancelled')
                     RETURNING session_id::text AS session_id, activity_id, user_id,
-                              raw_answer, expected_state_json, expected_state_digest,
+                              raw_answer, expected_state_json, request_metadata_json,
+                              expected_state_digest,
                               answer_hash, answer_claim_token, flow_type, evaluation_mode,
                               status, attempts, max_attempts, lease_owner, lease_token,
                               lease_version, lease_expires_at, last_error_code, error_json,
@@ -5719,6 +8374,7 @@ async def claim_and_enqueue_school_evaluation_job(
                     "uid": user_id,
                     "raw_answer": raw_answer,
                     "expected_state_json": json.dumps(expected_state_json),
+                    "request_metadata_json": json.dumps(normalized_request_metadata),
                     "expected_state_digest": expected_state_digest,
                     "answer_hash": answer_hash,
                     "answer_claim_token": claim_token,
@@ -5734,18 +8390,21 @@ async def claim_and_enqueue_school_evaluation_job(
                     """
                     INSERT INTO school_evaluation_jobs (
                         session_id, activity_id, user_id, raw_answer,
-                        expected_state_json, expected_state_digest,
+                        expected_state_json, request_metadata_json,
+                        expected_state_digest,
                         answer_hash, answer_claim_token, flow_type, evaluation_mode,
                         status, max_attempts
                     )
                     VALUES (
                         CAST(:session_id AS uuid), :activity_id, :uid, :raw_answer,
-                        CAST(:expected_state_json AS jsonb), :expected_state_digest,
+                        CAST(:expected_state_json AS jsonb),
+                        CAST(:request_metadata_json AS jsonb), :expected_state_digest,
                         :answer_hash, :answer_claim_token, :flow_type, :evaluation_mode,
                         'queued', :max_attempts
                     )
                     RETURNING session_id::text AS session_id, activity_id, user_id,
-                              raw_answer, expected_state_json, expected_state_digest,
+                              raw_answer, expected_state_json, request_metadata_json,
+                              expected_state_digest,
                               answer_hash, answer_claim_token, flow_type, evaluation_mode,
                               status, attempts, max_attempts, lease_owner, lease_token,
                               lease_version, lease_expires_at, last_error_code, error_json,
@@ -5759,6 +8418,7 @@ async def claim_and_enqueue_school_evaluation_job(
                     "uid": user_id,
                     "raw_answer": raw_answer,
                     "expected_state_json": json.dumps(expected_state_json),
+                    "request_metadata_json": json.dumps(normalized_request_metadata),
                     "expected_state_digest": expected_state_digest,
                     "answer_hash": answer_hash,
                     "answer_claim_token": claim_token,
@@ -5795,6 +8455,7 @@ async def enqueue_school_evaluation_job(
     flow_type: str,
     evaluation_mode: str,
     max_attempts: int = 3,
+    request_metadata: dict | None = None,
 ) -> dict:
     """Queue one evaluator job only while its School answer claim is current."""
     if not isinstance(expected_state_json, dict):
@@ -5804,6 +8465,9 @@ async def enqueue_school_evaluation_job(
     if not normalized_flow_type or not normalized_evaluation_mode:
         raise ValueError("invalid_school_evaluation_job_mode")
     normalized_max_attempts = _school_evaluation_job_max_attempts(max_attempts)
+    normalized_request_metadata = _school_evaluation_job_request_metadata(
+        request_metadata
+    )
 
     expected_state_digest = _school_evaluation_job_expected_state_digest(
         expected_state_json
@@ -5844,7 +8508,8 @@ async def enqueue_school_evaluation_job(
             text(
                 """
                 SELECT session_id::text AS session_id, activity_id, user_id,
-                       raw_answer, expected_state_json, expected_state_digest,
+                       raw_answer, expected_state_json, request_metadata_json,
+                       expected_state_digest,
                        answer_hash, answer_claim_token, flow_type, evaluation_mode,
                        status, attempts, max_attempts, lease_owner, lease_token,
                        lease_version, lease_expires_at, last_error_code, error_json,
@@ -5869,6 +8534,8 @@ async def enqueue_school_evaluation_job(
             same_payload = (
                 existing.get("raw_answer") == raw_answer
                 and existing.get("expected_state_digest") == expected_state_digest
+                and existing.get("request_metadata_json")
+                == normalized_request_metadata
                 and existing.get("flow_type") == normalized_flow_type
                 and existing.get("evaluation_mode") == normalized_evaluation_mode
                 and existing.get("max_attempts") == normalized_max_attempts
@@ -5884,6 +8551,7 @@ async def enqueue_school_evaluation_job(
                         SET user_id = :uid,
                             raw_answer = :raw_answer,
                             expected_state_json = CAST(:expected_state_json AS jsonb),
+                            request_metadata_json = CAST(:request_metadata_json AS jsonb),
                             expected_state_digest = :expected_state_digest,
                             answer_hash = :answer_hash,
                             answer_claim_token = :answer_claim_token,
@@ -5895,6 +8563,7 @@ async def enqueue_school_evaluation_job(
                             lease_owner = NULL,
                             lease_token = NULL,
                             lease_expires_at = NULL,
+                            next_attempt_at = now(),
                             last_error_code = NULL,
                             error_json = NULL,
                             response_json = NULL,
@@ -5909,7 +8578,8 @@ async def enqueue_school_evaluation_job(
                           AND activity_id = :activity_id
                           AND status IN ('failed', 'cancelled')
                         RETURNING session_id::text AS session_id, activity_id, user_id,
-                                  raw_answer, expected_state_json, expected_state_digest,
+                                  raw_answer, expected_state_json, request_metadata_json,
+                                  expected_state_digest,
                                   answer_hash, answer_claim_token, flow_type, evaluation_mode,
                                   status, attempts, max_attempts, lease_owner, lease_token,
                                   lease_version, lease_expires_at, last_error_code, error_json,
@@ -5923,6 +8593,7 @@ async def enqueue_school_evaluation_job(
                         "uid": user_id,
                         "raw_answer": raw_answer,
                         "expected_state_json": json.dumps(expected_state_json),
+                        "request_metadata_json": json.dumps(normalized_request_metadata),
                         "expected_state_digest": expected_state_digest,
                         "answer_hash": answer_hash,
                         "answer_claim_token": answer_claim_token,
@@ -5945,18 +8616,21 @@ async def enqueue_school_evaluation_job(
                 """
                 INSERT INTO school_evaluation_jobs (
                     session_id, activity_id, user_id, raw_answer,
-                    expected_state_json, expected_state_digest,
+                    expected_state_json, request_metadata_json,
+                    expected_state_digest,
                     answer_hash, answer_claim_token, flow_type, evaluation_mode,
                     status, max_attempts
                 )
                 VALUES (
                     CAST(:session_id AS uuid), :activity_id, :uid, :raw_answer,
-                    CAST(:expected_state_json AS jsonb), :expected_state_digest,
+                    CAST(:expected_state_json AS jsonb),
+                    CAST(:request_metadata_json AS jsonb), :expected_state_digest,
                     :answer_hash, :answer_claim_token, :flow_type, :evaluation_mode,
                     'queued', :max_attempts
                 )
                 RETURNING session_id::text AS session_id, activity_id, user_id,
-                          raw_answer, expected_state_json, expected_state_digest,
+                          raw_answer, expected_state_json, request_metadata_json,
+                          expected_state_digest,
                           answer_hash, answer_claim_token, flow_type, evaluation_mode,
                           status, attempts, max_attempts, lease_owner, lease_token,
                           lease_version, lease_expires_at, last_error_code, error_json,
@@ -5970,6 +8644,7 @@ async def enqueue_school_evaluation_job(
                 "uid": user_id,
                 "raw_answer": raw_answer,
                 "expected_state_json": json.dumps(expected_state_json),
+                "request_metadata_json": json.dumps(normalized_request_metadata),
                 "expected_state_digest": expected_state_digest,
                 "answer_hash": answer_hash,
                 "answer_claim_token": answer_claim_token,
@@ -5988,23 +8663,30 @@ async def enqueue_school_evaluation_job(
         raise
 
 
-async def _terminalize_expired_school_evaluation_jobs(session: AsyncSession) -> None:
+async def _terminalize_expired_school_evaluation_jobs(session: AsyncSession) -> int:
     """Release expired exhausted jobs before issuing another evaluator lease."""
-    await session.execute(
+    result = await session.execute(
         text(
             """
-            WITH terminal_candidates AS (
+            WITH terminal_request_candidates AS (
                 SELECT
-                    job.session_id,
-                    job.activity_id,
+                    request.session_id,
+                    request.activity_id,
                     CASE
                         WHEN job.created_at <= now() - (
                             CAST(:deadline_seconds AS integer) * INTERVAL '1 second'
                         ) THEN 'evaluation_deadline_exceeded'
                         ELSE 'evaluation_recovery_lease_expired'
                     END AS error_code
-                FROM school_evaluation_jobs AS job
+                FROM school_answer_requests AS request
+                JOIN school_evaluation_jobs AS job
+                  ON job.session_id = request.session_id
+                 AND job.activity_id = request.activity_id
+                 AND job.user_id = request.user_id
+                 AND job.answer_hash = request.answer_hash
+                 AND job.answer_claim_token = request.claim_token
                 WHERE job.status IN ('queued', 'running')
+                  AND request.status = 'processing'
                   AND (
                       job.created_at <= now() - (
                           CAST(:deadline_seconds AS integer) * INTERVAL '1 second'
@@ -6017,7 +8699,18 @@ async def _terminalize_expired_school_evaluation_jobs(session: AsyncSession) -> 
                       )
                   )
                 ORDER BY job.created_at ASC
-                FOR UPDATE SKIP LOCKED
+                FOR UPDATE OF request SKIP LOCKED
+            ),
+            terminal_candidates AS (
+                SELECT
+                    job.session_id,
+                    job.activity_id,
+                    request.error_code
+                FROM school_evaluation_jobs AS job
+                JOIN terminal_request_candidates AS request
+                  ON request.session_id = job.session_id
+                 AND request.activity_id = job.activity_id
+                FOR UPDATE OF job SKIP LOCKED
             ),
             terminalized_jobs AS (
                 UPDATE school_evaluation_jobs AS job
@@ -6056,6 +8749,19 @@ async def _terminalize_expired_school_evaluation_jobs(session: AsyncSession) -> 
         ),
         {"deadline_seconds": _SCHOOL_EVALUATION_JOB_DEADLINE_SECONDS},
     )
+    return int(result.scalar_one_or_none() or 0)
+
+
+async def reconcile_expired_school_evaluation_jobs(session: AsyncSession) -> int:
+    """Release only durable evaluator jobs that have crossed their server deadline."""
+
+    try:
+        released = await _terminalize_expired_school_evaluation_jobs(session)
+        await session.commit()
+        return released
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def claim_school_evaluation_job(
@@ -6090,6 +8796,7 @@ async def claim_school_evaluation_job(
                           (
                               job.status = 'queued'
                               AND job.attempts < job.max_attempts
+                              AND job.next_attempt_at <= now()
                           )
                           OR (
                               job.status = 'running'
@@ -6098,7 +8805,7 @@ async def claim_school_evaluation_job(
                               AND job.attempts <= job.max_attempts
                           )
                       )
-                    ORDER BY job.created_at ASC
+                    ORDER BY job.next_attempt_at ASC, job.created_at ASC
                     FOR UPDATE SKIP LOCKED
                     LIMIT 1
                 )
@@ -6118,6 +8825,7 @@ async def claim_school_evaluation_job(
                   AND job.activity_id = candidate.activity_id
                 RETURNING job.session_id::text AS session_id, job.activity_id, job.user_id,
                           job.raw_answer, job.expected_state_json,
+                          job.request_metadata_json,
                           job.expected_state_digest, job.answer_hash,
                           job.answer_claim_token, job.flow_type, job.evaluation_mode,
                           job.status, job.attempts, job.max_attempts,
@@ -6236,11 +8944,16 @@ async def terminalize_school_evaluation_job(
     lease_version: int,
     last_error_code: str,
     error_json: dict | None = None,
+    placement_retry_timing: dict | None = None,
 ) -> dict | None:
     """Fail a fenced running job and release its exact answer request atomically."""
     normalized_error_code = str(last_error_code or "").strip()
     if not normalized_error_code:
         raise ValueError("invalid_school_evaluation_job_error_code")
+    normalized_placement_retry_timing = _validated_placement_retry_timing(
+        placement_retry_timing,
+        activity_id=activity_id,
+    )
     result = await session.execute(
         text(
             """
@@ -6253,6 +8966,24 @@ async def terminalize_school_evaluation_job(
                   AND request.answer_hash = :answer_hash
                   AND request.claim_token = :answer_claim_token
                   AND request.status = 'processing'
+                FOR UPDATE
+            ),
+            locked_placement_session AS (
+                SELECT school_session.session_id
+                FROM school_sessions AS school_session
+                WHERE CAST(:placement_retry_timing AS jsonb) IS NOT NULL
+                  AND school_session.user_id = :uid
+                  AND school_session.session_id = CAST(:session_id AS uuid)
+                  AND school_session.api_version = 'rebuild'
+                  AND school_session.flow_type = 'placement'
+                  AND school_session.status = 'active'
+                  AND school_session.state_json #>> '{_placement_item_timing,item_id}' = :activity_id
+                  AND EXISTS (
+                      SELECT 1
+                      FROM locked_request AS request
+                      WHERE request.session_id = school_session.session_id
+                        AND request.activity_id = :activity_id
+                  )
                 FOR UPDATE
             ),
             terminalized_job AS (
@@ -6278,6 +9009,15 @@ async def terminalize_school_evaluation_job(
                   AND job.lease_version = :lease_version
                   AND job.status = 'running'
                   AND job.lease_expires_at > now()
+                  AND (
+                      CAST(:placement_retry_timing AS jsonb) IS NULL
+                      OR (
+                          job.flow_type = 'placement'
+                          AND EXISTS (
+                              SELECT 1 FROM locked_placement_session
+                          )
+                      )
+                  )
                 RETURNING job.session_id::text AS session_id, job.activity_id,
                           job.user_id, job.answer_hash, job.answer_claim_token,
                           job.status, job.attempts, job.max_attempts,
@@ -6285,6 +9025,26 @@ async def terminalize_school_evaluation_job(
                           job.lease_expires_at, job.last_error_code, job.error_json,
                           job.created_at, job.updated_at, job.started_at,
                           job.failed_at, job.cancelled_at
+            ),
+            patched_placement_session AS (
+                UPDATE school_sessions AS school_session
+                SET state_json = jsonb_set(
+                        school_session.state_json,
+                        '{_placement_item_timing}',
+                        CAST(:placement_retry_timing AS jsonb),
+                        true
+                    ),
+                    updated_at = now()
+                FROM terminalized_job AS job
+                WHERE CAST(:placement_retry_timing AS jsonb) IS NOT NULL
+                  AND school_session.user_id = job.user_id
+                  AND school_session.session_id = CAST(job.session_id AS uuid)
+                  AND EXISTS (
+                      SELECT 1
+                      FROM locked_placement_session AS locked_session
+                      WHERE locked_session.session_id = school_session.session_id
+                  )
+                RETURNING school_session.session_id
             ),
             released_request AS (
                 UPDATE school_answer_requests AS request
@@ -6298,6 +9058,10 @@ async def terminalize_school_evaluation_job(
                   AND request.answer_hash = job.answer_hash
                   AND request.claim_token = job.answer_claim_token
                   AND request.status = 'processing'
+                  AND (
+                      CAST(:placement_retry_timing AS jsonb) IS NULL
+                      OR EXISTS (SELECT 1 FROM patched_placement_session)
+                  )
                 RETURNING request.session_id, request.activity_id
             )
             SELECT terminalized_job.*
@@ -6316,6 +9080,11 @@ async def terminalize_school_evaluation_job(
             "lease_version": int(lease_version),
             "last_error_code": normalized_error_code,
             "error_json": json.dumps(error_json) if error_json is not None else None,
+            "placement_retry_timing": (
+                json.dumps(normalized_placement_retry_timing)
+                if normalized_placement_retry_timing is not None
+                else None
+            ),
         },
     )
     row = result.mappings().first()
@@ -6373,10 +9142,11 @@ async def complete_school_evaluation_job(
                     AND request.status = 'processing'
               )
             RETURNING session_id::text AS session_id, activity_id, user_id,
-                      raw_answer, expected_state_json, expected_state_digest,
+                      raw_answer, expected_state_json, request_metadata_json,
+                      expected_state_digest,
                       answer_hash, answer_claim_token, flow_type, evaluation_mode,
                       status, attempts, max_attempts, lease_owner, lease_token,
-                      lease_version, lease_expires_at, last_error_code, error_json,
+                      lease_version, lease_expires_at, next_attempt_at, last_error_code, error_json,
                       response_json, result_data, created_at, updated_at, started_at,
                       completed_at, failed_at, cancelled_at
             """
@@ -6454,10 +9224,11 @@ async def fail_school_evaluation_job(
                     AND request.status = 'processing'
               )
             RETURNING session_id::text AS session_id, activity_id, user_id,
-                      raw_answer, expected_state_json, expected_state_digest,
+                      raw_answer, expected_state_json, request_metadata_json,
+                      expected_state_digest,
                       answer_hash, answer_claim_token, flow_type, evaluation_mode,
                       status, attempts, max_attempts, lease_owner, lease_token,
-                      lease_version, lease_expires_at, last_error_code, error_json,
+                      lease_version, lease_expires_at, next_attempt_at, last_error_code, error_json,
                       response_json, result_data, created_at, updated_at, started_at,
                       completed_at, failed_at, cancelled_at
             """
@@ -6496,12 +9267,16 @@ async def retry_school_evaluation_job(
     lease_token: str,
     lease_version: int,
     last_error_code: str,
+    retry_after_seconds: float | int | None = None,
     error_json: dict | None = None,
 ) -> dict | None:
     """Release one current worker lease so the same claimed answer can retry."""
     normalized_error_code = str(last_error_code or "").strip()
     if not normalized_error_code:
         raise ValueError("invalid_school_evaluation_job_error_code")
+    normalized_retry_after_seconds = _school_evaluation_job_retry_after_seconds(
+        retry_after_seconds
+    )
     result = await session.execute(
         text(
             """
@@ -6510,6 +9285,9 @@ async def retry_school_evaluation_job(
                 lease_owner = NULL,
                 lease_token = NULL,
                 lease_expires_at = NULL,
+                next_attempt_at = now() + (
+                    CAST(:retry_after_seconds AS double precision) * INTERVAL '1 second'
+                ),
                 last_error_code = :last_error_code,
                 error_json = CAST(:error_json AS jsonb),
                 response_json = NULL,
@@ -6538,10 +9316,11 @@ async def retry_school_evaluation_job(
                     AND request.status = 'processing'
               )
             RETURNING session_id::text AS session_id, activity_id, user_id,
-                      raw_answer, expected_state_json, expected_state_digest,
+                      raw_answer, expected_state_json, request_metadata_json,
+                      expected_state_digest,
                       answer_hash, answer_claim_token, flow_type, evaluation_mode,
                       status, attempts, max_attempts, lease_owner, lease_token,
-                      lease_version, lease_expires_at, last_error_code, error_json,
+                      lease_version, lease_expires_at, next_attempt_at, last_error_code, error_json,
                       response_json, result_data, created_at, updated_at, started_at,
                       completed_at, failed_at, cancelled_at
             """
@@ -6556,6 +9335,7 @@ async def retry_school_evaluation_job(
             "lease_token": lease_token,
             "lease_version": int(lease_version),
             "last_error_code": normalized_error_code,
+            "retry_after_seconds": normalized_retry_after_seconds,
             "error_json": json.dumps(error_json) if error_json is not None else None,
         },
     )
@@ -6627,7 +9407,8 @@ async def cancel_school_evaluation_job(
                     AND request.status = 'processing'
               )
             RETURNING session_id::text AS session_id, activity_id, user_id,
-                      raw_answer, expected_state_json, expected_state_digest,
+                      raw_answer, expected_state_json, request_metadata_json,
+                      expected_state_digest,
                       answer_hash, answer_claim_token, flow_type, evaluation_mode,
                       status, attempts, max_attempts, lease_owner, lease_token,
                       lease_version, lease_expires_at, last_error_code, error_json,
@@ -6844,6 +9625,7 @@ async def upsert_school_placement_report(
     unlock_state: str,
     blocking_skills: list[dict],
     watchlist_skills: list[dict],
+    deviation_note: str = "",
     evidence_summary: dict,
     recommended_recap_modules: list[dict],
     learner_summary: str,
@@ -6858,7 +9640,7 @@ async def upsert_school_placement_report(
                 (report_id, user_id, profile_version_id, placement_session_id,
                  placement_status, subject_id, target_class_no, evaluated_class_no,
                  active_learning_class_no, unlock_state, blocking_skills_json,
-                 watchlist_skills_json, evidence_summary_json,
+                 watchlist_skills_json, deviation_note, evidence_summary_json,
                  recommended_recap_modules_json, learner_summary, parent_summary,
                  allowed_next_actions_json)
             VALUES
@@ -6866,7 +9648,7 @@ async def upsert_school_placement_report(
                  CAST(:placement_session_id AS uuid), :placement_status, :subject_id,
                  :target_class_no, :evaluated_class_no, :active_learning_class_no,
                  :unlock_state, CAST(:blocking_skills AS jsonb),
-                 CAST(:watchlist_skills AS jsonb), CAST(:evidence_summary AS jsonb),
+                 CAST(:watchlist_skills AS jsonb), :deviation_note, CAST(:evidence_summary AS jsonb),
                  CAST(:recommended_recap_modules AS jsonb), :learner_summary,
                  :parent_summary, CAST(:allowed_next_actions AS jsonb))
             ON CONFLICT (user_id, placement_session_id) DO UPDATE SET
@@ -6878,6 +9660,7 @@ async def upsert_school_placement_report(
                 unlock_state = EXCLUDED.unlock_state,
                 blocking_skills_json = EXCLUDED.blocking_skills_json,
                 watchlist_skills_json = EXCLUDED.watchlist_skills_json,
+                deviation_note = EXCLUDED.deviation_note,
                 evidence_summary_json = EXCLUDED.evidence_summary_json,
                 recommended_recap_modules_json = EXCLUDED.recommended_recap_modules_json,
                 learner_summary = EXCLUDED.learner_summary,
@@ -6907,6 +9690,7 @@ async def upsert_school_placement_report(
             "unlock_state": unlock_state,
             "blocking_skills": json.dumps(blocking_skills or []),
             "watchlist_skills": json.dumps(watchlist_skills or []),
+            "deviation_note": deviation_note or "",
             "evidence_summary": json.dumps(evidence_summary or {}),
             "recommended_recap_modules": json.dumps(recommended_recap_modules or []),
             "learner_summary": learner_summary or "",
@@ -6938,7 +9722,7 @@ async def get_school_placement_report(
                    placement_status, subject_id, target_class_no,
                    evaluated_class_no, active_learning_class_no, unlock_state,
                    blocking_skills_json, watchlist_skills_json,
-                   evidence_summary_json, recommended_recap_modules_json,
+                   deviation_note, evidence_summary_json, recommended_recap_modules_json,
                    learner_summary, parent_summary, allowed_next_actions_json,
                    created_at, updated_at
             FROM school_placement_reports
@@ -6976,6 +9760,7 @@ def _school_placement_report_from_row(row: dict) -> dict:
         "unlock_state": row["unlock_state"],
         "blocking_skills": row.get("blocking_skills_json") or [],
         "watchlist_skills": row.get("watchlist_skills_json") or [],
+        "deviation_note": row.get("deviation_note") or "",
         "evidence_summary": row.get("evidence_summary_json") or {},
         "recommended_recap_modules": row.get("recommended_recap_modules_json") or [],
         "learner_summary": row.get("learner_summary") or "",
@@ -7000,7 +9785,7 @@ async def get_school_placement_report_by_id(
                    placement_status, subject_id, target_class_no,
                    evaluated_class_no, active_learning_class_no, unlock_state,
                    blocking_skills_json, watchlist_skills_json,
-                   evidence_summary_json, recommended_recap_modules_json,
+                   deviation_note, evidence_summary_json, recommended_recap_modules_json,
                    learner_summary, parent_summary, allowed_next_actions_json,
                    created_at, updated_at
             FROM school_placement_reports
@@ -7623,12 +10408,51 @@ async def get_cached_test_items(
 # ---------- billing: credits ----------
 
 async def get_credits(session: AsyncSession, user_id: str) -> int:
-    result = await session.execute(
-        text("SELECT credits FROM learner_profiles WHERE user_id = :u"),
-        {"u": user_id},
-    )
-    row = result.mappings().first()
-    return int(row["credits"]) if row else 0
+    summary = await get_wallet_summary(session, user_id)
+    return int(summary["credits"])
+
+
+async def get_wallet_summary(session: AsyncSession, user_id: str) -> dict:
+    """Return the spendable balance, separating beta credit from paid credit."""
+    try:
+        profile = await _lock_wallet_profile(session, user_id)
+        if profile is None:
+            return {
+                "credits": 0,
+                "beta_credits": 0,
+                "paid_credits": 0,
+                "promo_credits": 0,
+                "beta_expires_at": None,
+            }
+        await _ensure_legacy_credit_lot(session, user_id)
+        await _expire_wallet_lots(session, user_id)
+        result = await session.execute(
+            text(
+                """
+                SELECT id, source, remaining_credits, expires_at
+                FROM credit_lots
+                WHERE user_id = :uid
+                ORDER BY id
+                """
+            ),
+            {"uid": user_id},
+        )
+        lots = [
+            CreditLot(
+                lot_id=int(row["id"]),
+                source=str(row["source"]),
+                remaining_credits=int(row["remaining_credits"]),
+                expires_at=row["expires_at"],
+            )
+            for row in result.mappings().all()
+        ]
+        summary = wallet_summary(lots, now=datetime.now(timezone.utc))
+        await _sync_cached_wallet_balance(session, user_id)
+        await session.commit()
+        return summary
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def set_demo_unlimited(
@@ -7642,24 +10466,32 @@ async def set_demo_unlimited(
 
 
 async def grant_credits(
-    session: AsyncSession, user_id: str, amount: int, reason: str
+    session: AsyncSession,
+    user_id: str,
+    amount: int,
+    reason: str,
+    *,
+    source: str = "promo",
+    grant_key: str | None = None,
+    expires_at: datetime | None = None,
 ) -> int:
-    await session.execute(
-        text(
-            "UPDATE learner_profiles SET credits = credits + :amount "
-            "WHERE user_id = :u"
-        ),
-        {"amount": amount, "u": user_id},
-    )
-    await session.execute(
-        text(
-            "INSERT INTO credit_transactions (user_id, delta, reason) "
-            "VALUES (:u, :delta, :reason)"
-        ),
-        {"u": user_id, "delta": amount, "reason": reason},
-    )
-    await session.commit()
-    return await get_credits(session, user_id)
+    """Grant a non-purchase lot, retaining the legacy public signature."""
+    try:
+        key = grant_key or f"{source}:{reason}:{uuid4()}"
+        await _grant_credit_lot(
+            session,
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
+            source=source,
+            grant_key=key,
+            expires_at=expires_at,
+        )
+        await session.commit()
+        return await get_credits(session, user_id)
+    except Exception:
+        await session.rollback()
+        raise
 
 
 # ---------- billing: content unlocks ----------
@@ -7855,24 +10687,16 @@ async def mark_paid_and_grant(
             # Already paid (idempotent retry) — nothing to grant.
             await session.rollback()
             return False
-        grant = await session.execute(
-            text(
-                "UPDATE learner_profiles SET credits = credits + :amt "
-                "WHERE user_id = :u"
-            ),
-            {"amt": credits, "u": user_id},
+        granted = await _grant_credit_lot(
+            session,
+            user_id=user_id,
+            amount=credits,
+            reason=reason,
+            source="paid_purchase",
+            grant_key=f"purchase:{order_id}",
         )
-        if grant.rowcount == 0:
-            # No such profile: undo the latch too so the grant is not lost.
-            await session.rollback()
-            raise KeyError(user_id)
-        await session.execute(
-            text(
-                "INSERT INTO credit_transactions (user_id, delta, reason) "
-                "VALUES (:u, :delta, :reason)"
-            ),
-            {"u": user_id, "delta": credits, "reason": reason},
-        )
+        if not granted:
+            raise RuntimeError("paid_purchase_credit_lot_already_exists")
         await session.commit()
         return True
     except Exception:

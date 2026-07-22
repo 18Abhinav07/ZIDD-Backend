@@ -1,10 +1,11 @@
 """Centralized settings loaded from .env. Single source of config truth."""
 import os
+from datetime import datetime
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import parse_qsl, urlsplit
 
-from pydantic import field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -60,14 +61,21 @@ class Settings(BaseSettings):
     ai_backend: Literal["local", "cloud", "gemini"] = "local"
     ollama_model: str = "qwen2.5:14b"
     ollama_base_url: str = "http://localhost:11434"
-    # Keep the model chain explicit. 2.5 Flash-Lite is the economical primary;
-    # 3.1 Flash-Lite is used only when the primary model is unavailable.
-    gemini_text_model: str = "gemini-2.5-flash-lite"
+    # 3.1 Flash-Lite is the verified cloud default for the configured beta
+    # projects. Keeping the default fallback identical intentionally collapses
+    # the chain to one model; deployments can opt into a distinct, verified
+    # fallback through environment configuration.
+    gemini_text_model: str = "gemini-3.1-flash-lite"
     gemini_text_fallback_model: str = "gemini-3.1-flash-lite"
-    gemini_structured_model: str = "gemini-2.5-flash-lite"
+    gemini_structured_model: str = "gemini-3.1-flash-lite"
     gemini_structured_fallback_model: str = "gemini-3.1-flash-lite"
     gemini_embedding_model: str = "gemini-embedding-2"
-    gemini_request_timeout_seconds: float = 180.0
+    # Cloud calls must not hold a learner turn indefinitely. This budget is
+    # provider-wide across a model chain; local Qwen remains unbounded.
+    gemini_request_timeout_seconds: float = 30.0
+    # A single credential must leave time for a healthy rotated key within the
+    # caller's overall Gemini deadline. This does not apply to local Qwen.
+    gemini_credential_attempt_timeout_seconds: float = Field(default=8.0, gt=0)
     # School cloud evaluation is bounded independently of Career model calls.
     # Local Qwen stays unbounded at the route layer.
     school_open_answer_timeout_seconds: float = 20.0
@@ -139,6 +147,17 @@ class Settings(BaseSettings):
 
     # ---------- payments (Razorpay) ----------
     billing_mode: Literal["enabled", "disabled"] = "enabled"
+    # `legacy` preserves the pre-beta tariff for existing deployments. New beta
+    # and production launches use `journey`: permanent skill/chapter unlocks
+    # plus separately metered assessment attempts.
+    billing_policy: Literal["legacy", "journey"] = "legacy"
+    # During beta the wallet and debits remain real, but purchasing is hidden.
+    # It is enabled only once packs are ready for public sale.
+    credit_purchases_enabled: bool = True
+    beta_credit_grant_enabled: bool = False
+    beta_credit_grant_credits: int = 300
+    beta_credit_grant_campaign_id: str = "india-beta-2026"
+    beta_credit_grant_expires_at: datetime | None = None
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
@@ -149,6 +168,31 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return value.strip().lower()
         return value
+
+    @field_validator("billing_policy", mode="before")
+    @classmethod
+    def normalize_billing_policy(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @model_validator(mode="after")
+    def validate_beta_credit_grant(self) -> "Settings":
+        """Keep a beta grant explicitly bounded before it can reach a wallet."""
+        if not self.beta_credit_grant_enabled:
+            return self
+        if self.beta_credit_grant_credits <= 0:
+            raise ValueError("beta_credit_grant_credits_must_be_positive")
+        if not self.beta_credit_grant_campaign_id.strip():
+            raise ValueError("beta_credit_grant_campaign_id_required")
+        expiry = self.beta_credit_grant_expires_at
+        if expiry is None:
+            raise ValueError("beta_credit_grant_expiry_required")
+        if expiry.tzinfo is None or expiry.utcoffset() is None:
+            raise ValueError("beta_credit_grant_expiry_must_be_timezone_aware")
+        if expiry <= datetime.now(expiry.tzinfo):
+            raise ValueError("beta_credit_grant_expiry_must_be_future")
+        return self
 
     # Credits granted once on signup, recorded as a "welcome" ledger row.
     welcome_credits: int = 50

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from scripts import reset_india_beta_database as reset
+from scripts import reset_india_beta_school_learner as school_reset
 
 
 def _settings(**overrides):
@@ -68,7 +69,11 @@ def test_reset_plan_wipes_user_owned_runtime_data_but_preserves_migration_and_re
 
     assert "learner_profiles" in plan.truncate_tables
     assert "school_sessions" in plan.truncate_tables
+    assert "credit_lots" in plan.truncate_tables
+    assert "credit_lot_spends" in plan.truncate_tables
     assert "credit_transactions" in plan.truncate_tables
+    assert plan.truncate_tables.index("credit_lot_spends") < plan.truncate_tables.index("credit_lots")
+    assert plan.truncate_tables.index("credit_lots") < plan.truncate_tables.index("credit_transactions")
     assert "school_migration_markers" not in plan.truncate_tables
     assert "school_curriculum_releases" not in plan.truncate_tables
     assert plan.preserve_tables == (
@@ -84,3 +89,23 @@ def test_reset_plan_statement_uses_only_the_explicit_public_table_allowlist():
     assert "CASCADE" in statement
     assert "school_migration_markers" not in statement
     assert "school_curriculum_releases" not in statement
+
+
+def test_school_learner_reset_is_scoped_to_school_data_and_preserves_career():
+    plan = school_reset.school_learner_reset_plan()
+
+    assert "school_sessions" in plan.school_tables
+    assert "school_profile_versions" in plan.school_tables
+    assert "learning_events" in plan.school_domain_tables
+    assert "learner_skill_profiles" in plan.school_domain_tables
+    assert "sessions" not in plan.school_tables
+    assert "credit_lots" not in plan.school_tables
+    assert any("Career sessions" in item for item in plan.preserved_categories)
+
+
+def test_school_learner_reset_env_loader_refuses_missing_file(tmp_path):
+    with pytest.raises(
+        reset.IndiaBetaResetRefused,
+        match="india_beta_school_reset_env_file_missing",
+    ):
+        school_reset._load_env_file(tmp_path / "missing.env")

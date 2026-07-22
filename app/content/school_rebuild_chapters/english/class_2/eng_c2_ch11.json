@@ -3,13 +3,14 @@
   "review_evidence": [
     "Manifest compilation verified four authored transfer and four authored review variants per level against the official NCERT structural map.",
     "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
-    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16."
+    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "82e0f524a2039b1701696313788a8876f5152b65523ad21281b84b4b330cc387",
+  "runtime_sha256": "f4984946fca7b5feb0ac113ef3a2740a3934c195a67739f2a252d0fd64fee932",
   "chapter_id": "eng_c2_ch11",
   "chapter_no": 11,
-  "content_version": "2026-07-15.class2-deep.2",
-  "certification_version": "school-class2-deep-v2",
+  "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+  "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
   "title": "The Smart Monkey",
   "book_title": "Mridang",
   "unit_title": "Life Around Us",
@@ -559,31 +560,25 @@
           "rubric_criteria": [
             {
               "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
-              "description": "Required part 1: scraps cover",
+              "description": "States the paper-scrap problem.",
               "required": true,
               "min_quality": 0.75
             },
             {
               "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
-              "description": "Required part 2: table is messy",
-              "required": true,
-              "min_quality": 0.75
-            },
-            {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
               "description": "Required part 1: models sorting",
               "required": true,
               "min_quality": 0.75
             },
             {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-              "description": "Required part 2: group follows",
+              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+              "description": "Required part 2: reuse tray",
               "required": true,
               "min_quality": 0.75
             },
             {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5",
-              "description": "Required part 3: reuse tray",
+              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
+              "description": "Shows the group applying the model.",
               "required": true,
               "min_quality": 0.75
             }
@@ -591,22 +586,14 @@
           "concept_slots": [
             {
               "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
-              "description": "Required part 1: scraps cover",
-              "any_of": [
-                "sorting its scraps",
-                "scraps cover"
-              ]
-            },
-            {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
-              "description": "Required part 2: table is messy",
+              "description": "States the paper-scrap problem.",
               "any_of": [
                 "table is messy",
                 "the table is messy"
               ]
             },
             {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
               "description": "Required part 1: models sorting",
               "any_of": [
                 "models sorting",
@@ -614,19 +601,19 @@
               ]
             },
             {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-              "description": "Required part 2: group follows",
-              "any_of": [
-                "group follows",
-                "the group follows"
-              ]
-            },
-            {
-              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5",
-              "description": "Required part 3: reuse tray",
+              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+              "description": "Required part 2: reuse tray",
               "any_of": [
                 "reuse tray",
                 "the reuse tray"
+              ]
+            },
+            {
+              "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
+              "description": "Shows the group applying the model.",
+              "any_of": [
+                "group follows by sorting its scraps",
+                "that is, group follows by sorting its scraps"
               ]
             }
           ],
@@ -639,8 +626,7 @@
             "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
             "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
             "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
-            "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-            "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5"
+            "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4"
           ],
           "schema_version": "school-activity-v2",
           "episode_kind": "comprehension_studio",
@@ -1444,31 +1430,25 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
-                  "description": "Required part 1: scraps cover",
+                  "description": "States the paper-scrap problem.",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
-                  "description": "Required part 2: table is messy",
-                  "required": true,
-                  "min_quality": 0.75
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
                   "description": "Required part 1: models sorting",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-                  "description": "Required part 2: group follows",
+                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+                  "description": "Required part 2: reuse tray",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5",
-                  "description": "Required part 3: reuse tray",
+                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
+                  "description": "Shows the group applying the model.",
                   "required": true,
                   "min_quality": 0.75
                 }
@@ -1476,22 +1456,14 @@
               "concept_slots": [
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
-                  "description": "Required part 1: scraps cover",
-                  "any_of": [
-                    "sorting its scraps",
-                    "scraps cover"
-                  ]
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
-                  "description": "Required part 2: table is messy",
+                  "description": "States the paper-scrap problem.",
                   "any_of": [
                     "table is messy",
                     "the table is messy"
                   ]
                 },
                 {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
                   "description": "Required part 1: models sorting",
                   "any_of": [
                     "models sorting",
@@ -1499,19 +1471,19 @@
                   ]
                 },
                 {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-                  "description": "Required part 2: group follows",
-                  "any_of": [
-                    "group follows",
-                    "the group follows"
-                  ]
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5",
-                  "description": "Required part 3: reuse tray",
+                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
+                  "description": "Required part 2: reuse tray",
                   "any_of": [
                     "reuse tray",
                     "the reuse tray"
+                  ]
+                },
+                {
+                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
+                  "description": "Shows the group applying the model.",
+                  "any_of": [
+                    "group follows by sorting its scraps",
+                    "that is, group follows by sorting its scraps"
                   ]
                 }
               ],
@@ -1524,8 +1496,7 @@
                 "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_1",
                 "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_2",
                 "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_3",
-                "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4",
-                "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_5"
+                "eng_c2_ch11:litter_cleanup_chain:transfer:1:requirement_4"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "comprehension_studio",
@@ -1580,19 +1551,13 @@
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_3",
-                  "description": "Required part 3: wiping",
+                  "description": "Required part 1: wet floor",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_4",
-                  "description": "Required part 1: follows the example",
-                  "required": true,
-                  "min_quality": 0.75
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_5",
-                  "description": "Required part 2: wet floor",
+                  "description": "Required part 2: follows the example",
                   "required": true,
                   "min_quality": 0.75
                 }
@@ -1610,32 +1575,24 @@
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_2",
                   "description": "Required part 2: friend",
                   "any_of": [
-                    "friend follows the",
-                    "the friend follows the"
+                    "friend wipes the",
+                    "the friend wipes the"
                   ]
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_3",
-                  "description": "Required part 3: wiping",
+                  "description": "Required part 1: wet floor",
                   "any_of": [
-                    "wiping the wet",
-                    "it wiping the wet"
+                    "wet floor",
+                    "the wet floor"
                   ]
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_4",
-                  "description": "Required part 1: follows the example",
+                  "description": "Required part 2: follows the example",
                   "any_of": [
                     "follows the example",
                     "the follows the example"
-                  ]
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_5",
-                  "description": "Required part 2: wet floor",
-                  "any_of": [
-                    "wet floor",
-                    "the wet floor"
                   ]
                 }
               ],
@@ -1648,8 +1605,7 @@
                 "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_1",
                 "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_2",
                 "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_3",
-                "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_4",
-                "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_5"
+                "eng_c2_ch11:litter_cleanup_chain:transfer:2:requirement_4"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "comprehension_studio",
@@ -1673,7 +1629,7 @@
                 "posts",
                 "warning"
               ],
-              "model_answer": "Arman closes the tap and posts a warning, then his friend follows the example by wiping the wet floor."
+              "model_answer": "Arman closes the tap and posts a warning, then his friend wipes the wet floor and follows the example."
             },
             {
               "teaching_block": "A responsibility chain links an action, its effect on a shared place, a visible example, and a repair choice in time order. Use the same skill in this new setting for the task: Transfer example-and-repair thinking to this art-room routine.",
@@ -1904,19 +1860,19 @@
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_2",
-                  "description": "Required part 1: returns",
+                  "description": "Required part 1: responsibly",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_3",
-                  "description": "Required part 2: sort her bottle",
+                  "description": "Required part 2: returns",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_4",
-                  "description": "Required part 3: responsibly",
+                  "description": "Required part 3: sort her bottle",
                   "required": true,
                   "min_quality": 0.75
                 }
@@ -1932,26 +1888,26 @@
                 },
                 {
                   "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_2",
-                  "description": "Required part 1: returns",
+                  "description": "Required part 1: responsibly",
+                  "any_of": [
+                    "responsibly returns to",
+                    "the responsibly returns to"
+                  ]
+                },
+                {
+                  "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_3",
+                  "description": "Required part 2: returns",
                   "any_of": [
                     "returns to sort",
                     "the returns to sort"
                   ]
                 },
                 {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_3",
-                  "description": "Required part 2: sort her bottle",
+                  "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_4",
+                  "description": "Required part 3: sort her bottle",
                   "any_of": [
                     "sort her bottle",
                     "the sort her bottle"
-                  ]
-                },
-                {
-                  "id": "eng_c2_ch11:litter_cleanup_chain:review:1:requirement_4",
-                  "description": "Required part 3: responsibly",
-                  "any_of": [
-                    "responsibly returns to",
-                    "the responsibly returns to"
                   ]
                 }
               ],
@@ -4471,7 +4427,8 @@
             "picked",
             "beside"
           ],
-          "model_answer": "The word is litter. We picked up litter beside the path."
+          "model_answer": "The word is litter. We picked up litter beside the path.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "This text-only lab uses printed chunks and blends; it does not claim evidence from clapping, pronunciation, or listening. Use the same skill in this new setting for the task: Build the new word and use it in a cleaning sentence.",
@@ -4919,7 +4876,8 @@
                 "picked",
                 "beside"
               ],
-              "model_answer": "The word is litter. We picked up litter beside the path."
+              "model_answer": "The word is litter. We picked up litter beside the path.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "This text-only lab uses printed chunks and blends; it does not claim evidence from clapping, pronunciation, or listening. Work on your own with the visible details for this task: Unscramble the word and write a clean-up sentence.",
@@ -12605,6 +12563,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

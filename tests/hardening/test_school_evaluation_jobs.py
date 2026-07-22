@@ -19,6 +19,15 @@ from tests.conftest import InMemoryStore
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATION = ROOT / "app/db/migrations/2026-07-18-school-evaluation-jobs.sql"
+FK_REPAIR_MIGRATION = (
+    ROOT / "app/db/migrations/2026-07-18-school-evaluation-jobs-fk-repair.sql"
+)
+RETRY_SCHEDULE_MIGRATION = (
+    ROOT / "app/db/migrations/2026-07-19-school-evaluation-job-retry-schedule.sql"
+)
+REQUEST_METADATA_MIGRATION = (
+    ROOT / "app/db/migrations/2026-07-19-school-evaluation-job-request-metadata.sql"
+)
 SESSION_ID = "10000000-0000-4000-8000-000000000001"
 ACTIVITY_ID = "chapter-check-1"
 USER_ID = "learner-1"
@@ -128,7 +137,7 @@ class _EvaluationJobSession:
                 )
             return _Result()
 
-        if sql.startswith("WITH terminal_candidates"):
+        if sql.startswith("WITH terminal_request_candidates"):
             for job_key, job in self.jobs.items():
                 deadline_expired = job.get("created_at") == "deadline-expired"
                 recovery_expired = bool(
@@ -183,6 +192,7 @@ class _EvaluationJobSession:
                 claimable = (
                     job["status"] == "queued"
                     and job["attempts"] < job["max_attempts"]
+                    and job.get("next_attempt_at", "ready") == "ready"
                 ) or (
                     job["status"] == "running"
                     and job.get("lease_expires_at") == "expired"
@@ -214,6 +224,7 @@ class _EvaluationJobSession:
                     not in {
                         "raw_answer",
                         "expected_state_json",
+                        "request_metadata_json",
                         "expected_state_digest",
                         "answer_hash",
                         "answer_claim_token",
@@ -237,6 +248,9 @@ class _EvaluationJobSession:
                 "user_id": params["uid"],
                 "raw_answer": params["raw_answer"],
                 "expected_state_json": json.loads(params["expected_state_json"]),
+                "request_metadata_json": json.loads(
+                    params["request_metadata_json"]
+                ),
                 "expected_state_digest": params["expected_state_digest"],
                 "answer_hash": params["answer_hash"],
                 "answer_claim_token": params["answer_claim_token"],
@@ -249,6 +263,7 @@ class _EvaluationJobSession:
                 "lease_token": None,
                 "lease_version": 0,
                 "lease_expires_at": None,
+                "next_attempt_at": "ready",
                 "last_error_code": None,
                 "error_json": None,
                 "response_json": None,
@@ -295,6 +310,7 @@ class _EvaluationJobSession:
                 user_id=params["uid"],
                 raw_answer=params["raw_answer"],
                 expected_state_json=json.loads(params["expected_state_json"]),
+                request_metadata_json=json.loads(params["request_metadata_json"]),
                 expected_state_digest=params["expected_state_digest"],
                 answer_hash=params["answer_hash"],
                 answer_claim_token=params["answer_claim_token"],
@@ -306,6 +322,7 @@ class _EvaluationJobSession:
                 lease_owner=None,
                 lease_token=None,
                 lease_expires_at=None,
+                next_attempt_at="ready",
                 last_error_code=None,
                 error_json=None,
                 response_json=None,
@@ -330,6 +347,9 @@ class _EvaluationJobSession:
                 lease_owner=None,
                 lease_token=None,
                 lease_expires_at=None,
+                next_attempt_at=(
+                    "scheduled" if params.get("retry_after_seconds", 0) else "ready"
+                ),
                 last_error_code=params["last_error_code"],
                 error_json=json.loads(params["error_json"])
                 if params.get("error_json")
@@ -526,6 +546,201 @@ def _claim_and_enqueue_payload(**overrides) -> dict:
     return payload
 
 
+def _request_metadata(*, arrival_id: str = "arrival-1") -> dict:
+    return {
+        "answer_arrival": {
+            "arrival_id": arrival_id,
+            "received_at": "2026-07-19T09:00:00Z",
+        }
+    }
+
+
+def _placement_retry_timing(*, item_id: str = ACTIVITY_ID) -> dict:
+    return {
+        "item_id": item_id,
+        "retry_pending": True,
+        "accrued_learner_seconds": 12.5,
+        "presented_at": "2026-07-19T09:00:00+00:00",
+    }
+
+
+def _claimed_placement_job_store() -> tuple[InMemoryStore, dict, dict]:
+    store = InMemoryStore()
+    store.school_sessions[(USER_ID, SESSION_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+        "api_version": "rebuild",
+        "flow_type": "placement",
+        "status": "active",
+        "state_json": {
+            "_placement_item_timing": {
+                "item_id": ACTIVITY_ID,
+                "presented_at": "2026-07-19T08:59:00+00:00",
+            }
+        },
+    }
+    answer_claim = _run(store.claim_school_answer_request(
+        USER_ID,
+        SESSION_ID,
+        ACTIVITY_ID,
+        ANSWER_HASH,
+    ))
+    assert answer_claim["outcome"] == "claimed"
+    queued = _run(store.enqueue_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        raw_answer="The learner's private answer.",
+        expected_state_json={"current_activity_id": ACTIVITY_ID},
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        flow_type="placement",
+        evaluation_mode="open_answer",
+    ))
+    assert queued["outcome"] == "queued"
+    claimed = _run(store.claim_school_evaluation_job("in-memory-worker", lease_seconds=45))
+    assert claimed is not None
+    return store, answer_claim, claimed
+
+
+def _terminalize_placement_job(
+    store: InMemoryStore,
+    answer_claim: dict,
+    claimed: dict,
+    *,
+    placement_retry_timing: dict,
+):
+    return _run(store.terminalize_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        last_error_code="placement_english_response_required",
+        placement_retry_timing=placement_retry_timing,
+    ))
+
+
+def test_in_memory_terminalization_applies_valid_placement_retry_timing_atomically():
+    store, answer_claim, claimed = _claimed_placement_job_store()
+    timing = _placement_retry_timing()
+
+    terminalized = _terminalize_placement_job(
+        store,
+        answer_claim,
+        claimed,
+        placement_retry_timing=timing,
+    )
+
+    assert terminalized is not None
+    assert terminalized["status"] == "failed"
+    assert store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
+    assert store.school_sessions[(USER_ID, SESSION_ID)]["state_json"][
+        "_placement_item_timing"
+    ] == timing
+
+
+@pytest.mark.parametrize(
+    "placement_retry_timing",
+    [
+        {**_placement_retry_timing(), "untrusted": "field"},
+        {**_placement_retry_timing(), "item_id": "other-item"},
+        {**_placement_retry_timing(), "retry_pending": False},
+        {**_placement_retry_timing(), "accrued_learner_seconds": float("nan")},
+        {**_placement_retry_timing(), "presented_at": "not-an-iso-date"},
+    ],
+)
+def test_in_memory_terminalization_rejects_malformed_placement_retry_timing(
+    placement_retry_timing: dict,
+):
+    store, answer_claim, claimed = _claimed_placement_job_store()
+
+    with pytest.raises(
+        ValueError,
+        match="invalid_school_evaluation_job_placement_retry_timing",
+    ):
+        _terminalize_placement_job(
+            store,
+            answer_claim,
+            claimed,
+            placement_retry_timing=placement_retry_timing,
+        )
+
+    assert store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
+    assert store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
+
+
+def test_in_memory_terminalization_rejects_stale_placement_timing_identity():
+    store, answer_claim, claimed = _claimed_placement_job_store()
+    store.school_sessions[(USER_ID, SESSION_ID)]["state_json"][
+        "_placement_item_timing"
+    ]["item_id"] = "other-item"
+
+    terminalized = _terminalize_placement_job(
+        store,
+        answer_claim,
+        claimed,
+        placement_retry_timing=_placement_retry_timing(),
+    )
+
+    assert terminalized is None
+    assert store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
+    assert store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
+    assert store.school_sessions[(USER_ID, SESSION_ID)]["state_json"][
+        "_placement_item_timing"
+    ]["item_id"] == "other-item"
+
+
+def test_in_memory_terminalization_never_applies_timing_to_a_nonplacement_job():
+    store, answer_claim, claimed = _claimed_placement_job_store()
+    store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["flow_type"] = "curriculum"
+
+    terminalized = _terminalize_placement_job(
+        store,
+        answer_claim,
+        claimed,
+        placement_retry_timing=_placement_retry_timing(),
+    )
+
+    assert terminalized is None
+    assert store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
+    assert store.school_answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
+    assert store.school_sessions[(USER_ID, SESSION_ID)]["state_json"][
+        "_placement_item_timing"
+    ] == {
+        "item_id": ACTIVITY_ID,
+        "presented_at": "2026-07-19T08:59:00+00:00",
+    }
+
+
+def test_terminalization_rejects_malformed_placement_timing_before_sql():
+    session = _EvaluationJobSession()
+
+    with pytest.raises(
+        ValueError,
+        match="invalid_school_evaluation_job_placement_retry_timing",
+    ):
+        _run(repo.terminalize_school_evaluation_job(
+            session,
+            user_id=USER_ID,
+            session_id=SESSION_ID,
+            activity_id=ACTIVITY_ID,
+            answer_hash=ANSWER_HASH,
+            answer_claim_token=ANSWER_CLAIM_TOKEN,
+            lease_owner="worker-a",
+            lease_token="lease-token",
+            lease_version=1,
+            last_error_code="placement_english_response_required",
+            placement_retry_timing={**_placement_retry_timing(), "untrusted": True},
+        ))
+
+    assert session.calls == []
+    assert session.commits == 0
+
+
 def test_claim_and_enqueue_recovers_a_no_job_claim_and_preserves_outcomes():
     claim_and_enqueue = getattr(repo, "claim_and_enqueue_school_evaluation_job", None)
     assert callable(claim_and_enqueue)
@@ -688,8 +903,29 @@ def test_schema_and_migration_define_one_to_one_server_only_evaluation_jobs():
     assert MIGRATION.resolve() in {
         path.resolve() for path in apply_migrations.DEFAULT_MIGRATIONS
     }
+    assert FK_REPAIR_MIGRATION.resolve() in {
+        path.resolve() for path in apply_migrations.DEFAULT_MIGRATIONS
+    }
+    assert RETRY_SCHEDULE_MIGRATION.resolve() in {
+        path.resolve() for path in apply_migrations.DEFAULT_MIGRATIONS
+    }
     assert "app/db/migrations/2026-07-18-school-evaluation-jobs.sql" in (
         schema_guard.REQUIRED_MIGRATION_FILES
+    )
+    assert (
+        "app/db/migrations/2026-07-18-school-evaluation-jobs-fk-repair.sql"
+        in schema_guard.REQUIRED_MIGRATION_FILES
+    )
+    assert (
+        "app/db/migrations/2026-07-19-school-evaluation-job-retry-schedule.sql"
+        in schema_guard.REQUIRED_MIGRATION_FILES
+    )
+    assert REQUEST_METADATA_MIGRATION.resolve() in {
+        path.resolve() for path in apply_migrations.DEFAULT_MIGRATIONS
+    }
+    assert (
+        "app/db/migrations/2026-07-19-school-evaluation-job-request-metadata.sql"
+        in schema_guard.REQUIRED_MIGRATION_FILES
     )
     assert "school_evaluation_jobs" in schema_guard.REQUIRED_RUNTIME_COLUMNS
     assert (
@@ -698,6 +934,64 @@ def test_schema_and_migration_define_one_to_one_server_only_evaluation_jobs():
         "school_answer_requests",
         ("session_id", "activity_id"),
     ) in schema_guard.REQUIRED_RUNTIME_COMPOSITE_FOREIGN_KEYS
+
+
+def test_evaluation_job_fk_repair_is_idempotent_and_fails_closed_on_orphans():
+    sql = _normalized(FK_REPAIR_MIGRATION.read_text()).replace("public.", "")
+
+    assert "LEFT JOIN school_answer_requests AS request" in sql
+    assert "school_evaluation_jobs_answer_request_fk_repair_blocked:orphan_job" in sql
+    # The PL/pgSQL loop target is `constraint_row`. The SQL relation alias
+    # must remain distinct or PostgreSQL treats it as an unassigned record.
+    assert "FOR constraint_row IN SELECT foreign_key.conname" in sql
+    assert "FROM pg_constraint AS foreign_key" in sql
+    assert "foreign_key.conkey = ARRAY[job_session_attnum, job_activity_attnum]" in sql
+    assert (
+        "foreign_key.confkey = ARRAY[ request_session_attnum, request_activity_attnum ]"
+        in sql
+    )
+    assert "ADD CONSTRAINT school_evaluation_jobs_answer_request_fkey" in sql
+    assert "foreign_key.confdeltype <> 'c'" in sql
+    assert "DROP CONSTRAINT %I" in sql
+    assert "EXECUTE format" in sql
+    assert (
+        "FOREIGN KEY (session_id, activity_id) REFERENCES "
+        "school_answer_requests(session_id, activity_id) ON DELETE CASCADE"
+    ) in sql
+
+
+def test_retry_schedule_is_durable_and_claimable_indexed():
+    schema = _normalized((ROOT / "app/db/schema.sql").read_text())
+    migration = _normalized(RETRY_SCHEDULE_MIGRATION.read_text())
+
+    assert "next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now()" in schema
+    assert "status, next_attempt_at, lease_expires_at, created_at" in schema
+    assert "ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ" in migration
+    assert "SET DEFAULT now()" in migration
+    assert "SET NOT NULL" in migration
+    assert "next_attempt_at" in schema_guard.REQUIRED_RUNTIME_COLUMNS[
+        "school_evaluation_jobs"
+    ]
+
+
+def test_request_metadata_schema_is_additive_and_runtime_guarded():
+    schema = _normalized((ROOT / "app/db/schema.sql").read_text())
+    migration = _normalized(REQUEST_METADATA_MIGRATION.read_text())
+
+    assert "request_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb" in schema
+    assert "school_evaluation_jobs_request_metadata_object" in schema
+    assert "jsonb_typeof(request_metadata_json) = 'object'" in schema
+    assert "ADD COLUMN IF NOT EXISTS request_metadata_json JSONB" in migration
+    assert "school_evaluation_jobs_request_metadata_object" in migration
+    assert "SET DEFAULT '{}'::jsonb" in migration
+    assert "SET NOT NULL" in migration
+    assert "request_metadata_json" in schema_guard.REQUIRED_RUNTIME_COLUMNS[
+        "school_evaluation_jobs"
+    ]
+    assert (
+        "school_evaluation_jobs",
+        "school_evaluation_jobs_request_metadata_object",
+    ) in schema_guard.REQUIRED_RUNTIME_CHECKS
 
 
 def test_enqueue_creates_one_job_only_after_the_matching_answer_claim():
@@ -750,6 +1044,73 @@ def test_enqueue_never_rewrites_an_existing_claim_payload():
     assert stored["answer_claim_token"] == ANSWER_CLAIM_TOKEN
 
 
+def test_request_metadata_round_trips_to_the_claimed_job_but_not_public_status():
+    session = _EvaluationJobSession()
+    metadata = _request_metadata()
+
+    queued = _enqueue(session, request_metadata=metadata)
+    claimed = _claim(session)
+    status = _run(repo.get_school_evaluation_job_status(
+        session, USER_ID, SESSION_ID, ACTIVITY_ID
+    ))
+
+    assert queued["job"]["request_metadata_json"] == metadata
+    assert claimed is not None
+    assert claimed["request_metadata_json"] == metadata
+    assert status is not None
+    assert "request_metadata_json" not in status
+
+
+def test_request_metadata_mismatch_conflicts_for_both_enqueue_paths():
+    direct_session = _EvaluationJobSession()
+    assert _enqueue(
+        direct_session,
+        request_metadata=_request_metadata(arrival_id="arrival-a"),
+    )["outcome"] == "queued"
+    assert _enqueue(
+        direct_session,
+        request_metadata=_request_metadata(arrival_id="arrival-b"),
+    ) == {"outcome": "conflict"}
+
+    atomic_session = _EvaluationJobSession()
+    assert _run(repo.claim_and_enqueue_school_evaluation_job(
+        atomic_session,
+        **_claim_and_enqueue_payload(
+            request_metadata=_request_metadata(arrival_id="arrival-a"),
+        ),
+    ))["outcome"] == "queued"
+    assert _run(repo.claim_and_enqueue_school_evaluation_job(
+        atomic_session,
+        **_claim_and_enqueue_payload(
+            request_metadata=_request_metadata(arrival_id="arrival-b"),
+        ),
+    )) == {"outcome": "conflict"}
+
+
+@pytest.mark.parametrize("terminal_status", ["failed", "cancelled"])
+def test_reenqueue_terminal_job_replaces_request_metadata(terminal_status: str):
+    session = _EvaluationJobSession()
+    original_metadata = _request_metadata(arrival_id="arrival-old")
+    replacement_metadata = _request_metadata(arrival_id="arrival-new")
+    _enqueue(session, request_metadata=original_metadata)
+    session.jobs[(SESSION_ID, ACTIVITY_ID)].update(status=terminal_status)
+
+    requeued = _enqueue(session, request_metadata=replacement_metadata)
+
+    assert requeued["outcome"] == "queued"
+    assert requeued["job"]["status"] == "queued"
+    assert requeued["job"]["request_metadata_json"] == replacement_metadata
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["request_metadata_json"] == (
+        replacement_metadata
+    )
+
+
+@pytest.mark.parametrize("request_metadata", [[], "not-an-object", 1])
+def test_enqueue_rejects_non_object_request_metadata(request_metadata):
+    with pytest.raises(ValueError, match="invalid_school_evaluation_job_request_metadata"):
+        _enqueue(_EvaluationJobSession(), request_metadata=request_metadata)
+
+
 def test_new_claim_replaces_only_a_terminal_job_and_preserves_lease_generation():
     session = _EvaluationJobSession()
     _enqueue(session)
@@ -796,6 +1157,36 @@ def test_new_claim_replaces_only_a_terminal_job_and_preserves_lease_generation()
     assert replacement["job"]["error_json"] is None
     assert replacement["job"]["response_json"] is None
     assert replacement["job"]["result_data"] is None
+
+
+def test_atomic_enqueue_replaces_a_failed_request_with_a_new_answer_claim():
+    session = _EvaluationJobSession()
+    original = _run(repo.claim_and_enqueue_school_evaluation_job(
+        session,
+        **_claim_and_enqueue_payload(),
+    ))
+    assert original["outcome"] == "queued"
+
+    session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] = "failed"
+    session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] = "failed"
+
+    replacement = _run(repo.claim_and_enqueue_school_evaluation_job(
+        session,
+        **_claim_and_enqueue_payload(
+            raw_answer="A new answer after the evaluator failed.",
+            answer_hash="replacement-answer-sha",
+        ),
+    ))
+
+    assert replacement["outcome"] == "queued"
+    assert replacement["claim_token"] != original["claim_token"]
+    assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["answer_hash"] == (
+        "replacement-answer-sha"
+    )
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
+    assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["answer_hash"] == (
+        "replacement-answer-sha"
+    )
 
 
 def test_claim_uses_a_concrete_default_worker_identity():
@@ -1017,11 +1408,13 @@ def test_in_memory_store_matches_job_claim_fencing_and_safe_status_contract():
         flow_type="curriculum",
         evaluation_mode="open_answer",
         max_attempts=2,
+        request_metadata=_request_metadata(),
     ))
     assert queued["outcome"] == "queued"
 
     claimed = _run(store.claim_school_evaluation_job("in-memory-worker", lease_seconds=45))
     assert claimed is not None
+    assert claimed["request_metadata_json"] == _request_metadata()
     assert _run(store.heartbeat_school_evaluation_job(
         user_id=USER_ID,
         session_id=SESSION_ID,
@@ -1040,6 +1433,7 @@ def test_in_memory_store_matches_job_claim_fencing_and_safe_status_contract():
     assert public_status is not None
     assert public_status["status"] == "running"
     assert "raw_answer" not in public_status
+    assert "request_metadata_json" not in public_status
     assert "answer_claim_token" not in public_status
     assert _run(store.complete_school_evaluation_job(
         user_id=USER_ID,
@@ -1065,6 +1459,55 @@ def test_in_memory_store_matches_job_claim_fencing_and_safe_status_contract():
         response_json={"feedback": "Duplicate."},
         result_data={"score": 1.0},
     )) is None
+
+
+def test_in_memory_retry_does_not_claim_before_next_attempt_at():
+    store = InMemoryStore()
+    store.school_sessions[(USER_ID, SESSION_ID)] = {
+        "user_id": USER_ID,
+        "session_id": SESSION_ID,
+    }
+    answer_claim = _run(store.claim_school_answer_request(
+        USER_ID,
+        SESSION_ID,
+        ACTIVITY_ID,
+        ANSWER_HASH,
+    ))
+    _run(store.enqueue_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        raw_answer="The learner's private answer.",
+        expected_state_json={"current_activity_id": ACTIVITY_ID},
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        flow_type="curriculum",
+        evaluation_mode="open_answer",
+        max_attempts=2,
+    ))
+    claimed = _run(store.claim_school_evaluation_job("in-memory-worker"))
+    assert claimed is not None
+
+    retried = _run(store.retry_school_evaluation_job(
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=answer_claim["claim_token"],
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        last_error_code="provider_timeout",
+        retry_after_seconds=60,
+    ))
+    assert retried is not None
+    assert retried["next_attempt_at"] > time.time()
+    assert _run(store.claim_school_evaluation_job("in-memory-worker")) is None
+
+    store.school_evaluation_jobs[(SESSION_ID, ACTIVITY_ID)]["next_attempt_at"] = (
+        time.time() - 1
+    )
+    assert _run(store.claim_school_evaluation_job("in-memory-worker")) is not None
 
 
 def test_pg_store_exposes_and_delegates_the_safe_job_status_read():
@@ -1447,6 +1890,11 @@ def test_expired_final_attempt_gets_one_fenced_recovery_then_releases_request():
         sql for sql, _ in session.calls if "evaluation_recovery_lease_expired" in sql
     )
     assert "UPDATE school_answer_requests AS request" in terminal_sql
+    assert "FOR UPDATE OF request SKIP LOCKED" in terminal_sql
+    assert "FOR UPDATE OF job SKIP LOCKED" in terminal_sql
+    assert terminal_sql.index("FOR UPDATE OF request SKIP LOCKED") < (
+        terminal_sql.index("FOR UPDATE OF job SKIP LOCKED")
+    )
 
 
 def test_evaluation_job_deadline_terminalizes_and_releases_the_processing_request():
@@ -1492,6 +1940,7 @@ def test_terminalize_fenced_job_releases_the_exact_processing_request_atomically
     assert session.jobs[(SESSION_ID, ACTIVITY_ID)]["status"] == "running"
     assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "processing"
 
+    commits_before_terminalization = session.commits
     terminalized = _run(terminalize(
         session,
         user_id=USER_ID,
@@ -1509,6 +1958,7 @@ def test_terminalize_fenced_job_releases_the_exact_processing_request_atomically
     assert terminalized["status"] == "failed"
     assert terminalized["lease_owner"] is None
     assert terminalized["lease_token"] is None
+    assert session.commits == commits_before_terminalization + 1
     assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["status"] == "failed"
     assert session.answer_requests[(SESSION_ID, ACTIVITY_ID)]["response_json"] is None
     assert _complete(
@@ -1525,6 +1975,12 @@ def test_terminalize_fenced_job_releases_the_exact_processing_request_atomically
     ][-1]
     assert "FOR UPDATE" in terminal_sql
     assert "UPDATE school_evaluation_jobs AS job" in terminal_sql
+    assert "locked_placement_session AS" in terminal_sql
+    assert "patched_placement_session AS" in terminal_sql
+    assert "school_session.api_version = 'rebuild'" in terminal_sql
+    assert "school_session.flow_type = 'placement'" in terminal_sql
+    assert "job.flow_type = 'placement'" in terminal_sql
+    assert "state_json #>> '{_placement_item_timing,item_id}' = :activity_id" in terminal_sql
     assert "UPDATE school_answer_requests AS request" in terminal_sql
     assert "raw_answer" not in terminal_sql
 
@@ -1535,6 +1991,38 @@ def test_terminalize_fenced_job_releases_the_exact_processing_request_atomically
     assert "job.user_id" in returned_job_fields
     assert "job.answer_hash" in returned_job_fields
     assert "job.answer_claim_token" in returned_job_fields
+
+
+def test_terminalization_types_nullable_placement_timing_for_curriculum_jobs():
+    """A curriculum job has no placement timing, so its NULL parameter is JSONB."""
+    session = _EvaluationJobSession()
+    _enqueue(session)
+    claimed = _claim(session)
+    assert claimed is not None
+
+    terminalized = _run(repo.terminalize_school_evaluation_job(
+        session,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+        activity_id=ACTIVITY_ID,
+        answer_hash=ANSWER_HASH,
+        answer_claim_token=ANSWER_CLAIM_TOKEN,
+        lease_owner=claimed["lease_owner"],
+        lease_token=claimed["lease_token"],
+        lease_version=claimed["lease_version"],
+        last_error_code="school_open_provider_failure",
+    ))
+
+    assert terminalized is not None
+    terminal_sql = [
+        sql
+        for sql, _ in session.calls
+        if "terminalized_job AS" in sql and "released_request AS" in sql
+    ][-1]
+    assert ":placement_retry_timing IS NULL" not in terminal_sql
+    assert ":placement_retry_timing IS NOT NULL" not in terminal_sql
+    assert "CAST(:placement_retry_timing AS jsonb) IS NULL" in terminal_sql
+    assert "CAST(:placement_retry_timing AS jsonb) IS NOT NULL" in terminal_sql
 
 
 def test_running_cancellation_requires_the_current_lease_fence():

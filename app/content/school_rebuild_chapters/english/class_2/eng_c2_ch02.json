@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "ccd28fe285c97c24e9b8911f191748dffed76663a7878ccd32c52aa2a09a493a",
+  "runtime_sha256": "48dae8f8300de9b5e4667ee24ac4bbec0a87c51d7b0da189e9494c0e32db24aa",
   "chapter_id": "eng_c2_ch02",
   "chapter_no": 2,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "Picture Reading",
   "book_title": "Mridang",
   "unit_title": "Fun with Friends",
@@ -412,7 +413,8 @@
             "bowling",
             "created"
           ],
-          "model_answer": "Mahi uses a handmade bowling pin that she created from a paper tube."
+          "model_answer": "Mahi uses a handmade bowling pin that she created from a paper tube.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -1010,7 +1012,8 @@
                 "bowling",
                 "created"
               ],
-              "model_answer": "Mahi uses a handmade bowling pin that she created from a paper tube."
+              "model_answer": "Mahi uses a handmade bowling pin that she created from a paper tube.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use each game word only when its action and setting fit. Place both chapter words in their correct roles. Use the same skill in this new scene. To understand and use game words from context, include both details.",
@@ -1475,7 +1478,8 @@
                 "team",
                 "taps"
               ],
-              "model_answer": "A teammate is a player on the same team. My teammate taps my hand before I run."
+              "model_answer": "A teammate is a player on the same team. My teammate taps my hand before I run.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use each game word only when its action and setting fit. Use the making details rather than guessing from the object. Remember the skill, then check the passage. To understand and use game words from context, include both details.",
@@ -5191,7 +5195,8 @@
             "early",
             "orange"
           ],
-          "model_answer": "The blue team arrives early, but the orange team arrives late."
+          "model_answer": "The blue team arrives early, but the orange team arrives late.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "An opposite must reverse the exact meaning used in the game sentence. Match each opposite state to its time. Use the same skill in this new scene. To choose and use antonyms in game contexts, include both details.",
@@ -5537,7 +5542,8 @@
                 "early",
                 "orange"
               ],
-              "model_answer": "The blue team arrives early, but the orange team arrives late."
+              "model_answer": "The blue team arrives early, but the orange team arrives late.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "An opposite must reverse the exact meaning used in the game sentence. Derive the opposite pair from the contents. Use only the passage. To choose and use antonyms in game contexts, include both details.",
@@ -11310,6 +11316,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

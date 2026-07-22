@@ -4,13 +4,14 @@
     "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
     "Selected-option prompts and keys reviewed for interaction fit, support, and ambiguity; learner-facing chapter references clarified",
     "Independent, transfer, and review pools checked for fresh scenarios, prompt-template diversity, exact skill coverage, and compile parity",
-    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content"
+    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
   ],
-  "runtime_sha256": "b16135390807f2d6a2af9abf2c04efa52365891754eeffcfcd8e9770917378a2",
+  "runtime_sha256": "03978f5d3c3f3e0b0532042a0a7c4df4821e2b8cc40b5a423e1b26bbec376bd6",
   "chapter_id": "eng_c5_ch06",
   "chapter_no": 6,
-  "content_version": "2026-07-16.2",
-  "certification_version": "2026-07-16.2",
+  "content_version": "2026-07-16.2.semantic-evidence-v1",
+  "certification_version": "2026-07-16.2.semantic-evidence-v1",
   "title": "What a Tank!",
   "book_title": "Santoor",
   "unit_title": "Water",
@@ -10318,7 +10319,7 @@
           "model_answer": "Children must not open or clean the unlabelled drum. An authorised adult must inspect its history and either reject it or approve a safe non-drinking use."
         },
         "independent_check": {
-          "teaching_block": "Answer without a model. Build the response from the visible evidence in this new example. Highlight only supplied facts, order the actions, state the intended result, and mark any missing information instead of inventing it.",
+          "teaching_block": "Answer without a model. Build the response from the visible evidence in this new example. Highlight only supplied facts, order the actions, state the intended result, and mark any missing information instead of inventing it. Include all 3 details.",
           "passage": "Survey table: four classrooms report dripping taps; two report loose handles; one report includes both problems.",
           "prompt": "Write the order for verifying and responding to the survey without double-counting.",
           "options": [],
@@ -10331,47 +10332,44 @@
           "pass_score": 0.8,
           "rubric_criteria": [
             {
-              "id": "selection",
-              "description": "Uses the overlap fact correctly.",
-              "required": true,
-              "min_quality": 0.7
-            },
-            {
-              "id": "steps",
+              "id": "tank-inquiry-procedure-independent-1:steps",
               "description": "Orders verification and repair tracking.",
               "required": true,
               "min_quality": 0.7
             },
             {
-              "id": "result",
+              "id": "tank-inquiry-procedure-independent-1:result",
               "description": "States the intended accurate outcome.",
+              "required": true,
+              "min_quality": 0.7
+            },
+            {
+              "id": "tank-inquiry-procedure-independent-1:selection",
+              "description": "Uses the overlap fact correctly.",
               "required": true,
               "min_quality": 0.7
             }
           ],
           "concept_slots": [
             {
-              "id": "selection",
+              "id": "tank-inquiry-procedure-independent-1:steps",
+              "description": "Orders verification and repair tracking.",
+              "any_of": [
+                "First list each classroom once, then verify whether it has a drip, a loose handle, or both"
+              ]
+            },
+            {
+              "id": "tank-inquiry-procedure-independent-1:result",
+              "description": "States the intended accurate outcome.",
+              "any_of": [
+                "Next group repairs by fault and record completion"
+              ]
+            },
+            {
+              "id": "tank-inquiry-procedure-independent-1:selection",
               "description": "Uses the overlap fact correctly.",
               "any_of": [
                 "classroom with both problems must not be counted as two separate rooms"
-              ]
-            },
-            {
-              "id": "steps",
-              "description": "Orders verification and repair tracking.",
-              "any_of": [
-                "list once",
-                "verify fault",
-                "group repairs",
-                "record completion"
-              ]
-            },
-            {
-              "id": "result",
-              "description": "States the intended accurate outcome.",
-              "any_of": [
-                "group repairs by fault and record completion"
               ]
             }
           ],
@@ -10381,9 +10379,9 @@
           ],
           "min_response_words": 18,
           "ordered_concept_slot_ids": [
-            "selection",
-            "steps",
-            "result"
+            "tank-inquiry-procedure-independent-1:steps",
+            "tank-inquiry-procedure-independent-1:result",
+            "tank-inquiry-procedure-independent-1:selection"
           ],
           "schema_version": "school-activity-v2",
           "episode_kind": "application_mission",
@@ -10913,7 +10911,7 @@
           "pool_id": "tank-inquiry-procedure:independent_application",
           "variant_pool": [
             {
-              "teaching_block": "Answer without a model. Build the response from the visible evidence in this new example. Highlight only supplied facts, order the actions, state the intended result, and mark any missing information instead of inventing it.",
+              "teaching_block": "Answer without a model. Build the response from the visible evidence in this new example. Highlight only supplied facts, order the actions, state the intended result, and mark any missing information instead of inventing it. Include all 3 details.",
               "passage": "Survey table: four classrooms report dripping taps; two report loose handles; one report includes both problems.",
               "prompt": "Write the order for verifying and responding to the survey without double-counting.",
               "options": [],
@@ -10928,47 +10926,44 @@
               "pass_score": 0.8,
               "rubric_criteria": [
                 {
-                  "id": "selection",
-                  "description": "Uses the overlap fact correctly.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "steps",
+                  "id": "tank-inquiry-procedure-independent-1:steps",
                   "description": "Orders verification and repair tracking.",
                   "required": true,
                   "min_quality": 0.7
                 },
                 {
-                  "id": "result",
+                  "id": "tank-inquiry-procedure-independent-1:result",
                   "description": "States the intended accurate outcome.",
+                  "required": true,
+                  "min_quality": 0.7
+                },
+                {
+                  "id": "tank-inquiry-procedure-independent-1:selection",
+                  "description": "Uses the overlap fact correctly.",
                   "required": true,
                   "min_quality": 0.7
                 }
               ],
               "concept_slots": [
                 {
-                  "id": "selection",
+                  "id": "tank-inquiry-procedure-independent-1:steps",
+                  "description": "Orders verification and repair tracking.",
+                  "any_of": [
+                    "First list each classroom once, then verify whether it has a drip, a loose handle, or both"
+                  ]
+                },
+                {
+                  "id": "tank-inquiry-procedure-independent-1:result",
+                  "description": "States the intended accurate outcome.",
+                  "any_of": [
+                    "Next group repairs by fault and record completion"
+                  ]
+                },
+                {
+                  "id": "tank-inquiry-procedure-independent-1:selection",
                   "description": "Uses the overlap fact correctly.",
                   "any_of": [
                     "classroom with both problems must not be counted as two separate rooms"
-                  ]
-                },
-                {
-                  "id": "steps",
-                  "description": "Orders verification and repair tracking.",
-                  "any_of": [
-                    "list once",
-                    "verify fault",
-                    "group repairs",
-                    "record completion"
-                  ]
-                },
-                {
-                  "id": "result",
-                  "description": "States the intended accurate outcome.",
-                  "any_of": [
-                    "group repairs by fault and record completion"
                   ]
                 }
               ],
@@ -10978,9 +10973,9 @@
               ],
               "min_response_words": 18,
               "ordered_concept_slot_ids": [
-                "selection",
-                "steps",
-                "result"
+                "tank-inquiry-procedure-independent-1:steps",
+                "tank-inquiry-procedure-independent-1:result",
+                "tank-inquiry-procedure-independent-1:selection"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "application_mission",
@@ -11706,7 +11701,7 @@
                 "18 to 22 August",
                 "repairs begin sooner"
               ],
-              "model_answer": "SPOT A LEAK? REPORT IT. Class 5 learners can write the location on the leak card and submit it at the office desk from 18 to 22 August. Quick reporting helps repairs begin sooner."
+              "model_answer": "REPORT LEAKS WITH A LEAK CARD. Class 5 learners can write the location on the leak card and submit it at the office desk from 18 to 22 August. Quick reporting helps repairs begin sooner."
             },
             {
               "teaching_block": "Retrieve the strategy from memory, then show both the decision and the clue that justifies it. Highlight only supplied facts, order the actions, state the intended result, and mark any missing information instead of inventing it.",
@@ -12307,7 +12302,8 @@
           "decoration expresses identity",
           "practical features ensure safety"
         ],
-        "model_answer": "Decoration can express identity, while practical features determine whether a tank stores and releases water safely."
+        "model_answer": "Decoration can express identity, while practical features determine whether a tank stores and releases water safely.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c5_ch06-assessment-tank-contractions-1",
@@ -13234,5 +13230,5 @@
     ]
   },
   "reviewed_by": "codex-school-content-review",
-  "reviewed_at": "2026-07-16T13:50:17+05:30"
+  "reviewed_at": "2026-07-21T11:20:00+05:30"
 }

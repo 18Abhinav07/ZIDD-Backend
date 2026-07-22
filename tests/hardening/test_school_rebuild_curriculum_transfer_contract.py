@@ -10,37 +10,80 @@ def test_class_two_live_curriculum_is_discoverable():
     assert all(chapter.get("chapter_assessment") for chapter in chapters)
 
 
-def _chapter_with_transfer() -> dict:
+def _authored_check_variants(kind: str) -> list[dict]:
+    situations = (
+        (
+            "Meera has red pencils. Dev has blue pencils. Each needs both colours.",
+            "What can Meera and Dev do?",
+        ),
+        (
+            "Sana has storybooks. Kabir has puzzle books. "
+            "They each want something new to read.",
+            "How can Sana and Kabir help each other?",
+        ),
+        (
+            "Tara has paper. Rohan has crayons. They want to make posters together.",
+            "What should Tara and Rohan do?",
+        ),
+    )
+    return [
+        {
+            "variant_id": f"{kind}-{variant_no}",
+            "teaching_block": f"Use sharing to solve {kind} situation {variant_no}.",
+            "passage": f"{kind.replace('_', ' ').title()} {variant_no}: {passage}",
+            "prompt": f"For {kind.replace('_', ' ')} {variant_no}, {prompt}",
+            "options": [],
+            "accepted_answers": ["share", "they should share"],
+        }
+        for variant_no, (passage, prompt) in enumerate(situations, start=1)
+    ]
+
+
+def _chapter_with_transfer() -> tuple[dict, dict[str, list[dict]]]:
     chapter = deepcopy(curriculum.CLASS_3_CURRICULUM_CHAPTERS[0])
     chapter["chapter_id"] = "transfer-contract-chapter"
     chapter["levels"] = chapter["levels"][:1]
     level = chapter["levels"][0]
     level.pop("teaching_steps", None)
-    for kind in ("guided_check", "bridge", "masterclass", "independent_check"):
-        level["checks"][kind] = {
-            "teaching_block": "Show that sharing solves the problem.",
-            "passage": "Two learners each have something the other needs.",
-            "prompt": "What should they do?",
-            "options": [],
-            "accepted_answers": ["share"],
-        }
-    level["checks"]["transfer_check"] = {
-        "teaching_block": "Use the same idea in a different situation.",
-        "passage": "Leela has orange crayons. Aman has purple crayons. Both need more colours.",
-        "prompt": "What should Leela and Aman do?",
-        "options": [],
-        "accepted_answers": ["share", "share crayons", "they should share"],
+    variants_by_kind = {
+        kind: _authored_check_variants(kind)
+        for kind in (
+            "guided_check",
+            "bridge",
+            "masterclass",
+            "independent_check",
+            "transfer_check",
+        )
     }
-    return chapter
+    for kind in ("guided_check", "bridge", "masterclass", "independent_check"):
+        level["checks"][kind] = variants_by_kind[kind][0]
+    level["checks"]["transfer_check"] = variants_by_kind["transfer_check"][0]
+    return chapter, variants_by_kind
 
 
 def _new_state(monkeypatch) -> dict:
-    chapter = _chapter_with_transfer()
+    chapter, variants_by_kind = _chapter_with_transfer()
+    original_check_for_level = curriculum._check_for_level
+
+    def check_for_level(level: dict, kind: str) -> dict:
+        variants = variants_by_kind.get(kind)
+        if variants is None:
+            return original_check_for_level(level, kind)
+        attempt_index = sum(
+            previous.get("kind") == kind
+            for previous in level.get("attempts") or []
+            if isinstance(previous, dict)
+        )
+        if attempt_index >= len(variants):
+            raise AssertionError(f"synthetic authored variants exhausted for {kind}")
+        return variants[attempt_index]
+
     monkeypatch.setattr(
         curriculum,
         "_available_chapters",
         lambda subject_id, class_no: (chapter,),
     )
+    monkeypatch.setattr(curriculum, "_check_for_level", check_for_level)
     return curriculum.new_curriculum_state(
         school_profile={"subject_ids": ["english"], "target_class_no": 3},
         placement_report={

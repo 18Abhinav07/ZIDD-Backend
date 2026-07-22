@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Mapping
 from typing import Literal, Tuple
 
@@ -16,7 +17,7 @@ from app.content.school.content_schema import (
     SchoolRubricCriterion,
     SchoolRubricEvaluation,
 )
-from app.middleware.rate_limit import llm_semaphore
+from app.middleware.rate_limit import school_evaluation_llm_slot
 from app.services.school.evaluator_contract import (
     OPEN_RUBRIC_SCHEMA_VERSION,
     SchoolOpenAnswerRetryableError,
@@ -27,6 +28,33 @@ from app.services.school.open_answer_prompt import build_school_open_answer_prom
 
 
 logger = logging.getLogger(__name__)
+
+
+def _log_open_answer_timing(
+    *,
+    item_id: str,
+    criteria_count: int,
+    answer_chars: int,
+    prompt_chars: int,
+    provider_ms: float,
+    validation_ms: float,
+    total_ms: float,
+) -> None:
+    """Emit local-only phase timing without persisting learner text."""
+
+    telemetry = {
+        "item_id": item_id,
+        "criteria_count": criteria_count,
+        "answer_chars": answer_chars,
+        "prompt_chars": prompt_chars,
+        "provider_ms": round(provider_ms, 1),
+        "validation_ms": round(validation_ms, 1),
+        "total_ms": round(total_ms, 1),
+    }
+    if str(get_settings().app_env).lower() != "prod":
+        logger.warning("school_open_answer_timing %s", telemetry)
+    else:
+        logger.info("school_open_answer_timing %s", telemetry)
 
 
 class _ProviderSchoolRubricEvaluation(SchoolRubricEvaluation):
@@ -304,6 +332,112 @@ def _traceable_passage_evidence(activity: dict, answer: str) -> str | None:
     return learner_evidence
 
 
+def evaluate_supported_open_answer_fast_path(
+    activity: dict,
+    answer: str,
+) -> SchoolRubricEvaluation | None:
+    """Return a positive result only for fully authored supported practice.
+
+    This is deliberately narrower than deterministic grading in general. It
+    exists to avoid sending a learner through a cloud queue when they have
+    already supplied every exact, authored bridge claim in the required order.
+    Anything partial, paraphrased, certifying, multilingual, or otherwise
+    uncertain falls through to the normal rubric evaluator unchanged.
+    """
+
+    if (
+        activity.get("grading_mode") != "strict_open_rubric"
+        or activity.get("evaluation_mode") != "llm_rubric"
+        or activity.get("evidence_role") != "supported"
+        or activity.get("certifying_language")
+    ):
+        return None
+
+    normalized_answer = answer.strip()
+    min_words = int(activity.get("min_response_words") or 1)
+    words = re.findall(r"[^\W_]+(?:'[^\W_]+)?", normalized_answer, re.UNICODE)
+    if len(words) < min_words or not re.search(r"[A-Za-z]", normalized_answer):
+        return None
+    # Do not interpret Hindi/Hinglish mixed production as a clean English pass.
+    # The regular evaluator handles language detection and learner feedback.
+    if re.search(r"[\u0900-\u097f]", normalized_answer):
+        return None
+
+    rubric_criteria = activity.get("rubric_criteria") or ()
+    concept_slots = activity.get("concept_slots") or ()
+    if not rubric_criteria or not concept_slots:
+        return None
+    slots_by_id = {
+        str(slot.get("id") or ""): slot
+        for slot in concept_slots
+        if isinstance(slot, Mapping)
+        and str(slot.get("id") or "").strip()
+        and tuple(str(alias).strip() for alias in slot.get("any_of") or ())
+    }
+    criterion_ids = [
+        str(criterion.get("id") or "").strip()
+        for criterion in rubric_criteria
+        if isinstance(criterion, Mapping)
+    ]
+    if (
+        len(criterion_ids) != len(rubric_criteria)
+        or any(not criterion_id for criterion_id in criterion_ids)
+        or any(criterion_id not in slots_by_id for criterion_id in criterion_ids)
+    ):
+        return None
+
+    evidence_activity = {"concept_slots": tuple(slots_by_id.values())}
+    criteria: list[SchoolRubricCriterion] = []
+    for criterion_id in criterion_ids:
+        evidence_quote = _traceable_semantic_evidence(
+            evidence_activity,
+            criterion_id=criterion_id,
+            answer=normalized_answer,
+        )
+        if not evidence_quote:
+            return None
+        criteria.append(
+            SchoolRubricCriterion(
+                id=criterion_id,
+                met=True,
+                quality=1.0,
+                evidence_quote=evidence_quote,
+            )
+        )
+
+    item_id = activity.get("activity_id") or activity.get("item_id")
+    if not item_id:
+        return None
+    evaluation = SchoolRubricEvaluation(
+        schema_version=OPEN_RUBRIC_SCHEMA_VERSION,
+        item_id=str(item_id),
+        skill_ids=tuple(str(skill_id) for skill_id in activity.get("skill_ids") or ()),
+        score=1.0,
+        confidence=1.0,
+        language_detected="en",
+        criteria=tuple(criteria),
+        misconception_tags=(),
+        blockers=(),
+        needs_human_review=False,
+        feedback_to_learner="You put each key idea in the right order.",
+    )
+    try:
+        validated = validate_school_open_evaluation(
+            evaluation,
+            context=school_open_context_from_activity(activity, normalized_answer),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+    if (
+        not validated.attempt_evidence_eligible
+        or validated.effective_blockers
+    ):
+        return None
+    return validated.evaluation.model_copy(
+        update={"blockers": validated.effective_blockers},
+    )
+
+
 async def evaluate_school_open_answer(
     activity: dict,
     answer: str,
@@ -312,6 +446,7 @@ async def evaluate_school_open_answer(
 ) -> SchoolRubricEvaluation:
     """Evaluate one School long-writing answer with one provider call."""
 
+    started_at = time.monotonic()
     authored_item_id = activity.get("activity_id") or activity.get("item_id")
     if not authored_item_id:
         raise ValueError("school_open_answer_requires_item_id")
@@ -322,6 +457,13 @@ async def evaluate_school_open_answer(
         if strict_open
         else "school-v3-rubric-1"
     )
+    if strict_open:
+        deterministic_evaluation = evaluate_supported_open_answer_fast_path(
+            activity,
+            answer,
+        )
+        if deterministic_evaluation is not None:
+            return deterministic_evaluation
     prompt = build_school_open_answer_prompt(
         item_id=item_id,
         skill_ids=activity["skill_ids"],
@@ -340,12 +482,13 @@ async def evaluate_school_open_answer(
             for criterion in activity["rubric_criteria"]
         ],
     )
+    provider_started_at = time.monotonic()
     try:
         if _local() and not _qwen_model_selected():
             raise SchoolOpenAnswerRetryableError(
                 "school_open_qwen_model_required"
             )
-        async with llm_semaphore:
+        async with school_evaluation_llm_slot():
             if _local():
                 evaluation = await ollama_structured(
                     prompt,
@@ -379,9 +522,12 @@ async def evaluate_school_open_answer(
         ) from exc
     except Exception as exc:
         raise SchoolOpenAnswerRetryableError(
-            "school_open_provider_failure"
+            "school_open_provider_failure",
+            retry_after_seconds=getattr(exc, "retry_after_seconds", None),
         ) from exc
 
+    provider_ms = (time.monotonic() - provider_started_at) * 1000
+    validation_started_at = time.monotonic()
     try:
         payload = (
             evaluation.model_dump(mode="python")
@@ -393,6 +539,15 @@ async def evaluate_school_open_answer(
             request_bound.model_dump(mode="python")
         )
         if not strict_open:
+            _log_open_answer_timing(
+                item_id=item_id,
+                criteria_count=len(activity["rubric_criteria"]),
+                answer_chars=len(answer),
+                prompt_chars=len(prompt),
+                provider_ms=provider_ms,
+                validation_ms=(time.monotonic() - validation_started_at) * 1000,
+                total_ms=(time.monotonic() - started_at) * 1000,
+            )
             return evaluation
         evaluation = _downgrade_untraceable_evidence(
             evaluation,
@@ -412,9 +567,23 @@ async def evaluate_school_open_answer(
         raise SchoolOpenAnswerRetryableError(
             "school_open_schema_failure"
         ) from exc
-    return validated.evaluation.model_copy(
+    result = validated.evaluation.model_copy(
         update={"blockers": validated.effective_blockers},
     )
+    _log_open_answer_timing(
+        item_id=item_id,
+        criteria_count=len(activity["rubric_criteria"]),
+        answer_chars=len(answer),
+        prompt_chars=len(prompt),
+        provider_ms=provider_ms,
+        validation_ms=(time.monotonic() - validation_started_at) * 1000,
+        total_ms=(time.monotonic() - started_at) * 1000,
+    )
+    return result
 
 
-__all__ = ["build_school_open_answer_prompt", "evaluate_school_open_answer"]
+__all__ = [
+    "build_school_open_answer_prompt",
+    "evaluate_school_open_answer",
+    "evaluate_supported_open_answer_fast_path",
+]

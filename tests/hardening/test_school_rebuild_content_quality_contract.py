@@ -533,6 +533,47 @@ def test_quality_gate_rejects_strict_open_model_that_cannot_pass_itself():
     )
 
 
+def test_quality_gate_rejects_strict_open_model_with_reversed_authored_order():
+    chapter = _chapter(
+        chapter_id="eng_c5_ch01",
+        prompt="Which clue matters?",
+        assessment_passage="A fresh assessment passage.",
+    )
+    independent = chapter.levels[0].checks.independent_check
+    independent.grading_mode = "strict_open_rubric"
+    independent.model_answer = "Mina reads the label and returns the book."
+    independent.min_response_words = 6
+    independent.concept_slots = [
+        SimpleNamespace(
+            id="return",
+            description="States that Mina returns the book.",
+            any_of=["returns the book"],
+        ),
+        SimpleNamespace(
+            id="read",
+            description="States that Mina reads the label.",
+            any_of=["reads the label"],
+        ),
+    ]
+    independent.rubric_criteria = [
+        SimpleNamespace(id="return", required=True, min_quality=0.7),
+        SimpleNamespace(id="read", required=True, min_quality=0.7),
+    ]
+    independent.knowledge_components = ["reading.sentence_comprehension"]
+    independent.ordered_concept_slot_ids = ["return", "read"]
+    independent.relevance_terms = ["Mina", "label"]
+    independent.forbidden_phrases = []
+    independent.pass_score = 0.8
+
+    issues = chapter_quality_issues(chapter)
+
+    assert (
+        "strict_open_model_runtime_blocker:eng_c5_ch01_level:"
+        "independent_check:semantic_role_order_mismatch"
+        in issues
+    )
+
+
 def test_quality_gate_rejects_certifying_strict_open_without_semantic_claim_slots():
     chapter = _chapter(
         chapter_id="eng_c5_ch01",

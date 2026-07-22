@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "a1a100f1e502b65ebd68a68ba041a24b0103a4f2f87c8ec773abd154b9909433",
+  "runtime_sha256": "18eeaef7d73749aa6244cf98c66653c9abde7955b8eeba741050bdcd2a5219b7",
   "chapter_id": "eng_c2_ch03",
   "chapter_no": 3,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "It is Fun",
   "book_title": "Mridang",
   "unit_title": "Welcome to My World",
@@ -793,7 +794,8 @@
                 "trunk",
                 "gripping"
               ],
-              "model_answer": "The squirrel climbs the tree trunk by gripping the bark as it moves upward."
+              "model_answer": "The squirrel climbs the tree trunk by gripping the bark as it moves upward.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each movement word to the body action shown in context. Define the action before making a fresh use. Use only the passage. To understand and use animal movement words, include both details.",
@@ -941,7 +943,8 @@
                 "branch",
                 "above"
               ],
-              "model_answer": "The blue kingfisher perches on a low branch above the stream."
+              "model_answer": "The blue kingfisher perches on a low branch above the stream.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -1110,7 +1113,8 @@
                 "across",
                 "leaf"
               ],
-              "model_answer": "The caterpillar crawls slowly across the leaf with its body close to the surface."
+              "model_answer": "The caterpillar crawls slowly across the leaf with its body close to the surface.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each movement word to the body action shown in context. Apply an animal action word in a home scene. Use the same skill in this new scene. To understand and use animal movement words, include both details.",
@@ -1414,7 +1418,8 @@
                 "flowers",
                 "changing"
               ],
-              "model_answer": "The butterfly flies above the flowers, changing its movement when the wind shifts."
+              "model_answer": "The butterfly flies above the flowers, changing its movement when the wind shifts.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each movement word to the body action shown in context. Use the step and side-to-side clues for meaning. Remember the skill, then check the passage. To understand and use animal movement words, include both details.",
@@ -1488,7 +1493,8 @@
                 "short",
                 "steps"
               ],
-              "model_answer": "A waddle is a rocking walk with short steps. The duck waddles from the pond to its nest."
+              "model_answer": "A waddle is a rocking walk with short steps. The duck waddles from the pond to its nest.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each movement word to the body action shown in context. Build meaning from the tunnel and shelter details. Remember the skill, then check the passage. To understand and use animal movement words, include both details.",
@@ -11404,6 +11410,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

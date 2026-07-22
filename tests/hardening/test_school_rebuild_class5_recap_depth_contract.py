@@ -293,7 +293,7 @@ def test_every_class5_track_has_eight_fresh_authored_recap_activities() -> None:
                 for item in band.variants
             ),
         ]
-        assert len(placement_items) == 5
+        assert len(placement_items) >= 6
         placement_tasks = {_normalized_task(item) for item in placement_items}
         assert not placement_tasks.intersection(
             _normalized_task(check) for check in checks.values()

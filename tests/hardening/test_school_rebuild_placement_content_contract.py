@@ -550,7 +550,8 @@ def test_deterministic_answer_keys_and_mcq_options_are_normalization_consistent(
     deterministic = tuple(
         item for item in _all_items() if item.evaluation_mode == "deterministic"
     )
-    assert len(deterministic) == 120
+    # Class 5 confirmation coverage added six deterministic v06 variants.
+    assert len(deterministic) == 126
     for item in deterministic:
         normalized_answers = {
             normalize_placement_answer(answer) for answer in item.accepted_answers
@@ -590,7 +591,7 @@ def test_runtime_answer_matching_uses_shared_punctuation_tolerant_normalization(
     deterministic = tuple(
         item for item in _all_items() if item.evaluation_mode == "deterministic"
     )
-    assert len(deterministic) == 120
+    assert len(deterministic) == 126
 
     for item in deterministic:
         assert placement_runtime.answer_matches(item, f"  {item.answer_key}.  ")

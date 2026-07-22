@@ -4,13 +4,14 @@
     "Canonical Python manifest semantic review: explicit prompt parts aligned to atomic rubric criteria, concept slots, and child-facing guidance",
     "Selected-option prompts and keys reviewed for interaction fit, support, and ambiguity; learner-facing chapter references clarified",
     "Independent, transfer, and review pools checked for fresh scenarios, prompt-template diversity, exact skill coverage, and compile parity",
-    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content"
+    "Official NCERT structural source-map anchors reviewed; all learner passages and questions remain original Zidd content",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while fact/order guards remain explicit."
   ],
-  "runtime_sha256": "b783b41479806a2368e8ce8dfc7eb03f915a4ef19c06a385c62ccfa6cee89e5f",
+  "runtime_sha256": "e63cf97555ba21efbac603938f8dc461f0dc615287d09ca7132f377a41470420",
   "chapter_id": "eng_c5_ch08",
   "chapter_no": 8,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "The Decision of the Panchayat",
   "book_title": "Santoor",
   "unit_title": "Ups and Downs",
@@ -6332,7 +6333,8 @@
                 "either side",
                 "judge fairly"
               ],
-              "model_answer": "Impartial means judging without giving unfair preference to either side."
+              "model_answer": "Impartial means judging without giving unfair preference to either side.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Use position and relationship clues to interpret the key phrase, then place the correct relation word in a complete sentence. Apply the same construct to this new passage. Use the visible passage to practise word meaning context and prepositions; include both details.",
@@ -9559,7 +9561,7 @@
                   "id": "core",
                   "description": "Gives the accurate idea supported by the stimulus.",
                   "any_of": [
-                    "They are likely checking a disputed rule before play and scoring continue."
+                    "They are likely checking a disputed rule because the team is studying the rulebook while the scoreboard is paused."
                   ]
                 }
               ],
@@ -9589,7 +9591,7 @@
                 "captains",
                 "checking dispute"
               ],
-              "model_answer": "They are likely checking a disputed rule before play and scoring continue."
+              "model_answer": "They are likely checking a disputed rule because the team is studying the rulebook while the scoreboard is paused."
             },
             {
               "teaching_block": "Retrieve the strategy from memory, then show both the decision and the clue that justifies it. Name the situation, choose two supplied clues, and use may, likely, or probably when the outcome is not certain.",
@@ -11496,31 +11498,31 @@
               "pass_score": 0.8,
               "rubric_criteria": [
                 {
-                  "id": "panchayat-first-person-letter:transfer:4:message",
-                  "description": "Includes the event, feeling, reason, and invitation in first person.",
+                  "id": "panchayat-first-person-letter:transfer:4:format",
+                  "description": "Uses a greeting and correctly punctuated friendly close.",
                   "required": true,
                   "min_quality": 0.65
                 },
                 {
-                  "id": "panchayat-first-person-letter:transfer:4:format",
-                  "description": "Uses a greeting and correctly punctuated friendly close.",
+                  "id": "panchayat-first-person-letter:transfer:4:message",
+                  "description": "Includes the event, feeling, reason, and invitation in first person.",
                   "required": true,
                   "min_quality": 0.65
                 }
               ],
               "concept_slots": [
                 {
-                  "id": "panchayat-first-person-letter:transfer:4:message",
-                  "description": "Includes the event, feeling, reason, and invitation in first person.",
-                  "any_of": [
-                    "I felt proud when the group accepted the idea because younger helpers will be able to return tools safely without climbing"
-                  ]
-                },
-                {
                   "id": "panchayat-first-person-letter:transfer:4:format",
                   "description": "Uses a greeting and correctly punctuated friendly close.",
                   "any_of": [
                     "Dear Nila"
+                  ]
+                },
+                {
+                  "id": "panchayat-first-person-letter:transfer:4:message",
+                  "description": "Includes the event, feeling, reason, and invitation in first person.",
+                  "any_of": [
+                    "I felt proud when the group accepted the idea because younger helpers will be able to return tools safely without climbing"
                   ]
                 }
               ],
@@ -11530,8 +11532,8 @@
               ],
               "min_response_words": 43,
               "ordered_concept_slot_ids": [
-                "panchayat-first-person-letter:transfer:4:message",
-                "panchayat-first-person-letter:transfer:4:format"
+                "panchayat-first-person-letter:transfer:4:format",
+                "panchayat-first-person-letter:transfer:4:message"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "expression_workshop",
@@ -11777,7 +11779,8 @@
                 "next step",
                 "greeting"
               ],
-              "model_answer": "Write as the affected person, refer accurately to the decision and evidence, explain its effect, request a useful next step, and include a clear greeting and closing."
+              "model_answer": "Write as the affected person, refer accurately to the decision and evidence, explain its effect, request a useful next step, and include a clear greeting and closing.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Write from the affected person's viewpoint with a clear event, feeling, request, reason, and respectful close. Retrieve the construct, then verify it against the passage. Use the visible passage to practise punctuation capitalization and friendly message and paragraph; include both details.",
@@ -11795,31 +11798,31 @@
               "pass_score": 0.8,
               "rubric_criteria": [
                 {
-                  "id": "panchayat-first-person-letter:review:3:content",
-                  "description": "Explains the change, feeling, reason, and invitation.",
+                  "id": "panchayat-first-person-letter:review:3:format",
+                  "description": "Uses correctly capitalized greeting and friendly close.",
                   "required": true,
                   "min_quality": 0.65
                 },
                 {
-                  "id": "panchayat-first-person-letter:review:3:format",
-                  "description": "Uses correctly capitalized greeting and friendly close.",
+                  "id": "panchayat-first-person-letter:review:3:content",
+                  "description": "Explains the change, feeling, reason, and invitation.",
                   "required": true,
                   "min_quality": 0.65
                 }
               ],
               "concept_slots": [
                 {
-                  "id": "panchayat-first-person-letter:review:3:content",
-                  "description": "Explains the change, feeling, reason, and invitation.",
-                  "any_of": [
-                    "I am excited because we can choose books before the room becomes busy. Would you like to meet me there this Saturday?"
-                  ]
-                },
-                {
                   "id": "panchayat-first-person-letter:review:3:format",
                   "description": "Uses correctly capitalized greeting and friendly close.",
                   "any_of": [
                     "Dear Isha"
+                  ]
+                },
+                {
+                  "id": "panchayat-first-person-letter:review:3:content",
+                  "description": "Explains the change, feeling, reason, and invitation.",
+                  "any_of": [
+                    "I am excited because we can choose books before the room becomes busy. Would you like to meet me there this Saturday?"
                   ]
                 }
               ],
@@ -11829,8 +11832,8 @@
               ],
               "min_response_words": 41,
               "ordered_concept_slot_ids": [
-                "panchayat-first-person-letter:review:3:content",
-                "panchayat-first-person-letter:review:3:format"
+                "panchayat-first-person-letter:review:3:format",
+                "panchayat-first-person-letter:review:3:content"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "expression_workshop",
@@ -11871,31 +11874,31 @@
               "pass_score": 0.8,
               "rubric_criteria": [
                 {
-                  "id": "panchayat-first-person-letter:review:4:content",
-                  "description": "Reports both changes and explains a likely benefit.",
+                  "id": "panchayat-first-person-letter:review:4:format",
+                  "description": "Uses a capitalized greeting and punctuated affectionate close.",
                   "required": true,
                   "min_quality": 0.65
                 },
                 {
-                  "id": "panchayat-first-person-letter:review:4:format",
-                  "description": "Uses a capitalized greeting and punctuated affectionate close.",
+                  "id": "panchayat-first-person-letter:review:4:content",
+                  "description": "Reports both changes and explains a likely benefit.",
                   "required": true,
                   "min_quality": 0.65
                 }
               ],
               "concept_slots": [
                 {
-                  "id": "panchayat-first-person-letter:review:4:content",
-                  "description": "Reports both changes and explains a likely benefit.",
-                  "any_of": [
-                    "Workers also added a handrail beside the steep section, so the walk should feel steadier after rain"
-                  ]
-                },
-                {
                   "id": "panchayat-first-person-letter:review:4:format",
                   "description": "Uses a capitalized greeting and punctuated affectionate close.",
                   "any_of": [
                     "Dear Grandpa"
+                  ]
+                },
+                {
+                  "id": "panchayat-first-person-letter:review:4:content",
+                  "description": "Reports both changes and explains a likely benefit.",
+                  "any_of": [
+                    "Workers also added a handrail beside the steep section, so the walk should feel steadier after rain"
                   ]
                 }
               ],
@@ -11905,8 +11908,8 @@
               ],
               "min_response_words": 45,
               "ordered_concept_slot_ids": [
-                "panchayat-first-person-letter:review:4:content",
-                "panchayat-first-person-letter:review:4:format"
+                "panchayat-first-person-letter:review:4:format",
+                "panchayat-first-person-letter:review:4:content"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "expression_workshop",
@@ -15264,7 +15267,8 @@
           "decision",
           "result"
         ],
-        "model_answer": "Name the conflict, show how evidence was checked, state the decision, and explain the result while omitting irrelevant decoration."
+        "model_answer": "Name the conflict, show how evidence was checked, state the decision, and explain the result while omitting irrelevant decoration.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c5_ch08-assessment-panchayat-dialogue-attribution-1",
@@ -15672,7 +15676,8 @@
           "fits harm",
           "uncertainty"
         ],
-        "model_answer": "Hear the people affected, clarify the claim, verify relevant evidence, apply a stated principle, choose a remedy that fits the harm, and disclose uncertainty."
+        "model_answer": "Hear the people affected, clarify the claim, verify relevant evidence, apply a stated principle, choose a remedy that fits the harm, and disclose uncertainty.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c5_ch08-assessment-panchayat-language-relations-1",
@@ -15743,7 +15748,7 @@
             "id": "core",
             "description": "Gives the accurate idea supported by the stimulus.",
             "any_of": [
-              "The treasurer reconciled the two lists by finding and correcting the missing entry."
+              "The treasurer will reconcile the two lists by finding and correcting the missing entry so they become consistent."
             ]
           }
         ],
@@ -15757,7 +15762,7 @@
           "make consistent",
           "correct entry"
         ],
-        "model_answer": "The treasurer reconciled the two lists by finding and correcting the missing entry."
+        "model_answer": "The treasurer will reconcile the two lists by finding and correcting the missing entry so they become consistent."
       },
       {
         "item_id": "eng_c5_ch08-assessment-panchayat-language-relations-4",
@@ -16598,5 +16603,5 @@
     ]
   },
   "reviewed_by": "codex-school-content-review",
-  "reviewed_at": "2026-07-16T13:50:17+05:30"
+  "reviewed_at": "2026-07-21T11:20:00+05:30"
 }

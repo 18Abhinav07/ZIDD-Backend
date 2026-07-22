@@ -53,6 +53,42 @@ def test_google_auth_creates_profile_and_mints_backend_jwt(monkeypatch, store):
     assert store.google_login_resolutions == 1
 
 
+def test_google_auth_grants_one_expiring_beta_wallet_lot(monkeypatch, store):
+    monkeypatch.setenv("BETA_CREDIT_GRANT_ENABLED", "true")
+    monkeypatch.setenv("BETA_CREDIT_GRANT_CREDITS", "300")
+    monkeypatch.setenv("BETA_CREDIT_GRANT_CAMPAIGN_ID", "india-beta-contract")
+    monkeypatch.setenv("BETA_CREDIT_GRANT_EXPIRES_AT", "2026-08-31T23:59:59+05:30")
+    monkeypatch.setenv("WELCOME_CREDITS", "0")
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        auth_module.google_id_token,
+        "verify_oauth2_token",
+        lambda *args, **kwargs: {
+            "iss": "https://accounts.google.com",
+            "sub": "google-beta-sub",
+            "email": "beta@example.com",
+            "email_verified": True,
+            "name": "Beta learner",
+        },
+    )
+
+    client = TestClient(app)
+    first = client.post("/auth/google", json={"id_token": "fake"})
+    second = client.post("/auth/google", json={"id_token": "fake"})
+
+    assert first.status_code == second.status_code == 200
+    wallet = _run(store.get_wallet_summary("google:google-beta-sub"))
+    assert wallet["credits"] == wallet["beta_credits"] == 300
+    assert wallet["paid_credits"] == 0
+    assert len(
+        [
+            key
+            for key in store.credit_lots
+            if key == ("google:google-beta-sub", "beta:india-beta-contract")
+        ]
+    ) == 1
+
+
 def test_google_cert_fetch_timeout_is_bounded():
     calls = {}
 

@@ -9,9 +9,9 @@ from app.billing.models import PackInfo
 
 # ---------- credit packs (purchasable with real money) ----------
 PACKS: dict[str, PackInfo] = {
-    "starter": PackInfo(id="starter", title="Starter", price_paise=9900, credits=100),
-    "value": PackInfo(id="value", title="Value", price_paise=24900, credits=280),
-    "pro": PackInfo(id="pro", title="Pro", price_paise=49900, credits=625),
+    "starter": PackInfo(id="starter", title="Starter", price_paise=19_900, credits=100),
+    "value": PackInfo(id="value", title="Value", price_paise=49_900, credits=300),
+    "pro": PackInfo(id="pro", title="Pro", price_paise=99_900, credits=750),
 }
 
 
@@ -25,7 +25,15 @@ def get_pack(pack_id: str) -> PackInfo | None:
 
 
 # ---------- gate costs (credit prices) ----------
-COMM_MODULE_COST = 40   # a la carte: unlock one Communication module (ACCESS)
-INT_ATTEMPT_COST = 50   # per Interview attempt, text (ATTEMPT)
-GD_ATTEMPT_COST = 50    # per Group-Discussion session, text (ATTEMPT)
-FREE_ATTEMPTS = 2       # free Interview/GD attempts before metering starts
+# Journey tariff. A durable unlock owns the learning content permanently; only
+# a fresh assessment simulation consumes a new attempt charge.
+SCHOOL_CHAPTER_COST = 2
+CAREER_SKILL_COST = 4
+CAREER_TEST_ATTEMPT_COST = 12
+
+# Legacy tariff remains here only to preserve existing deployments while they
+# transition to BILLING_POLICY=journey.
+COMM_MODULE_COST = 40
+INT_ATTEMPT_COST = 50
+GD_ATTEMPT_COST = 50
+FREE_ATTEMPTS = 2

@@ -139,7 +139,7 @@ def test_scheduler_preflight_rejects_reachable_missing_target_confirmation():
         placement.preflight_placement_track_plans(plans)
 
 
-def test_class_five_ambiguous_inference_becomes_a_watchlist_without_stage_three():
+def test_class_five_ambiguous_inference_requires_more_evidence_without_unlock():
     inference = _class_five_inference_track()
     envelope = _finish_snapshots(
         placement.new_placement_envelope(_profile()),
@@ -153,7 +153,7 @@ def test_class_five_ambiguous_inference_becomes_a_watchlist_without_stage_three(
     assert target_probe.source_class_no == 5
     envelope = _answer(envelope, 1.0)
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert envelope.state.total_items == 9
     assert envelope.state.confirmatory_track_ids == ()
     assert envelope.state.track_states[inference.track_id].status == "unresolved"
@@ -206,7 +206,54 @@ def test_snapshot_learner_budget_moves_to_targeted_without_losing_evidence():
     )
 
 
-def test_targeted_learner_budget_finalizes_nonblocking_evidence_to_a_watchlist():
+def test_snapshot_timeout_resume_restores_unused_snapshot_checks_before_later_stages():
+    envelope = placement.new_placement_envelope(_profile())
+    first_item = placement.next_item(envelope)
+    assert first_item is not None
+
+    envelope = _answer(
+        envelope,
+        1.0,
+        learner_seconds=placement.SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS,
+    )
+
+    assert placement.placement_status(envelope) == "insufficient_evidence"
+    assert placement.can_resume_placement(envelope) is True
+    assert all(
+        track.status == "unresolved"
+        and track.unresolved_reason == "snapshot_budget_unanswered"
+        for track_id, track in envelope.state.track_states.items()
+        if track_id != first_item.track_id
+    )
+
+    resumed = placement.resume_placement(envelope)
+
+    assert resumed.state.stage == "snapshot"
+    assert resumed.state.track_states[first_item.track_id].status == "provisional_ready"
+    next_snapshot = placement.next_item(resumed)
+    assert next_snapshot is not None
+    assert next_snapshot.item_id != first_item.item_id
+    assert next_snapshot.stage == "snapshot"
+
+    while placement.placement_status(resumed) == "in_progress":
+        item = placement.next_item(resumed)
+        assert item is not None
+        assert item.stage == "snapshot"
+        resumed = _answer(resumed, 1.0)
+
+    assert placement.placement_status(resumed) == "target_ready"
+    assert resumed.state.total_items == placement.MAX_SNAPSHOT_ITEMS
+    assert set(resumed.state.answered_item_ids) == {
+        track.snapshot_item.item_id
+        for track in placement_tracks_for("english", 5)
+    }
+    assert all(
+        track.unresolved_reason is None
+        for track in resumed.state.track_states.values()
+    )
+
+
+def test_targeted_learner_budget_requires_more_evidence_without_unlock():
     inference = _class_five_inference_track()
     envelope = _finish_snapshots(
         placement.new_placement_envelope(_profile()),
@@ -220,14 +267,14 @@ def test_targeted_learner_budget_finalizes_nonblocking_evidence_to_a_watchlist()
         learner_seconds=placement.TARGETED_DIAGNOSTIC_LEARNER_TIME_BUDGET_SECONDS,
     )
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert (
         envelope.state.terminal_reason
         == "watchlist_after_targeted_diagnostic_learner_time_budget_exhausted"
     )
     assert envelope.state.confirmatory_track_ids == ()
     assert placement.next_item(envelope) is None
-    assert envelope.state.readiness_seeds_applied is True
+    assert envelope.state.readiness_seeds_applied is False
     assert envelope.state.track_states[inference.track_id].status == "unresolved"
 
 
@@ -271,12 +318,12 @@ def test_targeted_resolving_answer_at_exact_stage_boundary_is_honored():
     assert evidence[-1].item_id == item.item_id
     assert evidence[-1].classification == "pass"
     assert item.item_id in envelope.state.answered_item_ids
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert envelope.state.terminal_reason == "nonblocking_uncertainty_watchlist"
     assert placement.next_item(envelope) is None
 
 
-def test_confirmatory_budget_keeps_duration_truthful_and_finalizes_to_watchlist():
+def test_confirmatory_budget_keeps_duration_truthful_and_requires_more_evidence():
     envelope = _two_class_two_contradictions()
 
     envelope = _answer(
@@ -285,7 +332,7 @@ def test_confirmatory_budget_keeps_duration_truthful_and_finalizes_to_watchlist(
         learner_seconds=placement.CONFIRMATORY_LEARNER_TIME_BUDGET_SECONDS,
     )
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert (
         envelope.state.terminal_reason
         == "watchlist_after_confirmatory_learner_time_budget_exhausted"
@@ -294,7 +341,7 @@ def test_confirmatory_budget_keeps_duration_truthful_and_finalizes_to_watchlist(
         placement.CONFIRMATORY_LEARNER_TIME_BUDGET_SECONDS
     )
     assert placement.next_item(envelope) is None
-    assert placement.can_resume_placement(envelope) is False
+    assert placement.can_resume_placement(envelope) is True
 
 
 def test_confirmatory_resolving_answer_at_exact_stage_boundary_is_honored():
@@ -312,7 +359,7 @@ def test_confirmatory_resolving_answer_at_exact_stage_boundary_is_honored():
     evidence = envelope.state.track_states[track_id].evidence
     assert evidence[-1].item_id == item.item_id
     assert evidence[-1].classification == "pass"
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert (
         envelope.state.terminal_reason
         == "watchlist_after_confirmatory_learner_time_budget_exhausted"
@@ -321,6 +368,8 @@ def test_confirmatory_resolving_answer_at_exact_stage_boundary_is_honored():
 
 def test_outer_learner_budget_is_independent_and_named():
     envelope = placement.new_placement_envelope(_profile())
+    first_item = placement.next_item(envelope)
+    assert first_item is not None
     envelope = replace(
         envelope,
         state=replace(
@@ -331,13 +380,20 @@ def test_outer_learner_budget_is_independent_and_named():
 
     envelope = _answer(envelope, 0.70)
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert (
         envelope.state.terminal_reason
         == "watchlist_after_placement_learner_time_budget_exhausted"
     )
-    assert placement.can_resume_placement(envelope) is False
+    assert placement.can_resume_placement(envelope) is True
     assert placement.next_item(envelope) is None
+
+    resumed = placement.resume_placement(envelope)
+
+    assert resumed.state.sitting_elapsed_seconds == 0.0
+    assert resumed.state.answered_item_ids == envelope.state.answered_item_ids
+    assert placement.next_item(resumed) is not None
+    assert placement.next_item(resumed).item_id != first_item.item_id
 
 
 def test_resolving_snapshot_answer_at_exact_stage_boundary_is_honored():
@@ -519,7 +575,7 @@ def test_unscorable_attempt_consumes_stage_time_without_scoring_the_item():
         elapsed_seconds_delta=placement.SNAPSHOT_LEARNER_TIME_BUDGET_SECONDS,
     )
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert envelope.state.unscorable_attempts == 1
     assert envelope.state.total_items == 0
     assert envelope.state.scorable_answers == 0
@@ -543,7 +599,7 @@ def test_unscorable_attempt_cannot_bypass_the_outer_learner_budget():
         elapsed_seconds_delta=placement.PLACEMENT_LEARNER_TIME_BUDGET_SECONDS,
     )
 
-    assert placement.placement_status(envelope) == "target_ready"
+    assert placement.placement_status(envelope) == "insufficient_evidence"
     assert (
         envelope.state.terminal_reason
         == "watchlist_after_placement_learner_time_budget_exhausted"

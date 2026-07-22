@@ -895,15 +895,6 @@ _HANDOFF_AFTER_NAME_RE = re.compile(
     re.IGNORECASE,
 )
 
-_PRIOR_SPEAKER_REFERENCE_PATTERNS = (
-    r"{name}\s*,\s+you\s+(?:raise|raised|mention|mentioned|said|bring|brought|argue|argued)",
-    r"{name}\s*,.*\bwhat\s+you\s+(?:said|mentioned|argued|raised|noted)\s+earlier\b",
-    r"{name}\s*,.*\b(?:your|the)\s+(?:earlier|previous|last)\s+(?:point|argument|claim|view)\b",
-    r"as\s+{name}\s+(?:said|mentioned|pointed|argued|noted)",
-    r"{name}\s+(?:raises|raised|mentioned|said|argued|pointed out|noted)",
-)
-
-
 def _ensure_assessment_state(state: dict) -> None:
     state.setdefault("visible_event_ledger", [])
     state.setdefault("assessment_validity_flags", [])
@@ -1047,22 +1038,9 @@ def _detect_unseen_prior_speaker_reference(
     personas: list[dict],
     current_speaker_id: str,
 ) -> dict | None:
-    lower = (text or "").lower()
-    for persona in personas:
-        speaker_id = str(persona.get("speaker_id") or "").strip()
-        if not speaker_id or speaker_id == current_speaker_id:
-            continue
-        name = str(persona.get("name") or "").strip()
-        if not name:
-            continue
-        normalized_name = re.escape(name.lower())
-        referenced_as_prior = any(
-            re.search(pattern.format(name=normalized_name), lower)
-            for pattern in _PRIOR_SPEAKER_REFERENCE_PATTERNS
-        )
-        if referenced_as_prior and not _persona_is_visible(state, persona):
-            return persona
-    return None
+    from app.services.assessment_validity import gd_unseen_prior_speaker_reference
+
+    return gd_unseen_prior_speaker_reference(state, text, personas, current_speaker_id)
 
 
 def _gd_integrity_fallback(state: dict, persona: dict) -> str:
@@ -1176,6 +1154,8 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
         gd_panelist_evaluative_praise_text,
         gd_panelist_formulaic_meta_text,
         gd_panelist_paraphrase_only_text,
+        gd_panelist_unverified_external_claim,
+        approved_gd_fact_texts,
         self_label_or_meta_text,
     )
 
@@ -1222,6 +1202,30 @@ def _safe_gd_turn_text(state: dict, persona: dict, generated: str) -> str:
             state,
             persona,
             _assessment_repair_text(state, TaskType.GD_TEST, persona),
+        )
+    if gd_panelist_unverified_external_claim(
+        text,
+        learner_text=_latest_learner_message_text(state),
+        approved_facts=approved_gd_fact_texts(
+            state.get("assessment_plan") or {},
+            state.get("scenario_config") or {},
+        ),
+    ):
+        _append_validity_flag(
+            state,
+            "gd_panelist_unverified_external_claim_repaired",
+            (
+                f"{persona.get('name') or current_speaker_id} introduced an "
+                "unsupported external empirical claim, so the backend replaced it "
+                "with a source-safe discussion contribution."
+            ),
+            severity="partial",
+            speaker_id=current_speaker_id,
+        )
+        return _gd_safe_repair_text(
+            state,
+            persona,
+            _gd_integrity_fallback(state, persona),
         )
     personas = state.get("personas") or []
     handoff_target = (
@@ -1669,7 +1673,11 @@ async def _stream_structured_assessment_round(
     else:
         text = _safe_gd_turn_text(state, persona, raw_text)
     safe_flags = list(state.get("assessment_validity_flags") or [])[safe_flags_start:]
-    visible_repaired = bool(safe_flags) or text != raw_text
+    visible_repaired = (
+        bool(authorized.visible_response_repaired)
+        or bool(safe_flags)
+        or text != raw_text
+    )
     score_excluded_by_repair = _has_score_excluding_repair(authorized.flags)
     runtime_turn_countable = bool(authorized.scorable)
     effective_scorable = runtime_turn_countable and not score_excluded_by_repair
@@ -1682,7 +1690,7 @@ async def _stream_structured_assessment_round(
         event_analysis["visible_response_repaired"] = True
         event_analysis["visible_response_repair_codes"] = [
             str(flag.get("code") or "")
-            for flag in safe_flags
+            for flag in [*list(authorized.flags or []), *safe_flags]
             if isinstance(flag, dict) and flag.get("code")
         ] or ["visible_response_rewritten"]
     event_flags = [*list(authorized.flags or []), *safe_flags]
@@ -2260,6 +2268,10 @@ _INTERVIEW_REPORT_LEAK_TERMS = (
     "build on others",
     "synthesis",
 )
+
+_INTERVIEW_SAFE_STRUCTURE_NEXT_STEP = (
+    "Tighten answer structure by linking the situation, your action, and the measured result."
+)
 _TOKEN_STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "but", "can", "could", "did",
     "do", "for", "from", "how", "i", "in", "is", "it", "me", "of", "on",
@@ -2575,14 +2587,11 @@ def _sanitize_report_improvements(task_type: TaskType, improvements: list[str]) 
     cleaned = _remove_repetition_blame(improvements)
     if task_type != TaskType.INTERVIEW_TEST:
         return cleaned
-    replacement = (
-        "Tighten answer structure by linking the situation, your action, and the measured result."
-    )
     sanitized: list[str] = []
     for item in cleaned:
         normalized = " ".join(str(item or "").lower().split())
         if any(term in normalized for term in _INTERVIEW_REPORT_LEAK_TERMS):
-            sanitized.append(replacement)
+            sanitized.append(_INTERVIEW_SAFE_STRUCTURE_NEXT_STEP)
         else:
             sanitized.append(item)
     return list(dict.fromkeys(sanitized))
@@ -2649,7 +2658,25 @@ def _validated_gap_improvements(
         action = " ".join(str(gap.get("recommended_action") or "").split()).strip()
         if action:
             actions.append(action)
-    return _sanitize_report_improvements(task_type, list(dict.fromkeys(actions)))[:3] or _dimension_next_step(task_type, report)
+    validated_actions = _sanitize_report_improvements(task_type, list(dict.fromkeys(actions)))[:3]
+    if validated_actions:
+        return validated_actions
+
+    # A mode-leaking interview recommendation is replaced with a fixed,
+    # learner-safe STAR structure prompt. It remains valid when no grounded gap
+    # can be promoted; arbitrary model prose does not.
+    if task_type == TaskType.INTERVIEW_TEST:
+        raw_improvements = (
+            report.get("improvements") if isinstance(report, dict) else getattr(report, "improvements", [])
+        )
+        safe_model_fallbacks = [
+            item
+            for item in _sanitize_report_improvements(task_type, list(raw_improvements or []))
+            if item == _INTERVIEW_SAFE_STRUCTURE_NEXT_STEP
+        ]
+        if safe_model_fallbacks:
+            return safe_model_fallbacks[:1]
+    return _dimension_next_step(task_type, report)
 
 
 def _report_recovery_improvements(validity_status: str) -> list[str] | None:

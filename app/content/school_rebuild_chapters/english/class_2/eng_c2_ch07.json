@@ -5,13 +5,14 @@
     "Official NCERT structure and scope checked; the ten-word overlap scan confirms Zidd originality.",
     "Pedagogy audit: chapter_quality_issues returned zero and transfer and review scenarios are semantically distinct.",
     "Language review: prompts, model answers, and strict-open rubric authority passed the focused Class 2 contract.",
-    "Runtime verification: the compiled hash was recalculated and validated after review."
+    "Runtime verification: the compiled hash was recalculated and validated after review.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "56d160816c7ddf5361ed36d8854ab6a56e9f1bf59fdbb8d152aa48419db1b45a",
+  "runtime_sha256": "394f9c12355120369e8ec80e63831079cdff4fce867de6ab28ad8afe4ab2d933",
   "chapter_id": "eng_c2_ch07",
   "chapter_no": 7,
-  "content_version": "2026-07-15.1",
-  "certification_version": "2026-07-15.1",
+  "content_version": "2026-07-15.1.semantic-evidence-v1",
+  "certification_version": "2026-07-15.1.semantic-evidence-v1",
   "title": "This is My Town",
   "book_title": "Mridang",
   "unit_title": "Going Places",
@@ -941,7 +942,8 @@
                 "place",
                 "families"
               ],
-              "model_answer": "River Park is a public place where families walk and rest."
+              "model_answer": "River Park is a public place where families walk and rest.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -1366,7 +1368,8 @@
                 "museum",
                 "opposite"
               ],
-              "model_answer": "The fountain's position is behind the museum and opposite the park gate."
+              "model_answer": "The fountain's position is behind the museum and opposite the park gate.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each town word to the size, purpose, or location clue. Show how the smaller place fits the larger one. Remember the skill, then check the passage. To understand and use place and position vocabulary, include both details.",
@@ -1440,7 +1443,8 @@
                 "town",
                 "joins"
               ],
-              "model_answer": "Rose Street is a busy street in the town where it joins Market Road."
+              "model_answer": "Rose Street is a busy street in the town where it joins Market Road.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each town word to the size, purpose, or location clue. Use the public-space and meeting clues. Remember the skill, then check the passage. To understand and use place and position vocabulary, include both details.",
@@ -1514,7 +1518,8 @@
                 "meeting",
                 "place"
               ],
-              "model_answer": "A town square is an open meeting place among buildings. Musicians perform in the square after the market closes."
+              "model_answer": "A town square is an open meeting place among buildings. Musicians perform in the square after the market closes.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Match each town word to the size, purpose, or location clue. Connect the road size to the place word. Remember the skill, then check the passage. To understand and use place and position vocabulary, include both details.",
@@ -11027,6 +11032,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 import json
 from pathlib import Path
 import re
@@ -153,6 +154,21 @@ def _authored_personal_response_variant(variant_id: str) -> dict:
         for key, value in activity.items()
         if key not in {"activity_id", "skill_ids"}
     }
+
+
+def test_chapter_one_first_clue_question_states_the_missing_object_and_asks_for_the_location():
+    level = _level(_chapter(), "papas_spectacles_poem_comprehension")
+    co_construct = _phase_activities(level, "co_construct")[0]
+
+    assert "cannot find her badge" in co_construct["passage"].casefold()
+    assert co_construct["prompt"] == "Where should Sia look first?"
+    assert co_construct["accepted_answers"] == ["beside the colour chart"]
+    assert co_construct["options"] == [
+        "beside the colour chart",
+        "behind the door",
+        "inside a book",
+        "under the desk",
+    ]
 
 
 def test_semantic_validator_literal_contains_exactly_two_closed_rules():
@@ -962,6 +978,55 @@ def test_sound_lab_review_accepts_plain_language_definition_of_night():
     assert decision["blockers"] == []
 
 
+def test_sound_lab_review_accepts_a_natural_time_when_dark_paraphrase():
+    level = _level(_chapter(), "papas_spectacles_sound_lab")
+    activity = _phase_variants(level, "review")[0]
+    activity = {
+        **activity,
+        "activity_id": "class5-gold:sound-lab:review-natural-night",
+        "skill_ids": list(activity["knowledge_components"]),
+    }
+    answer = (
+        "Right means correct, and night is the time when it is dark. In print, "
+        "right and night share -ight but begin with different letters. I chose "
+        "the right answer after reading carefully."
+    )
+    missed_id = "sound_lab_review_v1_second_meaning"
+    raw = SchoolRubricEvaluation.model_validate(
+        {
+            "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+            "item_id": activity["activity_id"],
+            "skill_ids": activity["skill_ids"],
+            "score": 0.8,
+            "confidence": 0.95,
+            "language_detected": "en",
+            "criteria": [
+                {
+                    "id": criterion["id"],
+                    "met": criterion["id"] != missed_id,
+                    "quality": 0.0 if criterion["id"] == missed_id else 1.0,
+                    "evidence_quote": answer,
+                }
+                for criterion in activity["rubric_criteria"]
+            ],
+            "misconception_tags": [],
+            "blockers": [],
+            "needs_human_review": False,
+            "feedback_to_learner": "The pattern and both meanings are clear.",
+        }
+    )
+
+    decision = curriculum.decide_open_answer_evaluation(
+        activity,
+        raw,
+        answer=answer,
+    )
+
+    assert decision["correct"] is True, decision
+    assert decision["missing_criteria"] == []
+    assert decision["blockers"] == []
+
+
 def test_chapter_check_accepts_teacher_or_lost_and_found_as_safe_handoff():
     item = next(
         item
@@ -1226,7 +1291,11 @@ def test_chapter_one_uses_complete_activity_v2_teaching_cycles():
                 assert activity["schema_version"] == "school-activity-v2"
                 assert activity["source_anchor_ids"]
                 if not activity["knowledge_components"]:
-                    assert activity["evidence_role"] == "experience"
+                    assert activity["evidence_role"] in {
+                        "experience",
+                        "formative",
+                        "reflection",
+                    }
                 if activity["interaction_type"] != "continue":
                     assert activity["grading_mode"] in {
                         "selected_option",
@@ -1301,8 +1370,8 @@ def test_chapter_one_assessment_is_deep_and_source_grounded():
         if ":form_b:" in item["item_id"]
     }
     assert form_a_signatures.isdisjoint(form_b_signatures)
-    assert chapter["content_version"] == "2026-07-17.ch1-gold.15"
-    assert chapter["certification_version"] == "2026-07-17.ch1-gold.13"
+    assert chapter["content_version"] == "2026-07-22.ch1-gold.26.natural-night-paraphrase-v1"
+    assert chapter["certification_version"] == "2026-07-17.ch1-gold.13.semantic-evidence-v1"
 
 
 def test_semantic_contract_version_bump_invalidates_pre_validator_session():
@@ -1325,6 +1394,175 @@ def test_semantic_contract_version_bump_invalidates_pre_validator_session():
         "content_version"
     ]
     assert curriculum.session_content_version_is_current(session) is True
+
+
+def _class_five_chapter_one_state() -> dict:
+    return curriculum.new_curriculum_state(
+        school_profile={
+            "profile_version_id": "class-five-alias-repair-profile",
+            "target_class_no": 5,
+            "subject_ids": ["english"],
+            "preferred_teaching_language": "en",
+        },
+        placement_report={
+            "report_id": "class-five-alias-repair-placement",
+            "unlock_state": "target_unlocked",
+        },
+        recap_session=None,
+        requested_chapter_id="eng_c5_ch01",
+    )
+
+
+def _persisted_personal_response_variant(state: dict) -> dict:
+    level = next(
+        item
+        for item in state["levels"]
+        if item["level_id"] == "papas_spectacles_personal_response"
+    )
+    step = next(
+        item
+        for item in level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    return next(
+        item
+        for item in step["variant_pool"]
+        if item["variant_id"]
+        == "papas_spectacles_personal_response:independent_application:v4"
+    )
+
+
+def _persisted_sound_lab_variant(state: dict) -> dict:
+    level = next(
+        item
+        for item in state["levels"]
+        if item["level_id"] == "papas_spectacles_sound_lab"
+    )
+    step = next(
+        item
+        for item in level["teaching_steps"]
+        if item["phase"] == "independent_application"
+    )
+    return next(
+        item
+        for item in step["variant_pool"]
+        if item["variant_id"]
+        == "papas_spectacles_sound_lab:independent_application:v1"
+    )
+
+
+def test_alias_reconciliation_requires_refresh_after_a_learner_visible_release():
+    state = _class_five_chapter_one_state()
+    state["chapter"]["content_version"] = (
+        "2026-07-21.ch1-gold.22.semantic-evidence-v1"
+    )
+    persisted = _persisted_sound_lab_variant(state)
+    persisted["concept_slots"][1]["any_of"] = ["brightness", "lamp"]
+    persisted["concept_slots"][2]["any_of"] = ["dark hours", "after evening"]
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    # Gold.25 changes a learner-visible clue activity. A historical session may
+    # not silently claim it has seen the new lesson just because a sound-lab
+    # answer alias can be expanded safely.
+    assert reconciled == state
+    assert repair is None
+    assert not curriculum.session_content_version_is_current(
+        {
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": reconciled,
+        }
+    )
+
+
+def test_alias_reconciliation_updates_only_authorized_sound_lab_aliases_for_alias_only_release(
+    monkeypatch,
+):
+    state = _class_five_chapter_one_state()
+    state["chapter"]["content_version"] = (
+        "2026-07-21.ch1-gold.22.semantic-evidence-v1"
+    )
+    persisted = _persisted_sound_lab_variant(state)
+    persisted["concept_slots"][1]["any_of"] = ["brightness", "lamp"]
+    persisted["concept_slots"][2]["any_of"] = ["dark hours", "after evening"]
+
+    alias_only_release = deepcopy(_chapter())
+    alias_only_release["content_version"] = "2026-07-21.ch1-gold.24.semantic-alias-v2"
+    monkeypatch.setattr(
+        curriculum,
+        "_available_chapters",
+        lambda _subject_id, _class_no: (alias_only_release,),
+    )
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert repair == {
+        "kind": "strict_open_alias_expansion_reconciled",
+        "chapter_id": "eng_c5_ch01",
+        "from_content_version": "2026-07-21.ch1-gold.22.semantic-evidence-v1",
+        "to_content_version": "2026-07-21.ch1-gold.24.semantic-alias-v2",
+        "variant_ids": [
+            "papas_spectacles_sound_lab:independent_application:v1",
+        ],
+    }
+    assert reconciled["chapter"]["content_version"] == (
+        "2026-07-21.ch1-gold.24.semantic-alias-v2"
+    )
+    repaired = _persisted_sound_lab_variant(reconciled)
+    assert "illumination" in repaired["concept_slots"][1]["any_of"]
+    assert "dark time" in repaired["concept_slots"][2]["any_of"]
+
+
+def test_historical_alias_snapshot_requires_refresh_after_policy_release():
+    state = _class_five_chapter_one_state()
+    state["chapter"]["content_version"] = "2026-07-17.ch1-gold.15"
+    persisted = _persisted_personal_response_variant(state)
+    persisted["concept_slots"][0]["any_of"] = [
+        alias
+        for alias in persisted["concept_slots"][0]["any_of"]
+        if alias not in {"check the reading-room first", "check the reading room first"}
+    ]
+    persisted["concept_slots"][2]["any_of"] = [
+        alias
+        for alias in persisted["concept_slots"][2]["any_of"]
+        if alias
+        not in {
+            "not trust the art-room guess",
+            "not trust the art room guess",
+            "art-room guess because nobody has verified it",
+            "art room guess because nobody has verified it",
+            "art-room guess has not been verified",
+            "art room guess has not been verified",
+        }
+    ]
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert reconciled == state
+    assert repair is None
+    assert not curriculum.session_content_version_is_current({
+        "subject_id": "english",
+        "class_no": 5,
+        "state_json": reconciled,
+    })
+
+
+def test_alias_reconciliation_rejects_any_learner_visible_activity_change():
+    state = _class_five_chapter_one_state()
+    state["chapter"]["content_version"] = "2026-07-17.ch1-gold.15"
+    persisted = _persisted_personal_response_variant(state)
+    persisted["concept_slots"][0]["any_of"] = [
+        alias
+        for alias in persisted["concept_slots"][0]["any_of"]
+        if alias not in {"check the reading-room first", "check the reading room first"}
+    ]
+    persisted["prompt"] = "A changed learner-visible prompt must never migrate."
+
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    assert reconciled == state
+    assert repair is None
 
 
 def test_chapter_one_strict_open_items_have_authored_grading_authority():
@@ -2406,6 +2644,7 @@ def test_prompts_do_not_reveal_keys_or_require_optional_assets():
             assert normalized_answer not in prompt, activity.get(
                 "variant_id", activity.get("item_id", prompt)
             )
+        assert "model answer:" not in visible_text
         assert not any(
             phrase in visible_text for phrase in required_asset_phrases
         )
@@ -2440,7 +2679,7 @@ def test_riddle_model_and_learner_checks_are_distinct_and_clue_justified():
         if step["phase"] == "connect"
     )
     model_match = re.search(
-        r"Worked example riddle:\s*(.+?)\s*Model answer:\s*([^.]+)\.",
+        r"Worked example riddle:\s*(.+?)\s*Worked reasoning:\s*([^.]+)\.",
         connect["passage"],
         flags=re.IGNORECASE | re.DOTALL,
     )

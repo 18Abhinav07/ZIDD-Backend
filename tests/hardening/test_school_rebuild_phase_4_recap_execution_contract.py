@@ -13,6 +13,7 @@ from app.services.school.evaluator_contract import (
     RUBRIC_SCHEMA_VERSION,
 )
 from app.services.school.language_confidence import LanguageConfidenceState
+from app.services.school import evaluation_jobs
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_recap as recap
 
@@ -29,9 +30,7 @@ def _schema_version_for(activity: dict[str, Any]) -> str:
 
 @pytest.fixture(autouse=True)
 def _trusted_open_answer_evaluator(monkeypatch):
-    async def evaluate(**kwargs):
-        activity = kwargs["activity"]
-        answer = kwargs["answer"]
+    async def evaluate(activity, answer, **_kwargs):
         passed = answer != "wrong"
         return {
             "schema_version": _schema_version_for(activity),
@@ -57,7 +56,7 @@ def _trusted_open_answer_evaluator(monkeypatch):
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         evaluate,
     )
 
@@ -349,6 +348,80 @@ def test_school_recap_open_items_activate_the_strict_open_contract():
     assert evaluator_activity is not None
     assert evaluator_activity["grading_mode"] == "strict_open_rubric"
     assert OPEN_RUBRIC_SCHEMA_VERSION == "school.open.v1"
+
+
+def test_recap_open_feedback_names_missing_authored_move_without_answer_key():
+    track = next(
+        track
+        for track in placement_tracks_for("english", 5)
+        if track.track_id == "english.c5.inference"
+    )
+    state = recap.new_recap_state({
+        "profile_version_id": "profile-version",
+        "report_id": "report-id",
+        "placement_session_id": "placement-session",
+        "subject_id": "english",
+        "target_class_no": 5,
+        "active_learning_class_no": 4,
+        "recommended_recap_modules": [{
+            "module_id": "inference-foundation",
+            "title": f"Recap: {track.learner_skill_label}",
+            "source_class_no": 4,
+            "target_class_no": 5,
+            "focus": track.learner_skill_label,
+            "placement_track_id": track.track_id,
+            "primary_skill_id": track.primary_skill_id,
+        }],
+    })
+    activity = recap.recap_activity_for_answer(
+        state,
+        activity_id=recap.public_recap_response({
+            "session_id": "recap-session",
+            "status": "active",
+            "subject_id": "english",
+            "class_no": 5,
+            "state_json": state,
+        })["current_activity"]["activity_id"],
+    )
+    evaluator_activity = recap.evaluator_activity_for_answer(activity)
+    assert evaluator_activity is not None
+
+    answer = "It rained."
+    missing = {"relevant_text_clue", "clue_supports_inference"}
+    raw_evaluation = {
+        "schema_version": OPEN_RUBRIC_SCHEMA_VERSION,
+        "item_id": activity["activity_id"],
+        "skill_ids": activity["skill_ids"],
+        "score": 0.55,
+        "confidence": 0.95,
+        "language_detected": "en",
+        "criteria": [
+            {
+                "id": criterion["id"],
+                "met": criterion["id"] not in missing,
+                "quality": 0.0 if criterion["id"] in missing else 1.0,
+                "evidence_quote": answer,
+            }
+            for criterion in evaluator_activity["rubric_criteria"]
+        ],
+        "misconception_tags": ["missing_text_clue"],
+        "blockers": [],
+        "needs_human_review": False,
+        "feedback_to_learner": "Use a clue from the text.",
+    }
+
+    updated, evaluation = recap.apply_recap_answer(
+        state,
+        activity_id=activity["activity_id"],
+        answer=answer,
+        open_answer_evaluation=raw_evaluation,
+    )
+
+    message = updated["last_feedback"]["message"]
+    assert evaluation["correct"] is False
+    assert "Name a text clue connected to the inference." in message
+    assert "raincoat" not in message
+    assert recap._current_activity(updated)["kind"] == "bridge"
 
 
 def test_school_recap_does_not_remediate_a_backend_proven_complete_inference():
@@ -680,8 +753,7 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
     answer = "The people fixed the problem together and made the place safe again."
     evaluator_calls = []
 
-    async def evaluate(**kwargs):
-        activity = kwargs["activity"]
+    async def evaluate(activity, _answer, **_kwargs):
         evaluator_calls.append(activity["activity_id"])
         return {
             "schema_version": _schema_version_for(activity),
@@ -707,7 +779,7 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         evaluate,
     )
 
@@ -717,10 +789,26 @@ def test_school_recap_route_evaluates_open_response_with_qwen_contract(
         json={"activity_id": activity_id, "answer": answer},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
+    assert response.json() == {
+        "status": "awaiting_evaluation",
+        "session_id": session_id,
+        "activity_id": activity_id,
+        "state_url": "/school/state",
+    }
+    assert _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    ) is True
+    completed = client.get(f"/school/recap/{session_id}", headers=AUTH)
+
     assert evaluator_calls == [activity_id]
-    assert response.json()["last_feedback"]["correct"] is True
-    assert response.json()["current_activity"]["kind"] == "transfer_check"
+    assert completed.status_code == 200
+    assert completed.json()["last_feedback"]["correct"] is True
+    assert completed.json()["current_activity"]["kind"] == "transfer_check"
 
 
 def test_school_recap_serves_current_activity_without_leaking_answers(store):

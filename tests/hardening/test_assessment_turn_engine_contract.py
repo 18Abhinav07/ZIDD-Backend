@@ -452,6 +452,7 @@ def test_assessment_turn_prompt_separates_gd_visible_response_rules():
     assert "must not turn into learner-facing evidence demands" in gd_prompt
     assert "must not ask direct follow-up questions" in gd_prompt
     assert "hand the floor to another panelist" in gd_prompt
+    assert "must not introduce external studies, reports, dates, percentages" in gd_prompt
     assert "Interviewer text must ask or clarify one question" not in gd_prompt
     assert "Interviewer text must ask or clarify one question" in interview_prompt
     for prompt in (gd_prompt, interview_prompt):
@@ -594,6 +595,8 @@ async def test_gd_structured_turn_honors_reply_and_requested_panelist(monkeypatc
             visible_response=VisibleResponse(
                 speaker_id="devils_advocate",
                 text="The strongest privacy risk is that client data leaks into a service workflow before safeguards are proven.",
+                move_type="challenge",
+                new_contribution="client data leaks into a service workflow",
             ),
         )
 
@@ -811,6 +814,8 @@ async def test_gd_requested_panelist_must_answer_not_ask_fresh_question(monkeypa
             visible_response=VisibleResponse(
                 speaker_id="aggressive_challenger",
                 text="Can you provide a concrete metric that proves remote work will not hurt collaboration?",
+                move_type="challenge",
+                new_contribution="concrete metric",
             ),
         )
 
@@ -839,7 +844,6 @@ async def test_gd_requested_panelist_must_answer_not_ask_fresh_question(monkeypa
     assert "remote" in rendered.lower()
     assert "quieter contributors" in rendered
     assert "mentoring" in rendered
-    assert any(flag["code"] == "gd_panelist_ask_only_repaired" for flag in state["assessment_validity_flags"])
 
 
 @pytest.mark.asyncio
@@ -892,7 +896,7 @@ async def test_structured_gd_authorized_intent_does_not_preserve_interview_follo
 
 
 @pytest.mark.asyncio
-async def test_gd_panelist_substance_plus_interview_followup_is_repaired(monkeypatch):
+async def test_gd_panelist_substantive_contribution_with_followup_is_preserved(monkeypatch):
     from app.ai.schemas import AssessmentTurnCall, GDAnalysis, NextAction, VisibleResponse
     from app.services import simulation_service as sim
 
@@ -908,14 +912,16 @@ async def test_gd_panelist_substance_plus_interview_followup_is_repaired(monkeyp
             next_action=NextAction(
                 speaker_id="data_driven_analyst",
                 action_type="build_on_point",
-                intent="Press for proof.",
+                intent="Add a concrete rollout constraint.",
             ),
             visible_response=VisibleResponse(
                 speaker_id="data_driven_analyst",
                 text=(
-                    "That collaboration risk matters. Can you provide a concrete metric "
-                    "that proves remote work will not hurt spontaneous teamwork?"
+                    "A remote-work pilot needs a named owner and stop rule. What threshold "
+                    "would you use?"
                 ),
+                move_type="challenge",
+                new_contribution="A remote-work pilot needs a named owner and stop rule.",
             ),
         )
 
@@ -946,8 +952,11 @@ async def test_gd_panelist_substance_plus_interview_followup_is_repaired(monkeyp
             text.append(item)
 
     rendered = " ".join(text)
-    assert "Can you provide" not in rendered
-    assert any(flag["code"] == "gd_panelist_ask_only_repaired" for flag in state["assessment_validity_flags"])
+    assert "A remote-work pilot needs a named owner and stop rule." in rendered
+    assert not any(
+        flag["code"] == "gd_panelist_ask_only_repaired"
+        for flag in state["assessment_validity_flags"]
+    )
 
 
 @pytest.mark.asyncio
@@ -972,6 +981,8 @@ async def test_gd_non_moderator_ask_only_visible_response_is_repaired(monkeypatc
             visible_response=VisibleResponse(
                 speaker_id="data_driven_analyst",
                 text="What metric would prove this policy is working?",
+                move_type="evidence",
+                new_contribution="metric",
             ),
         )
 
@@ -1037,6 +1048,8 @@ async def test_gd_formulaic_panelist_meta_visible_response_is_repaired(monkeypat
                     "A new angle is to compare remote-first with hybrid work and ask "
                     "which side has better safeguards."
                 ),
+                move_type="challenge",
+                new_contribution="compare remote-first with hybrid work",
             ),
         )
 
@@ -1098,6 +1111,8 @@ async def test_gd_visible_safety_repair_updates_event_before_scoring(monkeypatch
             visible_response=VisibleResponse(
                 speaker_id="data_driven_analyst",
                 text="As Quiet Expert said earlier, mentoring is the central risk; the group should track onboarding speed.",
+                move_type="evidence",
+                new_contribution="track onboarding speed",
             ),
         )
 
@@ -1153,6 +1168,90 @@ async def test_gd_visible_safety_repair_updates_event_before_scoring(monkeypatch
     assert state["coverage_events"][0]["answered"] is True
     assert state["coverage_events"][0]["skip_reason"] is None
     assert state["coverage_events"][0]["skipped_by_user"] is False
+
+
+@pytest.mark.asyncio
+async def test_gd_structured_turn_repairs_unverified_external_claim_before_persisting(
+    monkeypatch,
+):
+    from app.ai.schemas import AssessmentTurnCall, GDAnalysis, NextAction, VisibleResponse
+    from app.services import simulation_service as sim
+
+    async def fake_call(*_args, **_kwargs):
+        return AssessmentTurnCall(
+            analysis=GDAnalysis(
+                routing_case="point_only",
+                scorable=True,
+                stance="support",
+                evidence_points=["supervised AI use"],
+                quality_score=0.8,
+            ),
+            next_action=NextAction(
+                speaker_id="data_driven_analyst",
+                action_type="probe_deeper",
+                intent="Add an evidence-oriented discussion contribution.",
+            ),
+            visible_response=VisibleResponse(
+                speaker_id="data_driven_analyst",
+                text=(
+                    "A 2023 study on automated grading systems showed teachers spend "
+                    "nearly 30% less time on routine marking."
+                ),
+                move_type="evidence",
+                new_contribution="Compare independent teacher review with AI-assisted review.",
+            ),
+        )
+
+    monkeypatch.setattr("app.services.assessment_turn.call_assessment_turn", fake_call)
+    state = _gd_state([
+        {"speaker_id": "moderator_timekeeper", "name": "Moderator", "role_type": "moderator"},
+        {"speaker_id": "data_driven_analyst", "name": "Data-Driven Analyst", "role_type": "debater"},
+        {"speaker_id": "aggressive_challenger", "name": "Aggressive Challenger", "role_type": "debater"},
+    ])
+    state["blackboard"] = {
+        "topic": "Should AI be used in education?",
+        "phase": "probing",
+        "tension": 0.35,
+        "turn": 3,
+        "covered": [],
+        "open_threads": [],
+        "positions": {},
+        "last_quality": 0.62,
+        "qualities": [0.62],
+        "last_speaker": "moderator_timekeeper",
+    }
+    state["sim_topic"] = "Should AI be used in education?"
+    state["scenario_config"]["topic"] = "Should AI be used in education?"
+    state["assessment_plan"]["topic"] = "Should AI be used in education?"
+    state["pending_coverage_event"] = {
+        "event_id": "gd:external-claim",
+        "task_type": TaskType.GD_TEST.value,
+        "skill_id": "gd_discussion",
+        "prompt_id": "external-claim",
+        "answered": False,
+    }
+    state["messages"].append({
+        "role": "user",
+        "content": "AI should help teachers review patterns, but teachers must remain accountable.",
+    })
+
+    rendered_parts: list[str] = []
+    async for item in sim.stream_simulation_round(state):
+        if isinstance(item, str):
+            rendered_parts.append(item)
+
+    rendered = " ".join(rendered_parts)
+    event = state["assessment_events"][-1]
+    assert "2023" not in rendered
+    assert "30%" not in rendered
+    assert "2023" not in event["content"]
+    assert "30%" not in event["content"]
+    assert event["analysis"].get("visible_response_repaired") is True, event
+    assert "gd_panelist_unverified_external_claim_repaired" in event["analysis"]["visible_response_repair_codes"]
+    assert any(
+        flag["code"] == "gd_panelist_unverified_external_claim_repaired"
+        for flag in state["assessment_validity_flags"]
+    )
 
 
 @pytest.mark.asyncio
@@ -1739,7 +1838,7 @@ def test_gd_action_intent_sanitizer_catches_interview_style_variants():
     assert safe == "Challenge the policy assumption with one concrete collaboration risk."
 
 
-def test_gd_panelist_multiple_followup_questions_are_repaired_as_interview_like():
+def test_gd_panelist_only_questions_and_floor_control_are_repaired():
     from app.services.assessment_validity import gd_panelist_ask_only_text
 
     persona = {
@@ -1748,7 +1847,7 @@ def test_gd_panelist_multiple_followup_questions_are_repaired_as_interview_like(
         "role_type": "debater",
     }
 
-    assert gd_panelist_ask_only_text(
+    assert not gd_panelist_ask_only_text(
         (
             "The trust risk is not only productivity; remote defaults can weaken "
             "onboarding and informal escalation. What happens to juniors? Where "
@@ -1756,7 +1855,7 @@ def test_gd_panelist_multiple_followup_questions_are_repaired_as_interview_like(
         ),
         persona,
     )
-    assert gd_panelist_ask_only_text(
+    assert not gd_panelist_ask_only_text(
         (
             "The trust risk is not only productivity; remote defaults can weaken "
             "onboarding and informal escalation. What is your strongest safeguard "
@@ -1764,7 +1863,7 @@ def test_gd_panelist_multiple_followup_questions_are_repaired_as_interview_like(
         ),
         persona,
     )
-    assert gd_panelist_ask_only_text(
+    assert not gd_panelist_ask_only_text(
         (
             "The trust risk is not only productivity; remote defaults can weaken "
             "onboarding and informal escalation. What is the one safeguard that "
@@ -1796,6 +1895,28 @@ def test_gd_panelist_multiple_followup_questions_are_repaired_as_interview_like(
         ),
         persona,
     )
+
+
+def test_gd_panelist_substantive_contribution_with_followup_question_is_not_ask_only():
+    from app.services.assessment_validity import gd_panelist_ask_only_text
+
+    debater = {
+        "speaker_id": "data_driven_analyst",
+        "name": "Data-Driven Analyst",
+        "role_type": "debater",
+    }
+    moderator = {
+        "speaker_id": "moderator_timekeeper",
+        "name": "Moderator",
+        "role_type": "moderator",
+    }
+
+    assert not gd_panelist_ask_only_text(
+        "A pilot needs a named owner and stop rule. What threshold would you use?",
+        debater,
+    )
+    assert gd_panelist_ask_only_text("What threshold would you use?", debater)
+    assert not gd_panelist_ask_only_text("What threshold would you use?", moderator)
 
 
 def test_gd_panelist_formulaic_meta_framing_is_invalid_but_moderator_pivots_are_allowed():
@@ -1876,7 +1997,53 @@ def test_gd_panelist_handoff_text_is_repaired_without_queueing_floor_control():
     assert state["assessment_validity_flags"][-1]["code"] == "gd_panelist_ask_only_repaired"
 
 
-def test_structured_gd_moderator_text_does_not_queue_inert_floor_handoff():
+def test_gd_panelist_unverified_external_claim_is_repaired_before_visibility():
+    from app.services import simulation_service as sim
+    from app.services.assessment_validity import (
+        gd_panelist_unverified_external_claim,
+    )
+
+    state = {
+        "task_type": TaskType.GD_TEST.value,
+        "sim_topic": "Should AI be used in education?",
+        "scenario_config": {"topic": "Should AI be used in education?"},
+        "messages": [],
+        "assessment_validity_flags": [],
+        "floor_handoff_queue": [],
+        "personas": [
+            {
+                "speaker_id": "data_driven_analyst",
+                "name": "Data-Driven Analyst",
+                "role_type": "debater",
+            }
+        ],
+    }
+    persona = state["personas"][0]
+    generated = (
+        "A 2023 study on automated grading systems showed teachers spend nearly "
+        "30% less time on routine marking."
+    )
+
+    assert gd_panelist_unverified_external_claim(generated)
+    assert not gd_panelist_unverified_external_claim(
+        generated,
+        learner_text=generated,
+    )
+    assert not gd_panelist_unverified_external_claim(
+        "We should compare teacher workload before and after a supervised pilot."
+    )
+
+    safe = sim._safe_gd_turn_text(state, persona, generated)
+
+    assert safe != generated
+    assert "2023" not in safe
+    assert "30%" not in safe
+    assert state["assessment_validity_flags"][-1]["code"] == (
+        "gd_panelist_unverified_external_claim_repaired"
+    )
+
+
+def test_structured_gd_moderator_text_queues_visible_floor_handoff():
     from app.services import simulation_service as sim
 
     moderator = {"speaker_id": "moderator_timekeeper", "name": "Moderator", "role_type": "moderator"}
@@ -1908,7 +2075,12 @@ def test_structured_gd_moderator_text_does_not_queue_inert_floor_handoff():
     )
 
     assert "Aggressive Challenger" in safe
-    assert state["floor_handoff_queue"] == []
+    assert state["floor_handoff_queue"] == [{
+        "speaker_id": "aggressive_challenger",
+        "speaker_name": "Aggressive Challenger",
+        "source_speaker_id": "moderator_timekeeper",
+        "reason": "visible_handoff",
+    }]
 
 
 def test_gd_assessment_repair_text_is_participant_contribution_not_tutor_prompt():
@@ -2746,9 +2918,11 @@ async def test_repeated_typed_gd_new_angle_uses_clean_moderator_pivot(monkeypatc
 
     rendered = " ".join(text)
     assert speakers == ["Moderator"]
-    assert "Hold the motion steady:" in rendered
+    assert "Hold the motion steady:" not in rendered
+    assert "Keep the motion visible:" in rendered
     assert "Should remote work be the default?" in rendered
-    assert "stakeholder" in rendered
+    assert "implementation risk" in rendered
+    assert "safeguard" in rendered
     assert "?." not in rendered
     assert "Let's shift" not in rendered
     assert "new angle" not in rendered.lower()

@@ -3,13 +3,14 @@
   "review_evidence": [
     "Canonical manifest reviewed: every Class 3 level compiles with four distinct transfer and four distinct review variants.",
     "Official source-map alignment and honest text-only modality reviewed; no textbook body or questions copied.",
-    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases."
+    "Originality and semantic scenario distinction reviewed across the new grounded Zidd transfer and review cases.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "55349dda314cee0f1fc128d49dff5fa36ff2a2b140075c3274fbb764419a9038",
+  "runtime_sha256": "ff74d1babed51a0f52c60fa4f37224d5c3aa669c2399381c38aca8024ab10756",
   "chapter_id": "eng_c3_ch02",
   "chapter_no": 2,
-  "content_version": "2026-07-15.2",
-  "certification_version": "2026-07-15.2",
+  "content_version": "2026-07-15.2.semantic-evidence-v1",
+  "certification_version": "2026-07-15.2.semantic-evidence-v1",
   "title": "Badal and Moti",
   "book_title": "Santoor",
   "unit_title": "Fun with Friends",
@@ -4852,7 +4853,8 @@
             "distinctive tag",
             "helped identify"
           ],
-          "model_answer": "Distinctive means easy to recognise because it is different. New sentence: The dog's distinctive star-shaped tag helped the office identify it. Key ideas: different from others; distinctive tag; helped identify."
+          "model_answer": "Distinctive means easy to recognise because it is different. New sentence: The dog's distinctive star-shaped tag helped the office identify it. Key ideas: different from others; distinctive tag; helped identify.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_1": {
           "teaching_block": "Worked example - Practise step one: Card: The child sheltered the kitten under a dry basket until the shower passed. Sheltered means protected from the weather. Answer: Sheltered means kept protected from rain, as the dry basket covered the kitten. New sentence: We sheltered the bird box under the porch during the storm. Fix it this way: Find the definition or result clue, state a short synonym, then write a new who-did-what sentence and replace the target word with the synonym to test the meaning. Use the new card for another case. Try the first step, then answer.",
@@ -4979,7 +4981,8 @@
             "bell alerted",
             "gate opened"
           ],
-          "model_answer": "Alerted means warned or made someone aware. New sentence: A bell alerted the family when the gate opened. Key ideas: warned or made aware; told caretaker."
+          "model_answer": "Alerted means warned or made someone aware. New sentence: A bell alerted the family when the gate opened. Key ideas: warned or made aware; told caretaker.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_3": {
           "teaching_block": "Worked example - Practise the full method: Card: The guard stayed alert, watching the gate closely for the missing animal. Answer: watchful and ready to notice Fix it this way: Find the definition or result clue, state a short synonym, then write a new who-did-what sentence and replace the target word with the synonym to test the meaning. Use the new card for another case. Check your full answer.",
@@ -5075,7 +5078,8 @@
             "inspected the leash",
             "damaged clip"
           ],
-          "model_answer": "Inspected means examined carefully, shown by checking several parts. New sentence: The adult inspected the leash for a damaged clip."
+          "model_answer": "Inspected means examined carefully, shown by checking several parts. New sentence: The adult inspected the leash for a damaged clip.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5169,7 +5173,8 @@
             "faint mew",
             "behind the cupboard"
           ],
-          "model_answer": "Faint means weak or hard to hear, shown by the bell being only just audible. New sentence: A faint mew came from behind the closed cupboard. Key ideas: behind the cupboard."
+          "model_answer": "Faint means weak or hard to hear, shown by the bell being only just audible. New sentence: A faint mew came from behind the closed cupboard. Key ideas: behind the cupboard.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5263,7 +5268,8 @@
             "puppy wandered",
             "toward the trees"
           ],
-          "model_answer": "Wandered means moved around without a clear route, as the goat went beyond the field. New sentence: The puppy wandered from the picnic blanket toward the trees."
+          "model_answer": "Wandered means moved around without a clear route, as the goat went beyond the field. New sentence: The puppy wandered from the picnic blanket toward the trees.",
+          "semantic_evidence_policy": "traceable_rubric"
         }
       },
       "episode_kind": "meaning_encounter",
@@ -5469,7 +5475,8 @@
                 "sheltered the bird box",
                 "under the porch"
               ],
-              "model_answer": "Sheltered means kept protected from rain, as the dry basket covered the kitten. New sentence: We sheltered the bird box under the porch during the storm."
+              "model_answer": "Sheltered means kept protected from rain, as the dry basket covered the kitten. New sentence: We sheltered the bird box under the porch during the storm.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5567,7 +5574,8 @@
                 "tray startled the cat",
                 "startled the sleeping cat"
               ],
-              "model_answer": "Startled means suddenly surprised or frightened. New sentence: A falling tray startled the sleeping cat. Key ideas: jumped at the clang; tray startled the cat."
+              "model_answer": "Startled means suddenly surprised or frightened. New sentence: A falling tray startled the sleeping cat. Key ideas: jumped at the clang; tray startled the cat.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5665,7 +5673,8 @@
                 "weary pony rested",
                 "tired after the path"
               ],
-              "model_answer": "Weary means very tired. New sentence: The weary pony rested after the steep path. Key ideas: heavy legs after search; tired after the path."
+              "model_answer": "Weary means very tired. New sentence: The weary pony rested after the steep path. Key ideas: heavy legs after search; tired after the path.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -5772,7 +5781,8 @@
                 "faint mew",
                 "behind the cupboard"
               ],
-              "model_answer": "Faint means weak or hard to hear, shown by the bell being only just audible. New sentence: A faint mew came from behind the closed cupboard. Key ideas: behind the cupboard."
+              "model_answer": "Faint means weak or hard to hear, shown by the bell being only just audible. New sentence: A faint mew came from behind the closed cupboard. Key ideas: behind the cupboard.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5871,7 +5881,8 @@
                 "cautiously carried",
                 "to an adult"
               ],
-              "model_answer": "Cautiously means with care to avoid danger, shown by slow movement and distance. New sentence: The child cautiously carried the injured butterfly box to an adult."
+              "model_answer": "Cautiously means with care to avoid danger, shown by slow movement and distance. New sentence: The child cautiously carried the injured butterfly box to an adult.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -5970,7 +5981,8 @@
                 "medicine box secure",
                 "secure on a high shelf"
               ],
-              "model_answer": "Secure means safely fastened. New sentence: We kept the medicine box secure on a high shelf. Key ideas: clips stopped the door opening."
+              "model_answer": "Secure means safely fastened. New sentence: We kept the medicine box secure on a high shelf. Key ideas: clips stopped the door opening.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -6069,7 +6081,8 @@
                 "patiently held the gate",
                 "calmly waited for goats"
               ],
-              "model_answer": "Patiently means waiting calmly. New sentence: Arjun patiently held the gate while the goats passed. Key ideas: without rushing; calmly waited for goats."
+              "model_answer": "Patiently means waiting calmly. New sentence: Arjun patiently held the gate while the goats passed. Key ideas: without rushing; calmly waited for goats.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -6176,7 +6189,8 @@
                 "puppy wandered",
                 "toward the trees"
               ],
-              "model_answer": "Wandered means moved around without a clear route, as the goat went beyond the field. New sentence: The puppy wandered from the picnic blanket toward the trees."
+              "model_answer": "Wandered means moved around without a clear route, as the goat went beyond the field. New sentence: The puppy wandered from the picnic blanket toward the trees.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -6275,7 +6289,8 @@
                 "latch was secure",
                 "before leaving"
               ],
-              "model_answer": "Secure means firmly fixed and unlikely to come loose. New sentence: The keeper checked that the cage latch was secure before leaving."
+              "model_answer": "Secure means firmly fixed and unlikely to come loose. New sentence: The keeper checked that the cage latch was secure before leaving.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -6374,7 +6389,8 @@
                 "sturdy fence",
                 "strong fence kept calves in"
               ],
-              "model_answer": "Sturdy means strong and not easy to bend. New sentence: A sturdy fence kept the calves inside the field. Key ideas: held heavy bags; strong fence kept calves in."
+              "model_answer": "Sturdy means strong and not easy to bend. New sentence: A sturdy fence kept the calves inside the field. Key ideas: held heavy bags; strong fence kept calves in.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -6445,7 +6461,8 @@
                 "soothed means made calmer",
                 "a quiet song soothed the baby"
               ],
-              "model_answer": "Soothed means made calmer. New sentence: A quiet song soothed the baby during the noisy storm."
+              "model_answer": "Soothed means made calmer. New sentence: A quiet song soothed the baby during the noisy storm.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -6552,7 +6569,8 @@
                 "retraced my walk",
                 "found beside fountain"
               ],
-              "model_answer": "Retraced means went back over the same route. New sentence: I retraced my walk and found the lead beside the fountain. Key ideas: back over same route; check every stop; found beside fountain."
+              "model_answer": "Retraced means went back over the same route. New sentence: I retraced my walk and found the lead beside the fountain. Key ideas: back over same route; check every stop; found beside fountain.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Define the focus word using the specific context clue. Use the word in a new sentence with the same meaning and correct situation. Write in complete sentences.",
@@ -6651,7 +6669,8 @@
                 "pup whimpered",
                 "blanket warmed"
               ],
-              "model_answer": "Whimpered means made a quiet distressed sound, as the trapped puppy did. New sentence: The cold pup whimpered until the blanket warmed it. Key ideas: paw was caught."
+              "model_answer": "Whimpered means made a quiet distressed sound, as the trapped puppy did. New sentence: The cold pup whimpered until the blanket warmed it. Key ideas: paw was caught.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Answer every part of the question for this card. Use the card detail that proves the answer. Write in complete sentences.",
@@ -13679,7 +13698,8 @@
           "back over same route",
           "retraced our path"
         ],
-        "model_answer": "Retraced means went back over the same route. New sentence: We retraced our path and found the lead near the gate. Key ideas: back over same route."
+        "model_answer": "Retraced means went back over the same route. New sentence: We retraced our path and found the lead near the gate. Key ideas: back over same route.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch02:assessment:07",
@@ -14399,7 +14419,8 @@
           "no longer worried",
           "felt relieved"
         ],
-        "model_answer": "Relieved means no longer worried. New sentence: I felt relieved after the clinic said the bird was safe."
+        "model_answer": "Relieved means no longer worried. New sentence: I felt relieved after the clinic said the bird was safe.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c3_ch02:assessment:21",
@@ -14847,6 +14868,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class3-content-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

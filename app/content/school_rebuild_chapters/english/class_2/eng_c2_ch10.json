@@ -3,13 +3,14 @@
   "review_evidence": [
     "Manifest compilation verified four authored transfer and four authored review variants per level against the official NCERT structural map.",
     "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
-    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16."
+    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "266aafb108db2dea7d3cf74f517fe60057fe4a21816031f3d5f91c51e2d49916",
+  "runtime_sha256": "2edfd34d880d4c9df5dac9d94d4de233b76aa0ea3a3cad151f101ac4c89ad606",
   "chapter_id": "eng_c2_ch10",
   "chapter_no": 10,
-  "content_version": "2026-07-15.class2-deep.2",
-  "certification_version": "school-class2-deep-v2",
+  "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+  "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
   "title": "The Crow",
   "book_title": "Mridang",
   "unit_title": "Life Around Us",
@@ -452,7 +453,7 @@
             },
             {
               "id": "eng_c2_ch10:feather_choice_chain:independent:1:requirement_3",
-              "description": "Required part 1: guiding two chicks",
+              "description": "Required part 1: guides two chicks",
               "required": true,
               "min_quality": 0.75
             },
@@ -482,10 +483,10 @@
             },
             {
               "id": "eng_c2_ch10:feather_choice_chain:independent:1:requirement_3",
-              "description": "Required part 1: guiding two chicks",
+              "description": "Required part 1: guides two chicks",
               "any_of": [
-                "guiding two chicks",
-                "it guiding two chicks"
+                "guides two chicks",
+                "the guides two chicks"
               ]
             },
             {
@@ -527,7 +528,7 @@
             "loses",
             "ribbon"
           ],
-          "model_answer": "The crow borrows and loses the ribbon, then shows care by guiding two chicks safely to a branch."
+          "model_answer": "The crow borrows and loses the ribbon, then guides two chicks safely to a branch. This shows care."
         },
         "transfer_check": {
           "teaching_block": "A character change becomes clear when the reader links choice, result, and response in order rather than judging appearance alone. Use the same skill in this new setting for the task: Transfer the action-result lesson and explain what truly earns praise.",
@@ -629,9 +630,9 @@
             "collar",
             "breaks",
             "dog's",
-            "useful"
+            "tracking"
           ],
-          "model_answer": "The collar breaks, but the dog's useful tracking action earns praise because it helps find the child."
+          "model_answer": "The collar breaks, then the dog's tracking action helps find the child and earns praise."
         }
       },
       "episode_kind": "comprehension_studio",
@@ -997,7 +998,7 @@
                 },
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:independent:1:requirement_3",
-                  "description": "Required part 1: guiding two chicks",
+                  "description": "Required part 1: guides two chicks",
                   "required": true,
                   "min_quality": 0.75
                 },
@@ -1027,10 +1028,10 @@
                 },
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:independent:1:requirement_3",
-                  "description": "Required part 1: guiding two chicks",
+                  "description": "Required part 1: guides two chicks",
                   "any_of": [
-                    "guiding two chicks",
-                    "it guiding two chicks"
+                    "guides two chicks",
+                    "the guides two chicks"
                   ]
                 },
                 {
@@ -1075,7 +1076,7 @@
                 "loses",
                 "ribbon"
               ],
-              "model_answer": "The crow borrows and loses the ribbon, then shows care by guiding two chicks safely to a branch."
+              "model_answer": "The crow borrows and loses the ribbon, then guides two chicks safely to a branch. This shows care."
             },
             {
               "teaching_block": "A character change becomes clear when the reader links choice, result, and response in order rather than judging appearance alone. Work on your own with the visible details for this task: Explain the contrast between the decoration and the useful quality.",
@@ -1487,9 +1488,9 @@
                 "collar",
                 "breaks",
                 "dog's",
-                "useful"
+                "tracking"
               ],
-              "model_answer": "The collar breaks, but the dog's useful tracking action earns praise because it helps find the child."
+              "model_answer": "The collar breaks, then the dog's tracking action helps find the child and earns praise."
             },
             {
               "teaching_block": "A character change becomes clear when the reader links choice, result, and response in order rather than judging appearance alone. Use the same skill in this new setting for the task: Sequence the safer decision and explain why it matters more than decoration.",
@@ -1810,7 +1811,7 @@
                 "loose",
                 "feather"
               ],
-              "model_answer": "Diya finds the loose feather, checks for a bird, asks the guide, and displays it only after receiving permission."
+              "model_answer": "Diya finds the loose feather, checks for a bird, asks the guide, and after receiving permission, displays it."
             }
           ]
         },
@@ -2134,13 +2135,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:review:4:requirement_1",
-                  "description": "Required part 1: heavy card with light paper",
+                  "description": "Required part 1: compares",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:review:4:requirement_2",
-                  "description": "Required part 2: compares",
+                  "description": "Required part 2: heavy card with light paper",
                   "required": true,
                   "min_quality": 0.75
                 },
@@ -2160,18 +2161,18 @@
               "concept_slots": [
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:review:4:requirement_1",
-                  "description": "Required part 1: heavy card with light paper",
+                  "description": "Required part 1: compares",
                   "any_of": [
-                    "heavy card with light paper",
-                    "that is, heavy card with light paper"
+                    "compares the heavy",
+                    "the compares the heavy"
                   ]
                 },
                 {
                   "id": "eng_c2_ch10:feather_choice_chain:review:4:requirement_2",
-                  "description": "Required part 2: compares",
+                  "description": "Required part 2: heavy card with light paper",
                   "any_of": [
-                    "compares the heavy",
-                    "the compares the heavy"
+                    "heavy card with light paper",
+                    "that is, heavy card with light paper"
                   ]
                 },
                 {
@@ -4353,7 +4354,8 @@
             "black",
             "near"
           ],
-          "model_answer": "The word is feather. A black feather lay near the tree."
+          "model_answer": "The word is feather. A black feather lay near the tree.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Printed syllable chunks and rhyme patterns support spelling here; no audio, clapping, or spoken performance is certified. Use the same skill in this new setting for the task: Build the new word and use it in a quality sentence.",
@@ -4787,7 +4789,8 @@
                 "black",
                 "near"
               ],
-              "model_answer": "The word is feather. A black feather lay near the tree."
+              "model_answer": "The word is feather. A black feather lay near the tree.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Printed syllable chunks and rhyme patterns support spelling here; no audio, clapping, or spoken performance is certified. Work on your own with the visible details for this task: Unscramble the word and write one complete sentence.",
@@ -5469,7 +5472,8 @@
                 "crow",
                 "spread"
               ],
-              "model_answer": "The word is wings. The crow spread its wings above the branch."
+              "model_answer": "The word is wings. The crow spread its wings above the branch.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Printed syllable chunks and rhyme patterns support spelling here; no audio, clapping, or spoken performance is certified. Check what you remember with the visible details for this task: Build the new word and use it for a bird picture.",
@@ -12474,6 +12478,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

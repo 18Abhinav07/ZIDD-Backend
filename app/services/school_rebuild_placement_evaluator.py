@@ -266,6 +266,54 @@ def grade_deterministic_placement_item(
     )
 
 
+def deterministic_insufficient_strict_placement_evaluation(
+    item: SchoolPlacementBankItem,
+    answer: str,
+) -> SchoolRubricEvaluation | None:
+    """Reject a response that cannot satisfy any strict placement rubric.
+
+    Strict placement items normally need the provider because several natural
+    phrasings can be valid. A one-word English reply cannot meet the authored
+    complete-response criteria, though. Sending it through the provider adds
+    latency and cost without improving the learner's evidence. Native-script
+    responses deliberately stay on the provider path so its language-mismatch
+    contract remains intact.
+    """
+
+    if item.evaluation_mode != "strict_rubric":
+        return None
+    normalized_answer = normalize_placement_answer(answer)
+    if re.search(r"[\u0900-\u097f]", normalized_answer):
+        return None
+    english_words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", normalized_answer)
+    if len(english_words) > 1:
+        return None
+
+    criterion_ids = _strict_criterion_ids(item)
+    evidence_quote = answer.strip() or "(empty answer)"
+    return SchoolRubricEvaluation(
+        schema_version=OPEN_RUBRIC_SCHEMA_VERSION,
+        item_id=item.item_id,
+        skill_ids=(item.primary_skill_id,),
+        score=0.0,
+        confidence=1.0,
+        language_detected="en" if english_words else "unknown",
+        criteria=tuple(
+            SchoolRubricCriterion(
+                id=criterion_id,
+                met=False,
+                quality=0.0,
+                evidence_quote=evidence_quote,
+            )
+            for criterion_id in criterion_ids
+        ),
+        misconception_tags=tuple(item.misconception_tags),
+        blockers=("required_criteria_missing",),
+        needs_human_review=False,
+        feedback_to_learner="Write a complete answer that uses the clue in the question.",
+    )
+
+
 def build_placement_evaluator_activity(
     item: SchoolPlacementBankItem,
 ) -> dict[str, Any]:
@@ -329,6 +377,12 @@ async def evaluate_school_placement_item(
             answer,
             language_detected=language_detected,
         )
+    insufficient = deterministic_insufficient_strict_placement_evaluation(
+        item,
+        answer,
+    )
+    if insufficient is not None:
+        return insufficient
     if provider is None:
         raise SchoolPlacementEvaluatorUnavailableError(EVALUATOR_UNAVAILABLE_CODE)
 
@@ -342,9 +396,7 @@ async def evaluate_school_placement_item(
         raw_evaluation = await provider(activity, answer)
     except SchoolOpenAnswerRetryableError as exc:
         if authored_inference is None:
-            raise SchoolPlacementEvaluatorUnavailableError(
-                EVALUATOR_UNAVAILABLE_CODE
-            ) from exc
+            raise
         raw_evaluation = authored_inference
     except Exception as exc:
         raise SchoolPlacementEvaluatorUnavailableError(

@@ -5,13 +5,14 @@
     "All 12 Class 4 single-detail incomplete-answer probes were rejected by the current shared validator; ch07-ch12 each reported semantic_required_claim_missing.",
     "Static learner-copy review found zero prompts over 30 words, focus-label leaks, known generator-padding phrases, malformed transition slots, repeated independent/transfer teaching blocks, or non-distinct support roles in ch07-ch12.",
     "scripts/audit_school_rebuild_content.py --class 4 reported school_rebuild_content_ok chapters=12 issues=0 on 2026-07-16.",
-    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only."
+    "Official-extract originality review found zero shared ten-word learner-text windows; authorship remains Zidd-original with NCERT structural alignment only.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "62c37f195e2509aafad49e1942e26d52e5084a7a3f727a4dd37c9908d5bfbcd1",
+  "runtime_sha256": "54cfe4576b8bf5b9c88e3501f7d054c7e2271fbae4228e04731410e8b4750652",
   "chapter_id": "eng_c4_ch08",
   "chapter_no": 8,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "The Lagori Champions",
   "book_title": "Santoor",
   "unit_title": "Fun with Games",
@@ -829,7 +830,8 @@
                 "means",
                 "aside"
               ],
-              "model_answer": "Dodge means move aside to avoid something, and Tara used a quick dodge."
+              "model_answer": "Dodge means move aside to avoid something, and Tara used a quick dodge.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "In the nearby opponent story, a topic guess is not enough; the nearby action and result must fit the meaning. Follow one clue, then check the answer against the result.",
@@ -902,7 +904,8 @@
                 "player",
                 "other"
               ],
-              "model_answer": "An opponent is a player on the other side, so Nakul watched the approaching opponent."
+              "model_answer": "An opponent is a player on the other side, so Nakul watched the approaching opponent.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -16235,6 +16238,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

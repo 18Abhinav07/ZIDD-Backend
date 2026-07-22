@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -7,11 +8,9 @@ from app.api import school_rebuild_routes
 from app.content.school_v3_schema import SchoolV3RubricCriterion, SchoolV3RubricEvaluation
 from app.main import app
 from app.services import school_rebuild_placement as placement
+from app.services.school import evaluation_jobs
+from app.services.school.evaluator_contract import SchoolOpenAnswerRetryableError
 from app.services.school.evaluator_contract import OPEN_RUBRIC_SCHEMA_VERSION
-from app.services.school_rebuild_placement_evaluator import (
-    EVALUATOR_UNAVAILABLE_CODE,
-    SchoolPlacementEvaluatorUnavailableError,
-)
 
 
 AUTH = {"Authorization": "Bearer test_token"}
@@ -123,15 +122,13 @@ def test_placement_writing_uses_strict_evaluator_and_commits_criterion_evidence(
     item = current["next_item"]
     assert item["options"] is None
 
-    async def evaluate(**kwargs):
-        activity = kwargs["activity"]
-        answer = kwargs["answer"]
+    async def evaluate(activity, answer, **_kwargs):
         assert set(criterion["id"] for criterion in activity["rubric_criteria"])
         return _passing_open_evaluation(activity, answer)
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         evaluate,
     )
     answer = "The bird watches the garden from a branch."
@@ -141,7 +138,28 @@ def test_placement_writing_uses_strict_evaluator_and_commits_criterion_evidence(
         json={"item_id": strict_item.item_id, "answer": answer},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
+    assert response.json() == {
+        "status": "awaiting_evaluation",
+        "session_id": current["session_id"],
+        "activity_id": strict_item.item_id,
+        "state_url": "/school/state",
+    }
+    queued_job = _run(
+        store.get_school_evaluation_job(
+            "test_user",
+            current["session_id"],
+            strict_item.item_id,
+        )
+    )
+    assert queued_job["status"] == "queued"
+    assert _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    ) is True
     event = store.learning_events[-1]
     assert event["score"] == 1.0
     assert event["confidence"] == 0.95
@@ -154,6 +172,13 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
     store,
     monkeypatch,
 ):
+    # A rate-limit is a cloud-provider condition. Configure the enqueue policy
+    # as Gemini so the persisted job has the production retry allowance.
+    monkeypatch.setattr(
+        school_rebuild_routes,
+        "get_settings",
+        lambda: SimpleNamespace(ai_backend="gemini"),
+    )
     client = _seed_profile(store, signals=["writing"])
     started = client.post("/school/placement/start", headers=AUTH).json()
     current, strict_item = _advance_to_strict_writing_diagnostic(
@@ -164,11 +189,11 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
     before = _run(store.get_school_session("test_user", current["session_id"]))
 
     async def unavailable(*_args, **_kwargs):
-        raise SchoolPlacementEvaluatorUnavailableError(EVALUATOR_UNAVAILABLE_CODE)
+        raise SchoolOpenAnswerRetryableError("provider_rate_limited")
 
     monkeypatch.setattr(
         school_rebuild_routes,
-        "_evaluate_school_open_answer_with_claim_heartbeat",
+        "evaluate_school_open_answer",
         unavailable,
     )
     response = client.post(
@@ -180,17 +205,27 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
         },
     )
 
-    assert response.status_code == 503
-    assert response.json()["detail"]["code"] == EVALUATOR_UNAVAILABLE_CODE
+    assert response.status_code == 202
+    assert response.json() == {
+        "status": "awaiting_evaluation",
+        "session_id": current["session_id"],
+        "activity_id": strict_item.item_id,
+        "state_url": "/school/state",
+    }
+    assert _run(
+        evaluation_jobs.run_one_school_evaluation_job(
+            store=store,
+            processor=school_rebuild_routes.process_school_evaluation_job,
+            max_attempts=2,
+        )
+    ) is True
     after = _run(store.get_school_session("test_user", current["session_id"]))
     before_state = dict(before["state_json"])
     after_state = dict(after["state_json"])
     before_timing = before_state.pop("_placement_item_timing")
     after_timing = after_state.pop("_placement_item_timing")
     assert after_state == before_state
-    assert after_timing["item_id"] == before_timing["item_id"]
-    assert after_timing["retry_pending"] is True
-    assert after_timing["accrued_learner_seconds"] >= 0
+    assert after_timing == before_timing
     assert len(store.learning_events) == 8
     assert {event["attempt_type"] for event in store.learning_events} == {"snapshot"}
     failed_claim = _run(
@@ -201,6 +236,45 @@ def test_placement_evaluator_failure_is_retriable_and_does_not_advance_state(
         )
     )
     assert failed_claim["status"] == "failed"
+    failed_job = _run(
+        store.get_school_evaluation_job(
+            "test_user",
+            current["session_id"],
+            strict_item.item_id,
+        )
+    )
+    assert failed_job["status"] == "failed"
+    assert failed_job["last_error_code"] == "provider_rate_limited"
+
+    # Cloud policy deliberately gives a child-facing answer one bounded worker
+    # pass. The durable failed claim makes the same learner retry a fresh,
+    # independently queued job instead of leaving an orphaned processing latch.
+    retried = client.post(
+        f"/school/placement/{current['session_id']}/answer",
+        headers=AUTH,
+        json={
+            "item_id": strict_item.item_id,
+            "answer": "A complete English sentence.",
+        },
+    )
+    assert retried.status_code == 202
+    queued_retry = _run(
+        store.get_school_evaluation_job(
+            "test_user",
+            current["session_id"],
+            strict_item.item_id,
+        )
+    )
+    retry_claim = _run(
+        store.get_school_answer_request(
+            "test_user",
+            current["session_id"],
+            strict_item.item_id,
+        )
+    )
+    assert queued_retry["status"] == "queued"
+    assert queued_retry["last_error_code"] is None
+    assert retry_claim["status"] == "processing"
 
 
 def test_stale_answer_claim_cannot_rebase_placement_timing(store):

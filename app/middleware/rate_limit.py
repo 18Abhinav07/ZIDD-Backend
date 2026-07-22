@@ -1,4 +1,7 @@
 import asyncio
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
+import logging
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
@@ -7,8 +10,61 @@ from collections import defaultdict
 
 from app.config import get_settings
 
-# Max 2 concurrent LLM calls globally
-llm_semaphore = asyncio.Semaphore(2)
+logger = logging.getLogger(__name__)
+
+# Max 2 concurrent LLM calls globally. Queued School evaluations may use this
+# capacity, but retain one slot for Career's request-path evaluations.
+LLM_CONCURRENCY = 2
+CAREER_RESERVED_LLM_SLOTS = 1
+llm_semaphore = asyncio.Semaphore(LLM_CONCURRENCY)
+school_evaluation_semaphore = asyncio.Semaphore(
+    LLM_CONCURRENCY - CAREER_RESERVED_LLM_SLOTS
+)
+_school_evaluation_job_active: ContextVar[bool] = ContextVar(
+    "school_evaluation_job_active",
+    default=False,
+)
+
+
+@contextmanager
+def school_evaluation_job_context():
+    """Mark work spawned by the durable School evaluation worker."""
+
+    token = _school_evaluation_job_active.set(True)
+    try:
+        yield
+    finally:
+        _school_evaluation_job_active.reset(token)
+
+
+@asynccontextmanager
+async def school_evaluation_llm_slot():
+    """Acquire model capacity without letting queued School work fill Career slots."""
+
+    started_at = time.perf_counter()
+    if _school_evaluation_job_active.get():
+        async with school_evaluation_semaphore:
+            async with llm_semaphore:
+                logger.info(
+                    "ai_queue_acquired %s",
+                    {
+                        "operation": "school_open_answer",
+                        "lane": "school_worker",
+                        "wait_ms": round((time.perf_counter() - started_at) * 1000),
+                    },
+                )
+                yield
+        return
+    async with llm_semaphore:
+        logger.info(
+            "ai_queue_acquired %s",
+            {
+                "operation": "school_open_answer",
+                "lane": "request",
+                "wait_ms": round((time.perf_counter() - started_at) * 1000),
+            },
+        )
+        yield
 
 # 100 turns/user/day
 # Simple in-memory tracker: {user_id: {"date": "YYYY-MM-DD", "count": 0}}

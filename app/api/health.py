@@ -2,6 +2,7 @@ from fastapi import APIRouter
 import httpx
 
 from app.ai.clients import configured_gemini_api_keys
+from app.ai.provider import gemini_runtime_status
 from app.config import get_settings
 from app.services.session_service import SessionStore
 from app.storage import get_storage
@@ -33,9 +34,14 @@ def _ai_diagnostics(settings) -> dict[str, object]:
         return {"backend": "local", "ready": False}
 
     gemini_keys = configured_gemini_api_keys()
+    runtime = gemini_runtime_status()
     diagnostics: dict[str, object] = {
         "backend": backend,
-        "ready": bool(gemini_keys),
+        # Configuration alone is not a readiness signal: an API key may not
+        # have access to the configured model. Startup performs a small real
+        # probe and normal calls keep this process-local state current.
+        "ready": bool(gemini_keys) and bool(runtime["ready"]),
+        "runtime_state": runtime["state"],
         "gemini_credential_count": len(gemini_keys),
         "text_models": _model_chain(
             getattr(settings, "gemini_text_model", ""),
@@ -46,6 +52,10 @@ def _ai_diagnostics(settings) -> dict[str, object]:
             getattr(settings, "gemini_structured_fallback_model", ""),
         ),
     }
+    if runtime.get("last_model"):
+        diagnostics["last_successful_or_attempted_model"] = runtime["last_model"]
+    if runtime.get("last_failure"):
+        diagnostics["last_failure"] = runtime["last_failure"]
     if backend == "cloud":
         diagnostics["groq_configured"] = bool(getattr(settings, "groq_api_key", ""))
         diagnostics["ready"] = bool(

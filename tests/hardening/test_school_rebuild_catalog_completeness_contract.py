@@ -51,7 +51,12 @@ def test_catalog_includes_class_only_when_live_ids_match_source_map(tmp_path, mo
     },)
 
 
-def test_production_loader_skips_qa_only_chapters_instead_of_crashing(monkeypatch):
+def test_production_loader_serves_agent_reviewed_chapters_without_qa_override(monkeypatch):
     monkeypatch.setattr(content, "qa_live_content_enabled", lambda: False)
 
-    assert content.load_approved_live_chapters_for_class("english", 3) == ()
+    chapters = content.load_approved_live_chapters_for_class("english", 3)
+
+    assert {chapter["chapter_id"] for chapter in chapters} == {
+        entry["chapter_id"]
+        for entry in content.load_ncert_source_map("english", 3)["chapters"]
+    }

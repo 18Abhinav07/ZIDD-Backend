@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
+import logging
 import queue
 import threading
+import time
 from typing import Protocol, TypeVar
 
 import httpx
@@ -21,7 +24,11 @@ from app.ai.clients import (
     get_groq_client,
 )
 from app.ai.local import ollama_complete, ollama_stream, ollama_structured
-from app.ai.structured import _generate_once, _schema_repair_prompt
+from app.ai.structured import (
+    _generate_once,
+    _schema_repair_prompt,
+    structured_output_token_limit,
+)
 from app.config import get_settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -30,8 +37,102 @@ _RATE_LIMIT_STATUS = {429}
 _TRANSIENT_STATUS = {408, 500, 502, 503, 504}
 _NON_RETRYABLE_CLIENT_STATUS = {400, 404, 422}
 _MODEL_UNAVAILABLE_STATUS = {404}
-_PER_KEY_ATTEMPT_TIMEOUT_SECONDS = 30.0
+_DEFAULT_GEMINI_CREDENTIAL_ATTEMPT_TIMEOUT_SECONDS = 8.0
 _EMBED_DIMENSION = 768
+_DEFAULT_TEXT_OUTPUT_TOKENS = 640
+_TEXT_OUTPUT_TOKENS_BY_OPERATION = {
+    "bridge": 480,
+    "challenge": 640,
+    "ease": 400,
+    "health_probe": 16,
+    "opening": 420,
+    "redirect": 360,
+    "summary": 384,
+    "teach": 640,
+}
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _GeminiRuntimeState:
+    state: str = "unverified"
+    last_model: str | None = None
+    last_failure: str | None = None
+
+
+_gemini_runtime_state = _GeminiRuntimeState()
+_gemini_runtime_lock = threading.Lock()
+
+
+def _gemini_failure_code(exc: BaseException) -> str:
+    status = _api_status(exc)
+    return f"http_{status}" if status is not None else type(exc).__name__
+
+
+def _mark_gemini_runtime_success(model: str) -> None:
+    with _gemini_runtime_lock:
+        _gemini_runtime_state.state = "ready"
+        _gemini_runtime_state.last_model = model
+        _gemini_runtime_state.last_failure = None
+
+
+def _mark_gemini_runtime_failure(model: str, exc: BaseException) -> None:
+    with _gemini_runtime_lock:
+        _gemini_runtime_state.state = "degraded" if (
+            _gemini_runtime_state.last_model is not None
+        ) else "unavailable"
+        _gemini_runtime_state.last_model = model
+        _gemini_runtime_state.last_failure = _gemini_failure_code(exc)
+
+
+def _should_mark_gemini_runtime_failure(exc: BaseException) -> bool:
+    return (
+        isinstance(exc, GeminiKeyPoolExhaustedError)
+        or _retryable_failure(exc) is not None
+    )
+
+
+def gemini_runtime_status() -> dict[str, object]:
+    """Return safe, process-local Gemini readiness without exposing credentials."""
+
+    with _gemini_runtime_lock:
+        return {
+            "state": _gemini_runtime_state.state,
+            "ready": _gemini_runtime_state.state == "ready",
+            "last_model": _gemini_runtime_state.last_model,
+            "last_failure": _gemini_runtime_state.last_failure,
+        }
+
+
+def _log_gemini_call(
+    *,
+    operation: str,
+    model: str,
+    outcome: str,
+    started_at: float,
+    fallback_index: int,
+    error: BaseException | None = None,
+) -> None:
+    """Emit latency-safe operator telemetry without prompts, answers, or keys."""
+
+    fields = {
+        "operation": operation,
+        "model": model,
+        "outcome": outcome,
+        "elapsed_ms": round((time.perf_counter() - started_at) * 1000),
+        "fallback_index": fallback_index,
+    }
+    if error is not None:
+        fields["failure"] = _gemini_failure_code(error)
+    logger.info("gemini_call %s", fields)
+
+
+def _text_output_token_limit(operation: str) -> int:
+    return _TEXT_OUTPUT_TOKENS_BY_OPERATION.get(
+        str(operation or "").strip(),
+        _DEFAULT_TEXT_OUTPUT_TOKENS,
+    )
 
 
 def _api_status(exc: BaseException) -> int | None:
@@ -44,31 +145,67 @@ def _api_status(exc: BaseException) -> int | None:
         return None
 
 
-def _request_client_with_slot(manager, attempted_slots: set[int]):
+def _request_client_with_slot(
+    manager,
+    attempted_slots: set[int],
+    *,
+    quota_scope: str | None = None,
+):
     selector = getattr(manager, "request_client_with_slot", None)
     if selector is not None:
+        if quota_scope is not None:
+            try:
+                return selector(
+                    attempted_slots=attempted_slots,
+                    quota_scope=quota_scope,
+                )
+            except TypeError as exc:
+                if "quota_scope" not in str(exc):
+                    raise
         try:
             return selector(attempted_slots=attempted_slots)
         except TypeError as exc:
             if "attempted_slots" not in str(exc):
                 raise
             return selector()
-    return manager.active_client_with_slot()
+    selector = manager.active_client_with_slot
+    if quota_scope is not None:
+        try:
+            return selector(quota_scope=quota_scope)
+        except TypeError as exc:
+            if "quota_scope" not in str(exc):
+                raise
+    return selector()
 
 
 def _request_attempt_with_slot(
     manager,
     attempted_slots: set[int],
+    *,
+    quota_scope: str | None = None,
 ) -> tuple[int, object, int | None]:
     selector = getattr(manager, "request_attempt_with_slot", None)
     if selector is not None:
+        if quota_scope is not None:
+            try:
+                return selector(
+                    attempted_slots=attempted_slots,
+                    quota_scope=quota_scope,
+                )
+            except TypeError as exc:
+                if "quota_scope" not in str(exc):
+                    raise
         try:
             return selector(attempted_slots=attempted_slots)
         except TypeError as exc:
             if "attempted_slots" not in str(exc):
                 raise
             return selector()
-    slot, client = _request_client_with_slot(manager, attempted_slots)
+    slot, client = _request_client_with_slot(
+        manager,
+        attempted_slots,
+        quota_scope=quota_scope,
+    )
     return slot, client, None
 
 
@@ -150,6 +287,8 @@ def _retryable_failure(
 ) -> tuple[int | None, float | None, bool] | None:
     if isinstance(exc, genai_errors.APIError):
         status = _api_status(exc)
+        if status in _MODEL_UNAVAILABLE_STATUS:
+            return status, None, False
         if status in _NON_RETRYABLE_CLIENT_STATUS:
             return None
         if status in _AUTH_FAILURE_STATUS | _RATE_LIMIT_STATUS | _TRANSIENT_STATUS:
@@ -166,6 +305,18 @@ def _model_unavailable(exc: BaseException) -> bool:
     return (
         isinstance(exc, genai_errors.APIError)
         and _api_status(exc) in _MODEL_UNAVAILABLE_STATUS
+    )
+
+
+def _can_fallback_to_next_model(exc: BaseException) -> bool:
+    """A model can fall back when absent or all keys hit its model-local quota."""
+
+    return _model_unavailable(exc) or (
+        isinstance(exc, GeminiKeyPoolExhaustedError)
+        and (
+            exc.retry_after_seconds is not None
+            or exc.model_unavailable
+        )
     )
 
 
@@ -189,19 +340,36 @@ def _record_failure(
     status: int | None,
     retry_after_seconds: float | None,
     transport_failure: bool,
+    quota_scope: str | None = None,
 ) -> bool:
     recorder = getattr(manager, "record_failure", None)
     if recorder is not None:
+        kwargs = {
+            "attempted_slot": slot,
+            "status": status,
+            "retry_after_seconds": retry_after_seconds,
+            "transport_failure": transport_failure,
+        }
+        if quota_scope is not None:
+            try:
+                recorder(**kwargs, quota_scope=quota_scope)
+                return True
+            except TypeError as exc:
+                if "quota_scope" not in str(exc):
+                    raise
         recorder(
-            attempted_slot=slot,
-            status=status,
-            retry_after_seconds=retry_after_seconds,
-            transport_failure=transport_failure,
+            **kwargs,
         )
         return True
     rotator = getattr(manager, "rotate_after_status", None)
     if rotator is None:
         return False
+    if quota_scope is not None:
+        try:
+            return bool(rotator(status, attempted_slot=slot, quota_scope=quota_scope))
+        except TypeError as exc:
+            if "quota_scope" not in str(exc):
+                raise
     return bool(rotator(status, attempted_slot=slot))
 
 
@@ -209,13 +377,29 @@ def _record_success(
     manager,
     slot: int,
     failure_epoch: int | None = None,
+    *,
+    quota_scope: str | None = None,
 ) -> None:
     guarded_recorder = getattr(manager, "record_success_if_current", None)
     if guarded_recorder is not None and failure_epoch is not None:
+        if quota_scope is not None:
+            try:
+                guarded_recorder(slot, failure_epoch, quota_scope=quota_scope)
+                return
+            except TypeError as exc:
+                if "quota_scope" not in str(exc):
+                    raise
         guarded_recorder(slot, failure_epoch)
         return
     recorder = getattr(manager, "record_success", None)
     if recorder is not None:
+        if quota_scope is not None:
+            try:
+                recorder(slot, quota_scope=quota_scope)
+                return
+            except TypeError as exc:
+                if "quota_scope" not in str(exc):
+                    raise
         recorder(slot)
 
 
@@ -228,11 +412,14 @@ def _remaining_seconds(deadline: float | None) -> float | None:
     return remaining
 
 
-def _attempt_timeout(deadline: float | None) -> float | None:
+def _attempt_timeout(
+    deadline: float | None,
+    credential_attempt_timeout_seconds: float,
+) -> float | None:
     remaining = _remaining_seconds(deadline)
     if remaining is None:
         return None
-    return min(remaining, _PER_KEY_ATTEMPT_TIMEOUT_SECONDS)
+    return min(remaining, credential_attempt_timeout_seconds)
 
 
 async def _threaded_gemini_stream(
@@ -241,6 +428,7 @@ async def _threaded_gemini_stream(
     model: str,
     prompt: str,
     request_timeout: float | None,
+    max_output_tokens: int,
 ) -> AsyncIterator[object]:
     """Bridge the pinned SDK's blocking stream iterator into asyncio."""
 
@@ -248,7 +436,10 @@ async def _threaded_gemini_stream(
     messages: queue.Queue[tuple[str, object]] = queue.Queue(maxsize=1)
     ready = asyncio.Event()
     stopped = threading.Event()
-    config: dict[str, object] = {"temperature": 0.6}
+    config: dict[str, object] = {
+        "temperature": 0.6,
+        "max_output_tokens": max_output_tokens,
+    }
     if request_timeout is not None:
         config["http_options"] = {
             "timeout": max(1, int(request_timeout * 1000)),
@@ -445,6 +636,23 @@ class GeminiProvider:
             return timeout
         return float(getattr(get_settings(), "gemini_request_timeout_seconds", 180.0))
 
+    def _credential_attempt_timeout_seconds(
+        self,
+        request_timeout_seconds: float | None,
+    ) -> float:
+        """Resolve the credential cap once per caller-owned Gemini operation."""
+
+        configured = float(
+            getattr(
+                get_settings(),
+                "gemini_credential_attempt_timeout_seconds",
+                _DEFAULT_GEMINI_CREDENTIAL_ATTEMPT_TIMEOUT_SECONDS,
+            )
+        )
+        if request_timeout_seconds is not None:
+            configured = min(configured, request_timeout_seconds / 2)
+        return max(0.001, configured)
+
     def _text_model_chain(
         self,
         legacy_provider: str | None,
@@ -468,19 +676,46 @@ class GeminiProvider:
             ),
         )
 
-    async def _with_model_fallback(self, models, invoke):
-        """Try the next configured model only when the current model is absent."""
+    async def _with_model_fallback(self, models, invoke, *, operation: str):
+        """Try the next model when the current model or its quota is unavailable."""
 
         model_chain = tuple(models)
+        started_at = time.perf_counter()
         for index, model in enumerate(model_chain):
             try:
-                return await invoke(model)
+                result = await invoke(model)
             except Exception as exc:
-                if index + 1 >= len(model_chain) or not _model_unavailable(exc):
+                if _should_mark_gemini_runtime_failure(exc):
+                    _mark_gemini_runtime_failure(model, exc)
+                _log_gemini_call(
+                    operation=operation,
+                    model=model,
+                    outcome="failure",
+                    started_at=started_at,
+                    fallback_index=index,
+                    error=exc,
+                )
+                if index + 1 >= len(model_chain) or not _can_fallback_to_next_model(exc):
                     raise
+            else:
+                _mark_gemini_runtime_success(model)
+                _log_gemini_call(
+                    operation=operation,
+                    model=model,
+                    outcome="success",
+                    started_at=started_at,
+                    fallback_index=index,
+                )
+                return result
         raise RuntimeError("gemini_model_chain_exhausted")  # pragma: no cover
 
-    async def _with_credentials(self, call, *, timeout: float | None = None):
+    async def _with_credentials(
+        self,
+        call,
+        *,
+        timeout: float | None = None,
+        quota_scope: str | None = None,
+    ):
         manager = get_gemini_credential_manager()
         attempted_slots: set[int] = set()
         deadline = (
@@ -493,6 +728,10 @@ class GeminiProvider:
             manager=manager,
             attempted_slots=attempted_slots,
             deadline=deadline,
+            credential_attempt_timeout_seconds=(
+                self._credential_attempt_timeout_seconds(timeout)
+            ),
+            quota_scope=quota_scope,
         )
 
     async def _with_credential_context(
@@ -502,18 +741,24 @@ class GeminiProvider:
         manager,
         attempted_slots: set[int],
         deadline: float | None,
+        credential_attempt_timeout_seconds: float,
+        quota_scope: str | None = None,
     ):
         while True:
             _remaining_seconds(deadline)
             slot, client, failure_epoch = _request_attempt_with_slot(
                 manager,
                 attempted_slots,
+                quota_scope=quota_scope,
             )
             if slot in attempted_slots:
                 raise GeminiKeyPoolExhaustedError(attempted_slots=attempted_slots)
             attempted_slots.add(slot)
             try:
-                attempt_timeout = _attempt_timeout(deadline)
+                attempt_timeout = _attempt_timeout(
+                    deadline,
+                    credential_attempt_timeout_seconds,
+                )
                 if attempt_timeout is None:
                     result = await call(client)
                 else:
@@ -521,6 +766,15 @@ class GeminiProvider:
                         result = await call(client)
             except Exception as exc:
                 failure = _retryable_failure(exc)
+                # A bare client call has no model scope. Its 404 is an invalid
+                # request and must retain the old fail-fast behavior; only a
+                # model-scoped generation may quarantine that model per key.
+                if (
+                    failure is not None
+                    and failure[0] in _MODEL_UNAVAILABLE_STATUS
+                    and quota_scope is None
+                ):
+                    raise
                 if failure is None:
                     raise
                 status, retry_after, transport_failure = failure
@@ -530,10 +784,16 @@ class GeminiProvider:
                     status=status,
                     retry_after_seconds=retry_after,
                     transport_failure=transport_failure,
+                    quota_scope=quota_scope,
                 ):
                     raise
                 continue
-            _record_success(manager, slot, failure_epoch)
+            _record_success(
+                manager,
+                slot,
+                failure_epoch,
+                quota_scope=quota_scope,
+            )
             return result
 
     async def structured(
@@ -544,13 +804,16 @@ class GeminiProvider:
         *,
         timeout: float | None = None,
     ) -> T:
-        del operation
         request_timeout = self._request_timeout(timeout)
+        deadline = asyncio.get_running_loop().time() + request_timeout
+        credential_attempt_timeout_seconds = self._credential_attempt_timeout_seconds(
+            request_timeout
+        )
+        output_token_limit = structured_output_token_limit(operation)
 
         async def invoke_for_model(model: str) -> T:
             manager = get_gemini_credential_manager()
             attempted_slots: set[int] = set()
-            deadline = asyncio.get_running_loop().time() + request_timeout
             request_prompt = prompt
 
             for repair_attempt in range(2):
@@ -563,6 +826,7 @@ class GeminiProvider:
                         request_prompt,
                         schema,
                         model=model,
+                        max_output_tokens=output_token_limit,
                     )
                     response_text = str(getattr(response, "text", "") or "")
                     return schema.model_validate_json(response_text)
@@ -573,6 +837,10 @@ class GeminiProvider:
                         manager=manager,
                         attempted_slots=attempted_slots,
                         deadline=deadline,
+                        credential_attempt_timeout_seconds=(
+                            credential_attempt_timeout_seconds
+                        ),
+                        quota_scope=model,
                     )
                 except ValidationError as exc:
                     if repair_attempt == 1:
@@ -588,6 +856,7 @@ class GeminiProvider:
         return await self._with_model_fallback(
             self._structured_model_chain(),
             invoke_for_model,
+            operation=operation,
         )
 
     async def stream(
@@ -599,25 +868,52 @@ class GeminiProvider:
         legacy_model: str | None = None,
         timeout: float | None = None,
     ) -> AsyncIterator[str]:
-        del operation
         request_timeout = self._request_timeout(timeout)
+        deadline = asyncio.get_running_loop().time() + request_timeout
+        credential_attempt_timeout_seconds = self._credential_attempt_timeout_seconds(
+            request_timeout
+        )
+        output_token_limit = _text_output_token_limit(operation)
 
         model_chain = self._text_model_chain(legacy_provider, legacy_model)
+        started_at = time.perf_counter()
         for index, model in enumerate(model_chain):
             emitted_for_model = False
             try:
                 async for chunk in self._stream_model(
                     model,
                     prompt,
-                    timeout=request_timeout,
+                    deadline=deadline,
+                    credential_attempt_timeout_seconds=(
+                        credential_attempt_timeout_seconds
+                    ),
+                    max_output_tokens=output_token_limit,
                 ):
                     emitted_for_model = True
                     yield chunk
+                _mark_gemini_runtime_success(model)
+                _log_gemini_call(
+                    operation=operation,
+                    model=model,
+                    outcome="success",
+                    started_at=started_at,
+                    fallback_index=index,
+                )
                 return
             except Exception as exc:
+                if _should_mark_gemini_runtime_failure(exc):
+                    _mark_gemini_runtime_failure(model, exc)
+                _log_gemini_call(
+                    operation=operation,
+                    model=model,
+                    outcome="failure",
+                    started_at=started_at,
+                    fallback_index=index,
+                    error=exc,
+                )
                 if (
                     emitted_for_model
-                    or not _model_unavailable(exc)
+                    or not _can_fallback_to_next_model(exc)
                     or index + 1 >= len(model_chain)
                 ):
                     raise
@@ -628,35 +924,49 @@ class GeminiProvider:
         model: str,
         prompt: str,
         *,
-        timeout: float,
+        deadline: float,
+        credential_attempt_timeout_seconds: float,
+        max_output_tokens: int,
     ) -> AsyncIterator[str]:
         manager = get_gemini_credential_manager()
         attempted_slots: set[int] = set()
-        deadline = asyncio.get_running_loop().time() + timeout
         emitted = False
         while True:
             _remaining_seconds(deadline)
             slot, client, failure_epoch = _request_attempt_with_slot(
                 manager,
                 attempted_slots,
+                quota_scope=model,
             )
             if slot in attempted_slots:
                 raise GeminiKeyPoolExhaustedError(attempted_slots=attempted_slots)
             attempted_slots.add(slot)
             try:
-                attempt_timeout = _attempt_timeout(deadline)
+                attempt_timeout = _attempt_timeout(
+                    deadline,
+                    credential_attempt_timeout_seconds,
+                )
+                attempt_deadline = (
+                    asyncio.get_running_loop().time() + attempt_timeout
+                    if attempt_timeout is not None
+                    else None
+                )
                 stream = _threaded_gemini_stream(
                     client,
                     model=model,
                     prompt=prompt,
                     request_timeout=attempt_timeout,
+                    max_output_tokens=max_output_tokens,
                 )
                 iterator = stream.__aiter__()
                 try:
                     while True:
                         try:
-                            chunk_timeout = (
-                                timeout if emitted else _attempt_timeout(deadline)
+                            # The first token is still the per-key attempt. Once
+                            # text is visible, keep the remaining whole-call
+                            # budget rather than resetting the timeout per chunk.
+                            chunk_timeout = _remaining_seconds(
+                                attempt_deadline if not emitted else deadline
                             )
                             chunk = await asyncio.wait_for(
                                 anext(iterator),
@@ -672,7 +982,12 @@ class GeminiProvider:
                     close = getattr(iterator, "aclose", None)
                     if close is not None:
                         await close()
-                _record_success(manager, slot, failure_epoch)
+                _record_success(
+                    manager,
+                    slot,
+                    failure_epoch,
+                    quota_scope=model,
+                )
                 return
             except Exception as exc:
                 failure = _retryable_failure(exc)
@@ -685,6 +1000,7 @@ class GeminiProvider:
                     status=status,
                     retry_after_seconds=retry_after,
                     transport_failure=transport_failure,
+                    quota_scope=model,
                 )
                 if emitted or not recorded:
                     raise
@@ -699,23 +1015,43 @@ class GeminiProvider:
         legacy_model: str | None = None,
         timeout: float | None = None,
     ) -> str:
-        del operation
         request_timeout = self._request_timeout(timeout)
+        deadline = asyncio.get_running_loop().time() + request_timeout
+        credential_attempt_timeout_seconds = self._credential_attempt_timeout_seconds(
+            request_timeout
+        )
+        output_token_limit = _text_output_token_limit(operation)
 
         async def invoke_for_model(model: str) -> str:
+            manager = get_gemini_credential_manager()
+            attempted_slots: set[int] = set()
+
             async def invoke(client):
                 return await client.aio.models.generate_content(
                     model=model,
                     contents=prompt,
-                    config={"temperature": 0.3},
+                    config={
+                        "temperature": 0.3,
+                        "max_output_tokens": output_token_limit,
+                    },
                 )
 
-            response = await self._with_credentials(invoke, timeout=request_timeout)
+            response = await self._with_credential_context(
+                invoke,
+                manager=manager,
+                attempted_slots=attempted_slots,
+                deadline=deadline,
+                credential_attempt_timeout_seconds=(
+                    credential_attempt_timeout_seconds
+                ),
+                quota_scope=model,
+            )
             return str(getattr(response, "text", "") or "")
 
         return await self._with_model_fallback(
             self._text_model_chain(legacy_provider, legacy_model),
             invoke_for_model,
+            operation=operation,
         )
 
     async def embed(self, text: str) -> tuple[list[float], str, str]:
@@ -729,7 +1065,11 @@ class GeminiProvider:
                 config={"output_dimensionality": _EMBED_DIMENSION},
             )
 
-        response = await self._with_credentials(invoke, timeout=request_timeout)
+        response = await self._with_credentials(
+            invoke,
+            timeout=request_timeout,
+            quota_scope=settings.gemini_embedding_model,
+        )
         embeddings = list(getattr(response, "embeddings", None) or [])
         values = list(getattr(embeddings[0], "values", None) or []) if embeddings else []
         if len(values) != _EMBED_DIMENSION:
@@ -848,5 +1188,36 @@ async def structured_generate(
     )
 
 
+async def warm_gemini_provider(*, timeout: float = 5.0) -> dict[str, object]:
+    """Probe the configured cloud chain once during boot without learner data.
+
+    A configured key is not evidence that the selected model is available to
+    its Google project. The health endpoint consumes this process-local result
+    so deployment checks do not claim readiness until a real generation works.
+    """
+
+    settings = get_settings()
+    if settings.ai_backend not in {"gemini", "cloud"}:
+        return gemini_runtime_status()
+    bounded_timeout = max(1.0, min(float(timeout), 5.0))
+    try:
+        await GeminiProvider().complete(
+            "health_probe",
+            "Return exactly: ready",
+            timeout=bounded_timeout,
+        )
+    except Exception as exc:
+        _mark_gemini_runtime_failure(settings.gemini_text_model, exc)
+        logger.warning(
+            "gemini_warmup_failed %s",
+            {"failure": _gemini_failure_code(exc)},
+        )
+    return gemini_runtime_status()
+
+
 def reset_ai_provider() -> None:
     _provider_for_backend.cache_clear()
+    with _gemini_runtime_lock:
+        _gemini_runtime_state.state = "unverified"
+        _gemini_runtime_state.last_model = None
+        _gemini_runtime_state.last_failure = None

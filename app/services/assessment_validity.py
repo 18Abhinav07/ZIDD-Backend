@@ -58,6 +58,13 @@ _GD_PANELIST_FLOOR_CONTROL_RE = re.compile(
     r")",
     re.I,
 )
+_GD_PRIOR_SPEAKER_REFERENCE_PATTERNS = (
+    r"{name}\s*,\s+you\s+(?:raise|raised|mention|mentioned|said|bring|brought|argue|argued)",
+    r"{name}\s*,.*\bwhat\s+you\s+(?:said|mentioned|argued|raised|noted)\s+earlier\b",
+    r"{name}\s*,.*\b(?:your|the)\s+(?:earlier|previous|last)\s+(?:point|argument|claim|view)\b",
+    r"as\s+{name}\s+(?:said|mentioned|pointed|argued|noted)",
+    r"{name}\s+(?:raises|raised|mentioned|said|argued|pointed out|noted)",
+)
 _GD_EVALUATIVE_PRAISE_RE = re.compile(
     r"(?:"
     r"\b(?:good|great|strong|excellent|valid|fair|thoughtful)\s+"
@@ -71,6 +78,18 @@ _GD_EVALUATIVE_PRAISE_RE = re.compile(
     r"\byou(?:'ve|\s+have)?\s+(?:rightly|correctly|clearly|thoughtfully)\s+"
     r"(?:highlighted|identified|outlined|explained|shown|raised)|"
     r"\byou\s+raise\s+(?:a\s+)?(?:valid|strong|important|excellent)\s+point\b"
+    r")",
+    re.I,
+)
+_GD_EXTERNAL_EMPIRICAL_CLAIM_RE = re.compile(
+    r"(?:"
+    r"\b(?:19|20)\d{2}\b|"
+    r"\b\d+(?:\.\d+)?\s*(?:%|percent)\b|"
+    r"\b(?:one|two|three|four|five)\s+in\s+\d+\b|"
+    r"\baccording\s+to\s+(?:a|an|the)?\s*(?:study|report|survey|research|analysis|data)\b|"
+    r"\b(?:study|studies|report|reports|survey|research|analysis|data)\b"
+    r"[^.!?]{0,90}\b(?:finds?|found|shows?|showed|reports?|reported|"
+    r"indicates?|demonstrates?|reveals?)\b"
     r")",
     re.I,
 )
@@ -313,6 +332,69 @@ def gd_panelist_evaluative_praise_text(text: str, persona: dict[str, Any]) -> bo
     return bool(_GD_EVALUATIVE_PRAISE_RE.search(" ".join(str(text or "").split())))
 
 
+def _normalized_external_claim_text(value: object) -> str:
+    return " ".join(re.findall(r"[a-z0-9%]+", str(value or "").lower()))
+
+
+def _external_claim_is_verbatim_supported(
+    sentence: str,
+    *,
+    learner_text: str,
+    approved_facts: list[str] | tuple[str, ...],
+) -> bool:
+    normalized_sentence = _normalized_external_claim_text(sentence)
+    if not normalized_sentence:
+        return False
+    for source in (learner_text, *approved_facts):
+        normalized_source = _normalized_external_claim_text(source)
+        if normalized_source and normalized_sentence in normalized_source:
+            return True
+    return False
+
+
+def gd_panelist_unverified_external_claim(
+    text: str,
+    *,
+    learner_text: str = "",
+    approved_facts: list[str] | tuple[str, ...] = (),
+) -> bool:
+    """Reject generated empirical claims that lack visible source provenance.
+
+    This is deliberately a provenance guard, not a fact checker. GD panelists
+    may discuss a learner-provided or server-approved fact verbatim, but may
+    not invent source-attributed findings, dates, or percentages merely to
+    sound evidence-led.
+    """
+
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(text or "")):
+        if not _GD_EXTERNAL_EMPIRICAL_CLAIM_RE.search(sentence):
+            continue
+        if not _external_claim_is_verbatim_supported(
+            sentence,
+            learner_text=learner_text,
+            approved_facts=approved_facts,
+        ):
+            return True
+    return False
+
+
+def approved_gd_fact_texts(*owners: object) -> list[str]:
+    """Extract explicit, authored GD facts permitted for panelist reuse."""
+
+    values: list[str] = []
+    for owner in owners:
+        if not isinstance(owner, dict):
+            continue
+        for item in owner.get("approved_facts") or []:
+            if isinstance(item, str) and item.strip():
+                values.append(item)
+            elif isinstance(item, dict):
+                text = str(item.get("text") or item.get("fact") or "").strip()
+                if text:
+                    values.append(text)
+    return values
+
+
 def _gd_meaningful_words(value: str) -> set[str]:
     return {
         word
@@ -367,43 +449,67 @@ def gd_panelist_ask_only_text(text: str, persona: dict[str, Any]) -> bool:
     if role_type == "moderator" or "moderator" in speaker_id or "moderator" in name:
         return False
     value = " ".join(str(text or "").split())
-    if not value or "?" not in value:
+    # A topic can itself contain a question mark, for example "On Should remote
+    # work be the default?, ...". Count only a question mark that ends a
+    # sentence, not punctuation embedded in an announced topic title.
+    question_sentence = re.search(r"\?(?=$|\s|[\"')\]])", value)
+    if not value or not question_sentence:
         return bool(_GD_PANELIST_FLOOR_CONTROL_RE.search(value))
     if _GD_PANELIST_FLOOR_CONTROL_RE.search(value):
         return True
-    sentence_chunks = [
-        chunk.strip()
-        for chunk in re.split(r"(?<=[.!?])\s+", value)
-        if chunk.strip()
-    ]
-    if not sentence_chunks:
-        return False
-    question_indexes = [index for index, chunk in enumerate(sentence_chunks) if chunk.endswith("?")]
-    if not question_indexes:
-        return False
-    if len(question_indexes) > 1:
-        return True
-    question_index = question_indexes[0]
-    if question_index == 0:
-        same_sentence_prefix = re.match(
-            r"^(?P<prefix>.+?)(?:[,;:]\s*|\s+)"
-            r"(?:but|however|yet)\s+"
-            r"(?:what|why|which|how|who|where|when|can|could|should|would)\b",
-            sentence_chunks[0],
-            re.IGNORECASE,
-        )
-        if not same_sentence_prefix:
-            return True
-        prefix_words = re.findall(
-            r"[A-Za-z0-9']+",
-            same_sentence_prefix.group("prefix"),
-        )
-        return len(prefix_words) < 6
-    substantive_before_question = any(
-        len(re.findall(r"[A-Za-z0-9']+", chunk)) >= 10
-        for chunk in sentence_chunks[:question_index]
+
+    # A panelist may add a real discussion contribution and end by inviting
+    # the learner to apply it. Only repair the turn when the question is the
+    # whole move, not when a substantive declarative sentence precedes it.
+    before_question = value[:question_sentence.start()]
+    statement_parts = re.split(r"[.!;:]", before_question)
+    return not any(
+        len(_gd_meaningful_words(part)) >= 5
+        for part in statement_parts
     )
-    return not substantive_before_question
+
+
+def gd_unseen_prior_speaker_reference(
+    state: dict[str, Any],
+    text: str,
+    personas: list[dict[str, Any]],
+    current_speaker_id: str,
+) -> dict[str, Any] | None:
+    """Return a persona falsely cited as a prior visible speaker, if any.
+
+    This belongs in the shared validator because both authorization and the
+    final visible-text safety layer must enforce the same ledger rule.
+    """
+    visible_keys: set[str] = set()
+    for owner, roles in (
+        (state.get("visible_event_ledger") or [], {"assistant", "simulation_segment"}),
+        (state.get("messages") or [], {"assistant"}),
+    ):
+        for event in owner:
+            if not isinstance(event, dict) or event.get("role") not in roles:
+                continue
+            for field in ("speaker_id", "speaker_name"):
+                value = str(event.get(field) or "").strip().lower()
+                if value:
+                    visible_keys.add(value)
+
+    lower = str(text or "").lower()
+    for persona in personas:
+        speaker_id = str(persona.get("speaker_id") or "").strip()
+        if not speaker_id or speaker_id == current_speaker_id:
+            continue
+        name = str(persona.get("name") or "").strip()
+        if not name:
+            continue
+        referenced_as_prior = any(
+            re.search(pattern.format(name=re.escape(name.lower())), lower)
+            for pattern in _GD_PRIOR_SPEAKER_REFERENCE_PATTERNS
+        )
+        if not referenced_as_prior:
+            continue
+        if speaker_id.lower() not in visible_keys and name.lower() not in visible_keys:
+            return persona
+    return None
 
 
 def gd_panelist_formulaic_meta_text(text: str, persona: dict[str, Any]) -> bool:

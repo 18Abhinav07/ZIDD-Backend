@@ -260,6 +260,42 @@ def test_school_activity_uses_only_canonical_school_projection(store):
     }
 
 
+def test_school_activity_recommendation_uses_taxonomy_label(store):
+    _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
+    profile = store._profile("test_user")
+    profile["primary_motive"] = "school"
+    profile["onboarding_completed_at"] = 1.0
+    _run(
+        store.upsert_learner_skill_profile(
+            user_id="test_user",
+            domain="school",
+            skill_id="grammar.sentence_order",
+            module_id="eng_c5_ch01",
+            task_type="school_rebuild_curriculum",
+            mastery=0.25,
+            readiness=0.35,
+            confidence=0.8,
+            attempts=2,
+            strengths_json=[],
+            gaps_json=["Put the words in a clear order."],
+            evidence_json={},
+            recommended_next_action="Try another sentence-order task.",
+            source_summary="Needs sentence-order practice.",
+        )
+    )
+
+    response = TestClient(app).get("/me/activity", headers=AUTH)
+
+    assert response.status_code == 200
+    recommendation = next(
+        item
+        for item in response.json()["recommendations"]
+        if item["kind"] == "school"
+    )
+    assert recommendation["title"] == "Review your focus areas"
+    assert recommendation["body"] == "Arrange words into a sentence"
+
+
 def test_school_activity_failure_preserves_career_projection(monkeypatch, store):
     _run(store.ensure_profile("test_user", name="Raptor", email="raptor@example.com"))
 

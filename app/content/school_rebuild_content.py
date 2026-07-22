@@ -28,6 +28,21 @@ _PRODUCTION_APPROVAL_STATUSES = frozenset(
 )
 
 
+def _contains_learner_model_answer_label(value: object) -> bool:
+    """Reject grading-language labels from the runtime learner payload."""
+
+    if isinstance(value, str):
+        return "model answer:" in value.casefold()
+    if isinstance(value, dict):
+        return any(
+            _contains_learner_model_answer_label(item)
+            for item in value.values()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_learner_model_answer_label(item) for item in value)
+    return False
+
+
 def qa_live_content_enabled() -> bool:
     explicit = os.environ.get("SCHOOL_REBUILD_ALLOW_QA_CONTENT")
     if explicit is not None:
@@ -82,6 +97,10 @@ def load_live_chapter_file(path: Path) -> LiveSchoolChapter:
             )
     if chapter.calculated_runtime_sha256() != chapter.runtime_sha256:
         raise ValueError(f"live_chapter_runtime_hash_mismatch:{chapter.chapter_id}")
+    if _contains_learner_model_answer_label(chapter.runtime_dict()):
+        raise ValueError(
+            f"live_chapter_learner_model_answer_label:{chapter.chapter_id}"
+        )
     return chapter
 
 

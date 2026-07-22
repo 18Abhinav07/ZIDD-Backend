@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.services import school_rebuild_placement as placement
+from app.services.school_rebuild_curriculum import is_curriculum_unlocked
 from app.services.school_rebuild_profile import (
     school_catalog_selection_available,
     school_coach_identity,
@@ -175,15 +176,22 @@ def _live_processing_request(
         candidates.append(session["processing_answer_request"])
     if isinstance(fallback, dict):
         candidates.append(fallback)
-    return next(
-        (
-            request
-            for request in candidates
-            if request.get("status") == PROCESSING_ANSWER_STATUS
-            and request.get("stale") is False
-        ),
-        None,
-    )
+    for request in candidates:
+        if request.get("status") != PROCESSING_ANSWER_STATUS:
+            continue
+        if request.get("stale") is False:
+            return request
+
+        # A queued or leased evaluator job remains the authoritative owner of
+        # the learner's answer even after the UI's short stale-read threshold.
+        # Do not expose the activity for a second submission until the durable
+        # job has reached a terminal/deadline state and released its request.
+        if (
+            request.get("evaluation_job_status") in {"queued", "running"}
+            and request.get("evaluation_job_within_deadline") is True
+        ):
+            return request
+    return None
 
 
 def _awaiting_evaluation_state(
@@ -486,10 +494,15 @@ def school_state_for_profile(
             display_name=str(display_name),
         )
 
-    if active_curriculum_session and (
-        report_status,
-        report_unlock,
-    ) != ("target_ready", "target_unlocked"):
+    curriculum_access_unlocked = is_curriculum_unlocked(
+        placement_report=placement_report,
+        recap_session=active_recap_session,
+    )
+    effective_report_unlock = (
+        "target_unlocked" if curriculum_access_unlocked else report_unlock
+    )
+
+    if active_curriculum_session and not curriculum_access_unlocked:
         return _recoverable_state(
             profile_fields=profile_fields,
             display_name=str(display_name),
@@ -566,7 +579,7 @@ def school_state_for_profile(
             flow=linked_flow,
             session=active_linked_session,
             placement_status=report_status,
-            unlock_state=report_unlock,
+            unlock_state=effective_report_unlock,
             evaluated_class_no=evaluated_class_no,
             active_learning_class_no=target_class_no,
             next_action_url=f"/school/{linked_flow}/{linked_session_id}",
@@ -583,7 +596,7 @@ def school_state_for_profile(
             flow="curriculum",
             session=active_curriculum_session,
             placement_status=report_status,
-            unlock_state=report_unlock,
+            unlock_state=effective_report_unlock,
             evaluated_class_no=evaluated_class_no,
             active_learning_class_no=target_class_no,
             next_action_url=curriculum_url,
@@ -597,7 +610,7 @@ def school_state_for_profile(
             flow="recap",
             session=active_recap_session,
             placement_status=report_status,
-            unlock_state=report_unlock,
+            unlock_state=effective_report_unlock,
             evaluated_class_no=evaluated_class_no,
             active_learning_class_no=_optional_int(
                 recap_state.get("active_learning_class_no")
@@ -638,7 +651,7 @@ def school_state_for_profile(
             active_flow=linked_flow,
             active_session_id=linked_session_id,
             placement_status=report_status,
-            unlock_state=report_unlock,
+            unlock_state=effective_report_unlock,
             evaluated_class_no=evaluated_class_no,
             active_learning_class_no=target_class_no,
             status="in_progress",
@@ -673,7 +686,7 @@ def school_state_for_profile(
                     active_flow="curriculum",
                     active_session_id=curriculum_session_id,
                     placement_status=report_status,
-                    unlock_state=report_unlock,
+                    unlock_state=effective_report_unlock,
                     evaluated_class_no=evaluated_class_no,
                     active_learning_class_no=target_class_no,
                     status="needs_action",
@@ -695,7 +708,7 @@ def school_state_for_profile(
                 active_flow="masterclass",
                 active_session_id=curriculum_session_id,
                 placement_status=report_status,
-                unlock_state=report_unlock,
+                unlock_state=effective_report_unlock,
                 evaluated_class_no=evaluated_class_no,
                 active_learning_class_no=target_class_no,
                 status="needs_action",
@@ -821,7 +834,7 @@ def school_state_for_profile(
             recap_state.get("active_learning_class_no")
         )
         placement_status = report_status
-        unlock_state = report_unlock
+        unlock_state = effective_report_unlock
 
         if recap_status == "complete":
             return _build_state(
@@ -974,7 +987,7 @@ def school_state_for_profile(
         )
 
     if placement_session and placement_report:
-        if report_unlock == "target_unlocked":
+        if curriculum_access_unlocked:
             return _build_state(
                 **profile_fields,
                 active_flow="curriculum",
@@ -1019,7 +1032,7 @@ def school_state_for_profile(
             active_flow="placement_report",
             active_session_id=_session_id(placement_session),
             placement_status=report_status,
-            unlock_state=report_unlock,
+            unlock_state=effective_report_unlock,
             evaluated_class_no=evaluated_class_no,
             active_learning_class_no=_optional_int(
                 placement_report.get("active_learning_class_no")

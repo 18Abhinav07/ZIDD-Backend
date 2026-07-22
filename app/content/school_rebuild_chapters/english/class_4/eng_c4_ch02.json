@@ -4,13 +4,14 @@
     "Canonical Python manifests rebuilt; all 88 Class 4 levels validate with exactly four transfer and four review variants.",
     "Owned scenario-distinctness contract passed for all 12 chapters; launch passages are unique and remain below semantic-overlap thresholds.",
     "Official NCERT source-map anchors, locked skill IDs, and companion-only non-text modalities were retained; no textbook body text or questions were copied.",
-    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence."
+    "Originality self-review covered 264 added certifying activities from grounded Zidd scenarios, with strict-open rubrics closed against visible evidence.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "4ced586c6b201603495cc2f3d0f833038a96c4ca8ced63533b8544dfb82d124b",
+  "runtime_sha256": "d77e3cd05db9742b847479769254faf68a38d61e8b37a08d180c935b1fa626cd",
   "chapter_id": "eng_c4_ch02",
   "chapter_no": 2,
-  "content_version": "2026-07-16.1",
-  "certification_version": "2026-07-16.1",
+  "content_version": "2026-07-16.1.semantic-evidence-v1",
+  "certification_version": "2026-07-16.1.semantic-evidence-v1",
   "title": "The Tinkling Bells",
   "book_title": "Santoor",
   "unit_title": "My Land",
@@ -2186,7 +2187,7 @@
               "model_answer": "Kabir receives the wrong item, records the parcel label as evidence, and contacts the seller to exchange the clock for the ordered music box."
             },
             {
-              "teaching_block": "The Tinkling Bells, Track the bell journey: Follow the same object, mark each change of place or owner, and keep the cause-to-result chain in the summary. For the temple chime review, Use the visible passage to practise sequence story events and summarize a changing problem; include all 5 details.",
+              "teaching_block": "The Tinkling Bells, Track the bell journey: Follow the same object, mark each change of place or owner, and keep the cause-to-result chain in the summary. For the temple chime review, Use the visible passage to practise sequence story events and summarize a changing problem; include all 4 details.",
               "passage": "A visitor borrows a small display chime for a school talk, signs the loan card, wraps it after the talk, and returns it before closing time.",
               "prompt": "Give the event chain and its main idea in two sentences.",
               "options": [],
@@ -2220,13 +2221,7 @@
                 },
                 {
                   "id": "eng_c4_ch02:bells_event_chain:review:2:requirement-4",
-                  "description": "States responsible borrowing as the main idea. Required detail 1: responsible borrowing.",
-                  "required": true,
-                  "min_quality": 0.7
-                },
-                {
-                  "id": "eng_c4_ch02:bells_event_chain:review:2:requirement-5",
-                  "description": "States responsible borrowing as the main idea. Required detail 2: returns it.",
+                  "description": "States responsible borrowing as the main idea.",
                   "required": true,
                   "min_quality": 0.7
                 }
@@ -2261,18 +2256,10 @@
                 },
                 {
                   "id": "eng_c4_ch02:bells_event_chain:review:2:requirement-4",
-                  "description": "States responsible borrowing as the main idea. Required detail 1: responsible borrowing.",
+                  "description": "States responsible borrowing as the main idea.",
                   "any_of": [
                     "responsible borrowing",
                     "dependable borrowing"
-                  ]
-                },
-                {
-                  "id": "eng_c4_ch02:bells_event_chain:review:2:requirement-5",
-                  "description": "States responsible borrowing as the main idea. Required detail 2: returns it.",
-                  "any_of": [
-                    "returns it",
-                    "brings back it"
                   ]
                 }
               ],
@@ -2285,8 +2272,7 @@
                 "eng_c4_ch02:bells_event_chain:review:2:requirement-1",
                 "eng_c4_ch02:bells_event_chain:review:2:requirement-2",
                 "eng_c4_ch02:bells_event_chain:review:2:requirement-3",
-                "eng_c4_ch02:bells_event_chain:review:2:requirement-4",
-                "eng_c4_ch02:bells_event_chain:review:2:requirement-5"
+                "eng_c4_ch02:bells_event_chain:review:2:requirement-4"
               ],
               "schema_version": "school-activity-v2",
               "episode_kind": "comprehension_studio",
@@ -2316,17 +2302,7 @@
                 "returns it time",
                 "responsible borrowing",
                 "dependable borrowing",
-                "returns it",
-                "brings back it",
-                "visitor",
-                "records",
-                "protects",
-                "chime",
-                "returns",
-                "chain",
-                "shows",
-                "responsible",
-                "borrowing"
+                "visitor"
               ],
               "model_answer": "The visitor records the loan, protects the chime after using it, and returns it on time. The chain shows responsible borrowing."
             },
@@ -16405,7 +16381,8 @@
           "quiet",
           "unclear"
         ],
-        "model_answer": "Muffled means made quiet or unclear. Without the cloth, the bell sounded clear and reached people across the room."
+        "model_answer": "Muffled means made quiet or unclear. Without the cloth, the bell sounded clear and reached people across the room.",
+        "semantic_evidence_policy": "traceable_rubric"
       },
       {
         "item_id": "eng_c4_ch02:assessment-a-core:assessment:5",
@@ -18040,6 +18017,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-gpt5-school-class4",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

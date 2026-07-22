@@ -4,9 +4,11 @@ import inspect
 import re
 from dataclasses import replace
 from pathlib import Path
-from uuid import uuid4
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.api import school_rebuild_routes as rebuild_routes
@@ -14,6 +16,7 @@ from app.db import repo
 from app.main import app
 from app.services import school_rebuild_curriculum as curriculum
 from app.services import school_rebuild_placement as placement
+from app.services.school.authority import RETIRED_SCHOOL_ENDPOINT_SPECS
 from app.services.school_rebuild_profile import SchoolRebuildProfileIn
 from app.services.school_rebuild_state import school_state_for_profile
 
@@ -41,6 +44,7 @@ SCHOOL_STATE_KEYS = {
     "parent_message",
     "blocked_reason",
 }
+SCHOOL_STATE_ENDPOINT_KEYS = SCHOOL_STATE_KEYS | {"available"}
 
 CANONICAL_SCHOOL_NEXT_ACTIONS = {
     "sign_in",
@@ -72,21 +76,26 @@ CANONICAL_SCHOOL_ROUTES = {
     "/school/placement/start",
     "/school/placement/report",
     "/school/placement/{session_id}",
+    "/school/placement/{session_id}/answers/{activity_id}/status",
     "/school/placement/{session_id}/abandon",
     "/school/placement/{session_id}/answer",
     "/school/recap/start",
     "/school/recap",
     "/school/recap/{session_id}",
+    "/school/recap/{session_id}/answers/{activity_id}/status",
     "/school/recap/{session_id}/answer",
     "/school/curriculum",
     "/school/curriculum/start",
     "/school/curriculum/{session_id}",
+    "/school/curriculum/{session_id}/workspace",
+    "/school/curriculum/{session_id}/answers/{activity_id}/status",
     "/school/curriculum/{session_id}/abandon-masterclass",
     "/school/curriculum/{session_id}/answer",
     "/school/curriculum/{session_id}/continue-after-support-cap",
     "/school/curriculum/{session_id}/masterclass/start",
     "/school/curriculum/{session_id}/resume-masterclass",
     "/school/masterclass/{session_id}",
+    "/school/masterclass/{session_id}/answers/{activity_id}/status",
     "/school/masterclass/{session_id}/answer",
     "/school/support/{session_id}",
 }
@@ -109,7 +118,10 @@ def test_school_runtime_registers_only_canonical_rebuild_routes():
     }
 
     assert openapi_paths == CANONICAL_SCHOOL_ROUTES
-    assert runtime_paths == CANONICAL_SCHOOL_ROUTES
+    retired_paths = {
+        path for _method, path, _endpoint_name in RETIRED_SCHOOL_ENDPOINT_SPECS
+    }
+    assert runtime_paths == CANONICAL_SCHOOL_ROUTES | retired_paths
 
 
 def test_school_state_without_bearer_returns_backend_owned_sign_in_state(monkeypatch):
@@ -119,7 +131,8 @@ def test_school_state_without_bearer_returns_backend_owned_sign_in_state(monkeyp
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == SCHOOL_STATE_KEYS
+    assert set(body) == SCHOOL_STATE_ENDPOINT_KEYS
+    assert body["available"] is True
     assert body["profile_status"] == "unauthenticated"
     assert body["status"] == "needs_action"
     assert body["next_action"] == "sign_in"
@@ -138,6 +151,58 @@ def _assert_next_action_contract(body):
         assert body["next_action"] in body["allowed_next_actions"]
     else:
         assert body["next_action"] is None
+
+
+def test_curriculum_workspace_reuses_one_canonical_context_for_state_and_session(
+    monkeypatch,
+):
+    session_id = str(uuid4())
+    row = {
+        "session_id": session_id,
+        "api_version": "rebuild",
+        "flow_type": "curriculum",
+        "state_json": {"status": "active"},
+    }
+
+    async def canonical_context(_request):
+        return {
+            "curriculum_session": row,
+            "school_profile": {"profile_version_id": "profile-fixture"},
+            "placement_report": {"report_id": "report-fixture"},
+        }
+
+    async def canonical_state(_request):
+        return {"active_session_id": session_id, "status": "in_progress"}
+
+    monkeypatch.setattr(
+        rebuild_routes,
+        "_canonical_school_read_context",
+        canonical_context,
+    )
+    monkeypatch.setattr(rebuild_routes, "school_state", canonical_state)
+    monkeypatch.setattr(rebuild_routes, "_matches_report_lineage", lambda *_args: True)
+    monkeypatch.setattr(
+        curriculum,
+        "public_curriculum_response",
+        lambda _row: {"session_id": session_id, "current_activity": None},
+    )
+    monkeypatch.setattr(
+        rebuild_routes,
+        "_public_session_with_school_coach",
+        lambda payload, _row: payload,
+    )
+
+    response = _run(
+        rebuild_routes.get_school_curriculum_workspace(
+            UUID(session_id),
+            SimpleNamespace(),
+        )
+    )
+
+    assert response == {
+        "state": {"active_session_id": session_id, "status": "in_progress"},
+        "session": {"session_id": session_id, "current_activity": None},
+    }
 
 
 def _valid_school_profile():
@@ -204,6 +269,22 @@ def _save_and_complete_school_profile(client, profile=None):
     completed = _complete_school_profile_draft(client, saved.json()["draft"])
     assert completed.status_code == 200, completed.text
     return completed.json()["profile"]
+
+
+def test_school_onboarding_completion_returns_authoritative_placement_handoff(store):
+    _run(store.ensure_profile("test_user", name="Open Assets", email="open@example.com"))
+    client = TestClient(app)
+    saved = _save_school_profile_draft(client, _valid_school_profile())
+    assert saved.status_code == 200, saved.text
+
+    completed = _complete_school_profile_draft(client, saved.json()["draft"])
+
+    assert completed.status_code == 200, completed.text
+    body = completed.json()
+    assert body["profile_status"] == "complete"
+    assert body["next_action"] == "start_placement"
+    assert body["next_action_url"] == "/school/readiness"
+    assert body["allowed_next_actions"] == ["start_placement"]
 
 
 def _state_school_profile():
@@ -366,7 +447,7 @@ STATE_CASES = [
             "active_flow": "curriculum",
             "status": "awaiting_evaluation",
             "next_action": None,
-            "next_action_url": "/school/classes/3/chapters/eng_c3_ch01",
+            "next_action_url": "/school/session/curriculum-v1",
             "allowed_next_actions": [],
             "blocked_reason": "answer_evaluation_in_progress",
         },
@@ -708,7 +789,7 @@ def test_processing_answer_precedes_active_linked_session(
     assert body["active_flow"] == "curriculum"
     assert body["status"] == "awaiting_evaluation"
     assert body["next_action"] is None
-    assert body["next_action_url"] == "/school/classes/3/chapters/eng_c3_ch01"
+    assert body["next_action_url"] == "/school/session/curriculum-v1"
     assert body["allowed_next_actions"] == []
     assert body["blocked_reason"] == "answer_evaluation_in_progress"
 
@@ -806,7 +887,107 @@ def test_processing_answer_lock_uses_active_flow_and_releases_at_stale_boundary(
     assert stale["next_action_url"] == expected_url
 
 
-def test_school_state_snapshot_exposes_processing_age_for_every_active_flow():
+def test_stale_queued_evaluator_job_keeps_masterclass_pending_until_deadline():
+    masterclass = _linked_session("masterclass")
+    masterclass["processing_answer_request"] = {
+        "status": "processing",
+        "age_seconds": 180.0,
+        "stale": True,
+        "evaluation_job_status": "queued",
+        "evaluation_job_within_deadline": True,
+    }
+
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=_placement_session("complete"),
+        placement_report=_placement_report("target_ready"),
+        active_curriculum_session=_curriculum_session(),
+        active_masterclass_session=masterclass,
+    )
+
+    assert body["active_flow"] == "masterclass"
+    assert body["status"] == "awaiting_evaluation"
+    assert body["next_action"] is None
+    assert body["blocked_reason"] == "answer_evaluation_in_progress"
+
+
+@pytest.mark.asyncio
+async def test_stale_durable_evaluator_job_returns_in_progress_not_conflict():
+    class ReplayStore:
+        def __init__(self):
+            self.reconcile_calls = 0
+            self.request = {
+                "status": "processing",
+                "answer_hash": "first-answer",
+                "stale": True,
+                "evaluation_job_status": "queued",
+                "evaluation_job_within_deadline": True,
+            }
+
+        async def get_school_answer_request(self, *_args):
+            return dict(self.request)
+
+        async def reconcile_expired_school_evaluation_jobs(self):
+            self.reconcile_calls += 1
+
+    store = ReplayStore()
+
+    with pytest.raises(HTTPException) as exc:
+        await rebuild_routes._school_answer_replay(
+            store,
+            user_id="learner-1",
+            session_id="session-1",
+            activity_id="activity-1",
+            answer_hash="second-answer",
+            conflict_code="masterclass_answer_conflict",
+            in_progress_code="masterclass_answer_in_progress",
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == {"code": "masterclass_answer_in_progress"}
+    assert store.reconcile_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_expired_durable_evaluator_job_is_released_before_retry():
+    class ReplayStore:
+        def __init__(self):
+            self.reconcile_calls = 0
+            self.request = {
+                "status": "processing",
+                "answer_hash": "first-answer",
+                "stale": True,
+                "evaluation_job_status": "queued",
+                "evaluation_job_within_deadline": False,
+            }
+
+        async def get_school_answer_request(self, *_args):
+            return dict(self.request)
+
+        async def reconcile_expired_school_evaluation_jobs(self):
+            self.reconcile_calls += 1
+            self.request["status"] = "failed"
+            self.request["stale"] = False
+            self.request["evaluation_job_status"] = "failed"
+
+    store = ReplayStore()
+
+    replay = await rebuild_routes._school_answer_replay(
+        store,
+        user_id="learner-1",
+        session_id="session-1",
+        activity_id="activity-1",
+        answer_hash="second-answer",
+        conflict_code="masterclass_answer_conflict",
+        in_progress_code="masterclass_answer_in_progress",
+    )
+
+    assert replay is None
+    assert store.reconcile_calls == 1
+
+
+def test_school_state_snapshot_exposes_evaluation_liveness_for_every_active_flow():
     class SnapshotResult:
         def __init__(self, row):
             self.row = row
@@ -853,14 +1034,72 @@ def test_school_state_snapshot_exposes_processing_age_for_every_active_flow():
     snapshot = _run(repo.get_school_state_snapshot(session, "user-1"))
 
     assert session.params["stale_seconds"] == 120
+    assert session.params["evaluation_deadline_seconds"] == 600
     assert "age_seconds" in session.statement
     assert "stale" in session.statement
+    assert "evaluation_job_status" in session.statement
+    assert "evaluation_job_within_deadline" in session.statement
     for key in ("placement_session", "recap_session", "curriculum_session"):
         assert snapshot[key]["processing_answer_request"]["age_seconds"] == 20.0
         assert snapshot[key]["processing_answer_request"]["stale"] is False
     assert snapshot["linked_sessions"][0]["processing_answer_request"][
         "activity_id"
     ] == "masterclass-activity"
+
+
+def test_recovered_linked_session_keeps_its_snapshot_processing_marker():
+    recovered = {
+        "session_id": "masterclass-v1",
+        "flow_type": "masterclass",
+        "status": "active",
+    }
+    matching_request = {
+        "session_id": "masterclass-v1",
+        "activity_id": "masterclass-activity",
+        "status": "processing",
+        "stale": False,
+    }
+    other_request = {
+        "session_id": "other-session",
+        "activity_id": "other-activity",
+        "status": "processing",
+        "stale": False,
+    }
+
+    attached = rebuild_routes._with_snapshot_processing_answer_request(
+        recovered,
+        [other_request, matching_request],
+    )
+
+    assert attached["processing_answer_request"] == matching_request
+    assert "processing_answer_request" not in recovered
+
+
+def test_school_state_locks_a_recovered_masterclass_while_its_answer_is_processing(
+    store,
+):
+    """A linked semantic answer must remain visibly pending after lineage recovery."""
+
+    _seed_endpoint_state(store, "linked-masterclass-in-progress")
+    _run(
+        store.claim_school_answer_request(
+            "test_user",
+            "masterclass-v1",
+            "masterclass-activity",
+            "answer-hash",
+        )
+    )
+
+    response = TestClient(app).get("/school/state", headers=AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active_flow"] == "masterclass"
+    assert body["active_session_id"] == "masterclass-v1"
+    assert body["status"] == "awaiting_evaluation"
+    assert body["next_action"] is None
+    assert body["allowed_next_actions"] == []
+    assert body["blocked_reason"] == "answer_evaluation_in_progress"
 
 
 @pytest.mark.parametrize(
@@ -948,39 +1187,45 @@ def test_completed_recap_does_not_override_non_target_report_in_pure_state():
     assert body["allowed_next_actions"] == ["retry"]
 
 
-@pytest.mark.parametrize(
-    ("placement_status", "unlock_state", "should_normalize"),
-    [
-        pytest.param("below_target", "recap_required", True, id="below-target"),
-        pytest.param(
-            "insufficient_evidence", "locked", False, id="insufficient-evidence"
-        ),
-        pytest.param("abandoned", "locked", False, id="abandoned"),
-        pytest.param("below_target", "locked", False, id="invalid-transition"),
-        pytest.param(
-            "target_ready", "target_unlocked", False, id="already-target-ready"
-        ),
-    ],
-)
-def test_recap_unlock_normalizes_only_below_target_report(
-    placement_status, unlock_state, should_normalize
-):
+def test_completed_matching_recap_unlocks_without_rewriting_placement_verdict():
     report = _placement_report("below_target")
-    report["placement_status"] = placement_status
-    report["unlock_state"] = unlock_state
-
-    result = rebuild_routes._state_report_with_recap_unlock(
-        placement_report=report,
-        recap_session=_recap_session("complete"),
-        curriculum_session=_curriculum_session(),
+    recap = _recap_session("complete")
+    recap.update(
+        {
+            "profile_version_id": report["profile_version_id"],
+            "source_placement_report_id": report["report_id"],
+        }
+    )
+    recap["state_json"].update(
+        {
+            "profile_version_id": report["profile_version_id"],
+            "source_placement_report_id": report["report_id"],
+        }
     )
 
-    if should_normalize:
-        assert result is not report
-        assert result["placement_status"] == "target_ready"
-        assert result["unlock_state"] == "target_unlocked"
-    else:
-        assert result is report
+    body = school_state_for_profile(
+        learner_profile={"name": "Mira"},
+        school_profile=_state_school_profile(),
+        placement_session=_placement_session("complete"),
+        placement_report=report,
+        active_recap_session=recap,
+        active_curriculum_session=_curriculum_session(),
+    )
+
+    assert body["placement_status"] == "below_target"
+    assert body["unlock_state"] == "target_unlocked"
+    assert body["active_flow"] == "curriculum"
+    assert body["next_action"] == "resume_curriculum"
+
+
+def test_curriculum_unlock_rejects_unverified_target_unlocked_report():
+    report = _placement_report("below_target")
+    report["unlock_state"] = "target_unlocked"
+
+    assert not curriculum.is_curriculum_unlocked(
+        placement_report=report,
+        recap_session=None,
+    )
 
 
 def test_inactive_masterclass_does_not_relabel_active_support():
@@ -1462,11 +1707,35 @@ def _seed_endpoint_state(store, scenario):
         profile_version_id="old-profile",
         updated_at=3.0,
     )
+    current_child_state = {"status": "active"}
+    if flow_type == "masterclass":
+        level = curriculum_state["levels"][0]
+        interrupt = {
+            "interrupt_id": "fixture-masterclass-interrupt",
+            "level_id": level["level_id"],
+            "skill_ids": list(level["skill_ids"]),
+            "masterclass_session_id": child_id,
+        }
+        curriculum_state.update(
+            status="paused_for_masterclass",
+            phase="paused_for_masterclass",
+            active_interrupt=interrupt,
+        )
+        curriculum_row["status"] = "paused_for_masterclass"
+        curriculum_row["state_json"] = curriculum_state
+        current_child_state = {
+            "status": "active",
+            "curriculum_session_id": "curriculum-v1",
+            "chapter_id": curriculum_state["chapter"]["chapter_id"],
+            "interrupt_id": interrupt["interrupt_id"],
+            "level_id": interrupt["level_id"],
+            "skill_ids": list(interrupt["skill_ids"]),
+        }
     current_child = _stored_session(
         session_id=child_id,
         flow_type=flow_type,
         status="active",
-        state_json={"status": "active"},
+        state_json=current_child_state,
         linked_session_id="curriculum-v1",
         source_report_id="report-v1",
         updated_at=2.0,
@@ -1497,7 +1766,8 @@ def test_get_school_state_recovers_malformed_placement_state(
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == SCHOOL_STATE_KEYS
+    assert set(body) == SCHOOL_STATE_ENDPOINT_KEYS
+    assert body["available"] is True
     assert body["status"] == "recoverable_error"
     assert body["unlock_state"] == "locked"
     assert body["allowed_next_actions"] == ["retry"]
@@ -1512,7 +1782,8 @@ def test_get_school_state_recovers_malformed_curriculum_chapter(store):
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == SCHOOL_STATE_KEYS
+    assert set(body) == SCHOOL_STATE_ENDPOINT_KEYS
+    assert body["available"] is True
     assert body["status"] == "recoverable_error"
     assert body["unlock_state"] == "locked"
     assert body["allowed_next_actions"] == ["retry"]
@@ -1527,7 +1798,8 @@ def test_get_school_state_recovers_malformed_curriculum_levels(store):
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == SCHOOL_STATE_KEYS
+    assert set(body) == SCHOOL_STATE_ENDPOINT_KEYS
+    assert body["available"] is True
     assert body["status"] == "recoverable_error"
     assert body["unlock_state"] == "locked"
     assert body["allowed_next_actions"] == ["retry"]
@@ -1610,7 +1882,8 @@ def test_get_school_state_is_exhaustive_for_persisted_states(store, scenario, ex
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == SCHOOL_STATE_KEYS
+    assert set(body) == SCHOOL_STATE_ENDPOINT_KEYS
+    assert body["available"] is True
     assert body.items() >= expected.items()
     _assert_next_action_contract(body)
     assert body["learner_message"]
@@ -1621,103 +1894,28 @@ def test_get_school_state_is_exhaustive_for_persisted_states(store, scenario, ex
         assert body["placement_status"] != "target_ready"
 
 
-def test_school_state_overlaps_only_independent_reads_without_changing_output(
+def test_school_state_reads_one_consistent_snapshot_without_changing_output(
     store,
     monkeypatch,
 ):
     _seed_endpoint_state(store, "curriculum-in-progress")
     client = TestClient(app)
     expected = client.get("/school/state", headers=AUTH).json()
+    original_snapshot = store.get_school_state_snapshot
+    observed_user_ids: list[str] = []
 
-    active_reads = set()
-    observed_overlaps = set()
+    async def traced_snapshot(user_id: str):
+        observed_user_ids.append(user_id)
+        await asyncio.sleep(0.01)
+        return await original_snapshot(user_id)
 
-    async def delayed(name, operation, *args, **kwargs):
-        active_reads.add(name)
-        try:
-            await asyncio.sleep(0.02)
-            observed_overlaps.add(frozenset(active_reads))
-            return await operation(*args, **kwargs)
-        finally:
-            active_reads.remove(name)
-
-    original_learner = rebuild_routes._learner_profile
-    original_profile = store.get_active_school_profile_version
-    original_placement = rebuild_routes._latest_placement_for_profile
-    original_report = rebuild_routes._latest_placement_report_for_profile
-    original_recap = rebuild_routes._latest_recap_for_profile
-    original_curriculum = rebuild_routes._latest_curriculum_for_profile
-    original_linked = rebuild_routes._current_linked_school_sessions
-    original_processing = rebuild_routes._processing_curriculum_answer_request
-
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_learner_profile",
-        lambda *args, **kwargs: delayed(
-            "learner", original_learner, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        store,
-        "get_active_school_profile_version",
-        lambda *args, **kwargs: delayed(
-            "profile", original_profile, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_latest_placement_for_profile",
-        lambda *args, **kwargs: delayed(
-            "placement", original_placement, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_latest_placement_report_for_profile",
-        lambda *args, **kwargs: delayed(
-            "placement_report", original_report, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_latest_recap_for_profile",
-        lambda *args, **kwargs: delayed(
-            "recap", original_recap, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_latest_curriculum_for_profile",
-        lambda *args, **kwargs: delayed(
-            "curriculum", original_curriculum, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_current_linked_school_sessions",
-        lambda *args, **kwargs: delayed(
-            "linked_sessions", original_linked, *args, **kwargs
-        ),
-    )
-    monkeypatch.setattr(
-        rebuild_routes,
-        "_processing_curriculum_answer_request",
-        lambda *args, **kwargs: delayed(
-            "processing_answer", original_processing, *args, **kwargs
-        ),
-    )
+    monkeypatch.setattr(store, "get_school_state_snapshot", traced_snapshot)
 
     response = client.get("/school/state", headers=AUTH)
 
     assert response.status_code == 200
     assert response.json() == expected
-    for expected_pair in (
-        {"learner", "profile"},
-        {"placement", "placement_report"},
-        {"recap", "curriculum"},
-        {"linked_sessions", "processing_answer"},
-    ):
-        assert any(expected_pair <= overlap for overlap in observed_overlaps)
+    assert observed_user_ids == ["test_user"]
 
 
 def test_school_state_routes_profile_missing_to_school_onboarding(store):

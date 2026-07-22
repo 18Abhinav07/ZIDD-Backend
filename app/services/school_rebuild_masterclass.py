@@ -314,6 +314,41 @@ def persistence_attempt_type(evaluation: dict[str, Any]) -> str:
     return "masterclass"
 
 
+def _masterclass_failure_feedback(
+    answer_evaluation: dict[str, Any],
+) -> str:
+    """Turn a failed rubric dimension into a safe learner-facing next step.
+
+    Rubric aliases and model answers are deliberately excluded from this
+    mapping. The learner needs to know which kind of thinking is missing, not
+    the hidden phrase that would satisfy a scorer.
+    """
+
+    missing_ids = {
+        str(criterion.get("id") or "").casefold()
+        for criterion in answer_evaluation.get("criteria") or []
+        if isinstance(criterion, dict) and criterion.get("met") is not True
+    }
+    if any("pattern" in criterion_id for criterion_id in missing_ids):
+        return (
+            "Look at the printed words again. Say which letters stay the same "
+            "and which part changes."
+        )
+    if any("meaning" in criterion_id for criterion_id in missing_ids):
+        return (
+            "Read both sentences again. State what each word means in that "
+            "context before giving your own example."
+        )
+    if any("original_usage" in criterion_id for criterion_id in missing_ids):
+        return (
+            "Add one fresh, complete sentence that makes the target word's "
+            "meaning clear."
+        )
+    if "clear_relevant_english" in missing_ids:
+        return "Use one or two complete English sentences that answer each part."
+    return "Use the teaching clue, then try a fresh focused example."
+
+
 def apply_masterclass_answer(
     state: dict[str, Any],
     *,
@@ -369,7 +404,7 @@ def apply_masterclass_answer(
                 if correct and final_phase
                 else "Good. Now show the same skill with less support."
                 if correct
-                else "Not yet. Use the teaching clue, then try a fresh focused example."
+                else _masterclass_failure_feedback(answer_evaluation)
             ),
         },
     }
@@ -733,6 +768,70 @@ def _deep_phase_activity_pools(
             key=lambda item: -len(item.get("assessed_skill_ids") or []),
         )
 
+    def exhausted_compatible_variants(
+        teaching_phase: str,
+        *,
+        canonical_check_kind: str,
+    ) -> bool:
+        """Whether a phase has valid authored variants, all already seen."""
+
+        step = steps_by_phase.get(teaching_phase) or {}
+        canonical_fingerprint = _activity_fingerprint(
+            dict(checks.get(canonical_check_kind) or {})
+        )
+        for item in step.get("variant_pool") or []:
+            if not isinstance(item, dict):
+                continue
+            candidate = dict(item)
+            variant_id = str(candidate.get("variant_id") or "")
+            if (
+                not variant_id
+                or _activity_fingerprint(candidate) == canonical_fingerprint
+                or not _authored_check_is_evaluable(candidate)
+                or variant_id not in used_variant_ids
+            ):
+                continue
+            if _scoped_authored_activity(candidate, trigger_skill_ids) is not None:
+                return True
+        return False
+
+    def certifying_pool(
+        remediation_phase: str,
+        teaching_phase: str,
+        check_kind: str,
+    ) -> list[dict[str, Any]]:
+        variants = fresh_variants(
+            teaching_phase,
+            canonical_check_kind=check_kind,
+        )
+        if variants:
+            return variants
+        # A repeat masterclass can legitimately exhaust the phase-specific
+        # variants. Reuse the distinct authored canonical check for retention
+        # only in that case; never turn absent or incompatible content into a
+        # fake fallback.
+        if not exhausted_compatible_variants(
+            teaching_phase,
+            canonical_check_kind=check_kind,
+        ):
+            return []
+        fallback = prepared_check(check_kind)
+        if fallback is None:
+            return []
+        trigger_activity_id = str(
+            (curriculum_state.get("active_interrupt") or {}).get(
+                "return_activity_id"
+            )
+            or ""
+        )
+        if fallback["source_activity_id"] in trigger_activity_id:
+            return []
+        return [{
+            **fallback,
+            "retention_fallback": "canonical_check_after_variant_exhaustion",
+            "remediation_phase": remediation_phase,
+        }]
+
     supported = []
     for check_kind in ("masterclass", "bridge"):
         if support_check := prepared_check(check_kind):
@@ -754,13 +853,15 @@ def _deep_phase_activity_pools(
     pools = {
         "supported_practice": supported,
         "misconception_rebuild": misconception_rebuild,
-        "independent_check": fresh_variants(
+        "independent_check": certifying_pool(
+            "independent_check",
             "independent_application",
-            canonical_check_kind="independent_check",
+            "independent_check",
         ),
-        "transfer_check": fresh_variants(
+        "transfer_check": certifying_pool(
+            "transfer_check",
             "transfer",
-            canonical_check_kind="transfer_check",
+            "transfer_check",
         ),
     }
     for remediation_phase, activities in pools.items():

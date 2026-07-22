@@ -3,13 +3,14 @@
   "review_evidence": [
     "Manifest compilation verified four authored transfer and four authored review variants per level against the official NCERT structural map.",
     "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
-    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16."
+    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "0862b1b119219e2df03f1ed51cda6c17ee94cc71b3e2a2a0c7667041481343e7",
+  "runtime_sha256": "48fcfc2195df5903fa5ca9aed59a13907efdf79fd212df54a000e96046a2f41f",
   "chapter_id": "eng_c2_ch09",
   "chapter_no": 9,
-  "content_version": "2026-07-15.class2-deep.2",
-  "certification_version": "school-class2-deep-v2",
+  "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+  "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
   "title": "My Name",
   "book_title": "Mridang",
   "unit_title": "Life Around Us",
@@ -427,9 +428,9 @@
             "reva",
             "opens",
             "science",
-            "recognises"
+            "sees"
           ],
-          "model_answer": "Reva opens the science box and recognises the magnet from its red and blue ends."
+          "model_answer": "Reva opens the science box, sees the red and blue ends, and recognises the magnet."
         },
         "independent_check": {
           "teaching_block": "A search chain follows the same question from one helper to the next; a memory trigger must be linked to a stated sight or action. Work on your own with the visible details for this task: Retell the search and explain what wakes Kabir's memory.",
@@ -1254,7 +1255,7 @@
                 "games",
                 "teacher"
               ],
-              "model_answer": "Pema asks the games teacher, opens the safety cupboard, and remembers helmet when she sees the hard round cap."
+              "model_answer": "Pema asks the games teacher, opens the safety cupboard, sees the hard round cap, and remembers helmet."
             },
             {
               "teaching_block": "A search chain follows the same question from one helper to the next; a memory trigger must be linked to a stated sight or action. Work on your own with the visible details for this task: Explain the route clue and the memory clue as two clear parts.",
@@ -1849,7 +1850,7 @@
                 "visits",
                 "music"
               ],
-              "model_answer": "Dev asks his cousin, visits the music room, and remembers lullaby after reading the labelled card."
+              "model_answer": "Dev asks his cousin, visits the music room, reads the labelled card, and remembers lullaby."
             },
             {
               "teaching_block": "A search chain follows the same question from one helper to the next; a memory trigger must be linked to a stated sight or action. Check what you remember with the visible details for this task: Tell how the search moves and why it ends.",
@@ -1943,7 +1944,7 @@
                 "grandfather's",
                 "balcony"
               ],
-              "model_answer": "Sana follows her grandfather's balcony clue and remembers marigold from the orange flower and label."
+              "model_answer": "Sana follows her grandfather's balcony clue, sees the orange flower and label, and remembers marigold."
             },
             {
               "teaching_block": "A search chain follows the same question from one helper to the next; a memory trigger must be linked to a stated sight or action. Check what you remember with the visible details for this task: Explain the helper, clue, and memory result in order.",
@@ -2056,13 +2057,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c2_ch09:search_and_memory_chain:review:4:requirement_1",
-                  "description": "Required part 1: tiny green shoot",
+                  "description": "Names the gardener action.",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch09:search_and_memory_chain:review:4:requirement_2",
-                  "description": "Required part 2: gardener shows Leena",
+                  "description": "States the shown clue.",
                   "required": true,
                   "min_quality": 0.75
                 },
@@ -2082,18 +2083,18 @@
               "concept_slots": [
                 {
                   "id": "eng_c2_ch09:search_and_memory_chain:review:4:requirement_1",
-                  "description": "Required part 1: tiny green shoot",
+                  "description": "Names the gardener action.",
                   "any_of": [
-                    "tiny green shoot",
-                    "the tiny green shoot"
+                    "gardener shows Leena",
+                    "gardener makes clear Leena"
                   ]
                 },
                 {
                   "id": "eng_c2_ch09:search_and_memory_chain:review:4:requirement_2",
-                  "description": "Required part 2: gardener shows Leena",
+                  "description": "States the shown clue.",
                   "any_of": [
-                    "gardener shows Leena",
-                    "gardener makes clear Leena"
+                    "tiny green shoot",
+                    "the tiny green shoot"
                   ]
                 },
                 {
@@ -2146,7 +2147,7 @@
                 "leena",
                 "tiny"
               ],
-              "model_answer": "The gardener shows Leena the tiny green shoot, and that soil clue helps her remember sprout."
+              "model_answer": "The gardener shows Leena the tiny green shoot; that soil clue helps her remember sprout."
             }
           ]
         }
@@ -4289,7 +4290,8 @@
             "flower",
             "picture"
           ],
-          "model_answer": "The word is memory. The flower picture brought back a memory."
+          "model_answer": "The word is memory. The flower picture brought back a memory.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "This text-only spelling lab uses visible letters and chunks; it never claims to assess pronunciation or listening. Use the same skill in this new setting for the task: Build the new spelling and use it for a person.",
@@ -4737,7 +4739,8 @@
                 "flower",
                 "picture"
               ],
-              "model_answer": "The word is memory. The flower picture brought back a memory."
+              "model_answer": "The word is memory. The flower picture brought back a memory.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "This text-only spelling lab uses visible letters and chunks; it never claims to assess pronunciation or listening. Work on your own with the visible details for this task: Unscramble the word and write a complete identity sentence.",
@@ -9584,7 +9587,8 @@
             "belong",
             "blue"
           ],
-          "model_answer": "My name is Juhi, and I belong to Blue House."
+          "model_answer": "My name is Juhi, and I belong to Blue House.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "revision_level_3": {
           "teaching_block": "Now use every needed clue for write a clear identity introduction. Write the whole answer in your own words.",
@@ -11665,7 +11669,7 @@
           "checks",
           "shelf"
         ],
-        "model_answer": "Uma asks the guard, checks the shelf, and remembers atlas from the book of maps."
+        "model_answer": "Uma asks the guard, checks the shelf, finds the book of maps, and remembers atlas."
       },
       {
         "item_id": "eng_c2_ch09:assessment_form_1:assessment:11",
@@ -12185,7 +12189,7 @@
           "aunt",
           "visits"
         ],
-        "model_answer": "Veer asks his aunt, visits the balcony, and remembers basil from the plant label."
+        "model_answer": "Veer asks his aunt, visits the balcony, reads the plant label, and remembers basil."
       },
       {
         "item_id": "eng_c2_ch09:assessment_form_2:assessment:11",
@@ -12326,6 +12330,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }

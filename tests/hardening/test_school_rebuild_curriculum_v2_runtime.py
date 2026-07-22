@@ -294,7 +294,50 @@ def test_v2_runs_all_nine_phases_and_starts_the_next_level():
     assert _current(state)["phase"] == "connect"
 
 
-def test_target_ready_learner_starts_each_level_with_an_authored_challenge():
+def test_target_ready_learner_starts_each_unseen_level_with_teaching():
+    state = curriculum.new_curriculum_state(
+        school_profile=_target_ready_profile(),
+        placement_report=_target_ready_report(),
+        recap_session=None,
+    )
+
+    for level in state["levels"]:
+        assert level["entry_mode"] == "full_cycle"
+        assert level["v2_step_index"] == 0
+
+    activity = _current(state)
+    assert activity["phase"] == "connect"
+    assert activity["entry_mode"] == "full_cycle"
+
+
+def test_confirmed_matching_strength_can_start_one_level_at_an_authored_challenge():
+    state = curriculum.new_curriculum_state(
+        school_profile=_target_ready_profile(),
+        placement_report=_target_ready_report(),
+        recap_session=None,
+        learning_memory={
+            "strong_skills": [
+                {"skill_id": "reading.sentence_comprehension"},
+                {"skill_id": "reading.inference_reason"},
+                {"skill_id": "reading.paragraph_main_idea"},
+            ]
+        },
+    )
+
+    first = state["levels"][0]
+    second = state["levels"][1]
+    independent_index = next(
+        index
+        for index, step in enumerate(first["teaching_steps"])
+        if step["phase"] == "independent_application"
+    )
+    assert first["entry_mode"] == "challenge"
+    assert first["v2_step_index"] == independent_index
+    assert second["entry_mode"] == "full_cycle"
+    assert second["v2_step_index"] == 0
+
+
+def test_unattempted_legacy_challenge_state_returns_to_authored_teaching():
     state = curriculum.new_curriculum_state(
         school_profile=_target_ready_profile(),
         placement_report=_target_ready_report(),
@@ -307,20 +350,31 @@ def test_target_ready_learner_starts_each_level_with_an_authored_challenge():
             for index, step in enumerate(level["teaching_steps"])
             if step["phase"] == "independent_application"
         )
-        assert level["entry_mode"] == "challenge"
-        assert level["v2_step_index"] == independent_index
+        level["entry_mode"] = "challenge"
+        level["v2_step_index"] = independent_index
+        level["current_step"] = "independent_application"
 
-    activity = _current(state)
-    assert activity["phase"] == "independent_application"
-    assert activity["entry_mode"] == "challenge"
+    normalized = curriculum.normalize_curriculum_state(state)
+
+    for level in normalized["levels"]:
+        assert level["entry_mode"] == "full_cycle"
+        assert level["v2_step_index"] == 0
+        assert level["current_step"] == "connect"
 
 
-def test_active_gap_suppresses_target_ready_challenge_for_affected_level():
+def test_active_gap_suppresses_prior_strength_challenge_for_affected_level():
     state = curriculum.new_curriculum_state(
         school_profile=_target_ready_profile(),
         placement_report=_target_ready_report(),
         recap_session=None,
         learning_memory={
+            "strong_skills": [
+                {"skill_id": "reading.sentence_comprehension"},
+                {"skill_id": "reading.inference_reason"},
+                {"skill_id": "reading.paragraph_main_idea"},
+                {"skill_id": "reading.word_meaning_context"},
+                {"skill_id": "vocab.chapter_word_usage"},
+            ],
             "active_gaps": [
                 {
                     "skill_id": "reading.inference_reason",
@@ -339,6 +393,9 @@ def test_active_gap_suppresses_target_ready_challenge_for_affected_level():
 
 def test_failed_entry_challenge_returns_to_full_teaching_before_support():
     state = _state()
+    state["learner_memory"] = {
+        "strong_skills": [{"skill_id": SKILL_ID}],
+    }
     level = state["levels"][0]
     level["entry_mode"] = "challenge"
     level["v2_step_index"] = PHASES.index("independent_application")
@@ -568,6 +625,34 @@ def test_chapter_check_rejects_duplicate_after_answer_transition():
 
     with pytest.raises(ValueError, match="chapter_assessment_fresh_form_unavailable"):
         _current(state)
+
+
+def test_chapter_check_allows_fresh_passage_with_shared_question_template():
+    state = _state()
+    first_item = {
+        **_choice_activity("chapter_check", 1, role="certifying"),
+        "item_id": "chapter-item-1",
+        "skill_ids": [SKILL_ID],
+    }
+    second_item = {
+        **_choice_activity("chapter_check", 2, role="certifying"),
+        "item_id": "chapter-item-2",
+        "skill_ids": [SKILL_ID],
+        "passage": "A new evidence card gives a different, unseen clue.",
+        "prompt": first_item["prompt"],
+    }
+    state["phase"] = "chapter_check"
+    state["chapter_assessment"] = {
+        "attempt_no": 1,
+        "selected_item_ids": ["chapter-item-1", "chapter-item-2"],
+        "current_index": 0,
+        "items": [first_item, second_item],
+        "responses": [],
+    }
+
+    state, _ = _answer_correctly(state)
+
+    assert _current(state)["item_id"] == "chapter-item-2"
 
 
 def test_singleton_selection_rejects_repeated_passage_and_prompt_fingerprints():
@@ -1402,6 +1487,25 @@ def test_experience_choice_is_checked_but_never_creates_skill_evidence():
     assert retry["variant"]["variant_id"] != activity["variant"]["variant_id"]
 
 
+def test_formative_choice_without_components_never_requires_or_creates_skill_evidence():
+    state = _advance_to_phase(_state(), "guided_practice")
+    guided_step = state["levels"][0]["teaching_steps"][4]
+    for variant in guided_step["variant_pool"]:
+        variant["evidence_role"] = "formative"
+        variant["knowledge_components"] = []
+
+    activity = _current(state)
+
+    assert activity["interaction_type"] == "single_choice"
+    assert activity["evidence_role"] == "formative"
+    assert activity["assessed_skill_ids"] == []
+
+    state, evaluation = _answer(state, activity["options"][1])
+
+    assert evaluation["skill_ids"] == []
+    assert state["hot_session_memory"]["skill_streaks"] == {}
+
+
 def test_support_selection_targets_the_failed_misconception_before_pool_order():
     state = _advance_to_phase(_state(), "independent_application")
     level = state["levels"][0]
@@ -1450,7 +1554,7 @@ def test_support_selection_targets_the_failed_misconception_before_pool_order():
     assert next_targeted["activity_id"] != targeted["activity_id"]
 
 
-def test_active_misconception_without_fresh_tagged_support_fails_closed():
+def test_active_misconception_without_fresh_tagged_support_pauses_for_masterclass():
     state = _advance_to_phase(_state(), "independent_application")
     level = state["levels"][0]
     step = level["teaching_steps"][level["v2_step_index"]]
@@ -1463,12 +1567,101 @@ def test_active_misconception_without_fresh_tagged_support_fails_closed():
     state, evaluation = _wrong_current_answer(state)
 
     assert evaluation["misconception_tags"] == ["context_ignored"]
-    assert state["status"] == "active"
-    assert state["phase"] == "needs_support"
-    assert state["support_required"]["reason"] == (
-        "authored_targeted_support_unavailable"
-    )
+    assert state["status"] == "paused_for_masterclass"
+    assert state["phase"] == "paused_for_masterclass"
+    assert state["active_interrupt"] == {
+        "runtime_contract": "v2",
+        "interrupt_id": "detail-level-1:masterclass:1",
+        "level_id": "detail-level-1",
+        "focus": "Use a detail as evidence",
+        "skill_ids": [SKILL_ID],
+        "trigger_count": 1,
+        "return_step": "independent_application",
+        "return_step_index": state["levels"][0]["v2_step_index"],
+        "trigger_activity_id": state["levels"][0]["v2_trigger_activity_id"],
+        "return_activity_id": state["levels"][0]["v2_return_activity_id"],
+        "masterclass_session_id": None,
+    }
+    assert state.get("support_required") is None
     assert curriculum._current_activity(state) is None
+
+
+def test_legacy_exhausted_support_snapshot_reconciles_to_masterclass():
+    state = _advance_to_phase(_state(), "independent_application")
+    trigger = _current(state)
+    level = state["levels"][0]
+    level["v2_support_mode"] = "bridge"
+    level["v2_trigger_activity_id"] = trigger["activity_id"]
+    level["v2_return_activity_id"] = trigger["activity_id"]
+    level["v2_trigger_skill_ids"] = trigger["assessed_skill_ids"]
+    level["v2_active_misconception_tags"] = ["context_ignored"]
+    state.update({
+        "status": "active",
+        "phase": "needs_support",
+        "active_interrupt": None,
+        "support_required": {
+            "reason": "authored_targeted_support_unavailable",
+            "attempt_count": 2,
+            "weak_skill_ids": [SKILL_ID],
+            "remediation_skill_ids": [SKILL_ID],
+            "focus": "Use a detail as evidence",
+        },
+    })
+
+    normalized = curriculum.normalize_curriculum_state(state)
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    for candidate in (normalized, reconciled):
+        assert candidate["status"] == "paused_for_masterclass"
+        assert candidate["phase"] == "paused_for_masterclass"
+        assert candidate["active_interrupt"]["runtime_contract"] == "v2"
+        assert candidate["active_interrupt"]["return_activity_id"] == trigger[
+            "activity_id"
+        ]
+        assert candidate.get("support_required") is None
+    assert repair == {
+        "kind": "v2_exhausted_support_masterclass",
+        "reason": "authored_targeted_support_unavailable",
+    }
+
+
+def test_legacy_exhausted_support_snapshot_persists_the_masterclass_cap():
+    state = _advance_to_phase(_state(), "independent_application")
+    trigger = _current(state)
+    level = state["levels"][0]
+    level["v2_support_mode"] = "bridge"
+    level["v2_trigger_activity_id"] = trigger["activity_id"]
+    level["v2_return_activity_id"] = trigger["activity_id"]
+    level["v2_trigger_skill_ids"] = trigger["assessed_skill_ids"]
+    level["v2_active_misconception_tags"] = ["context_ignored"]
+    state.update({
+        "status": "active",
+        "phase": "needs_support",
+        "active_interrupt": None,
+        "interrupt_counts": {
+            level["level_id"]: curriculum.MAX_MASTERCLASS_INTERRUPTS_PER_LEVEL,
+        },
+        "support_required": {
+            "reason": "authored_targeted_support_unavailable",
+            "attempt_count": 2,
+            "weak_skill_ids": [SKILL_ID],
+            "remediation_skill_ids": [SKILL_ID],
+            "focus": "Use a detail as evidence",
+        },
+    })
+
+    normalized = curriculum.normalize_curriculum_state(state)
+    reconciled, repair = curriculum.reconcile_curriculum_state(state)
+
+    for candidate in (normalized, reconciled):
+        assert candidate["status"] == "active"
+        assert candidate["phase"] == "capped_support"
+        assert candidate["active_interrupt"] is None
+        assert candidate["support_required"]["reason"] == "masterclass_cap_exceeded"
+    assert repair == {
+        "kind": "v2_exhausted_support_cap",
+        "reason": "authored_targeted_support_unavailable",
+    }
 
 
 def test_wrong_options_route_to_distinct_authored_remediation_targets():
@@ -2038,7 +2231,7 @@ def test_legacy_empty_tag_glanced_support_uses_stored_trigger_terms():
     assert "pair of socks" not in support["passage"].casefold()
 
 
-def test_legacy_empty_tag_glanced_support_without_fresh_semantic_source_pauses_safely():
+def test_legacy_empty_tag_glanced_support_without_fresh_semantic_source_starts_masterclass():
     state, level_index = _chapter_words_review_state()
     trigger = _current(state)
     level = state["levels"][level_index]
@@ -2072,18 +2265,17 @@ def test_legacy_empty_tag_glanced_support_without_fresh_semantic_source_pauses_s
         {"session_id": "session-1", "status": "active", "state_json": state}
     )
 
-    assert normalized["status"] == "active"
-    assert normalized["phase"] == "needs_support"
-    assert normalized["support_required"]["reason"] == (
-        "authored_source_semantic_support_unavailable"
-    )
+    assert normalized["status"] == "paused_for_masterclass"
+    assert normalized["phase"] == "paused_for_masterclass"
+    assert normalized["active_interrupt"]["runtime_contract"] == "v2"
+    assert normalized.get("support_required") is None
     assert curriculum._current_activity(normalized) is None
     assert public["current_activity"] is None
-    assert public["next_action"]["action"] == "view_support_plan"
+    assert public["active_interrupt"]["level_id"] == level["level_id"]
     assert "socks" not in json.dumps(public).casefold()
 
 
-def test_legacy_empty_tag_support_pool_exhaustion_pauses_safely():
+def test_legacy_empty_tag_support_pool_exhaustion_starts_masterclass():
     state, level_index = _chapter_words_review_state()
     trigger = _current(state)
     level = state["levels"][level_index]
@@ -2123,13 +2315,14 @@ def test_legacy_empty_tag_support_pool_exhaustion_pauses_safely():
 
     normalized = curriculum.normalize_curriculum_state(state)
 
-    assert normalized["status"] == "active"
-    assert normalized["phase"] == "needs_support"
-    assert normalized["support_required"]["reason"] == "authored_support_pool_exhausted"
+    assert normalized["status"] == "paused_for_masterclass"
+    assert normalized["phase"] == "paused_for_masterclass"
+    assert normalized["active_interrupt"]["runtime_contract"] == "v2"
+    assert normalized.get("support_required") is None
     assert curriculum._current_activity(normalized) is None
 
 
-def test_tagged_support_pool_exhaustion_pauses_public_read_safely():
+def test_tagged_support_pool_exhaustion_starts_masterclass_on_public_read():
     state, level_index = _chapter_words_review_state()
     trigger = _current(state)
     level = state["levels"][level_index]
@@ -2171,11 +2364,12 @@ def test_tagged_support_pool_exhaustion_pauses_public_read_safely():
         {"session_id": "session-1", "status": "active", "state_json": normalized}
     )
 
-    assert normalized["status"] == "active"
-    assert normalized["phase"] == "needs_support"
-    assert normalized["support_required"]["reason"] == "authored_support_pool_exhausted"
+    assert normalized["status"] == "paused_for_masterclass"
+    assert normalized["phase"] == "paused_for_masterclass"
+    assert normalized["active_interrupt"]["runtime_contract"] == "v2"
+    assert normalized.get("support_required") is None
     assert public["current_activity"] is None
-    assert public["next_action"]["action"] == "view_support_plan"
+    assert public["active_interrupt"]["level_id"] == level["level_id"]
 
 
 def test_v5_reconciliation_backfills_source_support_for_existing_snapshot():

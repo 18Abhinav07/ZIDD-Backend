@@ -7,6 +7,14 @@ from collections import defaultdict
 from collections.abc import Iterable
 from difflib import SequenceMatcher
 from itertools import combinations
+from typing import Any
+
+from app.content.school.content_schema import SchoolRubricEvaluation
+from app.services.school.evaluator_contract import (
+    OPEN_RUBRIC_SCHEMA_VERSION,
+    school_open_context_from_activity,
+    validate_school_open_evaluation,
+)
 
 
 _STAGE_NAMES = (
@@ -226,6 +234,119 @@ def _strict_open_issues(activity, *, context: str) -> list[str]:
     return issues
 
 
+def _field_value(value: object, field_name: str, default: Any = None) -> Any:
+    if isinstance(value, dict):
+        return value.get(field_name, default)
+    return getattr(value, field_name, default)
+
+
+def _strict_open_runtime_issues(
+    activity,
+    *,
+    context: str,
+    skill_ids: Iterable[str],
+) -> list[str]:
+    """Verify that an authored model answer survives the production evaluator."""
+
+    if getattr(activity, "grading_mode", None) != "strict_open_rubric":
+        return []
+
+    model_answer = str(getattr(activity, "model_answer", "") or "").strip()
+    rubric_criteria = tuple(getattr(activity, "rubric_criteria", None) or ())
+    if not model_answer or not rubric_criteria:
+        # Schema validation owns malformed strict-open contracts. This quality
+        # gate validates fully authored contracts with their actual evaluator.
+        return []
+
+    criterion_payloads = [
+        {
+            "id": str(_field_value(criterion, "id", "")).strip(),
+            "required": bool(_field_value(criterion, "required", True)),
+            "min_quality": float(_field_value(criterion, "min_quality", 0.6)),
+        }
+        for criterion in rubric_criteria
+    ]
+    if any(not criterion["id"] for criterion in criterion_payloads):
+        return []
+
+    concept_slot_payloads = [
+        {
+            "id": str(_field_value(slot, "id", "")).strip(),
+            "description": str(_field_value(slot, "description", "")).strip(),
+            "any_of": list(_field_value(slot, "any_of", ()) or ()),
+        }
+        for slot in (getattr(activity, "concept_slots", None) or ())
+    ]
+    activity_id = (
+        getattr(activity, "variant_id", None)
+        or getattr(activity, "item_id", None)
+        or f"quality:{context}"
+    )
+    activity_payload = {
+        "activity_id": str(activity_id),
+        "grading_mode": "strict_open_rubric",
+        "passage": str(getattr(activity, "passage", "") or ""),
+        "prompt": str(getattr(activity, "prompt", "") or ""),
+        "skill_ids": list(skill_ids),
+        "rubric_criteria": criterion_payloads,
+        "pass_score": float(getattr(activity, "pass_score", 0.8) or 0.8),
+        "certifying_language": getattr(activity, "certifying_language", None),
+        "concept_slots": concept_slot_payloads,
+        "ordered_concept_slot_ids": list(
+            getattr(activity, "ordered_concept_slot_ids", None) or ()
+        ),
+        "actor_action_receiver_slot_ids": list(
+            getattr(activity, "actor_action_receiver_slot_ids", None) or ()
+        ),
+        "forbidden_phrases": list(
+            getattr(activity, "forbidden_phrases", None) or ()
+        ),
+        "relevance_terms": list(getattr(activity, "relevance_terms", None) or ()),
+        "semantic_validator_id": getattr(activity, "semantic_validator_id", None),
+        "semantic_evidence_policy": getattr(
+            activity, "semantic_evidence_policy", None
+        ),
+    }
+    try:
+        evaluation = SchoolRubricEvaluation(
+            schema_version=OPEN_RUBRIC_SCHEMA_VERSION,
+            item_id=activity_payload["activity_id"],
+            skill_ids=tuple(activity_payload["skill_ids"]),
+            score=1.0,
+            confidence=1.0,
+            language_detected="en",
+            criteria=tuple(
+                {
+                    "id": criterion["id"],
+                    "met": True,
+                    "quality": 1.0,
+                    "evidence_quote": model_answer,
+                }
+                for criterion in criterion_payloads
+            ),
+            misconception_tags=(),
+            blockers=(),
+            needs_human_review=False,
+            feedback_to_learner="Recorded.",
+        )
+        validated = validate_school_open_evaluation(
+            evaluation,
+            context=school_open_context_from_activity(
+                activity_payload,
+                model_answer,
+            ),
+        )
+    except (TypeError, ValueError) as exc:
+        return [
+            "strict_open_model_runtime_contract_error:"
+            f"{context}:{type(exc).__name__}:{exc}"
+        ]
+    return [
+        f"strict_open_model_runtime_blocker:{context}:{blocker}"
+        for blocker in validated.effective_blockers
+    ]
+
+
 def _activity_quality_issues(
     activity,
     *,
@@ -250,6 +371,13 @@ def _activity_quality_issues(
     if _is_brittle_constructed_exact_answer(activity, skill_ids):
         issues.append(f"brittle_constructed_exact_answer:{context}")
     issues.extend(_strict_open_issues(activity, context=context))
+    issues.extend(
+        _strict_open_runtime_issues(
+            activity,
+            context=context,
+            skill_ids=skill_ids,
+        )
+    )
     return issues
 
 

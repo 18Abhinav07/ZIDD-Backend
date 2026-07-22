@@ -88,17 +88,18 @@ LEVELS: list[dict[str, Any]] = [
                     "Transfer the example-and-repair chain to the classroom.",
                     "The table is messy, one pupil models sorting into the reuse tray, and the group follows by sorting its scraps.",
                     [
-                        evidence("States the paper-scrap problem.", "scraps cover", "table is messy"),
-                        evidence("Links the model to group sorting.", "models sorting", "group follows", "reuse tray")
+                        evidence("States the paper-scrap problem.", "table is messy"),
+                        evidence("Shows the pupil's model.", "models sorting", "reuse tray"),
+                        evidence("Shows the group applying the model.", "group follows by sorting its scraps")
                     ],
                 ),
                 (
                     "A dripping tap leaves water on the floor. Arman closes it and places a warning sign; after seeing him, his friend wipes the wet patch.",
                     "Sequence the safety actions and explain the friend's response.",
-                    "Arman closes the tap and posts a warning, then his friend follows the example by wiping the wet floor.",
+                    "Arman closes the tap and posts a warning, then his friend wipes the wet floor and follows the example.",
                     [
                         evidence("Orders closing before wiping.", "closes the tap", "friend", "wiping"),
-                        evidence("Connects the example to the response.", "follows the example", "wet floor")
+                        evidence("Connects the example to the response.", "wet floor", "follows the example")
                     ],
                 ),
             ],
@@ -112,7 +113,7 @@ LEVELS: list[dict[str, Any]] = [
                     "Lina hides the bottle, sees the child use the waste station, and responsibly returns to sort her bottle.",
                     [
                         evidence("Orders hiding before watching.", "puts an empty bottle", "sees the child"),
-                        evidence("Names returning and sorting as repair.", "returns", "sort her bottle", "responsibly")
+                        evidence("Names returning and sorting as repair.", "responsibly", "returns", "sort her bottle")
                     ],
                 ),
                 (

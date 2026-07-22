@@ -171,13 +171,16 @@ def test_school_recap_wrong_guided_answer_opens_bridge_support(store):
     assert body["last_feedback"]["next_move"] == {
         "stage": "bridge",
         "focus": guided["focus"],
-        "strategy": "Answer the exact question first, then add the passage detail that makes the answer complete.",
+        "strategy": "Find the exact who, what, where, or when clue before forming the answer.",
     }
     assert body["current_activity"]["kind"] == "bridge"
     assert body["current_activity"]["module_id"] == guided["module_id"]
     teaching_block = body["current_activity"]["teaching_block"]
-    assert teaching_block.startswith("Question ke main words pakdo")
-    assert "Use this clue before trying again:" in teaching_block
+    assert teaching_block.startswith("Sentence mein pehle kaun ya kya hai")
+    assert teaching_block.endswith(
+        "Use this clue before trying again: "
+        "Find the exact who, what, where, or when clue before forming the answer."
+    )
     assert body["modules"][0]["status"] == "in_progress"
     _assert_no_hidden_keys(body)
 

@@ -3,13 +3,14 @@
   "review_evidence": [
     "Manifest compilation verified four authored transfer and four authored review variants per level against the official NCERT structural map.",
     "Originality, pedagogy, and Class 2 language checks passed, including pairwise semantic-distance and official-extract ten-word overlap checks.",
-    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16."
+    "Runtime hashes were regenerated from manifests; the focused chapter 8-13 checks and full Class 2 audit passed with zero issues on 2026-07-16.",
+    "Semantic-evidence policy correction: own-words and new-use tasks use traceable learner evidence while explicit semantic and ordered guards remain deterministic."
   ],
-  "runtime_sha256": "a683c77adf261f0cfe06996e5c5cbfab01982d394089b7010e7cb5e933e810e6",
+  "runtime_sha256": "b01312bf67f48cab02a36c98400fd21ef786652a9eecb62e448fc05b27cec8cc",
   "chapter_id": "eng_c2_ch12",
   "chapter_no": 12,
-  "content_version": "2026-07-15.class2-deep.2",
-  "certification_version": "school-class2-deep-v2",
+  "content_version": "2026-07-15.class2-deep.2.semantic-evidence-v1",
+  "certification_version": "school-class2-deep-v2.semantic-evidence-v1",
   "title": "Little Drops of Water",
   "book_title": "Mridang",
   "unit_title": "Harmony",
@@ -300,8 +301,8 @@
               "id": "eng_c2_ch12:small_steps_grow:revision_level_2:4:requirement_1",
               "description": "Required part 1: five",
               "any_of": [
-                "five separate spoonfuls",
-                "the five separate spoonfuls"
+                "Five separate spoonfuls",
+                "the Five separate spoonfuls"
               ]
             },
             {
@@ -348,12 +349,12 @@
             "eng_c2_ch12:small_part_result_gap"
           ],
           "relevance_terms": [
-            "mould",
-            "becomes",
-            "full",
-            "five"
+            "five",
+            "separate",
+            "spoonfuls",
+            "sand"
           ],
-          "model_answer": "The mould becomes full after five separate spoonfuls of sand are added."
+          "model_answer": "Five separate spoonfuls of sand are added until the mould becomes full."
         },
         "revision_level_3": {
           "teaching_block": "Now use every needed clue for track how small parts add up. Write the whole answer in your own words.",
@@ -562,13 +563,13 @@
             },
             {
               "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_3",
-              "description": "Required part 1: whole room safer",
+              "description": "Required part 1: completed checks",
               "required": true,
               "min_quality": 0.75
             },
             {
               "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_4",
-              "description": "Required part 2: completed checks",
+              "description": "Required part 2: whole room safer",
               "required": true,
               "min_quality": 0.75
             }
@@ -592,18 +593,18 @@
             },
             {
               "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_3",
-              "description": "Required part 1: whole room safer",
+              "description": "Required part 1: completed checks",
               "any_of": [
-                "whole room safer",
-                "the whole room safer"
+                "completed checks",
+                "it completed checks"
               ]
             },
             {
               "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_4",
-              "description": "Required part 2: completed checks",
+              "description": "Required part 2: whole room safer",
               "any_of": [
-                "completed checks",
-                "it completed checks"
+                "whole room safer",
+                "the whole room safer"
               ]
             }
           ],
@@ -1327,13 +1328,13 @@
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_3",
-                  "description": "Required part 1: whole room safer",
+                  "description": "Required part 1: completed checks",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_4",
-                  "description": "Required part 2: completed checks",
+                  "description": "Required part 2: whole room safer",
                   "required": true,
                   "min_quality": 0.75
                 }
@@ -1357,18 +1358,18 @@
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_3",
-                  "description": "Required part 1: whole room safer",
+                  "description": "Required part 1: completed checks",
                   "any_of": [
-                    "whole room safer",
-                    "the whole room safer"
+                    "completed checks",
+                    "it completed checks"
                   ]
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:1:requirement_4",
-                  "description": "Required part 2: completed checks",
+                  "description": "Required part 2: whole room safer",
                   "any_of": [
-                    "completed checks",
-                    "it completed checks"
+                    "whole room safer",
+                    "the whole room safer"
                   ]
                 }
               ],
@@ -1424,13 +1425,13 @@
               "rubric_criteria": [
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:2:requirement_1",
-                  "description": "Required part 1: spoonful of grain",
+                  "description": "Required part 1: each family contributes",
                   "required": true,
                   "min_quality": 0.75
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:2:requirement_2",
-                  "description": "Required part 2: each family contributes",
+                  "description": "Required part 2: spoonful of grain",
                   "required": true,
                   "min_quality": 0.75
                 },
@@ -1450,18 +1451,18 @@
               "concept_slots": [
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:2:requirement_1",
-                  "description": "Required part 1: spoonful of grain",
+                  "description": "Required part 1: each family contributes",
                   "any_of": [
-                    "spoonful of grain",
-                    "the spoonful of grain"
+                    "Each family contributes",
+                    "the Each family contributes"
                   ]
                 },
                 {
                   "id": "eng_c2_ch12:small_steps_grow:transfer:2:requirement_2",
-                  "description": "Required part 2: each family contributes",
+                  "description": "Required part 2: spoonful of grain",
                   "any_of": [
-                    "Each family contributes",
-                    "the Each family contributes"
+                    "spoonful of grain",
+                    "the spoonful of grain"
                   ]
                 },
                 {
@@ -2502,7 +2503,8 @@
             "enjoyable",
             "comfortable"
           ],
-          "model_answer": "Pleasant means enjoyable or comfortable. The cool reading corner is a pleasant place to rest."
+          "model_answer": "Pleasant means enjoyable or comfortable. The cool reading corner is a pleasant place to rest.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "transfer_check": {
           "teaching_block": "Amount words are proved by what they count, while kindness words are proved by a caring action and its effect. Use the same skill in this new setting for the task: Infer accumulate and transfer it to water drops.",
@@ -2958,7 +2960,8 @@
                 "enjoyable",
                 "comfortable"
               ],
-              "model_answer": "Pleasant means enjoyable or comfortable. The cool reading corner is a pleasant place to rest."
+              "model_answer": "Pleasant means enjoyable or comfortable. The cool reading corner is a pleasant place to rest.",
+              "semantic_evidence_policy": "traceable_rubric"
             },
             {
               "teaching_block": "Amount words are proved by what they count, while kindness words are proved by a caring action and its effect. Work on your own with the visible details for this task: Explain kindness and use it with a different visible action.",
@@ -4157,7 +4160,8 @@
             "peace",
             "friends"
           ],
-          "model_answer": "The corrected word is peace. The friends solve the problem in peace."
+          "model_answer": "The corrected word is peace. The friends solve the problem in peace.",
+          "semantic_evidence_policy": "traceable_rubric"
         },
         "independent_check": {
           "teaching_block": "Visible chunks and letters provide all spelling evidence; no sung, spoken, or listening performance is assessed. Work on your own with the visible details for this task: Complete the word and write one sentence.",
@@ -5214,7 +5218,8 @@
                 "neighbours",
                 "grain"
               ],
-              "model_answer": "The word is share. The neighbours share a bag of grain."
+              "model_answer": "The word is share. The neighbours share a bag of grain.",
+              "semantic_evidence_policy": "traceable_rubric"
             }
           ]
         },
@@ -12403,6 +12408,6 @@
       }
     ]
   },
-  "reviewed_by": "codex-school-class2-launch-depth-review",
-  "reviewed_at": "2026-07-16"
+  "reviewed_by": "Codex School semantic-evidence corpus review",
+  "reviewed_at": "2026-07-21T16:00:00+05:30"
 }
